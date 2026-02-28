@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_users_form_warehouse_restriction" model="ir.ui.view">
+        <field name="name">res.users.form.warehouse.restriction</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <!-- Add Allowed Warehouses field in the Inventory section of Access Rights -->
+            <xpath expr="//field[@name='default_warehouse_id']" position="after">
+                <field name="allowed_warehouse_ids" widget="many2many_tags"
+                       options="{'no_create': True}"
+                       placeholder="Leave empty = access to all warehouses"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
