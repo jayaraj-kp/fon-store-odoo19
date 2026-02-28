@@ -1,4 +1,7 @@
+import logging
 from odoo import models, fields, api
+
+_logger = logging.getLogger(__name__)
 
 
 class ResUsers(models.Model):
@@ -10,8 +13,6 @@ class ResUsers(models.Model):
         'user_id',
         'warehouse_id',
         string='Allowed Warehouses',
-        help='If set, this user can only perform transactions in these warehouses. '
-             'Leave empty to allow access to all warehouses.',
     )
 
     default_customer_tag_ids = fields.Many2many(
@@ -20,8 +21,6 @@ class ResUsers(models.Model):
         'user_id',
         'category_id',
         string='Default Customer Tags',
-        help='These tags will be automatically applied to any new customer '
-             'created by this user (in POS, Contacts, or anywhere).',
     )
 
     @property
@@ -33,7 +32,8 @@ class ResUsers(models.Model):
 
     @api.model
     def _load_pos_data_fields(self, config):
-        """Return only safe fields for POS - exclude our Many2many fields
-        that reference models not loaded in POS (causes IndexedDB crash)."""
-        # Return exactly what Odoo 19 core returns - nothing more
-        return ['id', 'name', 'partner_id', 'all_group_ids']
+        result = super()._load_pos_data_fields(config)
+        _logger.info("WHR_DEBUG _load_pos_data_fields called, original fields: %s", result)
+        safe = ['id', 'name', 'partner_id', 'all_group_ids']
+        _logger.info("WHR_DEBUG returning safe fields: %s", safe)
+        return safe
