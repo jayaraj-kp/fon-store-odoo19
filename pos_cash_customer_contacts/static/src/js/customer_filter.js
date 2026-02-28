@@ -9,54 +9,44 @@ patch(PartnerList.prototype, {
 
         const model = this.pos.models["res.partner"];
 
-        // DEBUG: understand the model structure
-        console.log("=== POS CASH CUSTOMER DEBUG ===");
-        console.log("model type:", typeof model);
-        console.log("model constructor:", model?.constructor?.name);
-        console.log("model keys:", Object.keys(model || {}).slice(0, 20));
-        console.log("has .filter:", typeof model?.filter);
-        console.log("has .find:", typeof model?.find);
-        console.log("has .getAll:", typeof model?.getAll);
-        console.log("has .records:", typeof model?.records);
-        console.log("has Symbol.iterator:", typeof model?.[Symbol.iterator]);
+        // Find Cash Customer — backend loads it (ID=11) along with its 3 children
+        const cashCustomer = model.find(
+            (p) => p.name === "Cash Customer" && !p.parent_id
+        );
 
-        // Try different ways to get all partners
-        let allPartners = [];
-        if (typeof model?.getAll === 'function') {
-            allPartners = model.getAll();
-            console.log("used getAll(), count:", allPartners.length);
-        } else if (typeof model?.filter === 'function') {
-            allPartners = model.filter(() => true);
-            console.log("used filter(true), count:", allPartners.length);
-        } else if (model?.records) {
-            allPartners = Object.values(model.records);
-            console.log("used .records, count:", allPartners.length);
+        // Store cash customer ID for use in getPartners()
+        this._cashCustomerId = cashCustomer ? cashCustomer.id : null;
+
+        console.log("[pos_cash_customer_contacts] cashCustomer id:", this._cashCustomerId);
+
+        // Set initialPartners to only Cash Customer's children
+        if (this._cashCustomerId) {
+            this.state.initialPartners = model.filter((p) => {
+                const pid = p.parent_id?.id ?? (Array.isArray(p.parent_id) ? p.parent_id[0] : p.parent_id);
+                return pid === this._cashCustomerId;
+            });
+        } else {
+            // Fallback: show only contacts that have any parent
+            this.state.initialPartners = model.filter((p) => !!p.parent_id);
         }
 
-        console.log("all partners:", allPartners.map(p => ({
-            id: p.id,
-            name: p.name,
-            parent_id: p.parent_id,
-            parent_name: p.parent_name,
-        })));
-
-        console.log("state.initialPartners count:", this.state.initialPartners?.length);
-        console.log("state.initialPartners:", this.state.initialPartners?.map(p => ({
-            id: p.id, name: p.name, parent_id: p.parent_id
-        })));
-        console.log("=== END DEBUG ===");
+        console.log("[pos_cash_customer_contacts] initialPartners:", this.state.initialPartners.map(p => p.name));
     },
 
     getPartners(partners) {
-        console.log("[pos_cash_customer_contacts] getPartners called with:", partners.length, "partners");
-        console.log("[pos_cash_customer_contacts] partners:", partners.map(p => ({id: p.id, name: p.name, parent_id: p.parent_id})));
-        return super.getPartners(partners);
+        // Called by the template — filter to only Cash Customer children
+        let filtered;
+        if (this._cashCustomerId) {
+            filtered = partners.filter((p) => {
+                const pid = p.parent_id?.id ?? (Array.isArray(p.parent_id) ? p.parent_id[0] : p.parent_id);
+                return pid === this._cashCustomerId;
+            });
+        } else {
+            filtered = partners.filter((p) => !!p.parent_id);
+        }
+
+        console.log("[pos_cash_customer_contacts] getPartners: in=", partners.length, "out=", filtered.length);
+
+        return super.getPartners(filtered);
     },
 });
-
-
-
-
-
-
-
