@@ -1,34 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ============================================
-         Inherit Base Partner Form (Edit Partner)
-         Add GSTIN to main form (Tags already exists)
-         ============================================ -->
     <record id="view_partner_pos_main_gstin" model="ir.ui.view">
         <field name="name">res.partner.pos.main.gstin</field>
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
 
-            <!-- Add GSTIN field after VAT field in right column -->
+            <!-- Add GSTIN field after VAT field in main Edit Partner form -->
             <field name="vat" position="after">
                 <field name="gstin"
                        placeholder="e.g. 29ABCDE1234F1Z5"
                        string="GSTIN"/>
             </field>
 
-            <!-- Add GSTIN + Tags inside the nested Create Contact sub-form -->
-            <!-- Target the comment(Notes) field inside child_ids sub-form -->
-            <xpath expr="//field[@name='child_ids']//field[@name='comment']" position="before">
-                <field name="gstin"
-                       string="GSTIN"
-                       placeholder="e.g. 29ABCDE1234F1Z5"/>
-                <field name="category_id"
-                       widget="many2many_tags"
-                       string="Tags"
-                       options="{'color_field': 'color'}"
-                       placeholder='e.g. "B2B", "VIP"'/>
+            <!-- Replace the Notes group inside Create Contact sub-form
+                 with a proper two-column layout:
+                 LEFT  → Notes
+                 RIGHT → GSTIN + Tags                          -->
+            <xpath expr="//field[@name='child_ids']//sheet/group[field[@name='comment']]"
+                   position="replace">
+                <group>
+                    <!-- LEFT column: Notes -->
+                    <group string="Notes">
+                        <field name="comment"
+                               options="{'height': 100}"
+                               placeholder="Internal notes..."
+                               nolabel="1"/>
+                    </group>
+
+                    <!-- RIGHT column: GSTIN + Tags -->
+                    <group>
+                        <field name="gstin"
+                               string="GSTIN"
+                               placeholder="e.g. 29ABCDE1234F1Z5"/>
+                        <field name="category_id"
+                               widget="many2many_tags"
+                               string="Tags"
+                               options="{'color_field': 'color'}"
+                               placeholder='e.g. "B2B", "VIP"'/>
+                    </group>
+
+                    <!-- Keep hidden fields intact -->
+                    <field name="company_id" invisible="1"/>
+                    <field name="lang" invisible="1"/>
+                </group>
             </xpath>
 
         </field>
