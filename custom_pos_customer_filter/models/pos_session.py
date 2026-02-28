@@ -4,12 +4,11 @@ from odoo import models
 class PosSession(models.Model):
     _inherit = 'pos.session'
 
-    def _loader_params_res_partner(self):
-        result = super()._loader_params_res_partner()
-
-        # Show ONLY child contacts (partners that have a parent)
-        # These are the contacts created inside the Contacts tab
-        result['search_params']['domain'] = [
+    def _get_pos_ui_res_partner(self, params):
+        # Override to show only child contacts + main customers
+        params['search_params']['domain'] = [
+            '|',
             ('parent_id', '!=', False),
+            ('customer_rank', '>', 0),
         ]
-        return result
+        return super()._get_pos_ui_res_partner(params)
