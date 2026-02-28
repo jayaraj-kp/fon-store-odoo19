@@ -1,21 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <record id="view_pos_config_warehouse_restriction" model="ir.ui.view">
-        <field name="name">pos.config.form.warehouse.restriction</field>
-        <field name="model">pos.config</field>
-        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
-        <field name="priority">99</field>
-        <field name="arch" type="xml">
-            <xpath expr="//field[@name='name']" position="after">
-                <group string="Warehouse Restriction">
-                    <!-- Use computed Many2one display field (not stored, won't load in POS) -->
-                    <field name="allowed_warehouse_display"
-                           options="{'no_create': True}"
-                           placeholder="Link this POS to a warehouse for user restrictions"/>
-                </group>
-            </xpath>
-        </field>
-    </record>
-
+    <!-- POS restriction is now handled automatically via picking_type_id.warehouse_id -->
+    <!-- No custom fields needed on pos.config - avoids POS IndexedDB errors -->
 </odoo>
