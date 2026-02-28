@@ -60,11 +60,20 @@ class ResPartner(models.Model):
         """
         Odoo 19: Called on initial POS session load to determine
         which partners to preload. Restrict to Cash Customer children.
+        Also include Cash Customer itself so JS can find it as parent reference.
         """
         _logger.info("[pos_cash_customer_contacts] _load_pos_data_domain CALLED")
         child_ids = self._get_cash_customer_child_ids()
         child_ids_set = set(child_ids)
+
+        # Include Cash Customer itself so JS model can reference it
+        cash_customer_id = self._get_cash_customer_id()
+        if cash_customer_id:
+            child_ids_set.add(cash_customer_id)
+
+        # Include current user's partner
         child_ids_set.add(self.env.user.partner_id.id)
+
         result = [('id', 'in', list(child_ids_set))]
         _logger.info("[pos_cash_customer_contacts] _load_pos_data_domain returning: %s", result)
         return result
