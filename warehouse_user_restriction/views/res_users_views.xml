@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- User Form: Add Allowed Warehouses field -->
+    <!-- =============================================
+         User Form: Add Allowed Warehouses field
+         ============================================= -->
     <record id="view_users_form_warehouse_restriction" model="ir.ui.view">
         <field name="name">res.users.form.warehouse.restriction</field>
         <field name="model">res.users</field>
@@ -19,19 +21,38 @@
         </field>
     </record>
 
-    <!-- Sale Order Form: Filter warehouse dropdown to only allowed warehouses -->
+    <!-- =============================================
+         Sale Order Form: Filter warehouse dropdown
+         ============================================= -->
     <record id="view_sale_order_warehouse_restriction" model="ir.ui.view">
         <field name="name">sale.order.form.warehouse.restriction</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="priority">99</field>
         <field name="arch" type="xml">
+            <xpath expr="//field[@name='warehouse_id']" position="before">
+                <field name="allowed_warehouse_domain" invisible="1"/>
+            </xpath>
             <xpath expr="//field[@name='warehouse_id']" position="attributes">
                 <attribute name="domain">[('id', 'in', allowed_warehouse_domain)]</attribute>
             </xpath>
-            <!-- Hidden field to carry allowed domain to the view -->
-            <xpath expr="//field[@name='warehouse_id']" position="before">
+        </field>
+    </record>
+
+    <!-- =============================================
+         Stock Picking Form: Filter operation type dropdown
+         ============================================= -->
+    <record id="view_stock_picking_warehouse_restriction" model="ir.ui.view">
+        <field name="name">stock.picking.form.warehouse.restriction</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='picking_type_id']" position="before">
                 <field name="allowed_warehouse_domain" invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='picking_type_id']" position="attributes">
+                <attribute name="domain">[('warehouse_id', 'in', allowed_warehouse_domain)]</attribute>
             </xpath>
         </field>
     </record>
