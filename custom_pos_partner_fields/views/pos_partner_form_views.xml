@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ========================================================
+         Inherit the POS Main Partner Form (Edit Partner - Image 2)
+         ======================================================== -->
+    <record id="view_partner_pos_form_gstin_tags" model="ir.ui.view">
+        <field name="name">res.partner.pos.form.gstin.tags</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="point_of_sale.res_partner_pos_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add GSTIN field after the 'street2' field in address block -->
+            <field name="street2" position="after">
+                <field name="gstin"
+                       placeholder="e.g. 29ABCDE1234F1Z5"
+                       string="GSTIN"/>
+            </field>
+
+            <!-- Add Tags field after the 'gstin' field -->
+            <field name="gstin" position="after">
+                <field name="category_id"
+                       widget="many2many_tags"
+                       string="Tags"
+                       placeholder='e.g. "B2B", "VIP"'/>
+            </field>
+
+        </field>
+    </record>
+
+
+    <!-- ========================================================
+         Inherit the POS "Create Contact" Sub-form (Image 1)
+         This view is used in the Contacts tab at the bottom
+         ======================================================== -->
+    <record id="view_partner_pos_contact_form_gstin_tags" model="ir.ui.view">
+        <field name="name">res.partner.pos.contact.form.gstin.tags</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="point_of_sale.res_partner_pos_contact_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add GSTIN after street2 -->
+            <field name="street2" position="after">
+                <field name="gstin"
+                       placeholder="e.g. 29ABCDE1234F1Z5"
+                       string="GSTIN"/>
+            </field>
+
+            <!-- Add Tags after GSTIN -->
+            <field name="gstin" position="after">
+                <field name="category_id"
+                       widget="many2many_tags"
+                       string="Tags"
+                       placeholder='e.g. "B2B", "VIP"'/>
+            </field>
+
+        </field>
+    </record>
+
+</odoo>
