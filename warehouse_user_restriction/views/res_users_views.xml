@@ -5,12 +5,16 @@
         <field name="name">res.users.form.warehouse.restriction</field>
         <field name="model">res.users</field>
         <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="priority">99</field>
         <field name="arch" type="xml">
-            <!-- Add Allowed Warehouses field in the Inventory section of Access Rights -->
-            <xpath expr="//field[@name='default_warehouse_id']" position="after">
-                <field name="allowed_warehouse_ids" widget="many2many_tags"
-                       options="{'no_create': True}"
-                       placeholder="Leave empty = access to all warehouses"/>
+            <!-- Add Allowed Warehouses at the end of the Access Rights tab -->
+            <xpath expr="//page[@name='access_rights']" position="inside">
+                <group string="Warehouse Restrictions">
+                    <field name="allowed_warehouse_ids"
+                           widget="many2many_tags"
+                           options="{'no_create': True}"
+                           placeholder="Leave empty = access to all warehouses"/>
+                </group>
             </xpath>
         </field>
     </record>
