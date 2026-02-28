@@ -1,0 +1,41 @@
+.partner-extra-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.extra-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.invoice-badge {
+    background: #e8f4fd;
+    color: #1a73e8;
+    border: 1px solid #aecbfa;
+}
+
+.date-badge {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #a8d5b5;
+}
+
+.count-badge {
+    background: #fef7e0;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+}
+
+.tag-badge {
+    background: #f3e8ff;
+    color: #7c3aed;
+    border: 1px solid #c4b5fd;
+}
