@@ -1,14 +1,13 @@
-from odoo import models
+from odoo import models, api
 
 
 class PosSession(models.Model):
     _inherit = 'pos.session'
 
-    def _get_pos_ui_res_partner(self, params):
-        # Override to show only child contacts + main customers
-        params['search_params']['domain'] = [
-            '|',
-            ('parent_id', '!=', False),
-            ('customer_rank', '>', 0),
+    def _pos_data_process(self, loaded_data):
+        super()._pos_data_process(loaded_data)
+        # Filter partners after loading
+        loaded_data['res.partner'] = [
+            p for p in loaded_data.get('res.partner', [])
+            if p.get('parent_id') or p.get('customer_rank', 0) > 0
         ]
-        return super()._get_pos_ui_res_partner(params)
