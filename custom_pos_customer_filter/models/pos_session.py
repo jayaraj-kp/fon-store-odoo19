@@ -6,9 +6,10 @@ class PosSession(models.Model):
 
     def _loader_params_res_partner(self):
         result = super()._loader_params_res_partner()
-        # Add filter: only load partners with customer_rank > 0
-        # This excludes pure vendors and non-customer contacts
-        result['search_params']['domain'].append(
-            ('customer_rank', '>', 0)
-        )
+
+        # Show ONLY child contacts (partners that have a parent)
+        # These are the contacts created inside the Contacts tab
+        result['search_params']['domain'] = [
+            ('parent_id', '!=', False),
+        ]
         return result
