@@ -2,7 +2,7 @@
 <odoo>
 
     <!-- =============================================
-         User Form: Add Allowed Warehouses + Default Customer Tags
+         User Form: Allowed Warehouses + Default Customer Tags
          ============================================= -->
     <record id="view_users_form_warehouse_restriction" model="ir.ui.view">
         <field name="name">res.users.form.warehouse.restriction</field>
@@ -41,24 +41,6 @@
             </xpath>
             <xpath expr="//field[@name='warehouse_id']" position="attributes">
                 <attribute name="domain">[('id', 'in', allowed_warehouse_domain)]</attribute>
-            </xpath>
-        </field>
-    </record>
-
-    <!-- =============================================
-         Purchase Order Form: Filter Deliver To dropdown
-         ============================================= -->
-    <record id="view_purchase_order_warehouse_restriction" model="ir.ui.view">
-        <field name="name">purchase.order.form.warehouse.restriction</field>
-        <field name="model">purchase.order</field>
-        <field name="inherit_id" ref="purchase.purchase_rfq"/>
-        <field name="priority">99</field>
-        <field name="arch" type="xml">
-            <xpath expr="//field[@name='picking_type_id']" position="before">
-                <field name="allowed_picking_type_domain" invisible="1"/>
-            </xpath>
-            <xpath expr="//field[@name='picking_type_id']" position="attributes">
-                <attribute name="domain">[('id', 'in', allowed_picking_type_domain)]</attribute>
             </xpath>
         </field>
     </record>

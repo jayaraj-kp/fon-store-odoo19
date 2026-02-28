@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Purchase Order Form: Filter Deliver To (picking_type_id) dropdown -->
+    <!-- Uses computed domain field injected as invisible field -->
+    <record id="view_purchase_order_warehouse_restriction" model="ir.ui.view">
+        <field name="name">purchase.order.form.warehouse.restriction</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_rfq"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <!-- Inject hidden domain field before the first visible field -->
+            <xpath expr="//field[@name='partner_id']" position="before">
+                <field name="allowed_picking_type_domain" invisible="1"/>
+            </xpath>
+            <!-- Try to find picking_type_id in Other Information tab -->
+            <xpath expr="//page[@name='other_info']//field[@name='picking_type_id']" position="attributes">
+                <attribute name="domain">[('id', 'in', allowed_picking_type_domain)]</attribute>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
