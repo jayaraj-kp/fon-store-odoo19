@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- User Form: Add Allowed Warehouses field -->
     <record id="view_users_form_warehouse_restriction" model="ir.ui.view">
         <field name="name">res.users.form.warehouse.restriction</field>
         <field name="model">res.users</field>
         <field name="inherit_id" ref="base.view_users_form"/>
         <field name="priority">99</field>
         <field name="arch" type="xml">
-            <!-- Add Allowed Warehouses at the end of the Access Rights tab -->
             <xpath expr="//page[@name='access_rights']" position="inside">
                 <group string="Warehouse Restrictions">
                     <field name="allowed_warehouse_ids"
@@ -15,6 +15,23 @@
                            options="{'no_create': True}"
                            placeholder="Leave empty = access to all warehouses"/>
                 </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Sale Order Form: Filter warehouse dropdown to only allowed warehouses -->
+    <record id="view_sale_order_warehouse_restriction" model="ir.ui.view">
+        <field name="name">sale.order.form.warehouse.restriction</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='warehouse_id']" position="attributes">
+                <attribute name="domain">[('id', 'in', allowed_warehouse_domain)]</attribute>
+            </xpath>
+            <!-- Hidden field to carry allowed domain to the view -->
+            <xpath expr="//field[@name='warehouse_id']" position="before">
+                <field name="allowed_warehouse_domain" invisible="1"/>
             </xpath>
         </field>
     </record>
