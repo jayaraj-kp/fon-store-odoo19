@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Add Linked Warehouse field to POS Config full settings form -->
     <record id="view_pos_config_warehouse_restriction" model="ir.ui.view">
         <field name="name">pos.config.form.warehouse.restriction</field>
         <field name="model">pos.config</field>
@@ -10,7 +9,8 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
                 <group string="Warehouse Restriction">
-                    <field name="allowed_warehouse_id"
+                    <!-- Use computed Many2one display field (not stored, won't load in POS) -->
+                    <field name="allowed_warehouse_display"
                            options="{'no_create': True}"
                            placeholder="Link this POS to a warehouse for user restrictions"/>
                 </group>
