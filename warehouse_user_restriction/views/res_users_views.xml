@@ -40,7 +40,8 @@
     </record>
 
     <!-- =============================================
-         Stock Picking Form: Filter operation type + locations
+         Stock Picking Form: Filter operation type,
+         source location and destination location
          ============================================= -->
     <record id="view_stock_picking_warehouse_restriction" model="ir.ui.view">
         <field name="name">stock.picking.form.warehouse.restriction</field>
@@ -48,23 +49,28 @@
         <field name="inherit_id" ref="stock.view_picking_form"/>
         <field name="priority">99</field>
         <field name="arch" type="xml">
+
             <!-- Inject hidden domain fields -->
             <xpath expr="//field[@name='picking_type_id']" position="before">
                 <field name="allowed_warehouse_domain" invisible="1"/>
-                <field name="allowed_location_ids" invisible="1"/>
+                <field name="allowed_location_domain" invisible="1"/>
             </xpath>
+
             <!-- Filter Operation Type by warehouse -->
             <xpath expr="//field[@name='picking_type_id']" position="attributes">
                 <attribute name="domain">[('warehouse_id', 'in', allowed_warehouse_domain)]</attribute>
             </xpath>
-            <!-- Filter Location (source) -->
+
+            <!-- Filter Source Location -->
             <xpath expr="//field[@name='location_id']" position="attributes">
-                <attribute name="domain">[('id', 'in', allowed_location_ids)]</attribute>
+                <attribute name="domain">[('id', 'in', allowed_location_domain)]</attribute>
             </xpath>
+
             <!-- Filter Destination Location -->
             <xpath expr="//field[@name='location_dest_id']" position="attributes">
-                <attribute name="domain">[('id', 'in', allowed_location_ids)]</attribute>
+                <attribute name="domain">[('id', 'in', allowed_location_domain)]</attribute>
             </xpath>
+
         </field>
     </record>
 
