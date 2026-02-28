@@ -31,10 +31,9 @@ class ResUsers(models.Model):
             'default_customer_tag_ids',
         ]
 
-    def _load_pos_data_fields(self, config_id):
-        """Exclude our custom Many2many fields from POS data loading.
-        These fields reference models not loaded in POS and cause IndexedDB crash."""
-        fields = super()._load_pos_data_fields(config_id)
-        # Remove our custom fields from POS loading
-        fields_to_remove = ['allowed_warehouse_ids', 'default_customer_tag_ids']
-        return [f for f in fields if f not in fields_to_remove]
+    @api.model
+    def _load_pos_data_fields(self, config):
+        """Return only safe fields for POS - exclude our Many2many fields
+        that reference models not loaded in POS (causes IndexedDB crash)."""
+        # Return exactly what Odoo 19 core returns - nothing more
+        return ['id', 'name', 'partner_id', 'all_group_ids']
