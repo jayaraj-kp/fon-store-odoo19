@@ -3,56 +3,57 @@
 import { patch } from "@web/core/utils/patch";
 import { PartnerList } from "@point_of_sale/app/screens/partner_list/partner_list";
 
+/**
+ * Safely extract parent_id as a number from any format Odoo might send:
+ * false, null, undefined, number, string, [id, name], {id: ..., name: ...}
+ */
 function getParentId(partner) {
-    /** Extract numeric parent_id regardless of format */
     const p = partner.parent_id;
     if (p === null || p === undefined || p === false) return null;
     if (typeof p === 'number') return p;
-    if (typeof p === 'string') return parseInt(p) || null;
-    if (typeof p === 'object' && !Array.isArray(p)) return p.id ?? null;
-    if (Array.isArray(p)) return p[0] ?? null;
+    if (typeof p === 'string') {
+        const n = parseInt(p);
+        return isNaN(n) ? null : n;
+    }
+    if (Array.isArray(p)) return typeof p[0] === 'number' ? p[0] : null;
+    if (typeof p === 'object') return typeof p.id === 'number' ? p.id : null;
     return null;
 }
 
 function findCashCustomerId(model) {
-    console.log("[POS_FILTER] ===== findCashCustomerId START =====");
-    console.log("[POS_FILTER] Total partners in model:", model.length);
+    console.log("[POS_FILTER] ===== findCashCustomerId START - total partners:", model.length, "=====");
 
-    // Log ALL partners for full visibility
+    // Log all partners so we can see what's in the model
     model.filter(() => true).forEach(p => {
-        const pid = getParentId(p);
         console.log(
-            `[POS_FILTER] Partner id=${p.id} name="${p.name}" parent_id_raw=${JSON.stringify(p.parent_id)} parent_id_parsed=${pid}`
+            `[POS_FILTER] partner: id=${p.id} name="${p.name}" ` +
+            `parent_id_raw=${JSON.stringify(p.parent_id)} parent_id_parsed=${getParentId(p)}`
         );
     });
 
-    // Strategy 1: Find "Cash Customer" with no parent (top-level)
-    let cashCustomer = model.find(
-        (p) => p.name === "Cash Customer" && !getParentId(p)
-    );
-    if (cashCustomer) {
-        console.log("[POS_FILTER] Strategy 1 SUCCESS: Found top-level Cash Customer id=", cashCustomer.id);
-        return cashCustomer.id;
+    // Strategy 1: "Cash Customer" with no parent (ideal top-level record)
+    let cc = model.find(p => p.name === "Cash Customer" && !getParentId(p));
+    if (cc) {
+        console.log("[POS_FILTER] Strategy 1 SUCCESS: id=", cc.id);
+        return cc.id;
     }
-    console.log("[POS_FILTER] Strategy 1 FAILED: No top-level Cash Customer found");
+    console.log("[POS_FILTER] Strategy 1 FAILED");
 
-    // Strategy 2: Find "Cash Customer" regardless of parent
-    cashCustomer = model.find((p) => p.name === "Cash Customer");
-    if (cashCustomer) {
-        console.log("[POS_FILTER] Strategy 2 SUCCESS: Found Cash Customer id=", cashCustomer.id, "parent=", getParentId(cashCustomer));
-        return cashCustomer.id;
+    // Strategy 2: Any "Cash Customer"
+    cc = model.find(p => p.name === "Cash Customer");
+    if (cc) {
+        console.log("[POS_FILTER] Strategy 2 SUCCESS: id=", cc.id, "parent=", getParentId(cc));
+        return cc.id;
     }
-    console.log("[POS_FILTER] Strategy 2 FAILED: No Cash Customer found at all");
+    console.log("[POS_FILTER] Strategy 2 FAILED");
 
-    // Strategy 3: Case-insensitive search
-    cashCustomer = model.find((p) => p.name?.toLowerCase() === "cash customer");
-    if (cashCustomer) {
-        console.log("[POS_FILTER] Strategy 3 SUCCESS: Case-insensitive match id=", cashCustomer.id);
-        return cashCustomer.id;
+    // Strategy 3: Case-insensitive
+    cc = model.find(p => p.name?.toLowerCase() === "cash customer");
+    if (cc) {
+        console.log("[POS_FILTER] Strategy 3 SUCCESS: id=", cc.id);
+        return cc.id;
     }
-    console.log("[POS_FILTER] Strategy 3 FAILED: No case-insensitive match");
-
-    console.log("[POS_FILTER] ===== findCashCustomerId FAILED - returning null =====");
+    console.log("[POS_FILTER] Strategy 3 FAILED - Cash Customer not in model at all!");
     return null;
 }
 
@@ -62,25 +63,24 @@ patch(PartnerList.prototype, {
         console.log("[POS_FILTER] ===== PartnerList setup() START =====");
 
         const model = this.pos.models["res.partner"];
-        console.log("[POS_FILTER] model type:", typeof model, "length:", model?.length);
-
         this._cashCustomerId = findCashCustomerId(model);
-        console.log("[POS_FILTER] _cashCustomerId set to:", this._cashCustomerId);
 
-        // Set initialPartners
+        console.log("[POS_FILTER] _cashCustomerId=", this._cashCustomerId);
+
         if (this._cashCustomerId !== null) {
+            // Show only children of Cash Customer on initial load (no search)
             this.state.initialPartners = model.filter(
-                (p) => getParentId(p) === this._cashCustomerId
+                p => getParentId(p) === this._cashCustomerId
             );
             console.log(
                 "[POS_FILTER] initialPartners (children of Cash Customer):",
                 this.state.initialPartners.map(p => `id=${p.id} name="${p.name}"`)
             );
         } else {
-            // Fallback: show all partners that have a parent (contacts)
-            this.state.initialPartners = model.filter((p) => !!getParentId(p));
+            // Fallback: show all partners that have a parent
+            this.state.initialPartners = model.filter(p => !!getParentId(p));
             console.log(
-                "[POS_FILTER] initialPartners FALLBACK (all contacts with parent):",
+                "[POS_FILTER] initialPartners FALLBACK (all contacts):",
                 this.state.initialPartners.map(p => `id=${p.id} name="${p.name}"`)
             );
         }
@@ -90,32 +90,33 @@ patch(PartnerList.prototype, {
 
     getPartners(partners) {
         console.log("[POS_FILTER] ===== getPartners() START =====");
-        console.log("[POS_FILTER] getPartners() received", partners.length, "partners");
-        console.log("[POS_FILTER] _cashCustomerId:", this._cashCustomerId);
+        console.log("[POS_FILTER] received", partners.length, "partners, _cashCustomerId=", this._cashCustomerId);
 
-        // Log all incoming partners
         partners.forEach(p => {
-            const pid = getParentId(p);
             console.log(
-                `[POS_FILTER] incoming: id=${p.id} name="${p.name}" parent_id_raw=${JSON.stringify(p.parent_id)} parent_id_parsed=${pid}`
+                `[POS_FILTER] incoming: id=${p.id} name="${p.name}" ` +
+                `parent_id_raw=${JSON.stringify(p.parent_id)} parent_id_parsed=${getParentId(p)}`
             );
         });
 
         let filtered;
 
         if (this._cashCustomerId !== null) {
-            filtered = partners.filter((p) => {
+            filtered = partners.filter(p => {
                 const pid = getParentId(p);
-                const match = pid === this._cashCustomerId;
+                const isCashCustomerItself = p.id === this._cashCustomerId;
+                const isChild = pid === this._cashCustomerId;
+                const keep = isChild && !isCashCustomerItself;
                 console.log(
-                    `[POS_FILTER] filter check: id=${p.id} name="${p.name}" pid=${pid} cashId=${this._cashCustomerId} match=${match}`
+                    `[POS_FILTER] filter: id=${p.id} name="${p.name}" ` +
+                    `pid=${pid} isChild=${isChild} isSelf=${isCashCustomerItself} keep=${keep}`
                 );
-                return match;
+                return keep;
             });
         } else {
-            // No Cash Customer found — show all partners that have a parent
-            console.log("[POS_FILTER] No cashCustomerId — showing all contacts with a parent");
-            filtered = partners.filter((p) => !!getParentId(p));
+            // No Cash Customer found in model — show all contacts that have a parent
+            console.log("[POS_FILTER] No cashCustomerId — fallback: showing all partners with a parent");
+            filtered = partners.filter(p => !!getParentId(p));
         }
 
         console.log(
