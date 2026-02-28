@@ -8,18 +8,13 @@ class ResPartner(models.Model):
     _inherit = 'res.partner'
 
     def _load_pos_data_domain(self, data, config):
-        _logger.warning("====== CUSTOM: _load_pos_data_domain CALLED ======")
-        domain = [('parent_id', '!=', False)]
-        _logger.warning("====== domain: %s ======", domain)
-        return domain
+        _logger.warning("====== _load_pos_data_domain CALLED ======")
+        # Don't call super() — replace entirely
+        return [('parent_id', '!=', False)]
 
-    def _load_pos_data_params(self, config):
-        _logger.warning("====== CUSTOM: _load_pos_data_params CALLED ======")
-        params = super()._load_pos_data_params(config)
-        _logger.warning("====== ORIGINAL params: %s ======", params)
-
-        # Override the domain inside params too
-        params['domain'] = [('parent_id', '!=', False)]
-
-        _logger.warning("====== FINAL params: %s ======", params)
-        return params
+    def get_new_partner(self, partner_id):
+        _logger.warning("====== get_new_partner CALLED id=%s ======", partner_id)
+        result = super().get_new_partner(partner_id)
+        _logger.warning("====== get_new_partner RESULT keys=%s ======",
+                        list(result.keys()) if isinstance(result, dict) else type(result))
+        return result
