@@ -7,28 +7,29 @@ patch(PartnerList.prototype, {
     setup() {
         super.setup();
 
-        // Backend loads: Cash Customer + its 3 children + current user
-        const allPartners = [...this.pos.models["res.partner"]];
+        // In Odoo 19, this.pos.models["res.partner"] is NOT a plain array.
+        // It has a .filter() method — use it directly, same as Odoo core does.
+        const model = this.pos.models["res.partner"];
 
-        // Find Cash Customer (has no parent_id, name = "Cash Customer")
-        const cashCustomer = allPartners.find(
+        // Find Cash Customer (loaded by backend, has no parent_id)
+        const cashCustomer = model.find(
             (p) => p.name === "Cash Customer" && !p.parent_id
         );
 
         if (cashCustomer) {
-            // Show only direct children of Cash Customer
-            this.state.initialPartners = allPartners.filter((p) => {
+            this.state.initialPartners = model.filter((p) => {
                 const parentId = Array.isArray(p.parent_id)
                     ? p.parent_id[0]
                     : p.parent_id?.id ?? p.parent_id;
                 return parentId === cashCustomer.id;
             });
         } else {
-            // Fallback: show any partner that has a parent (is a contact)
-            this.state.initialPartners = allPartners.filter((p) => !!p.parent_id);
+            // Fallback: show only partners that have a parent (are child contacts)
+            this.state.initialPartners = model.filter((p) => !!p.parent_id);
         }
     },
 });
+
 
 
 
