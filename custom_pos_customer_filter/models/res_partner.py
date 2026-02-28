@@ -10,12 +10,9 @@ class ResPartner(models.Model):
     def _load_pos_data_domain(self, data, config):
         _logger.warning("====== CUSTOM: _load_pos_data_domain CALLED ======")
 
-        # REPLACE entire domain — do NOT append to parent
-        # The parent domain is pre-loaded IDs which bypasses our filter
+        # Show ONLY child contacts (those with a parent company/customer)
         domain = [
-            '|',
             ('parent_id', '!=', False),
-            ('customer_rank', '>', 0),
         ]
 
         _logger.warning("====== REPLACED domain: %s ======", domain)
