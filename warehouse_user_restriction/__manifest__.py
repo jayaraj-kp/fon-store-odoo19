@@ -8,6 +8,7 @@
     'data': [
         'security/warehouse_restriction_rules.xml',
         'views/res_users_views.xml',
+        'views/pos_config_views.xml',
     ],
     'installable': True,
     'application': False,
