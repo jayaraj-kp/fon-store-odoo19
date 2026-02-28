@@ -15,3 +15,7 @@ class PosSession(models.Model):
         Kept here for safety/future compatibility.
         """
         return super()._get_partners_domain()
+
+
+
+

@@ -3,6 +3,10 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+_logger.info("=" * 60)
+_logger.info("[pos_cash_customer_contacts] res_partner.py IS LOADED")
+_logger.info("=" * 60)
+
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -37,22 +41,12 @@ class ResPartner(models.Model):
         Odoo 19: Called by JS for both live search and infinite scroll.
         Restrict results to Cash Customer children only.
         """
+        _logger.info("[pos_cash_customer_contacts] get_new_partner CALLED - config_id=%s domain=%s offset=%s", config_id, domain, offset)
         child_ids = self._get_cash_customer_child_ids()
         restrict_domain = [('id', 'in', child_ids)]
-
-        # Always apply our restriction, combined with user's search domain
         combined_domain = restrict_domain + domain
-
-        # Bypass the original logic entirely with our filtered domain
         config = self.env['pos.config'].browse(config_id)
-
-        if len(domain) == 0:
-            # No search query — load from our restricted set with offset
-            new_partners = self.search(combined_domain, offset=offset, limit=100)
-        else:
-            # Search query present — search within our restricted set
-            new_partners = self.search(combined_domain, offset=offset, limit=100)
-
+        new_partners = self.search(combined_domain, offset=offset, limit=100)
         fiscal_positions = new_partners.fiscal_position_id
         return {
             'res.partner': self._load_pos_data_read(new_partners, config),
@@ -67,8 +61,13 @@ class ResPartner(models.Model):
         Odoo 19: Called on initial POS session load to determine
         which partners to preload. Restrict to Cash Customer children.
         """
+        _logger.info("[pos_cash_customer_contacts] _load_pos_data_domain CALLED")
         child_ids = self._get_cash_customer_child_ids()
-        # Also ensure the current user's partner is included
         child_ids_set = set(child_ids)
         child_ids_set.add(self.env.user.partner_id.id)
-        return [('id', 'in', list(child_ids_set))]
+        result = [('id', 'in', list(child_ids_set))]
+        _logger.info("[pos_cash_customer_contacts] _load_pos_data_domain returning: %s", result)
+        return result
+
+
+
