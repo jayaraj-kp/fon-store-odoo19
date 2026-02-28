@@ -9,14 +9,14 @@ class ResPartner(models.Model):
 
     def _load_pos_data_domain(self, data, config):
         _logger.warning("====== CUSTOM: _load_pos_data_domain CALLED ======")
-        domain = super()._load_pos_data_domain(data, config)
-        _logger.warning("====== ORIGINAL domain: %s ======", domain)
 
-        domain += [
+        # REPLACE entire domain — do NOT append to parent
+        # The parent domain is pre-loaded IDs which bypasses our filter
+        domain = [
             '|',
             ('parent_id', '!=', False),
             ('customer_rank', '>', 0),
         ]
 
-        _logger.warning("====== FINAL domain: %s ======", domain)
+        _logger.warning("====== REPLACED domain: %s ======", domain)
         return domain
