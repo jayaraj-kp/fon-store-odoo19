@@ -10,21 +10,20 @@ class PosConfig(models.Model):
         if user._is_superuser():
             return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
         if user.allowed_warehouse_ids:
-            # Get warehouse names to match against POS config names
-            wh_names = user.allowed_warehouse_ids.mapped('name')
-            # Get POS config ids that match allowed warehouses by checking
-            # their picking types' warehouse
-            allowed_config_ids = []
-            all_configs = self.env['pos.config'].sudo().search([])
-            for config in all_configs:
-                # Check via picking type warehouse
-                if config.picking_type_id and config.picking_type_id.warehouse_id:
-                    if config.picking_type_id.warehouse_id.id in user.allowed_warehouse_ids.ids:
-                        allowed_config_ids.append(config.id)
+            allowed_wh_ids = tuple(user.allowed_warehouse_ids.ids)
+            if allowed_wh_ids:
+                # Use direct SQL to avoid recursive ORM call
+                self.env.cr.execute("""
+                    SELECT pc.id
+                    FROM pos_config pc
+                    LEFT JOIN stock_picking_type spt ON spt.id = pc.picking_type_id
+                    WHERE spt.warehouse_id IN %s
+                """, (allowed_wh_ids,))
+                allowed_ids = [row[0] for row in self.env.cr.fetchall()]
+                if allowed_ids:
+                    domain = list(domain) + [('id', 'in', allowed_ids)]
                 else:
-                    allowed_config_ids.append(config.id)
-            if allowed_config_ids:
-                domain = list(domain) + [('id', 'in', allowed_config_ids)]
+                    domain = list(domain) + [('id', 'in', [0])]
         return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
 
 
@@ -37,14 +36,18 @@ class PosSession(models.Model):
         if user._is_superuser():
             return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
         if user.allowed_warehouse_ids:
-            allowed_config_ids = []
-            all_configs = self.env['pos.config'].sudo().search([])
-            for config in all_configs:
-                if config.picking_type_id and config.picking_type_id.warehouse_id:
-                    if config.picking_type_id.warehouse_id.id in user.allowed_warehouse_ids.ids:
-                        allowed_config_ids.append(config.id)
+            allowed_wh_ids = tuple(user.allowed_warehouse_ids.ids)
+            if allowed_wh_ids:
+                self.env.cr.execute("""
+                    SELECT ps.id
+                    FROM pos_session ps
+                    JOIN pos_config pc ON pc.id = ps.config_id
+                    LEFT JOIN stock_picking_type spt ON spt.id = pc.picking_type_id
+                    WHERE spt.warehouse_id IN %s
+                """, (allowed_wh_ids,))
+                allowed_ids = [row[0] for row in self.env.cr.fetchall()]
+                if allowed_ids:
+                    domain = list(domain) + [('id', 'in', allowed_ids)]
                 else:
-                    allowed_config_ids.append(config.id)
-            if allowed_config_ids:
-                domain = list(domain) + [('config_id', 'in', allowed_config_ids)]
+                    domain = list(domain) + [('id', 'in', [0])]
         return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
