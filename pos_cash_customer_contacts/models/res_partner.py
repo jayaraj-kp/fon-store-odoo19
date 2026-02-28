@@ -8,20 +8,35 @@ class ResPartner(models.Model):
     _inherit = 'res.partner'
 
     def _get_cash_customer_child_domain(self):
-        """Returns domain restricted to Cash Customer children, or None if not found."""
+        """Returns domain restricted to Cash Customer children."""
         cash_customer = self.search(
             [('name', '=', 'Cash Customer'), ('active', '=', True)],
             limit=1
         )
         if not cash_customer:
-            _logger.warning("[pos_cash_customer_contacts] 'Cash Customer' partner not found.")
-            return None
+            return [('id', '=', False)]
 
         child_ids = self.search([
             ('parent_id', '=', cash_customer.id),
             ('active', '=', True),
         ]).ids
 
-        if child_ids:
-            return [('id', 'in', child_ids)]
-        return [('id', '=', False)]
+        return [('id', 'in', child_ids)] if child_ids else [('id', '=', False)]
+
+    @api.model
+    def get_new_partner(self, config_id, domain, offset):
+        """
+        Odoo 19 CE: JS calls this method for live search AND infinite scroll
+        in the POS customer list. We inject our Cash Customer filter here.
+        """
+        cash_domain = self._get_cash_customer_child_domain()
+
+        # Combine: our restriction AND user's search domain
+        combined_domain = cash_domain + domain
+
+        _logger.info(
+            "[pos_cash_customer_contacts] get_new_partner called. "
+            "Combined domain: %s, offset: %s", combined_domain, offset
+        )
+
+        return super().get_new_partner(config_id, combined_domain, offset)
