@@ -39,8 +39,8 @@
                         <group string="Offer Settings">
                             <field name="offer_type" widget="radio"/>
                             <field name="coupon_code"
-                                attrs="{'invisible': [('offer_type','!=','coupon')],
-                                        'required':  [('offer_type','=','coupon')]}"/>
+                                invisible="offer_type != 'coupon'"
+                                required="offer_type == 'coupon'"/>
                             <field name="purchase_limit"/>
                             <field name="usage_count"/>
                             <field name="active"/>
@@ -75,10 +75,10 @@
             <search>
                 <field name="name"/>
                 <field name="coupon_code"/>
-                <filter string="Active"   name="active"   domain="[('active','=',True)]"/>
-                <filter string="Archived" name="archived" domain="[('active','=',False)]"/>
-                <filter string="Flat Discount" name="flat" domain="[('offer_type','=','flat_discount')]"/>
-                <filter string="Coupon"   name="coupon"   domain="[('offer_type','=','coupon')]"/>
+                <filter string="Active"        name="active"   domain="[('active','=',True)]"/>
+                <filter string="Archived"      name="archived" domain="[('active','=',False)]"/>
+                <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>
+                <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>
             </search>
         </field>
     </record>
