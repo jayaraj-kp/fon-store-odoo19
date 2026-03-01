@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="pos_special_offers.SpecialOfferPopup">
+    <div class="sop-overlay" t-on-click.self="props.close">
+        <div class="sop-popup">
+
+            <div class="sop-header">
+                <span>🎁 Create Special Offer</span>
+                <span class="sop-close" t-on-click="props.close">✕</span>
+            </div>
+
+            <div class="sop-body">
+
+                <!-- Offer Name -->
+                <div class="sop-row">
+                    <label>Offer Name *</label>
+                    <input type="text"
+                        t-att-value="state.offerName"
+                        t-on-input="onOfferName"
+                        placeholder="e.g. DHAMAKKA OFFER"/>
+                </div>
+
+                <!-- Offer Type -->
+                <div class="sop-row">
+                    <label>Offer Type *</label>
+                    <div class="sop-radio-group">
+                        <label>
+                            <input type="radio" name="offerType" value="flat_discount"
+                                t-att-checked="state.offerType === 'flat_discount'"
+                                t-on-change="onOfferType"/>
+                            Flat Discount
+                        </label>
+                        <label>
+                            <input type="radio" name="offerType" value="coupon"
+                                t-att-checked="state.offerType === 'coupon'"
+                                t-on-change="onOfferType"/>
+                            Coupon
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Coupon Code -->
+                <t t-if="state.offerType === 'coupon'">
+                    <div class="sop-row">
+                        <label>Coupon Code *</label>
+                        <input type="text"
+                            t-att-value="state.couponCode"
+                            t-on-input="onCouponCode"
+                            placeholder="e.g. SAVE20"/>
+                    </div>
+                </t>
+
+                <!-- Products -->
+                <div class="sop-row">
+                    <label>Products (Ctrl+click for multi-select)</label>
+                    <select multiple="multiple" class="sop-multiselect"
+                        t-on-change="onSelProducts">
+                        <t t-foreach="props.products" t-as="p" t-key="p.id">
+                            <option t-att-value="p.id">
+                                <t t-esc="p.display_name or p.name"/>
+                            </option>
+                        </t>
+                    </select>
+                </div>
+
+                <!-- Category -->
+                <div class="sop-row">
+                    <label>POS Category (optional)</label>
+                    <select t-on-change="onSelCategory">
+                        <option value="">-- None --</option>
+                        <t t-foreach="props.categories" t-as="cat" t-key="cat.id">
+                            <option t-att-value="cat.id">
+                                <t t-esc="cat.name"/>
+                            </option>
+                        </t>
+                    </select>
+                </div>
+
+                <!-- Dates -->
+                <div class="sop-2col">
+                    <div class="sop-row">
+                        <label>From Date *</label>
+                        <input type="date"
+                            t-att-value="state.dateFrom"
+                            t-on-input="onDateFrom"/>
+                    </div>
+                    <div class="sop-row">
+                        <label>To Date *</label>
+                        <input type="date"
+                            t-att-value="state.dateTo"
+                            t-on-input="onDateTo"/>
+                    </div>
+                </div>
+
+                <!-- Time + Discount Type -->
+                <div class="sop-2col">
+                    <div class="sop-row">
+                        <label>Active From Time</label>
+                        <input type="time"
+                            t-att-value="state.activeTime"
+                            t-on-input="onActiveTime"/>
+                    </div>
+                    <div class="sop-row">
+                        <label>Discount Type</label>
+                        <select t-on-change="onDiscountType">
+                            <option value="percentage">Percentage (%)</option>
+                            <option value="fixed">Fixed Price</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Discount Value + Purchase Limit -->
+                <div class="sop-2col">
+                    <div class="sop-row">
+                        <label>Discount Value *</label>
+                        <input type="number" min="0"
+                            t-att-value="state.discountValue"
+                            t-on-input="onDiscountValue"
+                            placeholder="e.g. 10"/>
+                    </div>
+                    <div class="sop-row">
+                        <label>Purchase Limit (0 = unlimited)</label>
+                        <input type="number" min="0"
+                            t-att-value="state.purchaseLimit"
+                            t-on-input="onPurchaseLimit"
+                            placeholder="0"/>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <t t-if="state.errorMsg">
+                    <div class="sop-error"><t t-esc="state.errorMsg"/></div>
+                </t>
+                <t t-if="state.successMsg">
+                    <div class="sop-success"><t t-esc="state.successMsg"/></div>
+                </t>
+
+            </div>
+
+            <div class="sop-footer">
+                <button class="sop-btn-cancel" t-on-click="props.close">Close</button>
+                <button class="sop-btn-create"
+                    t-on-click="onCreateOffer"
+                    t-att-disabled="state.loading">
+                    <t t-if="state.loading">Saving...</t>
+                    <t t-else="">✅ Create Offer</t>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</t>
+</templates>
