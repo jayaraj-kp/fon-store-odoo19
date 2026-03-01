@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Form View -->
+    <record id="view_pos_special_offer_form" model="ir.ui.view">
+        <field name="name">pos.special.offer.form</field>
+        <field name="model">pos.special.offer</field>
+        <field name="arch" type="xml">
+            <form string="Special Offer">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Offer Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Offer Details">
+                            <field name="discount_type"/>
+                            <field name="discount_value"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Validity">
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="active_time" widget="float_time"/>
+                            <field name="active_time_end" widget="float_time"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Products">
+                            <field name="product_ids" widget="many2many_tags"/>
+                        </page>
+                        <page string="Categories">
+                            <field name="category_ids" widget="many2many_tags"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_pos_special_offer_tree" model="ir.ui.view">
+        <field name="name">pos.special.offer.tree</field>
+        <field name="model">pos.special.offer</field>
+        <field name="arch" type="xml">
+            <tree string="Special Offers" decoration-success="state == 'active'" decoration-muted="state == 'expired'" decoration-info="state == 'upcoming'">
+                <field name="name"/>
+                <field name="discount_type"/>
+                <field name="discount_value"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="active_time" widget="float_time"/>
+                <field name="active_time_end" widget="float_time"/>
+                <field name="state"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_pos_special_offer" model="ir.actions.act_window">
+        <field name="name">Special Offers</field>
+        <field name="res_model">pos.special.offer</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Menu under POS -->
+    <menuitem id="menu_pos_special_offer"
+              name="Special Offers"
+              parent="point_of_sale.menu_point_of_sale"
+              action="action_pos_special_offer"
+              sequence="50"/>
+
+</odoo>

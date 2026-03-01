@@ -1,0 +1,209 @@
+/* POS Special Offer Styles */
+
+.special-offer-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 0 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.special-offer-btn:hover {
+    background-color: #c0392b;
+    color: white;
+}
+
+/* Popup Overlay */
+.special-offer-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Popup Container */
+.special-offer-popup {
+    background: #fff;
+    border-radius: 12px;
+    width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+}
+
+.special-offer-popup .popup-header {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    padding: 18px 24px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.special-offer-popup .popup-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.special-offer-popup .popup-body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.special-offer-popup .form-row {
+    display: flex;
+    gap: 14px;
+}
+
+.special-offer-popup .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+
+.special-offer-popup label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.special-offer-popup input,
+.special-offer-popup select {
+    padding: 9px 12px;
+    border: 1.5px solid #ddd;
+    border-radius: 7px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #fafafa;
+}
+
+.special-offer-popup input:focus,
+.special-offer-popup select:focus {
+    border-color: #e74c3c;
+    background: #fff;
+}
+
+.special-offer-popup select[multiple] {
+    height: 100px;
+}
+
+.special-offer-popup .offer-name-input {
+    font-size: 16px;
+    font-weight: 600;
+    border-color: #e74c3c;
+}
+
+/* Footer Buttons */
+.special-offer-popup .popup-footer {
+    padding: 16px 24px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    border-top: 1px solid #eee;
+    background: #f9f9f9;
+    border-radius: 0 0 12px 12px;
+}
+
+.special-offer-popup .btn-create {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 7px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.special-offer-popup .btn-create:hover {
+    background: #219a52;
+}
+
+.special-offer-popup .btn-cancel {
+    background: #ecf0f1;
+    color: #555;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 7px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.special-offer-popup .btn-cancel:hover {
+    background: #dde1e3;
+}
+
+/* Offer List View Popup */
+.offer-list-item {
+    background: #fff7f7;
+    border: 1.5px solid #fbc4c4;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+
+.offer-list-item .offer-badge {
+    background: #e74c3c;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.offer-tab-bar {
+    display: flex;
+    border-bottom: 2px solid #eee;
+    margin-bottom: 14px;
+}
+
+.offer-tab {
+    padding: 8px 18px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #888;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+
+.offer-tab.active {
+    color: #e74c3c;
+    border-bottom-color: #e74c3c;
+}
+
+.success-msg {
+    background: #d5f5e3;
+    color: #196f3d;
+    border-radius: 7px;
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

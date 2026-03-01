@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- ==============================
+         TOP MENU BUTTON
+    ============================== -->
+    <t t-name="pos_special_offers.SpecialOfferButton">
+        <button class="special-offer-btn" t-on-click="openPopup">
+            🎁 Offers
+        </button>
+    </t>
+
+    <!-- ==============================
+         MAIN POPUP (Tabs: Create / View)
+    ============================== -->
+    <t t-name="pos_special_offers.SpecialOfferPopup">
+        <div class="special-offer-overlay" t-on-click.self="onClose">
+            <div class="special-offer-popup">
+
+                <!-- Header -->
+                <div class="popup-header">
+                    <h3>🎁 Special Offers</h3>
+                    <span style="cursor:pointer;font-size:20px;" t-on-click="onClose">✕</span>
+                </div>
+
+                <!-- Tab Bar -->
+                <div class="offer-tab-bar" style="padding: 0 24px;">
+                    <div class="offer-tab" t-att-class="state.tab === 'create' ? 'active' : ''" t-on-click="() => this.setTab('create')">Create Offer</div>
+                    <div class="offer-tab" t-att-class="state.tab === 'list' ? 'active' : ''" t-on-click="() => this.setTab('list')">Active Offers</div>
+                </div>
+
+                <!-- ===== CREATE TAB ===== -->
+                <t t-if="state.tab === 'create'">
+                    <div class="popup-body">
+
+                        <!-- Success Message -->
+                        <t t-if="state.successMsg">
+                            <div class="success-msg">✅ <t t-esc="state.successMsg"/></div>
+                        </t>
+
+                        <!-- Offer Name -->
+                        <div class="form-group">
+                            <label>Offer Name *</label>
+                            <input
+                                class="offer-name-input"
+                                type="text"
+                                placeholder="e.g. Weekend Sale, Happy Hour..."
+                                t-model="state.offerName"
+                            />
+                        </div>
+
+                        <!-- Products -->
+                        <div class="form-group">
+                            <label>Select Products (hold Ctrl for multiple)</label>
+                            <select multiple="multiple" t-on-change="onProductSelect">
+                                <t t-foreach="props.products" t-as="product" t-key="product.id">
+                                    <option t-att-value="product.id" t-att-selected="state.selectedProducts.includes(product.id)">
+                                        <t t-esc="product.display_name"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+
+                        <!-- Categories -->
+                        <div class="form-group">
+                            <label>Select Category (optional)</label>
+                            <select t-on-change="onCategorySelect">
+                                <option value="">-- No Category --</option>
+                                <t t-foreach="props.categories" t-as="cat" t-key="cat.id">
+                                    <option t-att-value="cat.id" t-att-selected="state.selectedCategory == cat.id">
+                                        <t t-esc="cat.name"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+
+                        <!-- Date Row -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>From Date *</label>
+                                <input type="date" t-model="state.dateFrom"/>
+                            </div>
+                            <div class="form-group">
+                                <label>To Date *</label>
+                                <input type="date" t-model="state.dateTo"/>
+                            </div>
+                        </div>
+
+                        <!-- Time Row -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Active From Time</label>
+                                <input type="time" t-model="state.timeFrom"/>
+                            </div>
+                            <div class="form-group">
+                                <label>Active Until Time</label>
+                                <input type="time" t-model="state.timeTo"/>
+                            </div>
+                        </div>
+
+                        <!-- Discount Row -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Discount Type</label>
+                                <select t-model="state.discountType">
+                                    <option value="percentage">Percentage (%)</option>
+                                    <option value="fixed">Fixed Price</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <t t-if="state.discountType === 'percentage'">Discount %</t>
+                                    <t t-else="">Fixed Price</t>
+                                </label>
+                                <input type="number" min="0" t-model="state.discountValue" placeholder="e.g. 10"/>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="popup-footer">
+                        <button class="btn-cancel" t-on-click="onClose">Cancel</button>
+                        <button class="btn-create" t-on-click="createOffer">✅ Create Offer</button>
+                    </div>
+                </t>
+
+                <!-- ===== LIST TAB ===== -->
+                <t t-if="state.tab === 'list'">
+                    <div class="popup-body">
+                        <t t-if="state.activeOffers.length === 0">
+                            <p style="color:#999;text-align:center;padding:20px;">No active offers right now.</p>
+                        </t>
+                        <t t-foreach="state.activeOffers" t-as="offer" t-key="offer.id">
+                            <div class="offer-list-item">
+                                <div>
+                                    <strong t-esc="offer.name"/>
+                                    <div style="font-size:11px;color:#888;margin-top:3px;">
+                                        <t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/>
+                                    </div>
+                                </div>
+                                <span class="offer-badge">
+                                    <t t-if="offer.discount_type === 'percentage'">
+                                        <t t-esc="offer.discount_value"/>% OFF
+                                    </t>
+                                    <t t-else="">
+                                        Fixed: <t t-esc="offer.discount_value"/>
+                                    </t>
+                                </span>
+                            </div>
+                        </t>
+                    </div>
+                    <div class="popup-footer">
+                        <button class="btn-cancel" t-on-click="onClose">Close</button>
+                    </div>
+                </t>
+
+            </div>
+        </div>
+    </t>
+
+</templates>
