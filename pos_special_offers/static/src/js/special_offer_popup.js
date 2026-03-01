@@ -1,101 +1,106 @@
 /** @odoo-module **/
 import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
+import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 
 export class SpecialOfferPopup extends Component {
     static template = "pos_special_offers.SpecialOfferPopup";
     static props = {
-        products:   Array,
-        categories: Array,
-        close:      Function,
+        close: Function,
     };
 
     setup() {
-        this.orm = useService("orm");
+        this.pos = usePos();
         this.offerService = useService("special_offer_service");
+        this.notification = useService("notification");
         this.state = useState({
-            offerName:     "",
-            offerType:     "flat_discount",
-            couponCode:    "",
-            selProducts:   [],
-            selCategory:   "",
-            dateFrom:      this._today(),
-            dateTo:        this._today(),
-            activeTime:    "00:00",
-            discountType:  "percentage",
-            discountValue: "10",
-            purchaseLimit: "0",
-            loading:       false,
-            successMsg:    "",
-            errorMsg:      "",
+            couponInput: "",
+            appliedMsg: "",
+            errorMsg: "",
         });
     }
 
-    _today() { return new Date().toISOString().split("T")[0]; }
-
-    // Explicit handlers for every field — avoids arrow function `this` context loss in OWL templates
-    onOfferName(ev)     { this.state.offerName     = ev.target.value; }
-    onOfferType(ev)     { this.state.offerType     = ev.target.value; }
-    onCouponCode(ev)    { this.state.couponCode    = ev.target.value; }
-    onSelCategory(ev)   { this.state.selCategory   = ev.target.value; }
-    onDateFrom(ev)      { this.state.dateFrom      = ev.target.value; }
-    onDateTo(ev)        { this.state.dateTo        = ev.target.value; }
-    onActiveTime(ev)    { this.state.activeTime    = ev.target.value; }
-    onDiscountType(ev)  { this.state.discountType  = ev.target.value; }
-    onDiscountValue(ev) { this.state.discountValue = ev.target.value; }
-    onPurchaseLimit(ev) { this.state.purchaseLimit = ev.target.value; }
-
-    onSelProducts(ev) {
-        this.state.selProducts = [...ev.target.selectedOptions].map(o => parseInt(o.value));
+    get activeOffers() {
+        return this.offerService.getActiveOffers().filter(o => o.offer_type === "flat_discount");
     }
 
-    async onCreateOffer() {
+    get couponOffers() {
+        return this.offerService.getActiveOffers().filter(o => o.offer_type === "coupon");
+    }
+
+    get currentOrder() {
+        return this.pos.get_order?.() || this.pos.selectedOrder || null;
+    }
+
+    // Apply a flat discount offer to the current order
+    applyOffer(offer) {
         this.state.errorMsg = "";
-        this.state.successMsg = "";
+        this.state.appliedMsg = "";
 
-        if (!this.state.offerName.trim())
-            return (this.state.errorMsg = "Offer Name is required.");
-        if (!this.state.dateFrom || !this.state.dateTo)
-            return (this.state.errorMsg = "Both dates are required.");
-        if (this.state.dateFrom > this.state.dateTo)
-            return (this.state.errorMsg = "From Date must be before To Date.");
-        if (parseFloat(this.state.discountValue) <= 0)
-            return (this.state.errorMsg = "Discount Value must be > 0.");
-        if (this.state.selProducts.length === 0 && !this.state.selCategory)
-            return (this.state.errorMsg = "Select at least one Product or Category.");
-        if (this.state.offerType === "coupon" && !this.state.couponCode.trim())
-            return (this.state.errorMsg = "Coupon Code is required for Coupon type.");
-
-        const [h, m] = this.state.activeTime.split(":").map(Number);
-        this.state.loading = true;
-        try {
-            await this.orm.create("pos.special.offer", [{
-                name:           this.state.offerName.trim(),
-                offer_type:     this.state.offerType,
-                coupon_code:    this.state.couponCode.trim(),
-                product_ids:    [[6, 0, this.state.selProducts]],
-                category_ids:   this.state.selCategory
-                    ? [[6, 0, [parseInt(this.state.selCategory)]]]
-                    : [[6, 0, []]],
-                date_from:      this.state.dateFrom,
-                date_to:        this.state.dateTo,
-                active_time:    h + (m || 0) / 60.0,
-                discount_type:  this.state.discountType,
-                discount_value: parseFloat(this.state.discountValue),
-                purchase_limit: parseInt(this.state.purchaseLimit) || 0,
-                active:         true,
-            }]);
-            await this.offerService.refresh();
-            this.state.successMsg = `✅ Offer "${this.state.offerName}" created successfully!`;
-            this.state.offerName = "";
-            this.state.couponCode = "";
-            this.state.selProducts = [];
-            this.state.selCategory = "";
-        } catch (e) {
-            this.state.errorMsg = "Failed to save offer. Check console for details.";
-            console.error("[SpecialOffer]", e);
-        } finally {
-            this.state.loading = false;
+        const order = this.currentOrder;
+        if (!order) {
+            this.state.errorMsg = "No active order found.";
+            return;
         }
+
+        const lines = order.get_orderlines?.() || order.orderlines || [];
+        if (!lines.length) {
+            this.state.errorMsg = "Add products to the order first.";
+            return;
+        }
+
+        let applied = 0;
+        for (const line of lines) {
+            const productId = line.get_product?.()?.id || line.product?.id;
+            const categoryIds = line.get_product?.()?.pos_categ_ids || line.product?.pos_categ_ids || [];
+
+            const matchProduct = offer.product_ids.includes(productId);
+            const matchCategory = categoryIds.some(cid => offer.category_ids.includes(cid));
+
+            if (matchProduct || matchCategory || (offer.product_ids.length === 0 && offer.category_ids.length === 0)) {
+                if (offer.discount_type === "percentage") {
+                    line.set_discount?.(offer.discount_value);
+                } else {
+                    // Fixed price — set custom price
+                    line.set_unit_price?.(offer.discount_value);
+                }
+                applied++;
+            }
+        }
+
+        if (applied > 0) {
+            this.state.appliedMsg = `✅ "${offer.name}" applied to ${applied} line(s)!`;
+        } else {
+            this.state.errorMsg = `No matching products in the order for "${offer.name}".`;
+        }
+    }
+
+    // Apply coupon code
+    applyCoupon() {
+        this.state.errorMsg = "";
+        this.state.appliedMsg = "";
+
+        const code = this.state.couponInput.trim();
+        if (!code) {
+            this.state.errorMsg = "Please enter a coupon code.";
+            return;
+        }
+
+        const offer = this.offerService.getActiveOffers().find(
+            o => o.offer_type === "coupon" &&
+                 o.coupon_code.toLowerCase() === code.toLowerCase()
+        );
+
+        if (!offer) {
+            this.state.errorMsg = `Coupon code "${code}" is not valid or has expired.`;
+            return;
+        }
+
+        this.applyOffer(offer);
+        this.state.couponInput = "";
+    }
+
+    onCouponInput(ev) {
+        this.state.couponInput = ev.target.value;
     }
 }

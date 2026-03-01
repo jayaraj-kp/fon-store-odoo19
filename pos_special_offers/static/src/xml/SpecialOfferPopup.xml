@@ -4,138 +4,90 @@
     <div class="sop-overlay">
         <div class="sop-popup">
 
+            <!-- Header -->
             <div class="sop-header">
-                <span>🎁 Create Special Offer</span>
+                <span>🎁 Special Offers</span>
                 <span class="sop-close" t-on-click="props.close">✕</span>
             </div>
 
             <div class="sop-body">
 
-                <div class="sop-row">
-                    <label>Offer Name *</label>
-                    <input type="text"
-                        t-att-value="state.offerName"
-                        t-on-input="onOfferName"
-                        placeholder="e.g. DHAMAKKA OFFER"/>
-                </div>
-
-                <div class="sop-row">
-                    <label>Offer Type *</label>
-                    <div class="sop-radio-group">
-                        <label>
-                            <input type="radio" name="offerType" value="flat_discount"
-                                t-att-checked="state.offerType === 'flat_discount'"
-                                t-on-change="onOfferType"/>
-                            Flat Discount
-                        </label>
-                        <label>
-                            <input type="radio" name="offerType" value="coupon"
-                                t-att-checked="state.offerType === 'coupon'"
-                                t-on-change="onOfferType"/>
-                            Coupon
-                        </label>
+                <!-- ── COUPON SECTION ── -->
+                <div class="sop-coupon-section">
+                    <div class="sop-section-title">🏷️ Apply Coupon Code</div>
+                    <div class="sop-coupon-row">
+                        <input
+                            type="text"
+                            class="sop-coupon-input"
+                            placeholder="Enter coupon code..."
+                            t-att-value="state.couponInput"
+                            t-on-input="onCouponInput"
+                        />
+                        <button class="sop-btn-apply-coupon" t-on-click="applyCoupon">
+                            Apply
+                        </button>
                     </div>
                 </div>
 
-                <t t-if="state.offerType === 'coupon'">
-                    <div class="sop-row">
-                        <label>Coupon Code *</label>
-                        <input type="text"
-                            t-att-value="state.couponCode"
-                            t-on-input="onCouponCode"
-                            placeholder="e.g. SAVE20"/>
+                <!-- ── FLAT DISCOUNT OFFERS ── -->
+                <div class="sop-section-title" style="margin-top:16px;">🔖 Active Flat Discount Offers</div>
+
+                <t t-if="activeOffers.length === 0">
+                    <div class="sop-empty">No active flat discount offers available.</div>
+                </t>
+
+                <t t-foreach="activeOffers" t-as="offer" t-key="offer.id">
+                    <div class="sop-offer-card">
+                        <div class="sop-offer-info">
+                            <div class="sop-offer-name"><t t-esc="offer.name"/></div>
+                            <div class="sop-offer-meta">
+                                <t t-if="offer.discount_type === 'percentage'">
+                                    <span class="sop-badge sop-badge-pct">
+                                        <t t-esc="offer.discount_value"/>% OFF
+                                    </span>
+                                </t>
+                                <t t-else="">
+                                    <span class="sop-badge sop-badge-fixed">
+                                        Fixed Price: <t t-esc="offer.discount_value"/>
+                                    </span>
+                                </t>
+                                <span class="sop-offer-dates">
+                                    <t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/>
+                                </span>
+                                <t t-if="offer.purchase_limit > 0">
+                                    <span class="sop-offer-limit">
+                                        Uses: <t t-esc="offer.usage_count"/>/<t t-esc="offer.purchase_limit"/>
+                                    </span>
+                                </t>
+                            </div>
+                            <t t-if="offer.product_ids.length > 0">
+                                <div class="sop-offer-scope">Selected products only</div>
+                            </t>
+                            <t t-elif="offer.category_ids.length > 0">
+                                <div class="sop-offer-scope">Selected categories only</div>
+                            </t>
+                            <t t-else="">
+                                <div class="sop-offer-scope">Applies to all products</div>
+                            </t>
+                        </div>
+                        <button class="sop-btn-apply" t-on-click="() => this.applyOffer(offer)">
+                            Apply to Order
+                        </button>
                     </div>
                 </t>
 
-                <div class="sop-row">
-                    <label>Products (Ctrl+click for multi-select)</label>
-                    <select multiple="multiple" class="sop-multiselect"
-                        t-on-change="onSelProducts">
-                        <t t-foreach="props.products" t-as="p" t-key="p.id">
-                            <option t-att-value="p.id">
-                                <t t-esc="p.display_name or p.name"/>
-                            </option>
-                        </t>
-                    </select>
-                </div>
-
-                <div class="sop-row">
-                    <label>POS Category (optional)</label>
-                    <select t-on-change="onSelCategory">
-                        <option value="">-- None --</option>
-                        <t t-foreach="props.categories" t-as="cat" t-key="cat.id">
-                            <option t-att-value="cat.id">
-                                <t t-esc="cat.name"/>
-                            </option>
-                        </t>
-                    </select>
-                </div>
-
-                <div class="sop-2col">
-                    <div class="sop-row">
-                        <label>From Date *</label>
-                        <input type="date"
-                            t-att-value="state.dateFrom"
-                            t-on-input="onDateFrom"/>
-                    </div>
-                    <div class="sop-row">
-                        <label>To Date *</label>
-                        <input type="date"
-                            t-att-value="state.dateTo"
-                            t-on-input="onDateTo"/>
-                    </div>
-                </div>
-
-                <div class="sop-2col">
-                    <div class="sop-row">
-                        <label>Active From Time</label>
-                        <input type="time"
-                            t-att-value="state.activeTime"
-                            t-on-input="onActiveTime"/>
-                    </div>
-                    <div class="sop-row">
-                        <label>Discount Type</label>
-                        <select t-on-change="onDiscountType">
-                            <option value="percentage">Percentage (%)</option>
-                            <option value="fixed">Fixed Price</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="sop-2col">
-                    <div class="sop-row">
-                        <label>Discount Value *</label>
-                        <input type="number" min="0"
-                            t-att-value="state.discountValue"
-                            t-on-input="onDiscountValue"
-                            placeholder="e.g. 10"/>
-                    </div>
-                    <div class="sop-row">
-                        <label>Purchase Limit (0 = unlimited)</label>
-                        <input type="number" min="0"
-                            t-att-value="state.purchaseLimit"
-                            t-on-input="onPurchaseLimit"
-                            placeholder="0"/>
-                    </div>
-                </div>
-
+                <!-- Messages -->
                 <t t-if="state.errorMsg">
-                    <div class="sop-error"><t t-esc="state.errorMsg"/></div>
+                    <div class="sop-error" style="margin-top:12px;"><t t-esc="state.errorMsg"/></div>
                 </t>
-                <t t-if="state.successMsg">
-                    <div class="sop-success"><t t-esc="state.successMsg"/></div>
+                <t t-if="state.appliedMsg">
+                    <div class="sop-success" style="margin-top:12px;"><t t-esc="state.appliedMsg"/></div>
                 </t>
 
             </div>
 
             <div class="sop-footer">
                 <button class="sop-btn-cancel" t-on-click="props.close">Close</button>
-                <button class="sop-btn-create"
-                    t-on-click="onCreateOffer"
-                    t-att-disabled="state.loading">
-                    <t t-if="state.loading">Saving...</t>
-                    <t t-else="">✅ Create Offer</t>
-                </button>
             </div>
 
         </div>
