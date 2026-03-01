@@ -1,5 +1,5 @@
 from odoo import models, fields, api
-from datetime import datetime, date
+from datetime import date
 
 
 class PosSpecialOffer(models.Model):
@@ -19,7 +19,7 @@ class PosSpecialOffer(models.Model):
         'pos.category', 'pos_offer_category_rel', 'offer_id', 'category_id', string='POS Categories')
     date_from = fields.Date(string='From Date', required=True)
     date_to   = fields.Date(string='To Date',   required=True)
-    active_time = fields.Float(string='Active From Time')
+    active_time   = fields.Float(string='Active From Time')
     discount_type = fields.Selection([
         ('percentage', 'Percentage (%)'),
         ('fixed',      'Fixed Price'),
@@ -50,8 +50,13 @@ class PosSpecialOffer(models.Model):
 
     @api.model
     def get_active_offers_for_pos(self):
+        """
+        Return all date-valid active offers.
+        Time filtering is intentionally done client-side in JS
+        to avoid UTC/local timezone mismatch on the server.
+        Purchase limit check is done here.
+        """
         today = fields.Date.today()
-        now_hour = datetime.now().hour + datetime.now().minute / 60.0
         offers = self.search([
             ('active', '=', True),
             ('date_from', '<=', today),
@@ -59,8 +64,7 @@ class PosSpecialOffer(models.Model):
         ])
         result = []
         for o in offers:
-            if o.active_time and now_hour < o.active_time:
-                continue
+            # Skip if purchase limit reached
             if o.purchase_limit and o.usage_count >= o.purchase_limit:
                 continue
             result.append({
@@ -76,6 +80,7 @@ class PosSpecialOffer(models.Model):
                 'usage_count':    o.usage_count,
                 'date_from':      str(o.date_from),
                 'date_to':        str(o.date_to),
+                'active_time':    o.active_time,
             })
         return result
 
