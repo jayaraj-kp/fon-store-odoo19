@@ -9,9 +9,9 @@
         <field name="model_id" ref="sale.model_sale_order"/>
         <field name="domain_force">
             ['|',
-                ('warehouse_id', '=', False),
-                ('warehouse_id', 'in', user.allowed_warehouse_ids.ids)
-            ]
+                ('warehouse_id', 'in', user.allowed_warehouse_ids.ids or [False]),
+                ('warehouse_id', '=', False)
+            ] if user.allowed_warehouse_ids else [(1, '=', 1)]
         </field>
         <field name="groups" eval="[]"/>
         <field name="perm_read" eval="True"/>
@@ -28,9 +28,9 @@
         <field name="model_id" ref="purchase.model_purchase_order"/>
         <field name="domain_force">
             ['|',
-                ('picking_type_id.warehouse_id', '=', False),
-                ('picking_type_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids)
-            ]
+                ('picking_type_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids or [False]),
+                ('picking_type_id.warehouse_id', '=', False)
+            ] if user.allowed_warehouse_ids else [(1, '=', 1)]
         </field>
         <field name="groups" eval="[]"/>
         <field name="perm_read" eval="True"/>
@@ -47,9 +47,9 @@
         <field name="model_id" ref="stock.model_stock_picking"/>
         <field name="domain_force">
             ['|',
-                ('picking_type_id.warehouse_id', '=', False),
-                ('picking_type_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids)
-            ]
+                ('picking_type_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids or [False]),
+                ('picking_type_id.warehouse_id', '=', False)
+            ] if user.allowed_warehouse_ids else [(1, '=', 1)]
         </field>
         <field name="groups" eval="[]"/>
         <field name="perm_read" eval="True"/>
@@ -66,9 +66,9 @@
         <field name="model_id" ref="stock.model_stock_quant"/>
         <field name="domain_force">
             ['|',
-                ('warehouse_id', '=', False),
-                ('warehouse_id', 'in', user.allowed_warehouse_ids.ids)
-            ]
+                ('warehouse_id', 'in', user.allowed_warehouse_ids.ids or [False]),
+                ('warehouse_id', '=', False)
+            ] if user.allowed_warehouse_ids else [(1, '=', 1)]
         </field>
         <field name="groups" eval="[]"/>
         <field name="perm_read" eval="True"/>
