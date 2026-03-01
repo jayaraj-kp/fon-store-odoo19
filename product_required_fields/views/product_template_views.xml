@@ -6,15 +6,15 @@
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
 
-            <!-- Make Internal Reference (default_code) field required -->
-            <field name="default_code" position="attributes">
+            <!-- Make Internal Reference (default_code) field required via xpath -->
+            <xpath expr="//field[@name='default_code']" position="attributes">
                 <attribute name="required">True</attribute>
-            </field>
+            </xpath>
 
-            <!-- Make Barcode field required -->
-            <field name="barcode" position="attributes">
+            <!-- Make Barcode field required via xpath -->
+            <xpath expr="//field[@name='barcode']" position="attributes">
                 <attribute name="required">True</attribute>
-            </field>
+            </xpath>
 
         </field>
     </record>
