@@ -8,5 +8,5 @@ class ResConfigSettings(models.TransientModel):
         string='Auto Logout Delay (minutes)',
         default=10,
         config_parameter='auto_logout.delay',
-        help='Number of minutes of inactivity before automatic logout. Set 0 to disable.'
+        help='Minutes of inactivity before automatic logout. Set 0 to disable.'
     )

@@ -1,13 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!--
-        CONFIRMED from server grep:
-          base_setup inherits: base.res_config_settings_view_form
-          base_setup xpath:    //form   position="inside"
-          base_setup uses:     <div id="..."> blocks directly inside form
-
-        We follow the EXACT same pattern here.
-    -->
     <record id="res_config_settings_view_auto_logout" model="ir.ui.view">
         <field name="name">res.config.settings.view.auto.logout</field>
         <field name="model">res.config.settings</field>
@@ -26,7 +18,7 @@
                         </div>
                         <div class="d-flex align-items-center">
                             <field name="auto_logout_delay" style="width:80px;"/>
-                            <span class="ms-2 text-muted">minutes</span>
+                            <span class="ms-2 text-muted">minutes (0 = disabled)</span>
                         </div>
                     </div>
                 </div>

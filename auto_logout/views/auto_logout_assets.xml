@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Inject auto logout script by extending the main backend layout template.
+        This is the most reliable way in Odoo 19 — no asset bundle needed.
+        The script is loaded fresh on every page load with current config baked in.
+    -->
+    <template id="auto_logout_inject" inherit_id="web.layout" name="Auto Logout Script">
+        <xpath expr="//head" position="inside">
+            <script type="text/javascript"
+                    src="/auto_logout/script"
+                    defer="defer"/>
+        </xpath>
+    </template>
+</odoo>
