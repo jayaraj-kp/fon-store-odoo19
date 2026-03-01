@@ -1,9 +1,8 @@
 /** @odoo-module **/
 
-import { Component } from "@odoo/owl";
+import { Component, useState } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { useService } from "@web/core/utils/hooks";
-import { SpecialOfferPopup } from "./SpecialOfferPopup";
+import { SpecialOfferPopup } from "@pos_special_offers/js/SpecialOfferPopup";
 
 export class SpecialOfferButton extends Component {
     static template = "pos_special_offers.SpecialOfferButton";
@@ -11,28 +10,39 @@ export class SpecialOfferButton extends Component {
 
     setup() {
         this.pos = usePos();
-        this.dialog = useService("dialog");
+        this.state = useState({ showPopup: false });
+    }
+
+    get products() {
+        try {
+            const productMap = this.pos.models["product.product"];
+            if (productMap && typeof productMap.getAll === "function") {
+                return productMap.getAll();
+            }
+            // Fallback: iterate as object values
+            return Object.values(productMap || {}).filter(p => p && p.id);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    get categories() {
+        try {
+            const catMap = this.pos.models["pos.category"];
+            if (catMap && typeof catMap.getAll === "function") {
+                return catMap.getAll();
+            }
+            return Object.values(catMap || {}).filter(c => c && c.id);
+        } catch (e) {
+            return [];
+        }
     }
 
     onClick() {
-        // Get products and categories from POS loaded data
-        const products = Object.values(this.pos.models["product.product"] || {});
-        const categories = Object.values(this.pos.models["pos.category"] || {});
+        this.state.showPopup = true;
+    }
 
-        this.dialog.add(SpecialOfferPopup, {
-            products: Array.isArray(products) ? products : [],
-            categories: Array.isArray(categories) ? categories : [],
-        });
+    closePopup() {
+        this.state.showPopup = false;
     }
 }
-
-// Register button in POS top bar
-import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
-import { patch } from "@web/core/utils/patch";
-
-patch(ProductScreen, {
-    components: {
-        ...ProductScreen.components,
-        SpecialOfferButton,
-    },
-});

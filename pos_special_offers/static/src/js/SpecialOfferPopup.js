@@ -5,17 +5,15 @@ import { useService } from "@web/core/utils/hooks";
 
 export class SpecialOfferPopup extends Component {
     static template = "pos_special_offers.SpecialOfferPopup";
-
     static props = {
-        products: Array,
-        categories: Array,
-        close: Function,
+        products: { type: Array },
+        categories: { type: Array },
+        close: { type: Function },
     };
 
     setup() {
         this.orm = useService("orm");
         this.specialOfferService = useService("special_offer_service");
-
         this.state = useState({
             offerName: "",
             selectedProducts: [],
@@ -36,52 +34,25 @@ export class SpecialOfferPopup extends Component {
         return new Date().toISOString().split("T")[0];
     }
 
-    onOverlayClick() {
-        // close when clicking outside
-        this.props.close();
-    }
-
-    onClose() {
-        this.props.close();
-    }
-
-    onOfferNameInput(ev) {
-        this.state.offerName = ev.target.value;
-    }
-
+    onOfferNameInput(ev) { this.state.offerName = ev.target.value; }
     onProductChange(ev) {
         this.state.selectedProducts = [...ev.target.selectedOptions].map(o => parseInt(o.value));
     }
-
     onCategoryChange(ev) {
         this.state.selectedCategory = ev.target.value ? parseInt(ev.target.value) : null;
     }
+    onDateFromInput(ev) { this.state.dateFrom = ev.target.value; }
+    onDateToInput(ev) { this.state.dateTo = ev.target.value; }
+    onTimeInput(ev) { this.state.activeTime = ev.target.value; }
+    onDiscountTypeChange(ev) { this.state.discountType = ev.target.value; }
+    onDiscountValueInput(ev) { this.state.discountValue = ev.target.value; }
 
-    onDateFromInput(ev) {
-        this.state.dateFrom = ev.target.value;
-    }
-
-    onDateToInput(ev) {
-        this.state.dateTo = ev.target.value;
-    }
-
-    onTimeInput(ev) {
-        this.state.activeTime = ev.target.value;
-    }
-
-    onDiscountTypeChange(ev) {
-        this.state.discountType = ev.target.value;
-    }
-
-    onDiscountValueInput(ev) {
-        this.state.discountValue = ev.target.value;
-    }
+    onClose() { this.props.close(); }
 
     async onCreateOffer() {
         this.state.errorMsg = "";
         this.state.showSuccess = false;
 
-        // Validation
         if (!this.state.offerName.trim()) {
             this.state.errorMsg = "Please enter an Offer Name.";
             return;
@@ -95,7 +66,7 @@ export class SpecialOfferPopup extends Component {
             return;
         }
         if (!this.state.discountValue || parseFloat(this.state.discountValue) <= 0) {
-            this.state.errorMsg = "Please enter a valid Discount Value.";
+            this.state.errorMsg = "Please enter a valid Discount Value greater than 0.";
             return;
         }
         if (this.state.selectedProducts.length === 0 && !this.state.selectedCategory) {
@@ -103,7 +74,6 @@ export class SpecialOfferPopup extends Component {
             return;
         }
 
-        // Convert time "HH:MM" → float
         const [hours, minutes] = this.state.activeTime.split(":").map(Number);
         const timeFloat = hours + (minutes || 0) / 60.0;
 
@@ -123,13 +93,10 @@ export class SpecialOfferPopup extends Component {
                 active: true,
             }]);
 
-            // Refresh the service cache
             await this.specialOfferService.refresh();
 
             this.state.lastCreatedName = this.state.offerName;
             this.state.showSuccess = true;
-
-            // Reset form
             this.state.offerName = "";
             this.state.selectedProducts = [];
             this.state.selectedCategory = null;
@@ -139,8 +106,8 @@ export class SpecialOfferPopup extends Component {
             this.state.discountValue = "10";
 
         } catch (err) {
-            this.state.errorMsg = "Failed to create offer. Please check your inputs and try again.";
-            console.error("[SpecialOffer] Error creating offer:", err);
+            this.state.errorMsg = "Failed to create offer. Please try again.";
+            console.error("[SpecialOffer] Error:", err);
         } finally {
             this.state.loading = false;
         }

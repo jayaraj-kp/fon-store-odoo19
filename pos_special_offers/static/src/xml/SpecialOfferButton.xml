@@ -2,15 +2,19 @@
 <templates xml:space="preserve">
 
     <t t-name="pos_special_offers.SpecialOfferButton">
-        <button class="special-offer-btn" t-on-click="onClick">
-            🎁 Offers
-        </button>
+        <div>
+            <button class="special-offer-btn" t-on-click="onClick">
+                🎁 Offers
+            </button>
+            <!-- Inline popup rendered here to avoid dialog service dependency -->
+            <t t-if="state.showPopup">
+                <SpecialOfferPopup
+                    products="products"
+                    categories="categories"
+                    close="() => this.closePopup()"
+                />
+            </t>
+        </div>
     </t>
 
 </templates>
-
-    <!-- Patch ProductScreen to add Offers button in top bar -->
-    <t t-name="pos_special_offers.SpecialOfferButtonWrapper" owl="1">
-        <SpecialOfferButton/>
-    </t>
-
