@@ -12,11 +12,10 @@ export class SpecialOfferPopup extends Component {
     setup() {
         this.pos = usePos();
         this.offerService = useService("special_offer_service");
-        this.notification = useService("notification");
         this.state = useState({
             couponInput: "",
-            appliedMsg: "",
-            errorMsg: "",
+            appliedMsg:  "",
+            errorMsg:    "",
         });
     }
 
@@ -24,60 +23,125 @@ export class SpecialOfferPopup extends Component {
         return this.offerService.getActiveOffers().filter(o => o.offer_type === "flat_discount");
     }
 
-    get couponOffers() {
-        return this.offerService.getActiveOffers().filter(o => o.offer_type === "coupon");
-    }
-
     get currentOrder() {
-        return this.pos.get_order?.() || this.pos.selectedOrder || null;
+        // Try every known way to get the current order in Odoo 17/18/19
+        try {
+            if (this.pos.get_order)           return this.pos.get_order();
+            if (this.pos.selectedOrder)       return this.pos.selectedOrder;
+            if (this.pos.currentOrder)        return this.pos.currentOrder;
+            if (this.pos.orders?.length)      return this.pos.orders[0];
+        } catch (e) {}
+        return null;
     }
 
-    // Apply a flat discount offer to the current order
+    getOrderLines(order) {
+        // Try every known accessor for order lines in Odoo 17/18/19
+        try {
+            if (typeof order.get_orderlines === "function") return order.get_orderlines();
+            if (typeof order.getOrderlines  === "function") return order.getOrderlines();
+            if (Array.isArray(order.orderlines))            return order.orderlines;
+            if (order.orderlines?.models)                   return order.orderlines.models;
+            // Odoo 19 uses a reactive array directly on the order
+            const lines = Object.values(order).find(v => Array.isArray(v) && v.length > 0 && v[0]?.product_id !== undefined);
+            if (lines) return lines;
+        } catch (e) {}
+        return [];
+    }
+
+    getProductId(line) {
+        try {
+            if (typeof line.get_product === "function") return line.get_product()?.id;
+            if (line.product_id?.id)  return line.product_id.id;
+            if (line.product?.id)     return line.product.id;
+            if (line.product_id)      return line.product_id;
+        } catch (e) {}
+        return null;
+    }
+
+    getCategoryIds(line) {
+        try {
+            const product = typeof line.get_product === "function" ? line.get_product() : (line.product || line.product_id);
+            if (!product) return [];
+            return product.pos_categ_ids || product.pos_categ_id || [];
+        } catch (e) { return []; }
+    }
+
+    applyDiscount(line, offer) {
+        try {
+            if (offer.discount_type === "percentage") {
+                // Try set_discount first (standard POS method)
+                if (typeof line.set_discount === "function") {
+                    line.set_discount(offer.discount_value);
+                    return true;
+                }
+                // Odoo 19 may use discount property directly
+                if ("discount" in line) {
+                    line.discount = offer.discount_value;
+                    return true;
+                }
+            } else {
+                // Fixed price
+                if (typeof line.set_unit_price === "function") {
+                    line.set_unit_price(offer.discount_value);
+                    return true;
+                }
+                if (typeof line.setUnitPrice === "function") {
+                    line.setUnitPrice(offer.discount_value);
+                    return true;
+                }
+                if ("price_unit" in line) {
+                    line.price_unit = offer.discount_value;
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.error("[SpecialOffer] applyDiscount error:", e);
+        }
+        return false;
+    }
+
     applyOffer(offer) {
-        this.state.errorMsg = "";
+        this.state.errorMsg  = "";
         this.state.appliedMsg = "";
 
         const order = this.currentOrder;
         if (!order) {
-            this.state.errorMsg = "No active order found.";
+            this.state.errorMsg = "No active order found. Please start an order first.";
             return;
         }
 
-        const lines = order.get_orderlines?.() || order.orderlines || [];
-        if (!lines.length) {
-            this.state.errorMsg = "Add products to the order first.";
+        const lines = this.getOrderLines(order);
+        if (!lines || lines.length === 0) {
+            this.state.errorMsg = "Please add products to the order before applying an offer.";
             return;
         }
 
+        const noProductFilter = offer.product_ids.length === 0 && offer.category_ids.length === 0;
         let applied = 0;
+
         for (const line of lines) {
-            const productId = line.get_product?.()?.id || line.product?.id;
-            const categoryIds = line.get_product?.()?.pos_categ_ids || line.product?.pos_categ_ids || [];
+            const productId  = this.getProductId(line);
+            const catIds     = this.getCategoryIds(line);
 
-            const matchProduct = offer.product_ids.includes(productId);
-            const matchCategory = categoryIds.some(cid => offer.category_ids.includes(cid));
+            const matchProduct  = productId && offer.product_ids.includes(productId);
+            const matchCategory = catIds.some(cid => offer.category_ids.includes(cid));
 
-            if (matchProduct || matchCategory || (offer.product_ids.length === 0 && offer.category_ids.length === 0)) {
-                if (offer.discount_type === "percentage") {
-                    line.set_discount?.(offer.discount_value);
-                } else {
-                    // Fixed price — set custom price
-                    line.set_unit_price?.(offer.discount_value);
+            if (noProductFilter || matchProduct || matchCategory) {
+                if (this.applyDiscount(line, offer)) {
+                    applied++;
                 }
-                applied++;
             }
         }
 
         if (applied > 0) {
-            this.state.appliedMsg = `✅ "${offer.name}" applied to ${applied} line(s)!`;
+            this.state.appliedMsg = `✅ "${offer.name}" applied to ${applied} product line(s)!`;
         } else {
-            this.state.errorMsg = `No matching products in the order for "${offer.name}".`;
+            this.state.errorMsg = `No matching products found in the order for "${offer.name}".`;
         }
     }
 
-    // Apply coupon code
     applyCoupon() {
-        this.state.errorMsg = "";
+        this.state.errorMsg  = "";
         this.state.appliedMsg = "";
 
         const code = this.state.couponInput.trim();
@@ -92,7 +156,7 @@ export class SpecialOfferPopup extends Component {
         );
 
         if (!offer) {
-            this.state.errorMsg = `Coupon code "${code}" is not valid or has expired.`;
+            this.state.errorMsg = `Coupon "${code}" is invalid or has expired.`;
             return;
         }
 
@@ -103,4 +167,14 @@ export class SpecialOfferPopup extends Component {
     onCouponInput(ev) {
         this.state.couponInput = ev.target.value;
     }
+}
+
+// Debug helper - remove after confirming it works
+// Call from console: document.querySelector('.sop-popup').__owl__.component.debugOrder()
+debugOrder() {
+    const order = this.currentOrder;
+    if (!order) { console.log("[SOP Debug] No order"); return; }
+    console.log("[SOP Debug] Order keys:", Object.keys(order));
+    const lines = this.getOrderLines(order);
+    console.log("[SOP Debug] Lines found:", lines?.length, lines?.[0] ? Object.keys(lines[0]) : "none");
 }
