@@ -1,19 +1,8 @@
 /** @odoo-module **/
-/**
- * IMPORTANT: This file avoids importing from @point_of_sale/app/store/pos_hook
- * or @point_of_sale/app/navbar/navbar directly because those paths vary between
- * Odoo 16/17/18/19 and cause "module not found" crashes.
- *
- * Instead we:
- * 1. Define the component using only @odoo/owl + @web/core (always available)
- * 2. Use odoo.loader to lazily find and patch the Navbar at runtime AFTER
- *    the POS bundle is fully loaded.
- */
-import { Component, useState, onMounted } from "@odoo/owl";
+import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
-import { SpecialOfferPopup } from "@pos_special_offers/static/src/js/special_offer_popup";
 import { patch } from "@web/core/utils/patch";
-import { registry } from "@web/core/registry";
+import { SpecialOfferPopup } from "@pos_special_offers/static/src/js/special_offer_popup";
 
 export class SpecialOfferButton extends Component {
     static template = "pos_special_offers.SpecialOfferButton";
@@ -22,8 +11,6 @@ export class SpecialOfferButton extends Component {
     setup() {
         this.offerService = useService("special_offer_service");
         this.state = useState({ showPopup: false });
-
-        // Try to get pos models - may not be available outside POS context
         try { this.pos = useService("pos"); } catch (e) { this.pos = null; }
     }
 
@@ -32,8 +19,7 @@ export class SpecialOfferButton extends Component {
             if (!this.pos) return [];
             const m = this.pos.models?.["product.product"];
             if (!m) return [];
-            return typeof m.getAll === "function"
-                ? m.getAll()
+            return typeof m.getAll === "function" ? m.getAll()
                 : Object.values(m).filter(p => p?.id);
         } catch (e) { return []; }
     }
@@ -43,8 +29,7 @@ export class SpecialOfferButton extends Component {
             if (!this.pos) return [];
             const m = this.pos.models?.["pos.category"];
             if (!m) return [];
-            return typeof m.getAll === "function"
-                ? m.getAll()
+            return typeof m.getAll === "function" ? m.getAll()
                 : Object.values(m).filter(c => c?.id);
         } catch (e) { return []; }
     }
@@ -53,40 +38,68 @@ export class SpecialOfferButton extends Component {
     closePopup() { this.state.showPopup = false; }
 }
 
-// ── Runtime Navbar patch ──────────────────────────────────────────────────────
-// We look up the Navbar component from the already-loaded module registry
-// rather than importing it statically. This works regardless of the exact path.
-function patchNavbarSafely() {
-    // Try all known Navbar paths across Odoo versions
-    const possiblePaths = [
-        "@point_of_sale/app/navbar/navbar",
-        "@point_of_sale/app/components/navbar/navbar",
-        "@point_of_sale/app/screens/navbar/navbar",
-    ];
-
-    for (const path of possiblePaths) {
-        try {
-            const mod = odoo.loader.modules.get(path);
-            if (mod && mod.Navbar) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Find and patch the Navbar component so it knows about SpecialOfferButton.
+//
+// OWL resolves component tags (<SpecialOfferButton/>) by looking in the
+// parent component's static `components` property at render time.
+// So we MUST add SpecialOfferButton to Navbar.components.
+//
+// We search odoo.loader.modules (a Map) for any module that exports a
+// class called "Navbar" - this works regardless of the exact file path.
+// ─────────────────────────────────────────────────────────────────────────────
+function findAndPatchNavbar() {
+    let found = false;
+    // odoo.loader.modules is a Map<string, moduleExports>
+    for (const [path, mod] of odoo.loader.modules) {
+        if (
+            path.includes("point_of_sale") &&
+            path.toLowerCase().includes("navbar") &&
+            mod?.Navbar
+        ) {
+            try {
                 patch(mod.Navbar, {
-                    components: { ...mod.Navbar.components, SpecialOfferButton },
+                    components: {
+                        ...mod.Navbar.components,
+                        SpecialOfferButton,
+                    },
                 });
-                console.log("[SpecialOffers] Patched Navbar from:", path);
-                return;
+                console.log("[SpecialOffers] ✅ Patched Navbar at path:", path);
+                found = true;
+                break;
+            } catch (e) {
+                console.warn("[SpecialOffers] Patch failed for path:", path, e);
             }
-        } catch (e) { /* try next */ }
+        }
     }
-    console.warn("[SpecialOffers] Could not patch Navbar - button may not appear.");
+
+    if (!found) {
+        // Last resort: scan ALL loaded modules for any export named Navbar
+        for (const [path, mod] of odoo.loader.modules) {
+            if (mod?.Navbar && path.includes("point_of_sale")) {
+                console.log("[SpecialOffers] Found Navbar-like export at:", path, mod.Navbar);
+                try {
+                    patch(mod.Navbar, {
+                        components: {
+                            ...mod.Navbar.components,
+                            SpecialOfferButton,
+                        },
+                    });
+                    console.log("[SpecialOffers] ✅ Patched via fallback scan:", path);
+                    found = true;
+                    break;
+                } catch (e) {}
+            }
+        }
+    }
+
+    if (!found) {
+        console.error(
+            "[SpecialOffers] ❌ Could not find Navbar in any module. " +
+            "Open browser console and run: " +
+            "for(const [k,v] of odoo.loader.modules) { if(k.includes('point_of_sale')) console.log(k); }"
+        );
+    }
 }
 
-// Run after modules are loaded
-if (typeof odoo !== "undefined" && odoo.loader) {
-    // Hook into the module loaded event if possible
-    const origDefine = odoo.loader.define?.bind(odoo.loader);
-    if (origDefine) {
-        setTimeout(patchNavbarSafely, 0);
-    }
-}
-
-// Also register in pos_component registry as fallback
-registry.category("pos_component").add("SpecialOfferButton", SpecialOfferButton);
+findAndPatchNavbar();
