@@ -1,30 +1,29 @@
+# -*- coding: utf-8 -*-
 {
-    'name': 'POS Special Offers',
-    'version': '19.0.4.0.0',
+    'name': 'POS Special Offers Quick Access',
+    'version': '19.0.1.0.0',
+    'summary': 'Add a Special Offers button in POS top menu for quick coupon/discount program management',
+    'description': """
+        This module adds a "Special Offers" button in the Point of Sale top menu bar.
+        Clicking it opens the Discount & Loyalty program form (Coupon creation interface)
+        directly without navigating through the backend menus.
+    """,
+    'author': 'Custom',
     'category': 'Point of Sale',
-    'summary': 'Special offers with flat discount, coupon, purchase limit for POS',
-    'depends': ['point_of_sale'],
+    'depends': ['point_of_sale', 'loyalty'],
     'data': [
         'security/ir.model.access.csv',
-        'views/pos_special_offer_views.xml',
+        'views/pos_config_views.xml',
     ],
     'assets': {
         'point_of_sale._assets_pos': [
-            'pos_special_offers/static/src/css/special_offer.css',
-            # JS loaded in dependency order:
-            # 1. Service (no POS deps)
-            # 2. Popup (no POS deps)
-            # 3. Button (imports Navbar + usePos + Popup, patches Navbar)
-            'pos_special_offers/static/src/js/special_offer_service.js',
-            'pos_special_offers/static/src/js/special_offer_popup.js',
-            'pos_special_offers/static/src/js/special_offer_button.js',
-            # XML templates
-            'pos_special_offers/static/src/xml/SpecialOfferPopup.xml',
-            'pos_special_offers/static/src/xml/SpecialOfferButton.xml',
-            # NavbarPatch last - after Navbar is patched with SpecialOfferButton
-            'pos_special_offers/static/src/xml/NavbarPatch.xml',
+            'pos_special_offers/static/src/xml/special_offers_button.xml',
+            'pos_special_offers/static/src/js/screens/special_offers_screen.js',
+            'pos_special_offers/static/src/css/special_offers.css',
         ],
     },
     'installable': True,
+    'application': False,
+    'auto_install': False,
     'license': 'LGPL-3',
 }
