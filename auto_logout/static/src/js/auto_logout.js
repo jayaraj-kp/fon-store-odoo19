@@ -136,15 +136,17 @@
     function init() {
         if (initialized) { return; }
 
-        // Only run when a user session exists (skip login page)
-        // Check for Odoo session cookie or uid in page
-        var isLoggedIn = (
-            document.cookie.indexOf("session_id") !== -1 &&
-            !window.location.pathname.startsWith("/web/login")
+        // Skip only on login/signup pages
+        var path = window.location.pathname;
+        var isLoginPage = (
+            path === "/web/login" ||
+            path === "/web/signup" ||
+            path === "/web/reset_password" ||
+            path.indexOf("/web/login") !== -1
         );
 
-        if (!isLoggedIn) {
-            console.info("[AutoLogout] Not logged in — skipping.");
+        if (isLoginPage) {
+            console.info("[AutoLogout] Login page — skipping.");
             return;
         }
 
