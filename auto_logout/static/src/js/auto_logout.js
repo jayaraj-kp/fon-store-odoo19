@@ -5,13 +5,15 @@ import { registry } from "@web/core/registry";
 import { browser } from "@web/core/browser/browser";
 
 /**
- * Auto Logout Service
- * -------------------
- * Tracks user inactivity and automatically logs them out after a configured timeout.
- * - Fetches timeout config from the server via JSON-RPC
- * - Resets timer on any user activity (mouse, keyboard, scroll, touch, click)
+ * Auto Logout Service for Odoo 19
+ * --------------------------------
+ * Tracks user inactivity and automatically logs them out
+ * after a server-configured timeout.
+ *
+ * - Fetches timeout from /auto_logout/config (JSON-RPC)
+ * - Resets timer on: mousemove, mousedown, keydown, scroll, touch, click, wheel
  * - Shows an orange warning banner 1 minute before logout
- * - Redirects to /web/login on timeout
+ * - Redirects to /web/login after timeout
  */
 
 let logoutTimer = null;
@@ -19,14 +21,13 @@ let warningTimer = null;
 let delayMinutes = 10;
 
 function clearAllTimers() {
-    if (logoutTimer) {
-        clearTimeout(logoutTimer);
-        logoutTimer = null;
-    }
-    if (warningTimer) {
-        clearTimeout(warningTimer);
-        warningTimer = null;
-    }
+    if (logoutTimer) { clearTimeout(logoutTimer); logoutTimer = null; }
+    if (warningTimer) { clearTimeout(warningTimer); warningTimer = null; }
+}
+
+function removeWarningBanner() {
+    const el = document.getElementById("auto_logout_warning_banner");
+    if (el) el.remove();
 }
 
 function resetTimer() {
@@ -39,21 +40,16 @@ function startTimer() {
     if (!delayMinutes || delayMinutes <= 0) return;
 
     const delayMs = delayMinutes * 60 * 1000;
-    const warningMs = delayMs - 60 * 1000; // Show warning 1 minute before logout
+    const warningMs = delayMs - 60 * 1000; // warn 1 min before
 
     if (warningMs > 0) {
-        warningTimer = browser.setTimeout(() => {
-            showWarningBanner();
-        }, warningMs);
+        warningTimer = browser.setTimeout(showWarningBanner, warningMs);
     }
 
-    logoutTimer = browser.setTimeout(() => {
-        performLogout();
-    }, delayMs);
+    logoutTimer = browser.setTimeout(performLogout, delayMs);
 }
 
 function showWarningBanner() {
-    // Remove any existing banner first
     removeWarningBanner();
 
     const banner = document.createElement("div");
@@ -65,63 +61,43 @@ function showWarningBanner() {
         z-index: 100000;
         background: linear-gradient(135deg, #ff9800, #f44336);
         color: #fff;
-        padding: 16px 24px;
+        padding: 16px 22px;
         border-radius: 8px;
         font-size: 14px;
         font-weight: 600;
         font-family: sans-serif;
         box-shadow: 0 6px 20px rgba(0,0,0,0.35);
         max-width: 360px;
-        line-height: 1.5;
+        line-height: 1.6;
         cursor: pointer;
-        transition: opacity 0.3s ease;
     `;
     banner.innerHTML = `
         ⚠️ <strong>Inactivity Warning</strong><br>
-        <span style="font-weight:400;">You will be automatically logged out in <strong>1 minute</strong> due to inactivity.<br>
-        Click anywhere to stay logged in.</span>
+        <span style="font-weight:400;">
+            You will be logged out in <strong>1 minute</strong> due to inactivity.<br>
+            Click anywhere to stay logged in.
+        </span>
     `;
-
-    // Clicking the banner itself also resets the timer
-    banner.addEventListener("click", () => {
-        resetTimer();
-    });
-
+    banner.addEventListener("click", resetTimer);
     document.body.appendChild(banner);
 
-    // Auto-remove banner after 55 seconds (logout fires at 60s)
-    setTimeout(() => {
-        removeWarningBanner();
-    }, 55000);
-}
-
-function removeWarningBanner() {
-    const existing = document.getElementById("auto_logout_warning_banner");
-    if (existing) {
-        existing.remove();
-    }
+    // Remove banner after 55s (logout fires at 60s)
+    setTimeout(removeWarningBanner, 55000);
 }
 
 function performLogout() {
     removeWarningBanner();
-    console.info("[AutoLogout] Session expired due to inactivity. Logging out...");
+    console.info("[AutoLogout] Session expired. Logging out...");
 
-    // Show a brief logout notice before redirecting
+    // Show overlay before redirect
     const overlay = document.createElement("div");
     overlay.style.cssText = `
-        position: fixed;
-        inset: 0;
-        z-index: 999999;
-        background: rgba(0,0,0,0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 18px;
-        font-family: sans-serif;
-        font-weight: 600;
+        position: fixed; inset: 0; z-index: 999999;
+        background: rgba(0,0,0,0.65);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 18px; font-family: sans-serif; font-weight: 600;
     `;
-    overlay.textContent = "Session expired. Redirecting to login...";
+    overlay.textContent = "Session expired due to inactivity. Redirecting to login...";
     document.body.appendChild(overlay);
 
     setTimeout(() => {
@@ -133,70 +109,46 @@ async function fetchAutoLogoutConfig() {
     try {
         const response = await fetch("/auto_logout/config", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                method: "call",
-                id: 1,
-                params: {},
-            }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jsonrpc: "2.0", method: "call", id: 1, params: {} }),
         });
         const data = await response.json();
         if (data && data.result && typeof data.result.delay === "number") {
             return data.result.delay;
         }
-    } catch (error) {
-        console.warn("[AutoLogout] Failed to fetch config, using default 10 minutes.", error);
+    } catch (err) {
+        console.warn("[AutoLogout] Could not fetch config, using default 10 min.", err);
     }
-    return 10; // default fallback
+    return 10;
 }
 
 async function initAutoLogout() {
-    // Only activate for authenticated users
-    if (!session.uid) {
-        return;
-    }
+    // Only for authenticated users
+    if (!session.uid) return;
 
     delayMinutes = await fetchAutoLogoutConfig();
 
     if (!delayMinutes || delayMinutes <= 0) {
-        console.info("[AutoLogout] Auto logout is disabled (delay = 0).");
+        console.info("[AutoLogout] Disabled (delay = 0).");
         return;
     }
 
-    // Attach activity listeners to reset the inactivity timer
     const activityEvents = [
-        "mousemove",
-        "mousedown",
-        "keydown",
-        "keypress",
-        "scroll",
-        "touchstart",
-        "touchmove",
-        "click",
-        "wheel",
+        "mousemove", "mousedown", "keydown", "keypress",
+        "scroll", "touchstart", "touchmove", "click", "wheel",
     ];
-
-    activityEvents.forEach((eventName) => {
-        document.addEventListener(eventName, resetTimer, { passive: true, capture: true });
+    activityEvents.forEach((evt) => {
+        document.addEventListener(evt, resetTimer, { passive: true, capture: true });
     });
 
-    // Kick off the timer
     startTimer();
-
-    console.info(
-        `[AutoLogout] Initialized. User will be logged out after ${delayMinutes} minute(s) of inactivity.`
-    );
+    console.info(`[AutoLogout] Active — timeout: ${delayMinutes} minute(s) of inactivity.`);
 }
 
-// Register as an Odoo web service so it starts with the web client
-const autoLogoutService = {
+// Register as an Odoo web service
+registry.category("services").add("auto_logout", {
     name: "auto_logout",
     start() {
         initAutoLogout();
     },
-};
-
-registry.category("services").add("auto_logout", autoLogoutService);
+});
