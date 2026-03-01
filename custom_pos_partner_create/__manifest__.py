@@ -2,8 +2,11 @@
     'name': 'POS Direct Partner Create',
     'version': '19.0.1.0.0',
     'category': 'Point of Sale',
-    'summary': 'Open Create Contact wizard directly from POS',
+    'summary': 'Open simple Create Contact form directly from POS',
     'depends': ['point_of_sale'],
+    'data': [
+        'views/res_partner_pos_form.xml',
+    ],
     'assets': {
         'point_of_sale._assets_pos': [
             'custom_pos_partner_create/static/src/js/partner_create_patch.js',

@@ -8,23 +8,38 @@ patch(PartnerList.prototype, {
     setup() {
         super.setup(...arguments);
         this.action = useService("action");
+        this.orm = useService("orm");
     },
 
     async editPartner(partner = false) {
-        // Only intercept NEW partner creation (partner === false)
-        // Let existing partner editing work normally
+        // Only intercept NEW partner creation
         if (partner) {
             return await super.editPartner(partner);
         }
 
-        // Open backend Create Contact form as a dialog
+        // Get the custom simple view ID from the database
+        let viewId = false;
+        try {
+            const views = await this.orm.searchRead(
+                "ir.ui.view",
+                [["name", "=", "res.partner.pos.simple.form"]],
+                ["id"],
+                { limit: 1 }
+            );
+            if (views.length > 0) {
+                viewId = views[0].id;
+            }
+        } catch (e) {
+            console.warn("Could not find custom view, using default:", e);
+        }
+
         return new Promise((resolve) => {
             this.action.doAction(
                 {
                     type: "ir.actions.act_window",
                     res_model: "res.partner",
                     view_mode: "form",
-                    views: [[false, "form"]],
+                    views: [[viewId || false, "form"]],
                     target: "new",
                     context: {
                         default_customer_rank: 1,
@@ -32,7 +47,7 @@ patch(PartnerList.prototype, {
                 },
                 {
                     onClose: async () => {
-                        // After dialog closes, reload partners so new one appears
+                        // Reload partners after creation
                         try {
                             await this.pos.data.callRelated(
                                 "res.partner",
@@ -40,7 +55,7 @@ patch(PartnerList.prototype, {
                                 [this.pos.config.id, [], 0]
                             );
                         } catch (e) {
-                            console.warn("Partner reload failed:", e);
+                            console.warn("Partner reload error:", e);
                         }
                         resolve(null);
                     },
