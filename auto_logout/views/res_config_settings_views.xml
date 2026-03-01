@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_auto_logout" model="ir.ui.view">
+        <field name="name">res.config.settings.view.auto.logout</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base_setup.action_general_configuration"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('o_settings_container')]" position="before">
+                <div class="app_settings_block">
+                    <h2>Auto Logout</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="auto_logout_delay" string="Session Timeout"/>
+                                <div class="text-muted">
+                                    Automatically log out users after this many minutes of inactivity.
+                                    Set to <strong>0</strong> to disable auto logout.
+                                </div>
+                                <div class="content-group mt8 d-flex align-items-center gap-2">
+                                    <field
+                                        name="auto_logout_delay"
+                                        widget="integer"
+                                        style="width: 100px;"
+                                    />
+                                    <span class="ms-2 text-muted">minutes (default: 10)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
