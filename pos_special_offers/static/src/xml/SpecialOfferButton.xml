@@ -2,11 +2,10 @@
 <templates xml:space="preserve">
 
     <t t-name="pos_special_offers.SpecialOfferButton">
-        <div>
+        <div class="pos-special-offer-wrapper">
             <button class="special-offer-btn" t-on-click="onClick">
                 🎁 Offers
             </button>
-            <!-- Inline popup rendered here to avoid dialog service dependency -->
             <t t-if="state.showPopup">
                 <SpecialOfferPopup
                     products="products"

@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-    <!--
-        Inject the Offers button into the POS Navbar (right side header).
-        This xpath targets the Odoo 17/18/19 Navbar template.
-    -->
     <t t-name="pos_special_offers.NavbarPatch"
        t-inherit="point_of_sale.Navbar"
        t-inherit-mode="extension">

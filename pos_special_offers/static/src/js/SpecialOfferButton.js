@@ -2,7 +2,9 @@
 
 import { Component, useState } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { SpecialOfferPopup } from "@pos_special_offers/js/SpecialOfferPopup";
+import { Navbar } from "@point_of_sale/app/navbar/navbar";
+import { patch } from "@web/core/utils/patch";
+import { SpecialOfferPopup } from "@pos_special_offers/static/src/js/SpecialOfferPopup";
 
 export class SpecialOfferButton extends Component {
     static template = "pos_special_offers.SpecialOfferButton";
@@ -15,34 +17,30 @@ export class SpecialOfferButton extends Component {
 
     get products() {
         try {
-            const productMap = this.pos.models["product.product"];
-            if (productMap && typeof productMap.getAll === "function") {
-                return productMap.getAll();
-            }
-            // Fallback: iterate as object values
-            return Object.values(productMap || {}).filter(p => p && p.id);
-        } catch (e) {
-            return [];
-        }
+            const all = this.pos.models["product.product"];
+            if (!all) return [];
+            if (typeof all.getAll === "function") return all.getAll();
+            return Object.values(all).filter(p => p && p.id);
+        } catch (e) { return []; }
     }
 
     get categories() {
         try {
-            const catMap = this.pos.models["pos.category"];
-            if (catMap && typeof catMap.getAll === "function") {
-                return catMap.getAll();
-            }
-            return Object.values(catMap || {}).filter(c => c && c.id);
-        } catch (e) {
-            return [];
-        }
+            const all = this.pos.models["pos.category"];
+            if (!all) return [];
+            if (typeof all.getAll === "function") return all.getAll();
+            return Object.values(all).filter(c => c && c.id);
+        } catch (e) { return []; }
     }
 
-    onClick() {
-        this.state.showPopup = true;
-    }
-
-    closePopup() {
-        this.state.showPopup = false;
-    }
+    onClick() { this.state.showPopup = true; }
+    closePopup() { this.state.showPopup = false; }
 }
+
+// Register SpecialOfferButton as a known component inside Navbar
+patch(Navbar, {
+    components: {
+        ...Navbar.components,
+        SpecialOfferButton,
+    },
+});

@@ -13,6 +13,7 @@ export class SpecialOfferPopup extends Component {
 
     setup() {
         this.orm = useService("orm");
+        this.notification = useService("notification");
         this.specialOfferService = useService("special_offer_service");
         this.state = useState({
             offerName: "",
@@ -46,7 +47,6 @@ export class SpecialOfferPopup extends Component {
     onTimeInput(ev) { this.state.activeTime = ev.target.value; }
     onDiscountTypeChange(ev) { this.state.discountType = ev.target.value; }
     onDiscountValueInput(ev) { this.state.discountValue = ev.target.value; }
-
     onClose() { this.props.close(); }
 
     async onCreateOffer() {
@@ -100,9 +100,6 @@ export class SpecialOfferPopup extends Component {
             this.state.offerName = "";
             this.state.selectedProducts = [];
             this.state.selectedCategory = null;
-            this.state.dateFrom = this._today();
-            this.state.dateTo = this._today();
-            this.state.activeTime = "00:00";
             this.state.discountValue = "10";
 
         } catch (err) {

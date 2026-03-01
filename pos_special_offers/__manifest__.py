@@ -16,7 +16,7 @@
             'pos_special_offers/static/src/js/SpecialOfferButton.js',
             'pos_special_offers/static/src/xml/SpecialOfferPopup.xml',
             'pos_special_offers/static/src/xml/SpecialOfferButton.xml',
-            'pos_special_offers/static/src/xml/ProductScreenPatch.xml',
+            'pos_special_offers/static/src/xml/NavbarPatch.xml',
         ],
     },
     'installable': True,
