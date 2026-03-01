@@ -2,7 +2,7 @@
     'name': 'POS Direct Partner Create',
     'version': '19.0.1.0.0',
     'category': 'Point of Sale',
-    'summary': 'Open Create Contact wizard directly from POS without Edit Partner dialog',
+    'summary': 'Open Create Contact wizard directly from POS',
     'depends': ['point_of_sale'],
     'assets': {
         'point_of_sale._assets_pos': [
