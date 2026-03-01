@@ -4,11 +4,7 @@
     <div class="sop-btn-wrapper">
         <button class="sop-nav-btn" t-on-click="onClick">🎁 Offers</button>
         <t t-if="state.showPopup">
-            <SpecialOfferPopup
-                products="products"
-                categories="categories"
-                close.bind="closePopup"
-            />
+            <SpecialOfferPopup close.bind="closePopup"/>
         </t>
     </div>
 </t>
