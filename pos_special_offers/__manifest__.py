@@ -1,8 +1,8 @@
 {
     'name': 'POS Special Offers',
-    'version': '19.0.1.0.0',
+    'version': '19.0.2.0.0',
     'category': 'Point of Sale',
-    'summary': 'Add time-based special offers to POS products and categories',
+    'summary': 'Special offers with flat discount, coupon, purchase limit for POS',
     'depends': ['point_of_sale'],
     'data': [
         'security/ir.model.access.csv',
@@ -11,15 +11,14 @@
     'assets': {
         'point_of_sale._assets_pos': [
             'pos_special_offers/static/src/css/special_offer.css',
-            'pos_special_offers/static/src/js/SpecialOfferService.js',
-            'pos_special_offers/static/src/js/SpecialOfferPopup.js',
-            'pos_special_offers/static/src/js/SpecialOfferButton.js',
             'pos_special_offers/static/src/xml/SpecialOfferPopup.xml',
             'pos_special_offers/static/src/xml/SpecialOfferButton.xml',
             'pos_special_offers/static/src/xml/NavbarPatch.xml',
+            'pos_special_offers/static/src/js/special_offer_service.js',
+            'pos_special_offers/static/src/js/special_offer_popup.js',
+            'pos_special_offers/static/src/js/special_offer_button.js',
         ],
     },
     'installable': True,
-    'application': False,
     'license': 'LGPL-3',
 }

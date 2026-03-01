@@ -1,19 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-
-    <t t-name="pos_special_offers.SpecialOfferButton">
-        <div class="pos-special-offer-wrapper">
-            <button class="special-offer-btn" t-on-click="onClick">
-                🎁 Offers
-            </button>
-            <t t-if="state.showPopup">
-                <SpecialOfferPopup
-                    products="products"
-                    categories="categories"
-                    close="() => this.closePopup()"
-                />
-            </t>
-        </div>
-    </t>
-
+<t t-name="pos_special_offers.SpecialOfferButton">
+    <div class="sop-btn-wrapper">
+        <button class="sop-nav-btn" t-on-click="onClick">🎁 Offers</button>
+        <t t-if="state.showPopup">
+            <SpecialOfferPopup
+                products="products"
+                categories="categories"
+                close="() => closePopup()"
+            />
+        </t>
+    </div>
+</t>
 </templates>

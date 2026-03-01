@@ -1,133 +1,145 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
+<t t-name="pos_special_offers.SpecialOfferPopup">
+    <div class="sop-overlay" t-on-click.self="props.close">
+        <div class="sop-popup">
 
-    <t t-name="pos_special_offers.SpecialOfferPopup">
-        <div class="special-offer-popup-overlay" t-on-click.self="onOverlayClick">
-            <div class="special-offer-popup">
-
-                <!-- Header -->
-                <div class="popup-header">
-                    <h3>🎁 Create Special Offer</h3>
-                    <span style="cursor:pointer;font-size:20px;" t-on-click="onClose">✕</span>
-                </div>
-
-                <!-- Body -->
-                <div class="popup-body">
-
-                    <!-- Offer Name -->
-                    <div class="form-group">
-                        <label>Offer Name *</label>
-                        <input
-                            type="text"
-                            placeholder="e.g. Summer Sale, Happy Hour..."
-                            t-att-value="state.offerName"
-                            t-on-input="onOfferNameInput"
-                        />
-                    </div>
-
-                    <!-- Products -->
-                    <div class="form-group">
-                        <label>Select Products (hold Ctrl for multi-select)</label>
-                        <select multiple="multiple" t-on-change="onProductChange">
-                            <t t-foreach="props.products" t-as="product" t-key="product.id">
-                                <option t-att-value="product.id">
-                                    <t t-esc="product.display_name"/>
-                                </option>
-                            </t>
-                        </select>
-                    </div>
-
-                    <!-- Categories -->
-                    <div class="form-group">
-                        <label>Select POS Category (optional)</label>
-                        <select t-on-change="onCategoryChange">
-                            <option value="">-- No Category --</option>
-                            <t t-foreach="props.categories" t-as="cat" t-key="cat.id">
-                                <option t-att-value="cat.id">
-                                    <t t-esc="cat.name"/>
-                                </option>
-                            </t>
-                        </select>
-                    </div>
-
-                    <!-- Dates -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>From Date *</label>
-                            <input
-                                type="date"
-                                t-att-value="state.dateFrom"
-                                t-on-input="onDateFromInput"
-                            />
-                        </div>
-                        <div class="form-group">
-                            <label>To Date *</label>
-                            <input
-                                type="date"
-                                t-att-value="state.dateTo"
-                                t-on-input="onDateToInput"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Time -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Active From Time</label>
-                            <input
-                                type="time"
-                                t-att-value="state.activeTime"
-                                t-on-input="onTimeInput"
-                            />
-                        </div>
-                        <div class="form-group">
-                            <label>Discount Type</label>
-                            <select t-on-change="onDiscountTypeChange">
-                                <option value="percentage">Percentage (%)</option>
-                                <option value="fixed">Fixed Price</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Discount Value -->
-                    <div class="form-group">
-                        <label>
-                            <t t-if="state.discountType === 'percentage'">Discount % *</t>
-                            <t t-else="">Fixed Price *</t>
-                        </label>
-                        <input
-                            type="number"
-                            t-att-placeholder="state.discountType === 'percentage' ? 'e.g. 10 for 10% off' : 'e.g. 99.99'"
-                            t-att-value="state.discountValue"
-                            t-on-input="onDiscountValueInput"
-                        />
-                    </div>
-
-                    <!-- Success message -->
-                    <div t-att-class="'success-msg ' + (state.showSuccess ? 'show' : '')">
-                        ✅ Offer "<t t-esc="state.lastCreatedName"/>" created successfully!
-                    </div>
-
-                    <!-- Error message -->
-                    <t t-if="state.errorMsg">
-                        <div style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;border-radius:7px;padding:10px 14px;font-size:13px;margin-top:10px;">
-                            ⚠️ <t t-esc="state.errorMsg"/>
-                        </div>
-                    </t>
-
-                </div>
-
-                <!-- Footer -->
-                <div class="popup-footer">
-                    <button class="btn-cancel" t-on-click="onClose">Close</button>
-                    <button class="btn-create" t-on-click="onCreateOffer" t-att-disabled="state.loading">
-                        <t t-if="state.loading">Creating...</t>
-                        <t t-else="">✅ Create Offer</t>
-                    </button>
-                </div>
-
+            <div class="sop-header">
+                <span>🎁 Create Special Offer</span>
+                <span class="sop-close" t-on-click="props.close">✕</span>
             </div>
-        </div>
-    </t>
 
+            <div class="sop-body">
+
+                <!-- Offer Name -->
+                <div class="sop-row">
+                    <label>Offer Name *</label>
+                    <input type="text" t-att-value="state.offerName"
+                        t-on-input="ev => set('offerName', ev)"
+                        placeholder="e.g. DHAMAKKA OFFER"/>
+                </div>
+
+                <!-- Offer Type -->
+                <div class="sop-row">
+                    <label>Offer Type *</label>
+                    <div class="sop-radio-group">
+                        <label>
+                            <input type="radio" name="offerType" value="flat_discount"
+                                t-att-checked="state.offerType === 'flat_discount'"
+                                t-on-change="ev => set('offerType', ev)"/>
+                            Flat Discount
+                        </label>
+                        <label>
+                            <input type="radio" name="offerType" value="coupon"
+                                t-att-checked="state.offerType === 'coupon'"
+                                t-on-change="ev => set('offerType', ev)"/>
+                            Coupon
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Coupon Code (only for coupon type) -->
+                <t t-if="state.offerType === 'coupon'">
+                    <div class="sop-row">
+                        <label>Coupon Code *</label>
+                        <input type="text" t-att-value="state.couponCode"
+                            t-on-input="ev => set('couponCode', ev)"
+                            placeholder="e.g. SAVE20"/>
+                    </div>
+                </t>
+
+                <!-- Products -->
+                <div class="sop-row">
+                    <label>Products (Ctrl+click for multi)</label>
+                    <select multiple="multiple" class="sop-multiselect"
+                        t-on-change="setProducts">
+                        <t t-foreach="props.products" t-as="p" t-key="p.id">
+                            <option t-att-value="p.id">
+                                <t t-esc="p.display_name or p.name"/>
+                            </option>
+                        </t>
+                    </select>
+                </div>
+
+                <!-- Category -->
+                <div class="sop-row">
+                    <label>POS Category (optional)</label>
+                    <select t-on-change="ev => set('selCategory', ev)">
+                        <option value="">-- None --</option>
+                        <t t-foreach="props.categories" t-as="cat" t-key="cat.id">
+                            <option t-att-value="cat.id">
+                                <t t-esc="cat.name"/>
+                            </option>
+                        </t>
+                    </select>
+                </div>
+
+                <!-- Dates -->
+                <div class="sop-2col">
+                    <div class="sop-row">
+                        <label>From Date *</label>
+                        <input type="date" t-att-value="state.dateFrom"
+                            t-on-input="ev => set('dateFrom', ev)"/>
+                    </div>
+                    <div class="sop-row">
+                        <label>To Date *</label>
+                        <input type="date" t-att-value="state.dateTo"
+                            t-on-input="ev => set('dateTo', ev)"/>
+                    </div>
+                </div>
+
+                <!-- Time + Discount Type -->
+                <div class="sop-2col">
+                    <div class="sop-row">
+                        <label>Active From Time</label>
+                        <input type="time" t-att-value="state.activeTime"
+                            t-on-input="ev => set('activeTime', ev)"/>
+                    </div>
+                    <div class="sop-row">
+                        <label>Discount Type</label>
+                        <select t-on-change="ev => set('discountType', ev)">
+                            <option value="percentage">Percentage (%)</option>
+                            <option value="fixed">Fixed Price</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Discount Value + Purchase Limit -->
+                <div class="sop-2col">
+                    <div class="sop-row">
+                        <label>Discount Value *</label>
+                        <input type="number" t-att-value="state.discountValue"
+                            t-on-input="ev => set('discountValue', ev)"
+                            placeholder="e.g. 10"/>
+                    </div>
+                    <div class="sop-row">
+                        <label>Purchase Limit (0=unlimited)</label>
+                        <input type="number" t-att-value="state.purchaseLimit"
+                            t-on-input="ev => set('purchaseLimit', ev)"
+                            placeholder="0"/>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <t t-if="state.errorMsg">
+                    <div class="sop-error"><t t-esc="state.errorMsg"/></div>
+                </t>
+                <t t-if="state.successMsg">
+                    <div class="sop-success"><t t-esc="state.successMsg"/></div>
+                </t>
+
+            </div><!-- /sop-body -->
+
+            <div class="sop-footer">
+                <button class="sop-btn-cancel" t-on-click="props.close">Close</button>
+                <button class="sop-btn-create" t-on-click="onCreateOffer"
+                    t-att-disabled="state.loading">
+                    <t t-if="state.loading">Saving...</t>
+                    <t t-else="">✅ Create Offer</t>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</t>
 </templates>
