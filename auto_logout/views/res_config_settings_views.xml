@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        CONFIRMED from server grep:
+          base_setup inherits: base.res_config_settings_view_form
+          base_setup xpath:    //form   position="inside"
+          base_setup uses:     <div id="..."> blocks directly inside form
+
+        We follow the EXACT same pattern here.
+    -->
+    <record id="res_config_settings_view_auto_logout" model="ir.ui.view">
+        <field name="name">res.config.settings.view.auto.logout</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <div id="auto_logout_settings" class="col-12 col-lg-6 o_setting_box">
+                    <div class="o_setting_left_pane"/>
+                    <div class="o_setting_right_pane">
+                        <div class="o_form_label">
+                            <label for="auto_logout_delay" string="Auto Logout"/>
+                        </div>
+                        <div class="text-muted mt4 mb8">
+                            Automatically log out users after this many minutes of inactivity.
+                            Set to <b>0</b> to disable.
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <field name="auto_logout_delay" style="width:80px;"/>
+                            <span class="ms-2 text-muted">minutes</span>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

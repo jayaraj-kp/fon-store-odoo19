@@ -1,1 +1,1 @@
-from . import auto_logout_config
+from . import res_config_settings

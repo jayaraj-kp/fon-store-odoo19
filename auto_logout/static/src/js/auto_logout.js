@@ -4,18 +4,6 @@ import { session } from "@web/session";
 import { registry } from "@web/core/registry";
 import { browser } from "@web/core/browser/browser";
 
-/**
- * Auto Logout Service for Odoo 19
- * --------------------------------
- * Tracks user inactivity and automatically logs them out
- * after a server-configured timeout.
- *
- * - Fetches timeout from /auto_logout/config (JSON-RPC)
- * - Resets timer on: mousemove, mousedown, keydown, scroll, touch, click, wheel
- * - Shows an orange warning banner 1 minute before logout
- * - Redirects to /web/login after timeout
- */
-
 let logoutTimer = null;
 let warningTimer = null;
 let delayMinutes = 10;
@@ -40,36 +28,25 @@ function startTimer() {
     if (!delayMinutes || delayMinutes <= 0) return;
 
     const delayMs = delayMinutes * 60 * 1000;
-    const warningMs = delayMs - 60 * 1000; // warn 1 min before
+    const warningMs = delayMs - 60 * 1000;
 
     if (warningMs > 0) {
         warningTimer = browser.setTimeout(showWarningBanner, warningMs);
     }
-
     logoutTimer = browser.setTimeout(performLogout, delayMs);
 }
 
 function showWarningBanner() {
     removeWarningBanner();
-
     const banner = document.createElement("div");
     banner.id = "auto_logout_warning_banner";
     banner.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 100000;
-        background: linear-gradient(135deg, #ff9800, #f44336);
-        color: #fff;
-        padding: 16px 22px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        font-family: sans-serif;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-        max-width: 380px;
-        line-height: 1.6;
-        cursor: pointer;
+        position:fixed; top:20px; right:20px; z-index:100000;
+        background:linear-gradient(135deg,#ff9800,#f44336);
+        color:#fff; padding:16px 22px; border-radius:8px;
+        font-size:14px; font-weight:600; font-family:sans-serif;
+        box-shadow:0 6px 20px rgba(0,0,0,0.35);
+        max-width:380px; line-height:1.6; cursor:pointer;
     `;
     banner.innerHTML = `
         ⚠️ <strong>Inactivity Warning</strong><br>
@@ -80,29 +57,25 @@ function showWarningBanner() {
     `;
     banner.addEventListener("click", resetTimer);
     document.body.appendChild(banner);
-
-    // Auto-remove after 55s (logout fires at 60s)
     setTimeout(removeWarningBanner, 55000);
 }
 
 function performLogout() {
     removeWarningBanner();
     console.info("[AutoLogout] Session expired. Logging out...");
-
     const overlay = document.createElement("div");
     overlay.style.cssText = `
-        position: fixed; inset: 0; z-index: 999999;
-        background: rgba(0,0,0,0.65);
-        display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 18px; font-family: sans-serif; font-weight: 600;
-        flex-direction: column; gap: 12px;
+        position:fixed; inset:0; z-index:999999;
+        background:rgba(0,0,0,0.65);
+        display:flex; align-items:center; justify-content:center;
+        color:#fff; font-size:18px; font-family:sans-serif; font-weight:600;
+        flex-direction:column; gap:12px;
     `;
     overlay.innerHTML = `
         <div>🔒 Session expired due to inactivity.</div>
         <div style="font-size:14px;font-weight:400;">Redirecting to login page...</div>
     `;
     document.body.appendChild(overlay);
-
     setTimeout(() => {
         browser.location.href = "/web/session/logout?redirect=/web/login";
     }, 1500);
@@ -126,7 +99,6 @@ async function fetchAutoLogoutConfig() {
 }
 
 async function initAutoLogout() {
-    // Only for authenticated users
     if (!session.uid) return;
 
     delayMinutes = await fetchAutoLogoutConfig();
@@ -148,7 +120,6 @@ async function initAutoLogout() {
     console.info(`[AutoLogout] Active — timeout: ${delayMinutes} minute(s) of inactivity.`);
 }
 
-// Register as an Odoo web service
 registry.category("services").add("auto_logout", {
     name: "auto_logout",
     start() {
