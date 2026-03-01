@@ -2,65 +2,51 @@
 <odoo>
     <data>
 
-        <record id="res_config_settings_view_form_smb" model="ir.ui.view">
-            <field name="name">res.config.settings.view.form.smb</field>
+        <!-- ══════════════════════════════════════════════════════════════════
+             Standalone configuration form for Margin & Cost Block settings.
+             Avoids inheriting the Sale settings view (whose structure changes
+             between Odoo versions) by providing its own form + menu entry.
+        ══════════════════════════════════════════════════════════════════════ -->
+
+        <!-- Transient model view -->
+        <record id="view_smb_config_form" model="ir.ui.view">
+            <field name="name">smb.config.form</field>
             <field name="model">res.config.settings</field>
-            <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
             <field name="arch" type="xml">
+                <form string="Margin &amp; Cost Block — Settings" class="oe_form_configuration">
 
-                <!--
-                    In Odoo 19, Sales settings uses app_settings_block divs grouped by topic.
-                    We append our block after the last existing Sales block using position="after"
-                    on the closing element of the form, or inject after a known stable element.
-                    Using the form's sheet end is the most stable approach.
-                -->
-                <xpath expr="//form/sheet" position="inside">
+                    <header>
+                        <button string="Save" type="object" name="execute"
+                                class="btn-primary"/>
+                        <button string="Discard" type="object" name="cancel"
+                                class="btn-secondary" special="cancel"/>
+                    </header>
 
-                    <div class="app_settings_block" data-string="Margin &amp; Cost Block"
-                         data-key="sale_margin_block">
+                    <div class="app_settings_block">
 
-                        <h2>Margin &amp; Cost Block</h2>
+                        <h2>Margin Block</h2>
                         <p class="text-muted">
-                            Prevent order confirmation and invoicing when margin or
-                            cost-recovery falls below the configured thresholds.
+                            Block order confirmation and invoicing when a line's margin
+                            falls below the configured minimum.
                         </p>
 
-                        <!-- ── Margin block ── -->
                         <div class="row mt16 o_settings_container">
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
                                     <field name="sale_margin_block_enabled"/>
                                 </div>
                                 <div class="o_setting_right_pane">
-                                    <label for="sale_margin_block_enabled" string="Block by Margin %"/>
+                                    <label for="sale_margin_block_enabled"
+                                           string="Enable Margin % Block"/>
                                     <div class="text-muted">
-                                        Block orders/invoices when any line's margin % is below the minimum.
+                                        Orders whose margin % is below the minimum will be blocked.
                                     </div>
-                                    <div invisible="not sale_margin_block_enabled">
-                                        <div class="mt8">
-                                            <label for="sale_margin_minimum" string="Minimum Margin %"/>
-                                            <field name="sale_margin_minimum" widget="float"/>
-                                            <span>%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- ── Cost-recovery block ── -->
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_left_pane">
-                                    <field name="sale_cost_block_enabled"/>
-                                </div>
-                                <div class="o_setting_right_pane">
-                                    <label for="sale_cost_block_enabled" string="Block by Cost Recovery %"/>
-                                    <div class="text-muted">
-                                        Block when the selling price is below a % of product cost.
-                                        100% means price must at least equal cost.
-                                    </div>
-                                    <div invisible="not sale_cost_block_enabled">
-                                        <div class="mt8">
-                                            <label for="sale_cost_minimum" string="Minimum Cost Recovery %"/>
-                                            <field name="sale_cost_minimum" widget="float"/>
+                                    <div invisible="not sale_margin_block_enabled" class="mt8">
+                                        <label for="sale_margin_minimum"
+                                               string="Minimum Margin %"/>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <field name="sale_margin_minimum" widget="float"
+                                                   style="max-width:100px;"/>
                                             <span>%</span>
                                         </div>
                                     </div>
@@ -68,30 +54,79 @@
                             </div>
                         </div>
 
-                        <!-- ── Warn-only / override ── -->
-                        <div class="row o_settings_container"
-                             invisible="not sale_margin_block_enabled and not sale_cost_block_enabled">
+                        <h2 class="mt32">Cost Recovery Block</h2>
+                        <p class="text-muted">
+                            Block when the selling price is below a percentage of the product cost.
+                            100 % = price must at least equal cost.
+                        </p>
+
+                        <div class="row mt16 o_settings_container">
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_left_pane">
+                                    <field name="sale_cost_block_enabled"/>
+                                </div>
+                                <div class="o_setting_right_pane">
+                                    <label for="sale_cost_block_enabled"
+                                           string="Enable Cost Recovery % Block"/>
+                                    <div class="text-muted">
+                                        Orders whose cost recovery % is below the minimum will be blocked.
+                                    </div>
+                                    <div invisible="not sale_cost_block_enabled" class="mt8">
+                                        <label for="sale_cost_minimum"
+                                               string="Minimum Cost Recovery %"/>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <field name="sale_cost_minimum" widget="float"
+                                                   style="max-width:100px;"/>
+                                            <span>%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h2 class="mt32">Override Options</h2>
+
+                        <div class="row mt16 o_settings_container">
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
                                     <field name="sale_margin_block_warn_only"/>
                                 </div>
                                 <div class="o_setting_right_pane">
-                                    <label for="sale_margin_block_warn_only" string="Warn Only (no hard block)"/>
+                                    <label for="sale_margin_block_warn_only"
+                                           string="Warn Only (no hard block)"/>
                                     <div class="text-muted">
-                                        When enabled, threshold breaches only log a chatter warning
-                                        instead of blocking the operation.
-                                        Users with the <b>Can Override Margin/Cost Block</b> group
-                                        are never hard-blocked regardless of this setting.
+                                        When enabled, threshold breaches post a chatter warning
+                                        instead of blocking the operation. Users with the
+                                        <b>Can Override Margin/Cost Block</b> group are never
+                                        hard-blocked regardless of this setting.
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                     </div>
-                </xpath>
 
+                </form>
             </field>
         </record>
 
+        <!-- Window action that opens the config form -->
+        <record id="action_smb_config" model="ir.actions.act_window">
+            <field name="name">Margin &amp; Cost Block</field>
+            <field name="res_model">res.config.settings</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="view_smb_config_form"/>
+            <field name="target">inline</field>
+            <field name="context">{'module': 'sale_margin_block'}</field>
+        </record>
+
+        <!-- Menu entry under Sales > Configuration -->
+        <menuitem id="menu_smb_config"
+                  name="Margin &amp; Cost Block"
+                  parent="sale.sale_order_menu_config"
+                  action="action_smb_config"
+                  sequence="100"/>
+
     </data>
 </odoo>
+
