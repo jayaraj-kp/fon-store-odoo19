@@ -116,17 +116,16 @@
             <field name="res_model">res.config.settings</field>
             <field name="view_mode">form</field>
             <field name="view_id" ref="view_smb_config_form"/>
-            <field name="target">inline</field>
+            <field name="target">current</field>
             <field name="context">{'module': 'sale_margin_block'}</field>
         </record>
 
         <!-- Menu entry under Sales > Configuration -->
         <menuitem id="menu_smb_config"
                   name="Margin &amp; Cost Block"
-                  parent="sale.sale_order_menu_config"
+                  parent="sale.menu_sale_config"
                   action="action_smb_config"
                   sequence="100"/>
 
     </data>
 </odoo>
-
