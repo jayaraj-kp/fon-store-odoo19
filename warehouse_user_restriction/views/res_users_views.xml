@@ -15,13 +15,13 @@
                     <field name="allowed_warehouse_ids"
                            widget="many2many_tags"
                            options="{'no_create': True}"
-                           placeholder="Leave empty = access to all warehouses" style="margin-top:300px;"/>
+                           placeholder="Leave empty = access to all warehouses" />
                 </group>
                 <group string="Customer Defaults">
                     <field name="default_customer_tag_ids"
                            widget="many2many_tags"
                            options="{'no_create': False}"
-                           placeholder="Tags auto-applied to every new customer this user creates" style="margin-top:300px;"/>
+                           placeholder="Tags auto-applied to every new customer this user creates"/>
                 </group>
             </xpath>
         </field>
