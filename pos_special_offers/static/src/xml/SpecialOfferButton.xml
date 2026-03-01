@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="pos_special_offers.SpecialOfferButton">
+        <button class="special-offer-btn" t-on-click="onClick">
+            🎁 Offers
+        </button>
+    </t>
+
+</templates>
+
+    <!-- Patch ProductScreen to add Offers button in top bar -->
+    <t t-name="pos_special_offers.SpecialOfferButtonWrapper" owl="1">
+        <SpecialOfferButton/>
+    </t>
+

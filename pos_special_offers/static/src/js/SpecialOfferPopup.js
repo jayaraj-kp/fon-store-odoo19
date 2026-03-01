@@ -1,157 +1,148 @@
 /** @odoo-module **/
 
-import { Component, useState, onWillStart } from "@odoo/owl";
+import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
-/**
- * SpecialOfferPopup
- * Modal dialog shown when the cashier clicks "Offers" in the POS top bar.
- * - "Create Offer" tab: form to create a new pos.special.offer record
- * - "Active Offers" tab: lists currently running offers
- */
 export class SpecialOfferPopup extends Component {
     static template = "pos_special_offers.SpecialOfferPopup";
 
     static props = {
-        products: { type: Array },
-        categories: { type: Array },
-        close: { type: Function },
+        products: Array,
+        categories: Array,
+        close: Function,
     };
 
     setup() {
         this.orm = useService("orm");
+        this.specialOfferService = useService("special_offer_service");
 
         this.state = useState({
-            tab: "create",
-            // Form fields
             offerName: "",
             selectedProducts: [],
-            selectedCategory: "",
+            selectedCategory: null,
             dateFrom: this._today(),
             dateTo: this._today(),
-            timeFrom: "00:00",
-            timeTo: "23:59",
+            activeTime: "00:00",
             discountType: "percentage",
-            discountValue: 10,
-            // Feedback
-            successMsg: "",
-            activeOffers: [],
-        });
-
-        onWillStart(async () => {
-            await this.loadActiveOffers();
+            discountValue: "10",
+            loading: false,
+            showSuccess: false,
+            lastCreatedName: "",
+            errorMsg: "",
         });
     }
-
-    // ─── Helpers ────────────────────────────────────────────────────────────
 
     _today() {
         return new Date().toISOString().split("T")[0];
     }
 
-    _timeToFloat(timeStr) {
-        // "12:30" → 12.5
-        const [h, m] = timeStr.split(":").map(Number);
-        return h + m / 60.0;
-    }
-
-    // ─── Tab ────────────────────────────────────────────────────────────────
-
-    setTab(tab) {
-        this.state.tab = tab;
-        if (tab === "list") {
-            this.loadActiveOffers();
-        }
-    }
-
-    // ─── Events ─────────────────────────────────────────────────────────────
-
-    onProductSelect(ev) {
-        this.state.selectedProducts = [...ev.target.selectedOptions].map((o) =>
-            parseInt(o.value)
-        );
-    }
-
-    onCategorySelect(ev) {
-        this.state.selectedCategory = ev.target.value
-            ? parseInt(ev.target.value)
-            : "";
+    onOverlayClick() {
+        // close when clicking outside
+        this.props.close();
     }
 
     onClose() {
         this.props.close();
     }
 
-    // ─── Create Offer ────────────────────────────────────────────────────────
+    onOfferNameInput(ev) {
+        this.state.offerName = ev.target.value;
+    }
 
-    async createOffer() {
-        const { offerName, dateFrom, dateTo, selectedProducts, selectedCategory,
-                timeFrom, timeTo, discountType, discountValue } = this.state;
+    onProductChange(ev) {
+        this.state.selectedProducts = [...ev.target.selectedOptions].map(o => parseInt(o.value));
+    }
 
-        // Basic validation
-        if (!offerName.trim()) {
-            alert("Please enter an Offer Name.");
+    onCategoryChange(ev) {
+        this.state.selectedCategory = ev.target.value ? parseInt(ev.target.value) : null;
+    }
+
+    onDateFromInput(ev) {
+        this.state.dateFrom = ev.target.value;
+    }
+
+    onDateToInput(ev) {
+        this.state.dateTo = ev.target.value;
+    }
+
+    onTimeInput(ev) {
+        this.state.activeTime = ev.target.value;
+    }
+
+    onDiscountTypeChange(ev) {
+        this.state.discountType = ev.target.value;
+    }
+
+    onDiscountValueInput(ev) {
+        this.state.discountValue = ev.target.value;
+    }
+
+    async onCreateOffer() {
+        this.state.errorMsg = "";
+        this.state.showSuccess = false;
+
+        // Validation
+        if (!this.state.offerName.trim()) {
+            this.state.errorMsg = "Please enter an Offer Name.";
             return;
         }
-        if (!dateFrom || !dateTo) {
-            alert("Please select From Date and To Date.");
+        if (!this.state.dateFrom || !this.state.dateTo) {
+            this.state.errorMsg = "Please select both From Date and To Date.";
             return;
         }
-        if (selectedProducts.length === 0 && !selectedCategory) {
-            alert("Please select at least one Product or a Category.");
+        if (this.state.dateFrom > this.state.dateTo) {
+            this.state.errorMsg = "From Date cannot be after To Date.";
             return;
         }
-        if (dateFrom > dateTo) {
-            alert("From Date cannot be later than To Date.");
+        if (!this.state.discountValue || parseFloat(this.state.discountValue) <= 0) {
+            this.state.errorMsg = "Please enter a valid Discount Value.";
+            return;
+        }
+        if (this.state.selectedProducts.length === 0 && !this.state.selectedCategory) {
+            this.state.errorMsg = "Please select at least one Product or Category.";
             return;
         }
 
-        const vals = {
-            name: offerName.trim(),
-            date_from: dateFrom,
-            date_to: dateTo,
-            active_time: this._timeToFloat(timeFrom),
-            active_time_end: this._timeToFloat(timeTo),
-            discount_type: discountType,
-            discount_value: parseFloat(discountValue) || 0,
-            product_ids: [[6, 0, selectedProducts]],
-            category_ids: selectedCategory
-                ? [[6, 0, [selectedCategory]]]
-                : [[6, 0, []]],
-        };
+        // Convert time "HH:MM" → float
+        const [hours, minutes] = this.state.activeTime.split(":").map(Number);
+        const timeFloat = hours + (minutes || 0) / 60.0;
 
+        this.state.loading = true;
         try {
-            await this.orm.create("pos.special.offer", [vals]);
-            this.state.successMsg = `Offer "${offerName}" created successfully!`;
+            await this.orm.create("pos.special.offer", [{
+                name: this.state.offerName.trim(),
+                product_ids: [[6, 0, this.state.selectedProducts]],
+                category_ids: this.state.selectedCategory
+                    ? [[6, 0, [this.state.selectedCategory]]]
+                    : [[6, 0, []]],
+                date_from: this.state.dateFrom,
+                date_to: this.state.dateTo,
+                active_time: timeFloat,
+                discount_type: this.state.discountType,
+                discount_value: parseFloat(this.state.discountValue),
+                active: true,
+            }]);
+
+            // Refresh the service cache
+            await this.specialOfferService.refresh();
+
+            this.state.lastCreatedName = this.state.offerName;
+            this.state.showSuccess = true;
+
             // Reset form
             this.state.offerName = "";
             this.state.selectedProducts = [];
-            this.state.selectedCategory = "";
+            this.state.selectedCategory = null;
             this.state.dateFrom = this._today();
             this.state.dateTo = this._today();
-            this.state.timeFrom = "00:00";
-            this.state.timeTo = "23:59";
-            this.state.discountType = "percentage";
-            this.state.discountValue = 10;
-            // Auto-clear success message after 4 seconds
-            setTimeout(() => { this.state.successMsg = ""; }, 4000);
-        } catch (e) {
-            alert("Error creating offer: " + (e.message || e));
-        }
-    }
+            this.state.activeTime = "00:00";
+            this.state.discountValue = "10";
 
-    // ─── Load Active Offers ──────────────────────────────────────────────────
-
-    async loadActiveOffers() {
-        try {
-            const offers = await this.orm.call(
-                "pos.special.offer",
-                "get_active_offers_for_pos",
-                []
-            );
-            this.state.activeOffers = offers;
-        } catch (e) {
-            this.state.activeOffers = [];
+        } catch (err) {
+            this.state.errorMsg = "Failed to create offer. Please check your inputs and try again.";
+            console.error("[SpecialOffer] Error creating offer:", err);
+        } finally {
+            this.state.loading = false;
         }
     }
 }
