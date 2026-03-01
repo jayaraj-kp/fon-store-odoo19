@@ -59,44 +59,6 @@
     </record>
 
     <!-- ===========================
-         POS SESSION RESTRICTION
-         =========================== -->
-    <record id="rule_pos_session_warehouse_restriction" model="ir.rule">
-        <field name="name">POS Session: Allowed Warehouses Restriction</field>
-        <field name="model_id" ref="point_of_sale.model_pos_session"/>
-        <field name="domain_force">
-            ['|',
-                ('config_id.warehouse_id', '=', False),
-                ('config_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids)
-            ]
-        </field>
-        <field name="groups" eval="[]"/>
-        <field name="perm_read" eval="True"/>
-        <field name="perm_write" eval="True"/>
-        <field name="perm_create" eval="True"/>
-        <field name="perm_unlink" eval="True"/>
-    </record>
-
-    <!-- ===========================
-         POS ORDER RESTRICTION
-         =========================== -->
-    <record id="rule_pos_order_warehouse_restriction" model="ir.rule">
-        <field name="name">POS Order: Allowed Warehouses Restriction</field>
-        <field name="model_id" ref="point_of_sale.model_pos_order"/>
-        <field name="domain_force">
-            ['|',
-                ('session_id.config_id.warehouse_id', '=', False),
-                ('session_id.config_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids)
-            ]
-        </field>
-        <field name="groups" eval="[]"/>
-        <field name="perm_read" eval="True"/>
-        <field name="perm_write" eval="True"/>
-        <field name="perm_create" eval="True"/>
-        <field name="perm_unlink" eval="True"/>
-    </record>
-
-    <!-- ===========================
          STOCK QUANT (Inventory) RESTRICTION
          =========================== -->
     <record id="rule_stock_quant_warehouse_restriction" model="ir.rule">
