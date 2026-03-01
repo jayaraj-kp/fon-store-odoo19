@@ -1,1 +1,2 @@
-from . import pos_special_offer
+# -*- coding: utf-8 -*-
+from . import pos_config

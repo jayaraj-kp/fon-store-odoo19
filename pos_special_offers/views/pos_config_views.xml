@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add 'Show Special Offers Button' toggle in POS Configuration -->
+    <record id="view_pos_config_form_special_offers" model="ir.ui.view">
+        <field name="name">pos.config.form.special.offers</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Append a new tab at the end of the notebook for Special Offers settings -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Special Offers" name="special_offers">
+                    <group string="POS Special Offers Quick Access">
+                        <field name="show_special_offers_button"
+                               widget="boolean_toggle"
+                               string="Show Special Offers Button in POS Top Menu"
+                        />
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!-- ═══════════════════════════════════════════════
+         TOP MENU BUTTON
+    ═══════════════════════════════════════════════ -->
+    <t t-name="pos_special_offers.SpecialOffersButton">
+        <button t-if="showButton"
+                class="pos-special-offers-btn"
+                t-on-click="openSpecialOffers"
+                title="Special Offers">
+            <i class="fa fa-tag" />
+            <span>Special Offers</span>
+        </button>
+    </t>
+
+    <!-- ═══════════════════════════════════════════════
+         SPECIAL OFFERS FULL SCREEN
+    ═══════════════════════════════════════════════ -->
+    <t t-name="pos_special_offers.SpecialOffersScreen">
+        <div class="pos-special-offers-screen">
+
+            <!-- Header Bar -->
+            <div class="offers-header">
+                <div class="offers-header-left">
+                    <i class="fa fa-tag offers-header-icon" />
+                    <div>
+                        <h2>Special Offers</h2>
+                        <span class="offers-subtitle">Discount &amp; Loyalty Programs</span>
+                    </div>
+                </div>
+                <button class="offers-close-btn" t-on-click="closeScreen">
+                    <i class="fa fa-times" /> Close
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div t-if="state.loading" class="offers-loading">
+                <i class="fa fa-spinner fa-spin fa-2x" />
+                <p>Loading programs...</p>
+            </div>
+
+            <!-- Main Content -->
+            <div t-else="" class="offers-content">
+
+                <!-- LEFT PANEL: Program List -->
+                <div class="offers-list-panel">
+
+                    <!-- Coupons & Promotions Section -->
+                    <div class="offers-section-title">
+                        <i class="fa fa-ticket" /> Coupons &amp; Promotions
+                        <span class="offers-count" t-esc="activePrograms.length" />
+                    </div>
+
+                    <div t-if="activePrograms.length === 0" class="offers-empty">
+                        No coupon or promotion programs linked to this POS.
+                    </div>
+
+                    <div t-foreach="activePrograms" t-as="program" t-key="program.id"
+                         class="offers-program-card"
+                         t-att-class="{ 'selected': state.selectedProgram?.id === program.id }"
+                         t-on-click="() => this.selectProgram(program)">
+                        <div class="offers-program-icon">
+                            <t t-esc="getProgramTypeIcon(program.program_type)" />
+                        </div>
+                        <div class="offers-program-info">
+                            <strong t-esc="program.name" />
+                            <small t-esc="getProgramTypeLabel(program.program_type)" />
+                        </div>
+                        <div class="offers-program-meta">
+                            <span class="offers-badge"
+                                  t-esc="program.trigger === 'with_code' ? 'Code' : 'Auto'" />
+                        </div>
+                    </div>
+
+                    <!-- Loyalty & Gift Cards Section -->
+                    <div class="offers-section-title" style="margin-top:16px">
+                        <i class="fa fa-star" /> Loyalty &amp; Gift Cards
+                        <span class="offers-count" t-esc="loyaltyPrograms.length" />
+                    </div>
+
+                    <div t-if="loyaltyPrograms.length === 0" class="offers-empty">
+                        No loyalty or gift card programs linked to this POS.
+                    </div>
+
+                    <div t-foreach="loyaltyPrograms" t-as="program" t-key="program.id"
+                         class="offers-program-card"
+                         t-att-class="{ 'selected': state.selectedProgram?.id === program.id }"
+                         t-on-click="() => this.selectProgram(program)">
+                        <div class="offers-program-icon">
+                            <t t-esc="getProgramTypeIcon(program.program_type)" />
+                        </div>
+                        <div class="offers-program-info">
+                            <strong t-esc="program.name" />
+                            <small t-esc="getProgramTypeLabel(program.program_type)" />
+                        </div>
+                    </div>
+
+                    <!-- No programs at all -->
+                    <div t-if="state.programs.length === 0" class="offers-empty-state">
+                        <i class="fa fa-exclamation-circle fa-2x" />
+                        <p>No programs found for this POS.</p>
+                        <small>Go to: <b>Discount &amp; Loyalty</b> in the backend and link a program to this POS shop.</small>
+                    </div>
+                </div>
+
+                <!-- RIGHT PANEL: Program Detail / Actions -->
+                <div class="offers-detail-panel">
+                    <div t-if="!state.selectedProgram" class="offers-detail-placeholder">
+                        <i class="fa fa-hand-o-left fa-3x" />
+                        <p>Select a program to see actions</p>
+                    </div>
+
+                    <div t-if="state.selectedProgram" class="offers-detail-content">
+                        <h3>
+                            <t t-esc="getProgramTypeIcon(state.selectedProgram.program_type)" />
+                            <t t-esc="state.selectedProgram.name" />
+                        </h3>
+                        <p class="offers-type-tag">
+                            <t t-esc="getProgramTypeLabel(state.selectedProgram.program_type)" />
+                        </p>
+
+                        <hr />
+
+                        <!-- Generate Coupon Section (only for coupon-type programs) -->
+                        <div t-if="state.selectedProgram.program_type === 'coupons' || state.selectedProgram.program_type === 'next_order_coupons'"
+                             class="offers-action-section">
+                            <h4><i class="fa fa-plus-circle" /> Generate New Coupon</h4>
+                            <p>Instantly create a new coupon code for this program.</p>
+
+                            <button class="offers-generate-btn"
+                                    t-on-click="generateCoupon"
+                                    t-att-disabled="state.generatingCoupon">
+                                <i t-att-class="state.generatingCoupon ? 'fa fa-spinner fa-spin' : 'fa fa-ticket'" />
+                                <t t-if="state.generatingCoupon">Generating...</t>
+                                <t t-else="">Generate Coupon</t>
+                            </button>
+
+                            <!-- Show Generated Code -->
+                            <div t-if="state.generatedCode" class="offers-generated-code">
+                                <label>Generated Code:</label>
+                                <div class="offers-code-box">
+                                    <span t-esc="state.generatedCode" />
+                                    <button t-on-click="copyCode" title="Copy">
+                                        <i class="fa fa-copy" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Edit in Backend -->
+                        <div class="offers-action-section">
+                            <h4><i class="fa fa-external-link" /> Edit Program</h4>
+                            <p>Open the full Discount &amp; Loyalty program editor in the backend.</p>
+                            <button class="offers-edit-btn"
+                                    t-on-click="() => this.openBackendProgram(state.selectedProgram.id)">
+                                <i class="fa fa-pencil" /> Edit in Backend
+                            </button>
+                        </div>
+
+                        <!-- Trigger Info -->
+                        <div class="offers-info-box">
+                            <b>Trigger:</b>
+                            <t t-esc="state.selectedProgram.trigger === 'with_code' ? '🔑 Customer must enter a code' : '⚡ Applied automatically'" />
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </t>
+
+</templates>
