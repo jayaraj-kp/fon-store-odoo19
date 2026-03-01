@@ -67,7 +67,7 @@ function showWarningBanner() {
         font-weight: 600;
         font-family: sans-serif;
         box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-        max-width: 360px;
+        max-width: 380px;
         line-height: 1.6;
         cursor: pointer;
     `;
@@ -81,7 +81,7 @@ function showWarningBanner() {
     banner.addEventListener("click", resetTimer);
     document.body.appendChild(banner);
 
-    // Remove banner after 55s (logout fires at 60s)
+    // Auto-remove after 55s (logout fires at 60s)
     setTimeout(removeWarningBanner, 55000);
 }
 
@@ -89,15 +89,18 @@ function performLogout() {
     removeWarningBanner();
     console.info("[AutoLogout] Session expired. Logging out...");
 
-    // Show overlay before redirect
     const overlay = document.createElement("div");
     overlay.style.cssText = `
         position: fixed; inset: 0; z-index: 999999;
         background: rgba(0,0,0,0.65);
         display: flex; align-items: center; justify-content: center;
         color: #fff; font-size: 18px; font-family: sans-serif; font-weight: 600;
+        flex-direction: column; gap: 12px;
     `;
-    overlay.textContent = "Session expired due to inactivity. Redirecting to login...";
+    overlay.innerHTML = `
+        <div>🔒 Session expired due to inactivity.</div>
+        <div style="font-size:14px;font-weight:400;">Redirecting to login page...</div>
+    `;
     document.body.appendChild(overlay);
 
     setTimeout(() => {

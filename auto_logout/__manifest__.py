@@ -8,7 +8,7 @@
         Automatically logs out inactive users after a configurable timeout period.
 
         Features:
-        - Configurable timeout (in minutes) from General Settings
+        - Configure timeout from Technical > Auto Logout Settings menu
         - Warning notification 1 minute before logout
         - Timer resets on any user activity (mouse, keyboard, scroll, click)
         - Set timeout to 0 to disable auto logout
@@ -17,7 +17,8 @@
     'author': 'Custom',
     'depends': ['base', 'web'],
     'data': [
-        'views/res_config_settings_views.xml',
+        'security/ir.model.access.csv',
+        'views/auto_logout_config_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
