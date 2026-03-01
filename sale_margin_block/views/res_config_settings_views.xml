@@ -8,11 +8,16 @@
             <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
             <field name="arch" type="xml">
 
-                <!-- Append a new section at the end of the Sales settings page -->
-                <xpath expr="//div[hasclass('settings')]" position="inside">
+                <!--
+                    In Odoo 19, Sales settings uses app_settings_block divs grouped by topic.
+                    We append our block after the last existing Sales block using position="after"
+                    on the closing element of the form, or inject after a known stable element.
+                    Using the form's sheet end is the most stable approach.
+                -->
+                <xpath expr="//form/sheet" position="inside">
 
                     <div class="app_settings_block" data-string="Margin &amp; Cost Block"
-                         string="Margin &amp; Cost Block" data-key="sale_margin_block">
+                         data-key="sale_margin_block">
 
                         <h2>Margin &amp; Cost Block</h2>
                         <p class="text-muted">
@@ -31,14 +36,11 @@
                                     <div class="text-muted">
                                         Block orders/invoices when any line's margin % is below the minimum.
                                     </div>
-                                    <div attrs="{'invisible': [('sale_margin_block_enabled', '=', False)]}">
+                                    <div invisible="not sale_margin_block_enabled">
                                         <div class="mt8">
                                             <label for="sale_margin_minimum" string="Minimum Margin %"/>
-                                            <field name="sale_margin_minimum"
-                                                   class="o_field_number"
-                                                   widget="float"
-                                                   attrs="{'required': [('sale_margin_block_enabled', '=', True)]}"/>
-                                            <span class="o_form_label">%</span>
+                                            <field name="sale_margin_minimum" widget="float"/>
+                                            <span>%</span>
                                         </div>
                                     </div>
                                 </div>
@@ -52,17 +54,14 @@
                                 <div class="o_setting_right_pane">
                                     <label for="sale_cost_block_enabled" string="Block by Cost Recovery %"/>
                                     <div class="text-muted">
-                                        Block when the selling price is below a % of the product cost.
-                                        100 % means price must at least equal cost.
+                                        Block when the selling price is below a % of product cost.
+                                        100% means price must at least equal cost.
                                     </div>
-                                    <div attrs="{'invisible': [('sale_cost_block_enabled', '=', False)]}">
+                                    <div invisible="not sale_cost_block_enabled">
                                         <div class="mt8">
                                             <label for="sale_cost_minimum" string="Minimum Cost Recovery %"/>
-                                            <field name="sale_cost_minimum"
-                                                   class="o_field_number"
-                                                   widget="float"
-                                                   attrs="{'required': [('sale_cost_block_enabled', '=', True)]}"/>
-                                            <span class="o_form_label">%</span>
+                                            <field name="sale_cost_minimum" widget="float"/>
+                                            <span>%</span>
                                         </div>
                                     </div>
                                 </div>
@@ -71,8 +70,7 @@
 
                         <!-- ── Warn-only / override ── -->
                         <div class="row o_settings_container"
-                             attrs="{'invisible': [('sale_margin_block_enabled', '=', False),
-                                                   ('sale_cost_block_enabled', '=', False)]}">
+                             invisible="not sale_margin_block_enabled and not sale_cost_block_enabled">
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
                                     <field name="sale_margin_block_warn_only"/>
@@ -80,7 +78,7 @@
                                 <div class="o_setting_right_pane">
                                     <label for="sale_margin_block_warn_only" string="Warn Only (no hard block)"/>
                                     <div class="text-muted">
-                                        When enabled, threshold breaches only generate a chatter warning
+                                        When enabled, threshold breaches only log a chatter warning
                                         instead of blocking the operation.
                                         Users with the <b>Can Override Margin/Cost Block</b> group
                                         are never hard-blocked regardless of this setting.
