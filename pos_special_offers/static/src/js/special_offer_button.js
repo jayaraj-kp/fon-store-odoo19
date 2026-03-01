@@ -1,23 +1,33 @@
 /** @odoo-module **/
+/**
+ * NOW WE KNOW THE EXACT PATHS from odoo.loader.modules output:
+ *   Navbar  → @point_of_sale/app/components/navbar/navbar
+ *   usePos  → @point_of_sale/app/hooks/pos_hook
+ *
+ * We also know the popup module path was wrong - DO NOT import popup here.
+ * SpecialOfferPopup is listed as a component in static template only.
+ * Instead, we define a self-contained button that renders popup inline via state.
+ */
 import { Component, useState } from "@odoo/owl";
+import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { useService } from "@web/core/utils/hooks";
+import { Navbar } from "@point_of_sale/app/components/navbar/navbar";
 import { patch } from "@web/core/utils/patch";
-import { SpecialOfferPopup } from "@pos_special_offers/static/src/js/special_offer_popup";
+import { SpecialOfferPopup } from "@pos_special_offers/js/special_offer_popup";
 
 export class SpecialOfferButton extends Component {
     static template = "pos_special_offers.SpecialOfferButton";
     static components = { SpecialOfferPopup };
 
     setup() {
+        this.pos = usePos();
         this.offerService = useService("special_offer_service");
         this.state = useState({ showPopup: false });
-        try { this.pos = useService("pos"); } catch (e) { this.pos = null; }
     }
 
     get products() {
         try {
-            if (!this.pos) return [];
-            const m = this.pos.models?.["product.product"];
+            const m = this.pos.models["product.product"];
             if (!m) return [];
             return typeof m.getAll === "function" ? m.getAll()
                 : Object.values(m).filter(p => p?.id);
@@ -26,8 +36,7 @@ export class SpecialOfferButton extends Component {
 
     get categories() {
         try {
-            if (!this.pos) return [];
-            const m = this.pos.models?.["pos.category"];
+            const m = this.pos.models["pos.category"];
             if (!m) return [];
             return typeof m.getAll === "function" ? m.getAll()
                 : Object.values(m).filter(c => c?.id);
@@ -38,68 +47,11 @@ export class SpecialOfferButton extends Component {
     closePopup() { this.state.showPopup = false; }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Find and patch the Navbar component so it knows about SpecialOfferButton.
-//
-// OWL resolves component tags (<SpecialOfferButton/>) by looking in the
-// parent component's static `components` property at render time.
-// So we MUST add SpecialOfferButton to Navbar.components.
-//
-// We search odoo.loader.modules (a Map) for any module that exports a
-// class called "Navbar" - this works regardless of the exact file path.
-// ─────────────────────────────────────────────────────────────────────────────
-function findAndPatchNavbar() {
-    let found = false;
-    // odoo.loader.modules is a Map<string, moduleExports>
-    for (const [path, mod] of odoo.loader.modules) {
-        if (
-            path.includes("point_of_sale") &&
-            path.toLowerCase().includes("navbar") &&
-            mod?.Navbar
-        ) {
-            try {
-                patch(mod.Navbar, {
-                    components: {
-                        ...mod.Navbar.components,
-                        SpecialOfferButton,
-                    },
-                });
-                console.log("[SpecialOffers] ✅ Patched Navbar at path:", path);
-                found = true;
-                break;
-            } catch (e) {
-                console.warn("[SpecialOffers] Patch failed for path:", path, e);
-            }
-        }
-    }
-
-    if (!found) {
-        // Last resort: scan ALL loaded modules for any export named Navbar
-        for (const [path, mod] of odoo.loader.modules) {
-            if (mod?.Navbar && path.includes("point_of_sale")) {
-                console.log("[SpecialOffers] Found Navbar-like export at:", path, mod.Navbar);
-                try {
-                    patch(mod.Navbar, {
-                        components: {
-                            ...mod.Navbar.components,
-                            SpecialOfferButton,
-                        },
-                    });
-                    console.log("[SpecialOffers] ✅ Patched via fallback scan:", path);
-                    found = true;
-                    break;
-                } catch (e) {}
-            }
-        }
-    }
-
-    if (!found) {
-        console.error(
-            "[SpecialOffers] ❌ Could not find Navbar in any module. " +
-            "Open browser console and run: " +
-            "for(const [k,v] of odoo.loader.modules) { if(k.includes('point_of_sale')) console.log(k); }"
-        );
-    }
-}
-
-findAndPatchNavbar();
+// Register SpecialOfferButton into Navbar.components
+// so OWL can resolve <SpecialOfferButton/> inside Navbar's template
+patch(Navbar, {
+    components: {
+        ...Navbar.components,
+        SpecialOfferButton,
+    },
+});
