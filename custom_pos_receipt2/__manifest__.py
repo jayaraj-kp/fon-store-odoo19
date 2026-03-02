@@ -5,7 +5,7 @@
     'depends': ['point_of_sale'],
     'assets': {
         'point_of_sale._assets_pos': [
-            'custom_pos_receipt/static/src/xml/custom_receipt.xml',
+            'custom_pos_receipt2/static/src/xml/custom_receipt.xml',
         ],
     },
     'installable': True,
