@@ -4,11 +4,17 @@ from odoo import api, fields, models
 class StockRule(models.Model):
     _inherit = 'stock.rule'
 
-    # -------------------------------------------------------------------------
-    # Propagation Fields
-    # Note: procurement.group was removed in Odoo 19.
-    # We keep propagate_carrier and propagate_warehouse_id which are still valid.
-    # -------------------------------------------------------------------------
+    group_propagation_option = fields.Selection([
+        ('none', 'Leave Empty'),
+        ('propagate', 'Propagate'),
+        ('fixed', 'Fixed'),
+    ], string='Propagation of Procurement Group',
+        default='propagate',
+        help="Choose how the procurement group is propagated on moves created by this rule:\n"
+             "- Leave Empty: No procurement group is set.\n"
+             "- Propagate: The group is inherited from the origin move.\n"
+             "- Fixed: A specific fixed procurement group is always used."
+    )
 
     propagate_carrier = fields.Boolean(
         string='Propagate Carrier',
@@ -24,10 +30,6 @@ class StockRule(models.Model):
              "Leave empty to use the default warehouse of the rule."
     )
 
-    # -------------------------------------------------------------------------
-    # Override: _get_stock_move_values
-    # Inject propagation values into stock moves created by this rule
-    # -------------------------------------------------------------------------
     def _get_stock_move_values(self, product_id, product_qty, product_uom,
                                location_dest_id, name, origin, company_id, values):
         move_values = super()._get_stock_move_values(
@@ -42,10 +44,6 @@ class StockRule(models.Model):
 
         return move_values
 
-    # -------------------------------------------------------------------------
-    # Override: _run_pull
-    # Inject warehouse propagation into procurement values
-    # -------------------------------------------------------------------------
     def _run_pull(self, procurements):
         updated_procurements = []
         for procurement, rule in procurements:
