@@ -1,5 +1,5 @@
 from odoo import models, fields, api
-from datetime import date
+from datetime import datetime, date
 
 
 class PosSpecialOffer(models.Model):
@@ -13,16 +13,20 @@ class PosSpecialOffer(models.Model):
         ('coupon',        'Coupon'),
     ], string='Offer Type', required=True, default='flat_discount')
     coupon_code    = fields.Char(string='Coupon Code')
+
     product_ids    = fields.Many2many(
         'product.product', 'pos_offer_product_rel',
         'offer_id', 'product_id', string='Products')
+
+    # ── Changed: product.category (not pos.category) ──
     category_ids   = fields.Many2many(
-        'pos.category', 'pos_offer_category_rel',
-        'offer_id', 'category_id', string='POS Categories')
-    date_from      = fields.Date(string='From Date', required=True)
-    date_to        = fields.Date(string='To Date',   required=True)
-    active_time    = fields.Float(string='Active From Time',
-        help='Offer activates after this time each day (browser local time in POS). 0 = all day.')
+        'product.category', 'pos_offer_category_rel',
+        'offer_id', 'category_id', string='Product Categories')
+
+    # ── Changed: Datetime fields with time ──
+    date_from      = fields.Datetime(string='Start Date & Time', required=True)
+    date_to        = fields.Datetime(string='End Date & Time',   required=True)
+
     discount_type  = fields.Selection([
         ('percentage', 'Percentage (%)'),
         ('fixed',      'Fixed Price'),
@@ -43,16 +47,21 @@ class PosSpecialOffer(models.Model):
 
     @api.depends('date_from', 'date_to', 'active', 'purchase_limit', 'usage_count')
     def _compute_state(self):
-        today = date.today()
+        now = datetime.now()
         for rec in self:
             if not rec.active:
                 rec.state = 'draft'
             elif rec.purchase_limit and rec.usage_count >= rec.purchase_limit:
                 rec.state = 'expired'
-            elif rec.date_to and rec.date_to < today:
+            elif rec.date_to and fields.Datetime.from_string(str(rec.date_to)) < now:
                 rec.state = 'expired'
-            elif rec.date_from and rec.date_from <= today <= rec.date_to:
-                rec.state = 'active'
+            elif rec.date_from and rec.date_to:
+                dt_from = fields.Datetime.from_string(str(rec.date_from))
+                dt_to   = fields.Datetime.from_string(str(rec.date_to))
+                if dt_from <= now <= dt_to:
+                    rec.state = 'active'
+                else:
+                    rec.state = 'draft'
             else:
                 rec.state = 'draft'
 
@@ -60,13 +69,16 @@ class PosSpecialOffer(models.Model):
     def _compute_days_remaining(self):
         today = date.today()
         for rec in self:
-            rec.days_remaining = max((rec.date_to - today).days, 0) if rec.date_to else 0
+            if rec.date_to:
+                rec.days_remaining = max((rec.date_to.date() - today).days, 0)
+            else:
+                rec.days_remaining = 0
 
     @api.constrains('date_from', 'date_to')
     def _check_dates(self):
         for rec in self:
             if rec.date_from and rec.date_to and rec.date_from > rec.date_to:
-                raise models.ValidationError('From Date must be before or equal to To Date.')
+                raise models.ValidationError('Start Date & Time must be before End Date & Time.')
 
     @api.constrains('offer_type', 'coupon_code')
     def _check_coupon_code(self):
@@ -84,12 +96,12 @@ class PosSpecialOffer(models.Model):
 
     @api.model
     def get_active_offers_for_pos(self):
-        """Return all date-valid active offers. Time filtering done client-side."""
-        today = fields.Date.today()
+        """Return all currently active offers. Datetime filtering done server-side."""
+        now = fields.Datetime.now()
         offers = self.search([
             ('active', '=', True),
-            ('date_from', '<=', today),
-            ('date_to', '>=', today),
+            ('date_from', '<=', now),
+            ('date_to',   '>=', now),
         ])
         result = []
         for o in offers:
@@ -108,7 +120,6 @@ class PosSpecialOffer(models.Model):
                 'usage_count':    o.usage_count,
                 'date_from':      str(o.date_from),
                 'date_to':        str(o.date_to),
-                'active_time':    o.active_time,
             })
         return result
 

@@ -21,7 +21,7 @@
                     <div class="sop-section-title">🏷️ Apply Coupon Code</div>
                     <div class="sop-coupon-row">
                         <input type="text" class="sop-coupon-input"
-                            placeholder="Enter coupon code e.g. 50001"
+                            placeholder="Enter coupon code..."
                             t-att-value="state.couponInput"
                             t-on-input="onCouponInput"/>
                         <button class="sop-btn-apply-coupon" t-on-click="applyCoupon">Apply</button>
@@ -51,9 +51,13 @@
                                 <t t-else="">
                                     <span class="sop-badge sop-badge-fixed">Fixed: <t t-esc="offer.discount_value"/></span>
                                 </t>
-                                <span class="sop-offer-dates"><t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/></span>
+                                <span class="sop-offer-dates">
+                                    <t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/>
+                                </span>
                                 <t t-if="offer.purchase_limit > 0">
-                                    <span class="sop-offer-limit">Uses: <t t-esc="offer.usage_count"/>/<t t-esc="offer.purchase_limit"/></span>
+                                    <span class="sop-offer-limit">
+                                        Uses: <t t-esc="offer.usage_count"/>/<t t-esc="offer.purchase_limit"/>
+                                    </span>
                                 </t>
                             </div>
                             <div class="sop-offer-scope">
@@ -61,15 +65,8 @@
                                 <t t-elif="offer.category_ids.length > 0">Selected categories only</t>
                                 <t t-else="">Applies to all products</t>
                             </div>
-                            <!-- Time restriction warning — pure JS expression, no Python keywords -->
-                            <t t-if="offer.active_time > 0 &amp;&amp; !isTimeActive(offer)">
-                                <div class="sop-time-warning">
-                                    ⏰ Active from <t t-esc="offer.active_time"/> onwards today
-                                </div>
-                            </t>
                         </div>
-                        <button t-on-click="() => this.applyOffer(offer)"
-                            t-att-class="isTimeActive(offer) ? 'sop-btn-apply' : 'sop-btn-apply sop-btn-apply-disabled'">
+                        <button class="sop-btn-apply" t-on-click="() => this.applyOffer(offer)">
                             Apply
                         </button>
                     </div>

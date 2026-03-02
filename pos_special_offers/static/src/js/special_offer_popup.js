@@ -31,12 +31,6 @@ export class SpecialOfferPopup extends Component {
         }
     }
 
-    isTimeActive(offer) {
-        if (!offer.active_time || offer.active_time === 0) return true;
-        const now = new Date();
-        return (now.getHours() + now.getMinutes() / 60.0) >= offer.active_time;
-    }
-
     get allFlatOffers() {
         return this.offerService.getActiveOffers()
             .filter(o => o.offer_type === "flat_discount");
@@ -44,9 +38,8 @@ export class SpecialOfferPopup extends Component {
 
     get currentOrder() {
         const p = this.pos;
-        try {
-            return p.get_order?.() ?? p.selectedOrder ?? p.currentOrder ?? null;
-        } catch(e) { return null; }
+        try { return p.get_order?.() ?? p.selectedOrder ?? p.currentOrder ?? null; }
+        catch(e) { return null; }
     }
 
     getOrderLines(order) {
@@ -56,27 +49,32 @@ export class SpecialOfferPopup extends Component {
             if (typeof order.get_orderlines === "function")            return order.get_orderlines() || [];
             if (Array.isArray(order.orderlines))                       return order.orderlines;
             if (order.orderlines?.models)                              return order.orderlines.models;
-        } catch(e) { console.warn("[SpecialOffer] getOrderLines error:", e); }
+        } catch(e) {}
         return [];
     }
 
     getProductId(line) {
         try {
-            if (line.product_id?.id)                        return line.product_id.id;
-            if (typeof line.get_product === "function")     return line.get_product()?.id ?? null;
-            if (line.product?.id)                           return line.product.id;
-            if (typeof line.product_id === "number")        return line.product_id;
+            if (line.product_id?.id)                    return line.product_id.id;
+            if (typeof line.get_product === "function") return line.get_product()?.id ?? null;
+            if (line.product?.id)                       return line.product.id;
+            if (typeof line.product_id === "number")    return line.product_id;
         } catch(e) {}
         return null;
     }
 
-    getCategoryIds(line) {
+    // ── Now uses product.category (categ_id) instead of pos.category ────────
+    getProductCategoryIds(line) {
         try {
             const product = line.product_id ?? line.product ?? line.get_product?.();
             if (!product) return [];
-            const cats = product.pos_categ_ids ?? product.pos_categ_id ?? [];
-            if (Array.isArray(cats)) return cats.map(c => typeof c === "object" ? c.id : c).filter(Boolean);
-            return typeof cats === "number" ? [cats] : [];
+            // product.category_id is a single Many2one → get its id
+            // product.categ_id is the internal category field name
+            const cat = product.categ_id ?? product.category_id;
+            if (!cat) return [];
+            // Could be an object with .id or a raw id
+            const catId = typeof cat === "object" ? cat.id : cat;
+            return catId ? [catId] : [];
         } catch(e) { return []; }
     }
 
@@ -98,28 +96,22 @@ export class SpecialOfferPopup extends Component {
         this.state.errorMsg   = "";
         this.state.appliedMsg = "";
 
-        if (!this.isTimeActive(offer)) {
-            const h = Math.floor(offer.active_time);
-            const m = String(Math.round((offer.active_time - h) * 60)).padStart(2, "0");
-            this.state.errorMsg = `"${offer.name}" is only active from ${String(h).padStart(2,"0")}:${m} onwards.`;
-            return;
-        }
-
         const order = this.currentOrder;
         if (!order) { this.state.errorMsg = "No active order found."; return; }
 
         const lines = this.getOrderLines(order);
-        if (!lines.length) {
-            this.state.errorMsg = "Please add products to the order first.";
-            return;
-        }
+        if (!lines.length) { this.state.errorMsg = "Please add products to the order first."; return; }
 
         const noFilter = offer.product_ids.length === 0 && offer.category_ids.length === 0;
         let applied = 0;
+
         for (const line of lines) {
-            const pid  = this.getProductId(line);
-            const cats = this.getCategoryIds(line);
-            if (noFilter || (pid && offer.product_ids.includes(pid)) || cats.some(c => offer.category_ids.includes(c))) {
+            const pid     = this.getProductId(line);
+            const catIds  = this.getProductCategoryIds(line);
+            const matchP  = pid && offer.product_ids.includes(pid);
+            const matchC  = catIds.some(c => offer.category_ids.includes(c));
+
+            if (noFilter || matchP || matchC) {
                 if (this.applyDiscount(line, offer)) applied++;
             }
         }
@@ -138,16 +130,10 @@ export class SpecialOfferPopup extends Component {
         if (!code) { this.state.errorMsg = "Please enter a coupon code."; return; }
 
         const offer = this.offerService.getActiveOffers().find(
-            o => o.offer_type === "coupon" && o.coupon_code.toLowerCase() === code.toLowerCase()
+            o => o.offer_type === "coupon" &&
+                 o.coupon_code.toLowerCase() === code.toLowerCase()
         );
         if (!offer) { this.state.errorMsg = `Coupon "${code}" is invalid or expired.`; return; }
-
-        if (!this.isTimeActive(offer)) {
-            const h = Math.floor(offer.active_time);
-            const m = String(Math.round((offer.active_time - h) * 60)).padStart(2, "0");
-            this.state.errorMsg = `This coupon is only active from ${String(h).padStart(2,"0")}:${m} onwards.`;
-            return;
-        }
         this.applyOffer(offer);
         this.state.couponInput = "";
     }

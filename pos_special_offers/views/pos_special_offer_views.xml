@@ -32,7 +32,6 @@
         <field name="model">pos.special.offer</field>
         <field name="arch" type="xml">
             <form string="Special Offer">
-                <!-- Status bar at top -->
                 <header>
                     <field name="state" widget="statusbar"
                         statusbar_visible="draft,active,expired"/>
@@ -41,7 +40,9 @@
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Offer Name..."/></h1>
                     </div>
+
                     <group>
+                        <!-- LEFT: Offer Settings -->
                         <group string="Offer Settings">
                             <field name="offer_type" widget="radio"/>
                             <field name="coupon_code"
@@ -51,27 +52,37 @@
                             <field name="usage_count"/>
                             <field name="active"/>
                         </group>
+
+                        <!-- RIGHT: Offer Period (with datetime) -->
                         <group string="Offer Period">
-                            <field name="date_from"/>
-                            <field name="date_to"/>
-                            <field name="active_time" widget="float_time"
-                                help="Offer activates after this time each day (local time)"/>
-                            <field name="days_remaining" widget="integer"
-                                string="Days Remaining"/>
+                            <field name="date_from" widget="datetime"/>
+                            <field name="date_to"   widget="datetime"/>
+                            <field name="days_remaining"/>
                         </group>
-                        <group string="Discount">
+                    </group>
+
+                    <!-- Discount section -->
+                    <group string="Discount">
+                        <group>
                             <field name="discount_type"/>
                             <field name="discount_value"/>
                         </group>
                     </group>
-                    <notebook>
-                        <page string="Products">
-                            <field name="product_ids" widget="many2many_tags"/>
-                        </page>
-                        <page string="POS Categories">
-                            <field name="category_ids" widget="many2many_tags"/>
-                        </page>
-                    </notebook>
+
+                    <!-- Products & Categories as fields (not tabs) -->
+                    <group string="Apply To">
+                        <field name="product_ids"
+                            widget="many2many_tags"
+                            string="Products"
+                            options="{'no_create': True}"
+                            help="Leave empty to apply to all products"/>
+                        <field name="category_ids"
+                            widget="many2many_tags"
+                            string="Product Categories"
+                            options="{'no_create': True}"
+                            help="Leave empty to apply to all categories"/>
+                    </group>
+
                 </sheet>
             </form>
         </field>
@@ -84,15 +95,12 @@
             <search>
                 <field name="name"/>
                 <field name="coupon_code"/>
-                <filter string="Active"        name="active"   domain="[('state','=','active')]"/>
-                <filter string="Draft"         name="draft"    domain="[('state','=','draft')]"/>
-                <filter string="Expired"       name="expired"  domain="[('state','=','expired')]"/>
+                <filter string="Active"         name="active"         domain="[('state','=','active')]"/>
+                <filter string="Draft"          name="draft"          domain="[('state','=','draft')]"/>
+                <filter string="Expired"        name="expired"        domain="[('state','=','expired')]"/>
                 <separator/>
-                <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>
-                <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>
-                <separator/>
-                <filter string="Expiring Today" name="expiring_today"
-                    domain="[('date_to','=', context_today())]"/>
+                <filter string="Flat Discount"  name="flat"           domain="[('offer_type','=','flat_discount')]"/>
+                <filter string="Coupon"         name="coupon"         domain="[('offer_type','=','coupon')]"/>
             </search>
         </field>
     </record>
