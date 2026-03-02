@@ -1,11 +1,16 @@
 /** @odoo-module **/
-import { patch } from "@web/core/utils/patch";
-import { PosStore } from "@point_of_sale/app/store/pos_store";
 
-function getOfferService(env) {
+// ── NO imports — avoid any dependency issues ─────────────────────────────────
+// We use odoo.loader.modules directly to get PosStore at runtime
+
+function getOfferService() {
     try {
-        return env?.services?.special_offer_service ?? null;
-    } catch(e) { return null; }
+        for (const app of (owl.__apps__ || [])) {
+            const svc = app?.env?.services?.special_offer_service;
+            if (svc) return svc;
+        }
+    } catch(e) {}
+    return null;
 }
 
 function getLineProductId(line) {
@@ -53,49 +58,62 @@ function applyDiscountToLine(line, offer) {
     return false;
 }
 
-// ── Patch PosStore.addProductToCurrentOrder ──────────────────────────────────
-// PosStore is the high-level store. It has addProductToCurrentOrder which is
-// called when the cashier clicks a product tile. This runs OUTSIDE OWL render.
-patch(PosStore.prototype, {
-    async addProductToCurrentOrder(product, options = {}) {
-        // Call original method first
-        await super.addProductToCurrentOrder(product, options);
+function doAutoApply(lastLine) {
+    if (!lastLine) return;
+    const pid = getLineProductId(lastLine);
+    if (!pid) return; // skip tip/reward/gift lines that have no product
 
-        // Now safely apply offer — we are outside the render cycle here
-        try {
-            const service = getOfferService(this.env);
-            if (!service) return;
+    const service = getOfferService();
+    if (!service) return;
 
-            const offers = service.getActiveOffers().filter(o => o.offer_type === "flat_discount");
-            if (!offers.length) return;
-
-            // Get the current order and its last line
-            const order = this.get_order?.() ?? this.selectedOrder ?? this.currentOrder;
-            if (!order) return;
-
-            const lines = Array.isArray(order.lines) ? order.lines :
-                          order.get_orderlines?.() ||
-                          order.orderlines?.models || [];
-            if (!lines.length) return;
-
-            const lastLine = lines[lines.length - 1];
-            if (!lastLine) return;
-
-            const pid = getLineProductId(lastLine);
-            if (!pid) return;
-
-            for (const offer of offers) {
-                if (lineMatchesOffer(lastLine, offer)) {
-                    if (applyDiscountToLine(lastLine, offer)) {
-                        console.log(`[SpecialOffer] ✅ Auto-applied "${offer.name}" to product:`, pid);
-                        break;
-                    }
-                }
+    const offers = service.getActiveOffers().filter(o => o.offer_type === "flat_discount");
+    for (const offer of offers) {
+        if (lineMatchesOffer(lastLine, offer)) {
+            if (applyDiscountToLine(lastLine, offer)) {
+                console.log(`[SpecialOffer] ✅ Auto-applied "${offer.name}" to product:`, pid);
+                break;
             }
-        } catch(e) {
-            console.warn("[SpecialOffer] addProductToCurrentOrder hook error:", e);
         }
     }
-});
+}
 
-console.log("[SpecialOffer] ✅ Patched PosStore.addProductToCurrentOrder");
+// ── Patch PosStore via odoo.loader (no import needed) ────────────────────────
+function patchPosStore() {
+    const storeMod = odoo.loader.modules.get("@point_of_sale/app/store/pos_store");
+    if (!storeMod?.PosStore) {
+        console.warn("[SpecialOffer] PosStore not found");
+        return false;
+    }
+
+    const proto = storeMod.PosStore.prototype;
+
+    // addProductToCurrentOrder is called when cashier clicks a product tile
+    if (typeof proto.addProductToCurrentOrder === "function") {
+        const orig = proto.addProductToCurrentOrder;
+        proto.addProductToCurrentOrder = async function(product, options = {}) {
+            const result = await orig.call(this, product, options);
+            try {
+                const order = this.get_order?.() ?? this.selectedOrder ?? this.currentOrder;
+                if (!order) return result;
+                const lines = Array.isArray(order.lines) ? order.lines :
+                              order.get_orderlines?.() ?? order.orderlines?.models ?? [];
+                doAutoApply(lines[lines.length - 1]);
+            } catch(e) {
+                console.warn("[SpecialOffer] hook error:", e);
+            }
+            return result;
+        };
+        console.log("[SpecialOffer] ✅ Patched PosStore.addProductToCurrentOrder");
+        return true;
+    }
+
+    // Log available methods to help debug if not found
+    const methods = Object.getOwnPropertyNames(proto).filter(m =>
+        m.toLowerCase().includes("add") || m.toLowerCase().includes("product")
+    );
+    console.warn("[SpecialOffer] addProductToCurrentOrder not found. Available:", methods);
+    return false;
+}
+
+// Run after all modules are loaded
+patchPosStore();
