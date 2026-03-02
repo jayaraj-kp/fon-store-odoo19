@@ -1,84 +1,73 @@
+/* Hide original discount line */
+.pos-receipt-discount,
+.pos-receipt [class*="discount"]:not(.custom-savings-block) {
+    display: none !important;
+}
 
-/* ============================
-   Custom POS Receipt Styles
-   ============================ */
-
-/* 1. Smaller QR Code */
-.custom-qr-small img,
-.custom-qr-small canvas {
-    width: 80px !important;
+/* QR Code smaller */
+.pos-receipt-qrcode img,
+.pos-receipt-qrcode canvas,
+.pos-receipt [class*="qrcode"] img,
+.pos-receipt [class*="qrcode"] canvas,
+.pos-receipt [class*="qr-code"] img,
+.pos-receipt [class*="qr-code"] canvas {
+    width:  80px !important;
     height: 80px !important;
-}
-.custom-qr-small {
-    max-width: 80px;
-    margin: 6px auto;
+    max-width: 80px !important;
 }
 
-/* 2. You Have Saved */
-.custom-savings {
+/* You Have Saved */
+.custom-savings-block {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    padding: 4px 0;
-    color: #2a7a2a;
+    padding: 5px 0;
+    margin: 4px 0;
+    color: #1a7a1a;
     font-weight: bold;
     font-size: 13px;
-    border-top: 1px dashed #ccc;
+    border-top: 1px dashed #aaa;
+    border-bottom: 1px dashed #aaa;
 }
+.custom-savings-block .savings-text { flex: 1; }
 
-/* 3. GST Breakdown Table */
-.custom-gst-table {
-    margin: 10px 0;
-    font-size: 11px;
-}
-.custom-gst-table table {
-    width: 100%;
-    border-collapse: collapse;
-}
+/* GST Table */
+.custom-gst-table { margin: 10px 0; font-size: 10.5px; width: 100%; }
+.custom-gst-table table { width: 100%; border-collapse: collapse; }
 .custom-gst-table th,
-.custom-gst-table td {
-    border: 1px solid #555;
-    padding: 3px 5px;
-    text-align: right;
-}
+.custom-gst-table td { border: 1px solid #444; padding: 2px 4px; text-align: right; }
 .custom-gst-table th:first-child,
-.custom-gst-table td:first-child {
-    text-align: left;
-}
-.custom-gst-table thead tr {
-    background-color: #f0f0f0;
-    font-weight: bold;
-}
-.custom-gst-table tfoot tr {
-    background-color: #e8e8e8;
-    font-weight: bold;
-}
+.custom-gst-table td:first-child { text-align: left; }
+.custom-gst-table thead tr { background-color: #e8e8e8; font-weight: bold; }
+.custom-gst-table tfoot tr { background-color: #d8d8d8; font-weight: bold; }
 
-/* 4. Amount in Words */
+/* Amount in Words */
 .custom-amount-words {
     margin: 8px 0;
-    padding: 5px;
-    font-size: 11px;
-    border: 1px dashed #999;
+    padding: 5px 6px;
+    font-size: 10.5px;
+    border: 1px dashed #888;
     text-align: center;
     font-style: italic;
 }
 .custom-amount-words .words-label {
     font-weight: bold;
-}
-.custom-amount-words .words-value {
+    font-style: normal;
     display: block;
-    margin-top: 2px;
+    font-size: 10px;
+    color: #555;
 }
+.custom-amount-words .words-value { display: block; font-weight: 600; }
 
-/* 5. Salutation */
+/* Salutation */
 .custom-salutation {
     margin-top: 12px;
     text-align: center;
     font-size: 12px;
     font-weight: bold;
     padding: 8px 4px;
-    border-top: 2px solid #333;
+    border-top: 2px double #333;
+    border-bottom: 2px double #333;
+    line-height: 1.8;
 }
-.custom-salutation p {
-    margin: 3px 0;
-}
+.custom-salutation p { margin: 2px 0; }
