@@ -24,25 +24,19 @@ export class SpecialOfferPopup extends Component {
         this.state.errorMsg   = "";
         try {
             await this.offerService.refresh();
+        } catch(e) {
+            this.state.errorMsg = "Refresh failed. Check your connection.";
         } finally {
             this.state.refreshing = false;
         }
     }
 
-    // ── Time check ───────────────────────────────────────────────────────────
-    // active_time = 0 means "always active" (no time restriction)
-    // active_time = 12.0 means "active from 12:00 onwards"
-    // We show ALL offers regardless of time restriction in the popup list
-    // The cashier can see them and decide. Time restriction only blocks apply.
     isTimeActive(offer) {
-        // If no time set (0 or null), always active
         if (!offer.active_time || offer.active_time === 0) return true;
         const now = new Date();
-        const nowFloat = now.getHours() + now.getMinutes() / 60.0;
-        return nowFloat >= offer.active_time;
+        return (now.getHours() + now.getMinutes() / 60.0) >= offer.active_time;
     }
 
-    // Show ALL flat discount offers (including time-restricted ones with a label)
     get allFlatOffers() {
         return this.offerService.getActiveOffers()
             .filter(o => o.offer_type === "flat_discount");
@@ -50,32 +44,40 @@ export class SpecialOfferPopup extends Component {
 
     get currentOrder() {
         const p = this.pos;
-        return p.get_order?.() ?? p.selectedOrder ?? p.currentOrder ?? null;
+        try {
+            return p.get_order?.() ?? p.selectedOrder ?? p.currentOrder ?? null;
+        } catch(e) { return null; }
     }
 
     getOrderLines(order) {
         if (!order) return [];
-        if (Array.isArray(order.lines) && order.lines.length > 0) return order.lines;
-        if (typeof order.get_orderlines === "function")            return order.get_orderlines();
-        if (Array.isArray(order.orderlines))                       return order.orderlines;
-        if (order.orderlines?.models)                              return order.orderlines.models;
+        try {
+            if (Array.isArray(order.lines) && order.lines.length > 0) return order.lines;
+            if (typeof order.get_orderlines === "function")            return order.get_orderlines() || [];
+            if (Array.isArray(order.orderlines))                       return order.orderlines;
+            if (order.orderlines?.models)                              return order.orderlines.models;
+        } catch(e) { console.warn("[SpecialOffer] getOrderLines error:", e); }
         return [];
     }
 
     getProductId(line) {
-        if (line.product_id?.id)                        return line.product_id.id;
-        if (typeof line.get_product === "function")     return line.get_product()?.id;
-        if (line.product?.id)                           return line.product.id;
-        if (typeof line.product_id === "number")        return line.product_id;
+        try {
+            if (line.product_id?.id)                        return line.product_id.id;
+            if (typeof line.get_product === "function")     return line.get_product()?.id ?? null;
+            if (line.product?.id)                           return line.product.id;
+            if (typeof line.product_id === "number")        return line.product_id;
+        } catch(e) {}
         return null;
     }
 
     getCategoryIds(line) {
-        const product = line.product_id ?? line.product ?? line.get_product?.();
-        if (!product) return [];
-        const cats = product.pos_categ_ids ?? product.pos_categ_id ?? [];
-        if (Array.isArray(cats)) return cats.map(c => (typeof c === "object" ? c.id : c));
-        return typeof cats === "number" ? [cats] : [];
+        try {
+            const product = line.product_id ?? line.product ?? line.get_product?.();
+            if (!product) return [];
+            const cats = product.pos_categ_ids ?? product.pos_categ_id ?? [];
+            if (Array.isArray(cats)) return cats.map(c => typeof c === "object" ? c.id : c).filter(Boolean);
+            return typeof cats === "number" ? [cats] : [];
+        } catch(e) { return []; }
     }
 
     applyDiscount(line, offer) {
@@ -88,9 +90,7 @@ export class SpecialOfferPopup extends Component {
                 if (typeof line.setUnitPrice   === "function") { line.setUnitPrice(offer.discount_value);   return true; }
                 if ("price_unit" in line)                      { line.price_unit = offer.discount_value;    return true; }
             }
-        } catch (e) {
-            console.error("[SpecialOffer] applyDiscount error:", e);
-        }
+        } catch(e) { console.error("[SpecialOffer] applyDiscount error:", e); }
         return false;
     }
 
@@ -98,11 +98,10 @@ export class SpecialOfferPopup extends Component {
         this.state.errorMsg   = "";
         this.state.appliedMsg = "";
 
-        // Block apply if time restriction not met
         if (!this.isTimeActive(offer)) {
             const h = Math.floor(offer.active_time);
-            const m = Math.round((offer.active_time - h) * 60);
-            this.state.errorMsg = `"${offer.name}" is only active from ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} onwards.`;
+            const m = String(Math.round((offer.active_time - h) * 60)).padStart(2, "0");
+            this.state.errorMsg = `"${offer.name}" is only active from ${String(h).padStart(2,"0")}:${m} onwards.`;
             return;
         }
 
@@ -110,21 +109,17 @@ export class SpecialOfferPopup extends Component {
         if (!order) { this.state.errorMsg = "No active order found."; return; }
 
         const lines = this.getOrderLines(order);
-        if (!lines || lines.length === 0) {
+        if (!lines.length) {
             this.state.errorMsg = "Please add products to the order first.";
             return;
         }
 
         const noFilter = offer.product_ids.length === 0 && offer.category_ids.length === 0;
         let applied = 0;
-
         for (const line of lines) {
-            const productId     = this.getProductId(line);
-            const catIds        = this.getCategoryIds(line);
-            const matchProduct  = productId && offer.product_ids.includes(productId);
-            const matchCategory = catIds.some(cid => offer.category_ids.includes(cid));
-
-            if (noFilter || matchProduct || matchCategory) {
+            const pid  = this.getProductId(line);
+            const cats = this.getCategoryIds(line);
+            if (noFilter || (pid && offer.product_ids.includes(pid)) || cats.some(c => offer.category_ids.includes(c))) {
                 if (this.applyDiscount(line, offer)) applied++;
             }
         }
@@ -132,7 +127,7 @@ export class SpecialOfferPopup extends Component {
         if (applied > 0) {
             this.state.appliedMsg = `✅ "${offer.name}" applied to ${applied} line(s)!`;
         } else {
-            this.state.errorMsg = `"${offer.name}" has no matching products in this order.`;
+            this.state.errorMsg = `"${offer.name}" matched no products in this order.`;
         }
     }
 
@@ -143,18 +138,16 @@ export class SpecialOfferPopup extends Component {
         if (!code) { this.state.errorMsg = "Please enter a coupon code."; return; }
 
         const offer = this.offerService.getActiveOffers().find(
-            o => o.offer_type === "coupon" &&
-                 o.coupon_code.toLowerCase() === code.toLowerCase()
+            o => o.offer_type === "coupon" && o.coupon_code.toLowerCase() === code.toLowerCase()
         );
         if (!offer) { this.state.errorMsg = `Coupon "${code}" is invalid or expired.`; return; }
 
         if (!this.isTimeActive(offer)) {
             const h = Math.floor(offer.active_time);
-            const m = Math.round((offer.active_time - h) * 60);
-            this.state.errorMsg = `This coupon is only active from ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} onwards.`;
+            const m = String(Math.round((offer.active_time - h) * 60)).padStart(2, "0");
+            this.state.errorMsg = `This coupon is only active from ${String(h).padStart(2,"0")}:${m} onwards.`;
             return;
         }
-
         this.applyOffer(offer);
         this.state.couponInput = "";
     }
