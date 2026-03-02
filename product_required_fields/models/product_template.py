@@ -9,6 +9,6 @@ class ProductTemplate(models.Model):
     default_code = fields.Char(required=True)
     barcode = fields.Char(required=True)
     available_in_pos = fields.boolean(required=True)
-    is_storable = fields.boolean(required=True)
+    is_storable = fields.Boolean(required=True)
     categ_id = fields.many2one(required=True)
     image_1920 = fields.binary(required=True)
