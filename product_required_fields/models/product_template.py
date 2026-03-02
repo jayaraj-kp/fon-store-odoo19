@@ -11,3 +11,4 @@ class ProductTemplate(models.Model):
     available_in_pos = fields.boolean(required=True)
     is_storable = fields.boolean(required=True)
     categ_id = fields.many2one(required=True)
+    image_1920 = fields.binary(required=True)
