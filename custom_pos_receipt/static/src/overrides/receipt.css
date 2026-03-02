@@ -1,47 +1,45 @@
-.pos-receipt-gst-qr-row {
+.gst-qr-wrapper {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: 6px;
+    gap: 8px;
     margin: 6px 0;
 }
 
-.pos-receipt-qr-small {
-    flex: 0 0 auto;
+.pos-receipt-qrcode img,
+.pos-receipt-qrcode canvas {
+    width: 80px !important;
+    height: 80px !important;
+    max-width: 80px !important;
 }
 
-.qr-code-small {
-    width: 75px !important;
-    height: 75px !important;
-}
-
-.pos-receipt-gst-table {
-    flex: 1 1 auto;
+.gst-summary-table {
+    flex: 1;
     font-size: 8px;
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
-.pos-receipt-gst-table table {
+.gst-summary-table table {
     width: 100%;
     border-collapse: collapse;
 }
 
-.pos-receipt-gst-table th,
-.pos-receipt-gst-table td {
-    border: 0.5px solid #555;
+.gst-summary-table th,
+.gst-summary-table td {
+    border: 0.5px solid #444;
     padding: 2px 3px;
 }
 
-.pos-receipt-gst-table th {
-    background: #eee;
+.gst-summary-table th {
+    background: #efefef;
     font-weight: bold;
     text-align: center;
 }
 
-.pos-receipt-gst-table .amt {
+.gst-summary-table .gst-amt {
     text-align: right;
 }
 
-.pos-receipt-gst-table .gst-total-row td {
+.gst-summary-table tfoot td {
     border-top: 1px solid #000;
 }
