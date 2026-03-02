@@ -1,13 +1,6 @@
 /** @odoo-module **/
-/**
- * Auto-apply special offers when a product is added to the POS order.
- * We patch PosOrder.add_product / addProduct to trigger offer matching
- * immediately after each line is added.
- */
 import { patch } from "@web/core/utils/patch";
-import { registry } from "@web/core/registry";
 
-// ── Helper: find the special_offer_service from the OWL app env ──────────────
 function getOfferService() {
     try {
         for (const app of owl.__apps__ || []) {
@@ -18,7 +11,6 @@ function getOfferService() {
     return null;
 }
 
-// ── Helper: get product id from an order line ────────────────────────────────
 function getLineProductId(line) {
     try {
         if (line.product_id?.id)                        return line.product_id.id;
@@ -29,7 +21,6 @@ function getLineProductId(line) {
     return null;
 }
 
-// ── Helper: get product category id from a line ──────────────────────────────
 function getLineCategoryId(line) {
     try {
         const product = line.product_id ?? line.product ?? line.get_product?.();
@@ -40,24 +31,17 @@ function getLineCategoryId(line) {
     } catch(e) { return null; }
 }
 
-// ── Helper: check if line matches offer ─────────────────────────────────────
 function lineMatchesOffer(line, offer) {
     if (offer.all_products)   return true;
     if (offer.all_categories) return true;
-
     const pid   = getLineProductId(line);
     const catId = getLineCategoryId(line);
-
-    if (offer.product_ids.length > 0 && pid && offer.product_ids.includes(pid))    return true;
+    if (offer.product_ids.length > 0 && pid && offer.product_ids.includes(pid))       return true;
     if (offer.category_ids.length > 0 && catId && offer.category_ids.includes(catId)) return true;
-
-    // nothing selected = applies to all
-    if (offer.product_ids.length === 0 && offer.category_ids.length === 0) return true;
-
+    if (offer.product_ids.length === 0 && offer.category_ids.length === 0)             return true;
     return false;
 }
 
-// ── Helper: apply discount to a line ────────────────────────────────────────
 function applyDiscountToLine(line, offer) {
     try {
         if (offer.discount_type === "percentage") {
@@ -68,88 +52,84 @@ function applyDiscountToLine(line, offer) {
             if (typeof line.setUnitPrice   === "function") { line.setUnitPrice(offer.discount_value);   return true; }
             if ("price_unit" in line)                      { line.price_unit = offer.discount_value;    return true; }
         }
-    } catch(e) { console.error("[SpecialOffer] autoApply discount error:", e); }
+    } catch(e) { console.error("[SpecialOffer] applyDiscount error:", e); }
     return false;
 }
 
-// ── Main auto-apply function ─────────────────────────────────────────────────
-function autoApplyOffersToLine(line) {
+function autoApplyToLine(line) {
     const service = getOfferService();
-    if (!service) return;
-
+    if (!service) { console.warn("[SpecialOffer] No service found"); return; }
     const offers = service.getActiveOffers().filter(o => o.offer_type === "flat_discount");
-    if (!offers.length) return;
-
+    console.log("[SpecialOffer] autoApplyToLine - offers:", offers.length, "line product:", getLineProductId(line));
     for (const offer of offers) {
         if (lineMatchesOffer(line, offer)) {
-            const applied = applyDiscountToLine(line, offer);
-            if (applied) {
-                console.log(`[SpecialOffer] ✅ Auto-applied "${offer.name}" to line`);
-                break; // Apply only the FIRST matching offer per line
+            if (applyDiscountToLine(line, offer)) {
+                console.log(`[SpecialOffer] ✅ Auto-applied "${offer.name}"`);
+                break;
             }
         }
     }
 }
 
-// ── Patch PosOrder to hook into product addition ─────────────────────────────
-const POSORDER_PATHS = [
-    "@point_of_sale/app/models/pos_order",
-    "@point_of_sale/app/store/pos_order",
-];
+// ── Find the last added line after product addition ──────────────────────────
+function getLastLine(order) {
+    // Odoo 19: order.lines is a direct reactive array
+    if (Array.isArray(order.lines) && order.lines.length > 0)
+        return order.lines[order.lines.length - 1];
+    // Odoo 17/18: get_orderlines()
+    if (typeof order.get_orderlines === "function") {
+        const lines = order.get_orderlines();
+        return lines?.[lines.length - 1] ?? null;
+    }
+    if (order.orderlines?.models?.length)
+        return order.orderlines.models[order.orderlines.models.length - 1];
+    return null;
+}
 
-function tryPatchPosOrder() {
-    for (const path of POSORDER_PATHS) {
-        try {
-            const mod = odoo.loader.modules.get(path);
-            if (!mod?.PosOrder) continue;
+// ── Patch PosOrder ───────────────────────────────────────────────────────────
+function patchPosOrder() {
+    const mod = odoo.loader.modules.get("@point_of_sale/app/models/pos_order");
+    if (!mod?.PosOrder) {
+        console.warn("[SpecialOffer] PosOrder module not found");
+        return false;
+    }
 
-            patch(mod.PosOrder.prototype, {
-                // Odoo 17/18 method name
-                add_product(product, options) {
-                    const result = super.add_product(product, options);
+    const PosOrder = mod.PosOrder;
+
+    // Log all method names to find the correct add product method
+    const proto = PosOrder.prototype;
+    const methods = Object.getOwnPropertyNames(proto).filter(m =>
+        m.toLowerCase().includes("add") || m.toLowerCase().includes("product")
+    );
+    console.log("[SpecialOffer] PosOrder methods with 'add/product':", methods);
+
+    // Patch every possible method name Odoo 19 might use
+    const methodNames = ["add_product", "addProduct", "addOrderline", "add_orderline"];
+
+    for (const methodName of methodNames) {
+        if (typeof proto[methodName] === "function") {
+            const original = proto[methodName];
+            proto[methodName] = function(...args) {
+                const result = original.apply(this, args);
+                // Use setTimeout to wait for the line to be fully added
+                setTimeout(() => {
                     try {
-                        // Get the last added line
-                        const lines = this.get_orderlines?.() ||
-                                      this.orderlines?.models ||
-                                      (Array.isArray(this.lines) ? this.lines : []);
-                        const lastLine = lines[lines.length - 1];
-                        if (lastLine) autoApplyOffersToLine(lastLine);
+                        const line = getLastLine(this);
+                        if (line) {
+                            console.log("[SpecialOffer] Hooked via:", methodName, "line:", line);
+                            autoApplyToLine(line);
+                        }
                     } catch(e) {
-                        console.warn("[SpecialOffer] autoApply hook error:", e);
+                        console.warn("[SpecialOffer] Hook error:", e);
                     }
-                    return result;
-                },
-
-                // Odoo 19 may use addProduct (camelCase)
-                addProduct(product, options) {
-                    const result = super.addProduct(product, options);
-                    try {
-                        const lines = Array.isArray(this.lines) ? this.lines :
-                                      this.get_orderlines?.() ||
-                                      this.orderlines?.models || [];
-                        const lastLine = lines[lines.length - 1];
-                        if (lastLine) autoApplyOffersToLine(lastLine);
-                    } catch(e) {
-                        console.warn("[SpecialOffer] autoApply hook error:", e);
-                    }
-                    return result;
-                },
-            });
-
-            console.log("[SpecialOffer] ✅ PosOrder patched for auto-apply at:", path);
-            return true;
-        } catch(e) {
-            console.warn("[SpecialOffer] PosOrder patch failed for:", path, e);
+                }, 50);
+                return result;
+            };
+            console.log(`[SpecialOffer] ✅ Patched PosOrder.${methodName}`);
         }
     }
-    return false;
+
+    return true;
 }
 
-// Try patching — PosOrder is loaded before our module
-if (!tryPatchPosOrder()) {
-    setTimeout(() => {
-        if (!tryPatchPosOrder()) {
-            console.warn("[SpecialOffer] ⚠️ Could not patch PosOrder for auto-apply.");
-        }
-    }, 0);
-}
+patchPosOrder();
