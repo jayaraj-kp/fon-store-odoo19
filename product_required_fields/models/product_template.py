@@ -8,3 +8,6 @@ class ProductTemplate(models.Model):
     # Override fields to make them required at model level (handles UI asterisk)
     default_code = fields.Char(required=True)
     barcode = fields.Char(required=True)
+    available_in_pos = fields.boolean(required=True)
+    is_storable = fields.boolean(required=True)
+    categ_id = fields.many2one(required=True)

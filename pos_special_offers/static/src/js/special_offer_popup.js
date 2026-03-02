@@ -18,7 +18,6 @@ export class SpecialOfferPopup extends Component {
         });
     }
 
-    // ── Refresh ─────────────────────────────────────────────────────────────
     async onRefresh() {
         this.state.refreshing = true;
         this.state.appliedMsg = "";
@@ -30,20 +29,25 @@ export class SpecialOfferPopup extends Component {
         }
     }
 
-    // ── Time check (client-side browser local time) ─────────────────────────
+    // ── Time check ───────────────────────────────────────────────────────────
+    // active_time = 0 means "always active" (no time restriction)
+    // active_time = 12.0 means "active from 12:00 onwards"
+    // We show ALL offers regardless of time restriction in the popup list
+    // The cashier can see them and decide. Time restriction only blocks apply.
     isTimeActive(offer) {
+        // If no time set (0 or null), always active
         if (!offer.active_time || offer.active_time === 0) return true;
         const now = new Date();
         const nowFloat = now.getHours() + now.getMinutes() / 60.0;
         return nowFloat >= offer.active_time;
     }
 
-    get activeOffers() {
+    // Show ALL flat discount offers (including time-restricted ones with a label)
+    get allFlatOffers() {
         return this.offerService.getActiveOffers()
-            .filter(o => o.offer_type === "flat_discount" && this.isTimeActive(o));
+            .filter(o => o.offer_type === "flat_discount");
     }
 
-    // ── Order access ─────────────────────────────────────────────────────────
     get currentOrder() {
         const p = this.pos;
         return p.get_order?.() ?? p.selectedOrder ?? p.currentOrder ?? null;
@@ -51,18 +55,18 @@ export class SpecialOfferPopup extends Component {
 
     getOrderLines(order) {
         if (!order) return [];
-        if (Array.isArray(order.lines) && order.lines.length > 0)      return order.lines;
-        if (typeof order.get_orderlines === "function")                 return order.get_orderlines();
-        if (Array.isArray(order.orderlines))                            return order.orderlines;
-        if (order.orderlines?.models)                                   return order.orderlines.models;
+        if (Array.isArray(order.lines) && order.lines.length > 0) return order.lines;
+        if (typeof order.get_orderlines === "function")            return order.get_orderlines();
+        if (Array.isArray(order.orderlines))                       return order.orderlines;
+        if (order.orderlines?.models)                              return order.orderlines.models;
         return [];
     }
 
     getProductId(line) {
-        if (line.product_id?.id)                            return line.product_id.id;
-        if (typeof line.get_product === "function")         return line.get_product()?.id;
-        if (line.product?.id)                               return line.product.id;
-        if (typeof line.product_id === "number")            return line.product_id;
+        if (line.product_id?.id)                        return line.product_id.id;
+        if (typeof line.get_product === "function")     return line.get_product()?.id;
+        if (line.product?.id)                           return line.product.id;
+        if (typeof line.product_id === "number")        return line.product_id;
         return null;
     }
 
@@ -94,6 +98,14 @@ export class SpecialOfferPopup extends Component {
         this.state.errorMsg   = "";
         this.state.appliedMsg = "";
 
+        // Block apply if time restriction not met
+        if (!this.isTimeActive(offer)) {
+            const h = Math.floor(offer.active_time);
+            const m = Math.round((offer.active_time - h) * 60);
+            this.state.errorMsg = `"${offer.name}" is only active from ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} onwards.`;
+            return;
+        }
+
         const order = this.currentOrder;
         if (!order) { this.state.errorMsg = "No active order found."; return; }
 
@@ -107,8 +119,8 @@ export class SpecialOfferPopup extends Component {
         let applied = 0;
 
         for (const line of lines) {
-            const productId    = this.getProductId(line);
-            const catIds       = this.getCategoryIds(line);
+            const productId     = this.getProductId(line);
+            const catIds        = this.getCategoryIds(line);
             const matchProduct  = productId && offer.product_ids.includes(productId);
             const matchCategory = catIds.some(cid => offer.category_ids.includes(cid));
 
@@ -132,10 +144,17 @@ export class SpecialOfferPopup extends Component {
 
         const offer = this.offerService.getActiveOffers().find(
             o => o.offer_type === "coupon" &&
-                 this.isTimeActive(o) &&
                  o.coupon_code.toLowerCase() === code.toLowerCase()
         );
         if (!offer) { this.state.errorMsg = `Coupon "${code}" is invalid or expired.`; return; }
+
+        if (!this.isTimeActive(offer)) {
+            const h = Math.floor(offer.active_time);
+            const m = Math.round((offer.active_time - h) * 60);
+            this.state.errorMsg = `This coupon is only active from ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} onwards.`;
+            return;
+        }
+
         this.applyOffer(offer);
         this.state.couponInput = "";
     }
