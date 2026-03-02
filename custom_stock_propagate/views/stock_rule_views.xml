@@ -11,13 +11,6 @@
             <!-- Add PROPAGATION group after OPTIONS group -->
             <xpath expr="//group[@string='OPTIONS']" position="after">
                 <group string="PROPAGATION">
-                    <field name="group_propagation_option" string="Procurement Group"/>
-                    <field
-                        name="group_id"
-                        attrs="{'invisible': [('group_propagation_option', '!=', 'fixed')],
-                                'required': [('group_propagation_option', '=', 'fixed')]}"
-                        placeholder="Select a fixed procurement group..."
-                    />
                     <field name="propagate_carrier" string="Propagate Carrier"/>
                     <field
                         name="propagate_warehouse_id"
