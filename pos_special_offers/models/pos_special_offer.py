@@ -12,22 +12,24 @@ class PosSpecialOffer(models.Model):
         ('flat_discount', 'Flat Discount'),
         ('coupon',        'Coupon'),
     ], string='Offer Type', required=True, default='flat_discount')
-    coupon_code    = fields.Char(string='Coupon Code')
+    coupon_code = fields.Char(string='Coupon Code')
 
-    product_ids    = fields.Many2many(
+    # ── All Products / All Categories toggles ──
+    all_products   = fields.Boolean(string='All Products',   default=False,
+        help='If checked, offer applies to ALL products regardless of selection below.')
+    all_categories = fields.Boolean(string='All Categories', default=False,
+        help='If checked, offer applies to ALL product categories regardless of selection below.')
+
+    product_ids  = fields.Many2many(
         'product.product', 'pos_offer_product_rel',
         'offer_id', 'product_id', string='Products')
-
-    # ── Changed: product.category (not pos.category) ──
-    category_ids   = fields.Many2many(
+    category_ids = fields.Many2many(
         'product.category', 'pos_offer_category_rel',
         'offer_id', 'category_id', string='Product Categories')
 
-    # ── Changed: Datetime fields with time ──
-    date_from      = fields.Datetime(string='Start Date & Time', required=True)
-    date_to        = fields.Datetime(string='End Date & Time',   required=True)
-
-    discount_type  = fields.Selection([
+    date_from     = fields.Datetime(string='Start Date & Time', required=True)
+    date_to       = fields.Datetime(string='End Date & Time',   required=True)
+    discount_type = fields.Selection([
         ('percentage', 'Percentage (%)'),
         ('fixed',      'Fixed Price'),
     ], string='Discount Type', required=True, default='percentage')
@@ -69,10 +71,18 @@ class PosSpecialOffer(models.Model):
     def _compute_days_remaining(self):
         today = date.today()
         for rec in self:
-            if rec.date_to:
-                rec.days_remaining = max((rec.date_to.date() - today).days, 0)
-            else:
-                rec.days_remaining = 0
+            rec.days_remaining = max((rec.date_to.date() - today).days, 0) if rec.date_to else 0
+
+    # Auto-clear individual selections when "All" is toggled on
+    @api.onchange('all_products')
+    def _onchange_all_products(self):
+        if self.all_products:
+            self.product_ids = [(5, 0, 0)]  # clear all
+
+    @api.onchange('all_categories')
+    def _onchange_all_categories(self):
+        if self.all_categories:
+            self.category_ids = [(5, 0, 0)]  # clear all
 
     @api.constrains('date_from', 'date_to')
     def _check_dates(self):
@@ -96,7 +106,6 @@ class PosSpecialOffer(models.Model):
 
     @api.model
     def get_active_offers_for_pos(self):
-        """Return all currently active offers. Datetime filtering done server-side."""
         now = fields.Datetime.now()
         offers = self.search([
             ('active', '=', True),
@@ -112,6 +121,8 @@ class PosSpecialOffer(models.Model):
                 'name':           o.name,
                 'offer_type':     o.offer_type,
                 'coupon_code':    o.coupon_code or '',
+                'all_products':   o.all_products,
+                'all_categories': o.all_categories,
                 'product_ids':    o.product_ids.ids,
                 'category_ids':   o.category_ids.ids,
                 'discount_type':  o.discount_type,

@@ -156,3 +156,19 @@
 .sop-btn-apply-disabled {
     background: #aaa !important; cursor: not-allowed !important;
 }
+
+/* ── Scope badges ── */
+.sop-scope-badge {
+    display: inline-block;
+    font-size: 11px;
+    background: #f0f0f0;
+    color: #666;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-top: 4px;
+}
+.sop-scope-all {
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-weight: 600;
+}

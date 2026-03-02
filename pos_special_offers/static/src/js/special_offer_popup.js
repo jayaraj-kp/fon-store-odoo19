@@ -36,6 +36,17 @@ export class SpecialOfferPopup extends Component {
             .filter(o => o.offer_type === "flat_discount");
     }
 
+    // Returns a human-readable scope label for an offer
+    offerScope(offer) {
+        if (offer.all_products)   return "All products";
+        if (offer.all_categories) return "All categories";
+        if (offer.product_ids.length > 0 && offer.category_ids.length > 0)
+            return "Selected products & categories";
+        if (offer.product_ids.length > 0)   return "Selected products only";
+        if (offer.category_ids.length > 0)  return "Selected categories only";
+        return "All products";  // fallback: nothing selected = all
+    }
+
     get currentOrder() {
         const p = this.pos;
         try { return p.get_order?.() ?? p.selectedOrder ?? p.currentOrder ?? null; }
@@ -63,19 +74,37 @@ export class SpecialOfferPopup extends Component {
         return null;
     }
 
-    // ── Now uses product.category (categ_id) instead of pos.category ────────
     getProductCategoryIds(line) {
         try {
             const product = line.product_id ?? line.product ?? line.get_product?.();
             if (!product) return [];
-            // product.category_id is a single Many2one → get its id
-            // product.categ_id is the internal category field name
             const cat = product.categ_id ?? product.category_id;
             if (!cat) return [];
-            // Could be an object with .id or a raw id
             const catId = typeof cat === "object" ? cat.id : cat;
             return catId ? [catId] : [];
         } catch(e) { return []; }
+    }
+
+    lineMatchesOffer(line, offer) {
+        // all_products = apply to every line
+        if (offer.all_products) return true;
+
+        const pid    = this.getProductId(line);
+        const catIds = this.getProductCategoryIds(line);
+
+        // all_categories = match any category
+        if (offer.all_categories) return true;
+
+        // specific product match
+        if (offer.product_ids.length > 0 && pid && offer.product_ids.includes(pid)) return true;
+
+        // specific category match
+        if (offer.category_ids.length > 0 && catIds.some(c => offer.category_ids.includes(c))) return true;
+
+        // nothing selected at all = apply to everything (fallback)
+        if (offer.product_ids.length === 0 && offer.category_ids.length === 0) return true;
+
+        return false;
     }
 
     applyDiscount(line, offer) {
@@ -102,16 +131,9 @@ export class SpecialOfferPopup extends Component {
         const lines = this.getOrderLines(order);
         if (!lines.length) { this.state.errorMsg = "Please add products to the order first."; return; }
 
-        const noFilter = offer.product_ids.length === 0 && offer.category_ids.length === 0;
         let applied = 0;
-
         for (const line of lines) {
-            const pid     = this.getProductId(line);
-            const catIds  = this.getProductCategoryIds(line);
-            const matchP  = pid && offer.product_ids.includes(pid);
-            const matchC  = catIds.some(c => offer.category_ids.includes(c));
-
-            if (noFilter || matchP || matchC) {
+            if (this.lineMatchesOffer(line, offer)) {
                 if (this.applyDiscount(line, offer)) applied++;
             }
         }

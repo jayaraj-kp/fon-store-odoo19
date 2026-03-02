@@ -60,10 +60,23 @@
                                     </span>
                                 </t>
                             </div>
+                            <!-- Scope badge: All Products / All Categories / Selected ... -->
                             <div class="sop-offer-scope">
-                                <t t-if="offer.product_ids.length > 0">Selected products only</t>
-                                <t t-elif="offer.category_ids.length > 0">Selected categories only</t>
-                                <t t-else="">Applies to all products</t>
+                                <t t-if="offer.all_products">
+                                    <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>
+                                </t>
+                                <t t-elif="offer.all_categories">
+                                    <span class="sop-scope-badge sop-scope-all">🌐 All Categories</span>
+                                </t>
+                                <t t-elif="offer.product_ids.length > 0">
+                                    <span class="sop-scope-badge">Selected products only</span>
+                                </t>
+                                <t t-elif="offer.category_ids.length > 0">
+                                    <span class="sop-scope-badge">Selected categories only</span>
+                                </t>
+                                <t t-else="">
+                                    <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>
+                                </t>
                             </div>
                         </div>
                         <button class="sop-btn-apply" t-on-click="() => this.applyOffer(offer)">
