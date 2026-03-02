@@ -127,3 +127,18 @@
     background:#fff0e8; color:#e05a28; border-radius:12px;
     padding:2px 10px; font-size:12px; font-weight:700;
 }
+
+/* ── Refresh button ── */
+.sop-refresh-btn {
+    background: rgba(255,255,255,0.25);
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.6);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.sop-refresh-btn:hover { background: rgba(255,255,255,0.4); }
+.sop-refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }

@@ -7,7 +7,8 @@
         <field name="arch" type="xml">
             <list string="Special Offers"
                   decoration-success="state=='active'"
-                  decoration-muted="state=='expired'">
+                  decoration-muted="state=='expired'"
+                  decoration-warning="state=='draft'">
                 <field name="name"/>
                 <field name="offer_type"/>
                 <field name="coupon_code" optional="show"/>
@@ -17,7 +18,7 @@
                 <field name="discount_value"/>
                 <field name="purchase_limit"/>
                 <field name="usage_count"/>
-                <field name="active"/>
+                <field name="active" widget="boolean_toggle"/>
                 <field name="state" widget="badge"
                     decoration-success="state=='active'"
                     decoration-warning="state=='draft'"
@@ -31,6 +32,11 @@
         <field name="model">pos.special.offer</field>
         <field name="arch" type="xml">
             <form string="Special Offer">
+                <!-- Status bar at top -->
+                <header>
+                    <field name="state" widget="statusbar"
+                        statusbar_visible="draft,active,expired"/>
+                </header>
                 <sheet>
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Offer Name..."/></h1>
@@ -48,7 +54,10 @@
                         <group string="Offer Period">
                             <field name="date_from"/>
                             <field name="date_to"/>
-                            <field name="active_time" widget="float_time"/>
+                            <field name="active_time" widget="float_time"
+                                help="Offer activates after this time each day (local time)"/>
+                            <field name="days_remaining" widget="integer"
+                                string="Days Remaining"/>
                         </group>
                         <group string="Discount">
                             <field name="discount_type"/>
@@ -75,10 +84,15 @@
             <search>
                 <field name="name"/>
                 <field name="coupon_code"/>
-                <filter string="Active"        name="active"   domain="[('active','=',True)]"/>
-                <filter string="Archived"      name="archived" domain="[('active','=',False)]"/>
+                <filter string="Active"        name="active"   domain="[('state','=','active')]"/>
+                <filter string="Draft"         name="draft"    domain="[('state','=','draft')]"/>
+                <filter string="Expired"       name="expired"  domain="[('state','=','expired')]"/>
+                <separator/>
                 <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>
                 <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>
+                <separator/>
+                <filter string="Expiring Today" name="expiring_today"
+                    domain="[('date_to','=', context_today())]"/>
             </search>
         </field>
     </record>
@@ -88,6 +102,7 @@
         <field name="res_model">pos.special.offer</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_pos_special_offer_search"/>
+        <field name="context">{'search_default_active': 1}</field>
     </record>
 
     <menuitem id="menu_pos_special_offers"

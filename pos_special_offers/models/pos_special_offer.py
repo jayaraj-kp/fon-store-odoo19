@@ -12,26 +12,34 @@ class PosSpecialOffer(models.Model):
         ('flat_discount', 'Flat Discount'),
         ('coupon',        'Coupon'),
     ], string='Offer Type', required=True, default='flat_discount')
-    coupon_code = fields.Char(string='Coupon Code')
-    product_ids = fields.Many2many(
+    coupon_code    = fields.Char(string='Coupon Code')
+    product_ids    = fields.Many2many(
         'product.product', 'pos_offer_product_rel', 'offer_id', 'product_id', string='Products')
-    category_ids = fields.Many2many(
+    category_ids   = fields.Many2many(
         'pos.category', 'pos_offer_category_rel', 'offer_id', 'category_id', string='POS Categories')
-    date_from = fields.Date(string='From Date', required=True)
-    date_to   = fields.Date(string='To Date',   required=True)
-    active_time   = fields.Float(string='Active From Time')
-    discount_type = fields.Selection([
+    date_from      = fields.Date(string='From Date', required=True)
+    date_to        = fields.Date(string='To Date',   required=True)
+    active_time    = fields.Float(string='Active From Time',
+        help='Offer activates after this time each day (uses browser local time in POS)')
+    discount_type  = fields.Selection([
         ('percentage', 'Percentage (%)'),
         ('fixed',      'Fixed Price'),
     ], string='Discount Type', required=True, default='percentage')
     discount_value = fields.Float(string='Discount Value', required=True)
-    purchase_limit = fields.Integer(string='Purchase Limit', default=0)
+    purchase_limit = fields.Integer(string='Purchase Limit', default=0,
+        help='Maximum times this offer can be used. 0 = unlimited.')
     usage_count    = fields.Integer(string='Times Used', default=0, readonly=True)
-    active = fields.Boolean(default=True)
+    active         = fields.Boolean(default=True)
 
+    # Computed fields
     state = fields.Selection([
-        ('draft', 'Draft'), ('active', 'Active'), ('expired', 'Expired'),
-    ], compute='_compute_state', string='Status')
+        ('draft',   'Draft'),
+        ('active',  'Active'),
+        ('expired', 'Expired'),
+    ], compute='_compute_state', string='Status', store=True)
+
+    days_remaining = fields.Integer(
+        string='Days Remaining', compute='_compute_days_remaining')
 
     @api.depends('date_from', 'date_to', 'active', 'purchase_limit', 'usage_count')
     def _compute_state(self):
@@ -48,14 +56,20 @@ class PosSpecialOffer(models.Model):
             else:
                 rec.state = 'draft'
 
+    @api.depends('date_to')
+    def _compute_days_remaining(self):
+        today = date.today()
+        for rec in self:
+            if rec.date_to:
+                delta = (rec.date_to - today).days
+                rec.days_remaining = max(delta, 0)
+            else:
+                rec.days_remaining = 0
+
     @api.model
     def get_active_offers_for_pos(self):
-        """
-        Return all date-valid active offers.
-        Time filtering is intentionally done client-side in JS
-        to avoid UTC/local timezone mismatch on the server.
-        Purchase limit check is done here.
-        """
+        """Return all date-valid active offers for POS.
+        Time check is done client-side to respect browser local timezone."""
         today = fields.Date.today()
         offers = self.search([
             ('active', '=', True),
@@ -64,7 +78,6 @@ class PosSpecialOffer(models.Model):
         ])
         result = []
         for o in offers:
-            # Skip if purchase limit reached
             if o.purchase_limit and o.usage_count >= o.purchase_limit:
                 continue
             result.append({

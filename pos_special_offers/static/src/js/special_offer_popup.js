@@ -14,10 +14,23 @@ export class SpecialOfferPopup extends Component {
             couponInput: "",
             appliedMsg:  "",
             errorMsg:    "",
+            refreshing:  false,
         });
     }
 
-    // ── Time check (client-side, uses local browser time) ──────────────────
+    // ── Refresh ─────────────────────────────────────────────────────────────
+    async onRefresh() {
+        this.state.refreshing = true;
+        this.state.appliedMsg = "";
+        this.state.errorMsg   = "";
+        try {
+            await this.offerService.refresh();
+        } finally {
+            this.state.refreshing = false;
+        }
+    }
+
+    // ── Time check (client-side browser local time) ─────────────────────────
     isTimeActive(offer) {
         if (!offer.active_time || offer.active_time === 0) return true;
         const now = new Date();
@@ -30,35 +43,30 @@ export class SpecialOfferPopup extends Component {
             .filter(o => o.offer_type === "flat_discount" && this.isTimeActive(o));
     }
 
-    // ── Odoo 19 POS order access ────────────────────────────────────────────
+    // ── Order access ─────────────────────────────────────────────────────────
     get currentOrder() {
-        // Odoo 19: pos.get_order() is the standard method
-        // PosStore also exposes selectedOrder
         const p = this.pos;
         return p.get_order?.() ?? p.selectedOrder ?? p.currentOrder ?? null;
     }
 
     getOrderLines(order) {
         if (!order) return [];
-        // Odoo 19 PosOrder stores lines in order.lines (an array of PosOrderline models)
-        if (Array.isArray(order.lines) && order.lines.length > 0)         return order.lines;
-        if (typeof order.get_orderlines === "function")                    return order.get_orderlines();
-        if (Array.isArray(order.orderlines))                               return order.orderlines;
-        if (order.orderlines?.models)                                      return order.orderlines.models;
+        if (Array.isArray(order.lines) && order.lines.length > 0)      return order.lines;
+        if (typeof order.get_orderlines === "function")                 return order.get_orderlines();
+        if (Array.isArray(order.orderlines))                            return order.orderlines;
+        if (order.orderlines?.models)                                   return order.orderlines.models;
         return [];
     }
 
     getProductId(line) {
-        // Odoo 19: line.product_id is a ProductProduct model object
-        if (line.product_id?.id)                               return line.product_id.id;
-        if (typeof line.get_product === "function")            return line.get_product()?.id;
-        if (line.product?.id)                                  return line.product.id;
-        if (typeof line.product_id === "number")               return line.product_id;
+        if (line.product_id?.id)                            return line.product_id.id;
+        if (typeof line.get_product === "function")         return line.get_product()?.id;
+        if (line.product?.id)                               return line.product.id;
+        if (typeof line.product_id === "number")            return line.product_id;
         return null;
     }
 
     getCategoryIds(line) {
-        // Odoo 19: product_id.pos_categ_ids is an array of PosCategory objects
         const product = line.product_id ?? line.product ?? line.get_product?.();
         if (!product) return [];
         const cats = product.pos_categ_ids ?? product.pos_categ_id ?? [];
@@ -69,7 +77,6 @@ export class SpecialOfferPopup extends Component {
     applyDiscount(line, offer) {
         try {
             if (offer.discount_type === "percentage") {
-                // Odoo 19: set_discount is standard
                 if (typeof line.set_discount === "function") { line.set_discount(offer.discount_value); return true; }
                 if ("discount" in line)                      { line.discount = offer.discount_value;    return true; }
             } else {
@@ -88,14 +95,9 @@ export class SpecialOfferPopup extends Component {
         this.state.appliedMsg = "";
 
         const order = this.currentOrder;
-        if (!order) {
-            this.state.errorMsg = "No active order found.";
-            return;
-        }
+        if (!order) { this.state.errorMsg = "No active order found."; return; }
 
         const lines = this.getOrderLines(order);
-        console.log("[SpecialOffer] Order lines found:", lines?.length, lines?.[0]);
-
         if (!lines || lines.length === 0) {
             this.state.errorMsg = "Please add products to the order first.";
             return;
@@ -105,10 +107,8 @@ export class SpecialOfferPopup extends Component {
         let applied = 0;
 
         for (const line of lines) {
-            const productId     = this.getProductId(line);
-            const catIds        = this.getCategoryIds(line);
-            console.log("[SpecialOffer] Line product id:", productId, "offer products:", offer.product_ids);
-
+            const productId    = this.getProductId(line);
+            const catIds       = this.getCategoryIds(line);
             const matchProduct  = productId && offer.product_ids.includes(productId);
             const matchCategory = catIds.some(cid => offer.category_ids.includes(cid));
 
