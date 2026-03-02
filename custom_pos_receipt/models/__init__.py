@@ -1,1 +1,1 @@
-from . import pos_order
+# No models needed for basic receipt template customization
