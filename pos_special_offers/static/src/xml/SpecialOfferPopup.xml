@@ -4,13 +4,10 @@
     <div class="sop-overlay">
         <div class="sop-popup">
 
-            <!-- Header -->
             <div class="sop-header">
                 <span>🎁 Special Offers</span>
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <button class="sop-refresh-btn"
-                        t-on-click="onRefresh"
-                        t-att-disabled="state.refreshing">
+                    <button class="sop-refresh-btn" t-on-click="onRefresh" t-att-disabled="state.refreshing">
                         <t t-if="state.refreshing">↻</t>
                         <t t-else="">↻ Refresh</t>
                     </button>
@@ -20,22 +17,17 @@
 
             <div class="sop-body">
 
-                <!-- COUPON SECTION -->
                 <div class="sop-coupon-section">
                     <div class="sop-section-title">🏷️ Apply Coupon Code</div>
                     <div class="sop-coupon-row">
-                        <input type="text"
-                            class="sop-coupon-input"
+                        <input type="text" class="sop-coupon-input"
                             placeholder="Enter coupon code e.g. 50001"
                             t-att-value="state.couponInput"
                             t-on-input="onCouponInput"/>
-                        <button class="sop-btn-apply-coupon" t-on-click="applyCoupon">
-                            Apply
-                        </button>
+                        <button class="sop-btn-apply-coupon" t-on-click="applyCoupon">Apply</button>
                     </div>
                 </div>
 
-                <!-- FLAT DISCOUNT OFFERS -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
                     <div class="sop-section-title" style="margin:0;">🔖 Active Flat Discount Offers</div>
                     <span class="sop-count-badge"><t t-esc="allFlatOffers.length"/> offer(s)</span>
@@ -44,7 +36,7 @@
                 <t t-if="allFlatOffers.length === 0">
                     <div class="sop-empty">
                         No active flat discount offers found.<br/>
-                        Check that offers are Active and within the date range in POS → Special Offers.
+                        Check offers are Active and within date range in POS → Special Offers.
                     </div>
                 </t>
 
@@ -54,22 +46,14 @@
                             <div class="sop-offer-name"><t t-esc="offer.name"/></div>
                             <div class="sop-offer-meta">
                                 <t t-if="offer.discount_type === 'percentage'">
-                                    <span class="sop-badge sop-badge-pct">
-                                        <t t-esc="offer.discount_value"/>% OFF
-                                    </span>
+                                    <span class="sop-badge sop-badge-pct"><t t-esc="offer.discount_value"/>% OFF</span>
                                 </t>
                                 <t t-else="">
-                                    <span class="sop-badge sop-badge-fixed">
-                                        Fixed: <t t-esc="offer.discount_value"/>
-                                    </span>
+                                    <span class="sop-badge sop-badge-fixed">Fixed: <t t-esc="offer.discount_value"/></span>
                                 </t>
-                                <span class="sop-offer-dates">
-                                    <t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/>
-                                </span>
+                                <span class="sop-offer-dates"><t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/></span>
                                 <t t-if="offer.purchase_limit > 0">
-                                    <span class="sop-offer-limit">
-                                        Uses: <t t-esc="offer.usage_count"/>/<t t-esc="offer.purchase_limit"/>
-                                    </span>
+                                    <span class="sop-offer-limit">Uses: <t t-esc="offer.usage_count"/>/<t t-esc="offer.purchase_limit"/></span>
                                 </t>
                             </div>
                             <div class="sop-offer-scope">
@@ -77,22 +61,20 @@
                                 <t t-elif="offer.category_ids.length > 0">Selected categories only</t>
                                 <t t-else="">Applies to all products</t>
                             </div>
-                            <!-- Show time restriction warning if not yet active -->
-                            <t t-if="offer.active_time and offer.active_time > 0 and not isTimeActive(offer)">
+                            <!-- Time restriction warning — pure JS expression, no Python keywords -->
+                            <t t-if="offer.active_time > 0 &amp;&amp; !isTimeActive(offer)">
                                 <div class="sop-time-warning">
                                     ⏰ Active from <t t-esc="offer.active_time"/> onwards today
                                 </div>
                             </t>
                         </div>
-                        <button class="sop-btn-apply"
-                            t-on-click="() => this.applyOffer(offer)"
+                        <button t-on-click="() => this.applyOffer(offer)"
                             t-att-class="isTimeActive(offer) ? 'sop-btn-apply' : 'sop-btn-apply sop-btn-apply-disabled'">
                             Apply
                         </button>
                     </div>
                 </t>
 
-                <!-- Messages -->
                 <t t-if="state.errorMsg">
                     <div class="sop-error" style="margin-top:12px;"><t t-esc="state.errorMsg"/></div>
                 </t>
