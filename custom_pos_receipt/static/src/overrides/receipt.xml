@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<templates id="template" xml:space="preserve">
+<templates xml:space="preserve">
 
-    <!-- Override the QR code + add GST table section -->
     <t t-name="pos_receipt_custom.GstTableSection" owl="1">
         <div class="pos-receipt-gst-qr-row">
             <!-- Reduced QR Code -->
             <div class="pos-receipt-qr-small">
-                <t t-if="props.data.qr_code">
+                <t t-if="props.data and props.data.qr_code">
                     <img t-att-src="props.data.qr_code" class="qr-code-small"/>
                 </t>
             </div>
@@ -23,21 +22,21 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <t t-foreach="props.gstRows" t-as="row" t-key="row_index">
+                        <t t-foreach="gstRows" t-as="row" t-key="row_index">
                             <tr>
                                 <td><t t-esc="row.rate"/></td>
-                                <td class="text-right"><t t-esc="row.taxable"/></td>
-                                <td class="text-right"><t t-esc="row.cgst"/></td>
-                                <td class="text-right"><t t-esc="row.sgst"/></td>
+                                <td class="amt"><t t-esc="row.taxable"/></td>
+                                <td class="amt"><t t-esc="row.cgst"/></td>
+                                <td class="amt"><t t-esc="row.sgst"/></td>
                             </tr>
                         </t>
                     </tbody>
                     <tfoot>
                         <tr class="gst-total-row">
-                            <td><strong>Total</strong></td>
-                            <td class="text-right"><strong><t t-esc="props.gstTotals.taxable"/></strong></td>
-                            <td class="text-right"><strong><t t-esc="props.gstTotals.cgst"/></strong></td>
-                            <td class="text-right"><strong><t t-esc="props.gstTotals.sgst"/></strong></td>
+                            <td><b>Total</b></td>
+                            <td class="amt"><b><t t-esc="gstTotals.taxable"/></b></td>
+                            <td class="amt"><b><t t-esc="gstTotals.cgst"/></b></td>
+                            <td class="amt"><b><t t-esc="gstTotals.sgst"/></b></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -45,19 +44,12 @@
         </div>
     </t>
 
-    <t t-name="pos_receipt_custom.OrderReceipt" owl="1"
+    <t t-name="point_of_sale.OrderReceipt" owl="1"
        t-inherit="point_of_sale.OrderReceipt"
        t-inherit-mode="extension">
-
-        <!-- Replace QR code node with our custom section -->
         <xpath expr="//div[hasclass('pos-receipt-qrcode')]" position="replace">
-            <pos_receipt_custom.GstTableSection
-                data="props.data"
-                gstRows="getGstRows()"
-                gstTotals="getGstTotals()"
-            />
+            <GstTableSection data="props.data"/>
         </xpath>
-
     </t>
 
 </templates>

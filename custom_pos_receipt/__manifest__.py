@@ -8,9 +8,9 @@
     'data': [],
     'assets': {
         'point_of_sale._assets_pos': [
-            'pos_receipt_custom/static/src/overrides/receipt.xml',
-            'pos_receipt_custom/static/src/overrides/receipt.js',
             'pos_receipt_custom/static/src/overrides/receipt.css',
+            'pos_receipt_custom/static/src/overrides/receipt.js',
+            'pos_receipt_custom/static/src/overrides/receipt.xml',
         ],
     },
     'installable': True,
