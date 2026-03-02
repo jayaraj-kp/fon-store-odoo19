@@ -1,13 +1,11 @@
 /** @odoo-module **/
+import { patch } from "@web/core/utils/patch";
+import { PosStore } from "@point_of_sale/app/store/pos_store";
 
-function getOfferService() {
+function getOfferService(env) {
     try {
-        for (const app of owl.__apps__ || []) {
-            const svc = app?.env?.services?.special_offer_service;
-            if (svc) return svc;
-        }
-    } catch(e) {}
-    return null;
+        return env?.services?.special_offer_service ?? null;
+    } catch(e) { return null; }
 }
 
 function getLineProductId(line) {
@@ -55,71 +53,49 @@ function applyDiscountToLine(line, offer) {
     return false;
 }
 
-// ── Pending queue: lines waiting to be processed after render ────────────────
-const pendingLines = new WeakSet();
+// ── Patch PosStore.addProductToCurrentOrder ──────────────────────────────────
+// PosStore is the high-level store. It has addProductToCurrentOrder which is
+// called when the cashier clicks a product tile. This runs OUTSIDE OWL render.
+patch(PosStore.prototype, {
+    async addProductToCurrentOrder(product, options = {}) {
+        // Call original method first
+        await super.addProductToCurrentOrder(product, options);
 
-function scheduleAutoApply(line) {
-    // Guard: don't queue the same line twice
-    if (pendingLines.has(line)) return;
-    pendingLines.add(line);
-
-    // Use setTimeout(200) to ensure OWL has fully rendered the line
-    // before we mutate any reactive state
-    setTimeout(() => {
+        // Now safely apply offer — we are outside the render cycle here
         try {
-            const pid = getLineProductId(line);
-            if (!pid) return; // Skip tip lines, gift cards etc.
-
-            const service = getOfferService();
+            const service = getOfferService(this.env);
             if (!service) return;
 
             const offers = service.getActiveOffers().filter(o => o.offer_type === "flat_discount");
+            if (!offers.length) return;
+
+            // Get the current order and its last line
+            const order = this.get_order?.() ?? this.selectedOrder ?? this.currentOrder;
+            if (!order) return;
+
+            const lines = Array.isArray(order.lines) ? order.lines :
+                          order.get_orderlines?.() ||
+                          order.orderlines?.models || [];
+            if (!lines.length) return;
+
+            const lastLine = lines[lines.length - 1];
+            if (!lastLine) return;
+
+            const pid = getLineProductId(lastLine);
+            if (!pid) return;
+
             for (const offer of offers) {
-                if (lineMatchesOffer(line, offer)) {
-                    if (applyDiscountToLine(line, offer)) {
+                if (lineMatchesOffer(lastLine, offer)) {
+                    if (applyDiscountToLine(lastLine, offer)) {
                         console.log(`[SpecialOffer] ✅ Auto-applied "${offer.name}" to product:`, pid);
                         break;
                     }
                 }
             }
         } catch(e) {
-            console.warn("[SpecialOffer] scheduleAutoApply error:", e);
+            console.warn("[SpecialOffer] addProductToCurrentOrder hook error:", e);
         }
-    }, 200);
-}
-
-// ── Patch PosOrderline.setOptions ────────────────────────────────────────────
-// setOptions is called when a line is created with a product.
-// We ONLY schedule (never apply synchronously) to avoid OWL render conflicts.
-function patchPosOrderline() {
-    const mod = odoo.loader.modules.get("@point_of_sale/app/models/pos_order_line");
-    if (!mod?.PosOrderline) {
-        console.warn("[SpecialOffer] PosOrderline not found");
-        return false;
     }
+});
 
-    const proto = mod.PosOrderline.prototype;
-
-    // Track which lines were loaded from saved order (not newly added)
-    // setOptions is called with options.extras or similar for loaded lines
-    const methodsToTry = ["setOptions", "initState", "setup"];
-
-    for (const method of methodsToTry) {
-        if (typeof proto[method] !== "function") continue;
-
-        const orig = proto[method];
-        proto[method] = function(...args) {
-            // Call original FIRST - let OWL set up the line completely
-            orig.apply(this, args);
-            // Schedule discount application AFTER render completes
-            scheduleAutoApply(this);
-        };
-        console.log(`[SpecialOffer] ✅ Patched PosOrderline.${method} (deferred apply)`);
-        // Only patch the first found method
-        break;
-    }
-
-    return true;
-}
-
-patchPosOrderline();
+console.log("[SpecialOffer] ✅ Patched PosStore.addProductToCurrentOrder");
