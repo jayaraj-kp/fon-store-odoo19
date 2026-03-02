@@ -8,16 +8,10 @@
         <field name="inherit_id" ref="stock.view_stock_rule_form"/>
         <field name="arch" type="xml">
 
-            <!-- Add PROPAGATION group after OPTIONS group -->
-            <xpath expr="//group[@string='OPTIONS']" position="after">
-                <group string="PROPAGATION">
-                    <field name="propagate_carrier" string="Propagate Carrier"/>
-                    <field
-                        name="propagate_warehouse_id"
-                        string="Warehouse to Propagate"
-                        placeholder="Leave empty to use default warehouse"
-                    />
-                </group>
+            <!-- Add PROPAGATION fields after 'cancel_next_move' field in OPTIONS -->
+            <xpath expr="//field[@name='cancel_next_move']" position="after">
+                <field name="propagate_carrier" string="Propagate Carrier"/>
+                <field name="propagate_warehouse_id" string="Warehouse to Propagate"/>
             </xpath>
 
         </field>
