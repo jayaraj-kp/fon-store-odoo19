@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!--
+        Inherit the POS receipt QWeb PDF template.
+        Template ID: point_of_sale.report_receipt
+        Source: addons/point_of_sale/report/pos_receipt.xml
+
+        HOW TO FIND CORRECT XPATH:
+        Open: odoo/addons/point_of_sale/report/pos_receipt.xml
+        and inspect element class names / ids to adjust xpaths below.
+    -->
+
+    <template id="custom_pos_receipt_inherit" inherit_id="point_of_sale.report_receipt">
+
+        <!-- ============================================================
+             CUSTOMIZATION 1: Add a custom banner below the shop header
+             ============================================================ -->
+        <xpath expr="//div[hasclass('pos-receipt-contact')]" position="after">
+            <div style="text-align:center; border-top:1px dashed #000; border-bottom:1px dashed #000; padding:4px 0; margin:6px 0;">
+                <strong style="font-size:13px;">⭐ WELCOME TO OUR STORE ⭐</strong>
+            </div>
+        </xpath>
+
+        <!-- ============================================================
+             CUSTOMIZATION 2: Add extra column label in order lines header
+             (optional — remove if not needed)
+             ============================================================ -->
+        <!--
+        <xpath expr="//th[hasclass('product')]" position="after">
+            <th class="custom-col">Custom</th>
+        </xpath>
+        -->
+
+        <!-- ============================================================
+             CUSTOMIZATION 3: Add a thank-you note before the footer
+             ============================================================ -->
+        <xpath expr="//div[hasclass('pos-receipt-footer')]" position="before">
+            <div style="text-align:center; margin:10px 0 4px 0; font-size:12px;">
+                <t t-if="receipt.custom_receipt_note">
+                    <p t-esc="receipt.custom_receipt_note"/>
+                </t>
+                <t t-else="">
+                    <p>Thank you for shopping with us!</p>
+                    <p>Exchange within 7 days with original receipt.</p>
+                </t>
+            </div>
+        </xpath>
+
+        <!-- ============================================================
+             CUSTOMIZATION 4: Add store contact info in footer
+             ============================================================ -->
+        <xpath expr="//div[hasclass('pos-receipt-footer')]" position="inside">
+            <div style="text-align:center; margin-top:8px; font-size:11px; color:#555;">
+                <p style="margin:2px 0;">📞 For support: your@email.com</p>
+                <p style="margin:2px 0;">Visit us again!</p>
+            </div>
+        </xpath>
+
+    </template>
+
+</odoo>
