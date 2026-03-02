@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="point_of_sale.OrderReceipt" t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+        <xpath expr="//div[contains(@class,'pos-receipt-qrcode')]" position="attributes">
+            <attribute name="style">width: 80px; height: 80px; margin: auto;</attribute>
+        </xpath>
+    </t>
+
+</templates>
