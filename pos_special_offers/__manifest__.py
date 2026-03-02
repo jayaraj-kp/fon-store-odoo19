@@ -11,18 +11,14 @@
     'assets': {
         'point_of_sale._assets_pos': [
             'pos_special_offers/static/src/css/special_offer.css',
-            # Service first (no deps)
             'pos_special_offers/static/src/js/special_offer_service.js',
-            # Popup (no POS deps)
             'pos_special_offers/static/src/js/special_offer_popup.js',
-            # Button (patches Navbar)
             'pos_special_offers/static/src/js/special_offer_button.js',
-            # Auto-apply (patches PosOrder)
-            'pos_special_offers/static/src/js/special_offer_auto_apply.js',
-            # XML templates
             'pos_special_offers/static/src/xml/SpecialOfferPopup.xml',
             'pos_special_offers/static/src/xml/SpecialOfferButton.xml',
             'pos_special_offers/static/src/xml/NavbarPatch.xml',
+            # auto_apply loads last — after all POS modules are registered
+            'pos_special_offers/static/src/js/special_offer_auto_apply.js',
         ],
     },
     'installable': True,

@@ -1,8 +1,5 @@
 /** @odoo-module **/
 
-// ── NO imports — avoid any dependency issues ─────────────────────────────────
-// We use odoo.loader.modules directly to get PosStore at runtime
-
 function getOfferService() {
     try {
         for (const app of (owl.__apps__ || [])) {
@@ -61,11 +58,9 @@ function applyDiscountToLine(line, offer) {
 function doAutoApply(lastLine) {
     if (!lastLine) return;
     const pid = getLineProductId(lastLine);
-    if (!pid) return; // skip tip/reward/gift lines that have no product
-
+    if (!pid) return;
     const service = getOfferService();
     if (!service) return;
-
     const offers = service.getActiveOffers().filter(o => o.offer_type === "flat_discount");
     for (const offer of offers) {
         if (lineMatchesOffer(lastLine, offer)) {
@@ -77,43 +72,74 @@ function doAutoApply(lastLine) {
     }
 }
 
-// ── Patch PosStore via odoo.loader (no import needed) ────────────────────────
+// ── Find PosStore by scanning ALL loaded modules ─────────────────────────────
+function findPosStore() {
+    const candidates = [];
+    for (const [path, mod] of odoo.loader.modules) {
+        if (!path.includes("point_of_sale")) continue;
+        if (!mod?.PosStore) continue;
+        candidates.push(path);
+    }
+    console.log("[SpecialOffer] PosStore found at:", candidates);
+    return candidates.length ? odoo.loader.modules.get(candidates[0])?.PosStore : null;
+}
+
+function getLastLine(order) {
+    if (!order) return null;
+    if (Array.isArray(order.lines) && order.lines.length > 0)
+        return order.lines[order.lines.length - 1];
+    if (typeof order.get_orderlines === "function") {
+        const lines = order.get_orderlines();
+        return lines?.[lines.length - 1] ?? null;
+    }
+    if (order.orderlines?.models?.length)
+        return order.orderlines.models[order.orderlines.models.length - 1];
+    return null;
+}
+
 function patchPosStore() {
-    const storeMod = odoo.loader.modules.get("@point_of_sale/app/store/pos_store");
-    if (!storeMod?.PosStore) {
-        console.warn("[SpecialOffer] PosStore not found");
+    const PosStore = findPosStore();
+    if (!PosStore) {
+        // Log all POS module paths to find the right one
+        console.warn("[SpecialOffer] PosStore not found. All POS modules:");
+        for (const [path] of odoo.loader.modules) {
+            if (path.includes("point_of_sale")) {
+                console.log("  →", path);
+            }
+        }
         return false;
     }
 
-    const proto = storeMod.PosStore.prototype;
-
-    // addProductToCurrentOrder is called when cashier clicks a product tile
-    if (typeof proto.addProductToCurrentOrder === "function") {
-        const orig = proto.addProductToCurrentOrder;
-        proto.addProductToCurrentOrder = async function(product, options = {}) {
-            const result = await orig.call(this, product, options);
-            try {
-                const order = this.get_order?.() ?? this.selectedOrder ?? this.currentOrder;
-                if (!order) return result;
-                const lines = Array.isArray(order.lines) ? order.lines :
-                              order.get_orderlines?.() ?? order.orderlines?.models ?? [];
-                doAutoApply(lines[lines.length - 1]);
-            } catch(e) {
-                console.warn("[SpecialOffer] hook error:", e);
-            }
-            return result;
-        };
-        console.log("[SpecialOffer] ✅ Patched PosStore.addProductToCurrentOrder");
-        return true;
-    }
-
-    // Log available methods to help debug if not found
-    const methods = Object.getOwnPropertyNames(proto).filter(m =>
+    const proto = PosStore.prototype;
+    const addMethods = Object.getOwnPropertyNames(proto).filter(m =>
         m.toLowerCase().includes("add") || m.toLowerCase().includes("product")
     );
-    console.warn("[SpecialOffer] addProductToCurrentOrder not found. Available:", methods);
-    return false;
+    console.log("[SpecialOffer] PosStore add/product methods:", addMethods);
+
+    // Try addProductToCurrentOrder first, then any other add method
+    const methodName = addMethods.find(m =>
+        ["addProductToCurrentOrder", "add_product_to_current_order",
+         "addProduct", "add_product"].includes(m)
+    );
+
+    if (!methodName) {
+        console.warn("[SpecialOffer] No suitable method found on PosStore. Methods:", addMethods);
+        return false;
+    }
+
+    const orig = proto[methodName];
+    proto[methodName] = async function(...args) {
+        const result = await orig.apply(this, args);
+        try {
+            const order = this.get_order?.() ?? this.selectedOrder ?? this.currentOrder;
+            doAutoApply(getLastLine(order));
+        } catch(e) {
+            console.warn("[SpecialOffer] auto-apply hook error:", e);
+        }
+        return result;
+    };
+    console.log(`[SpecialOffer] ✅ Patched PosStore.${methodName}`);
+    return true;
 }
 
-// Run after all modules are loaded
 patchPosStore();
