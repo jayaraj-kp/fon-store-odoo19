@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'Custom POS Receipt',
+    'name': 'POS Receipt Customization - GST Table & QR Code',
     'version': '19.0.1.0.0',
-    'summary': 'QR size reduction, GST table, amount in words, savings label, salutation',
     'category': 'Point of Sale',
-    'author': 'Custom',
+    'summary': 'Customize POS receipt: smaller QR code + GST tax summary table',
     'depends': ['point_of_sale'],
+    'data': [],
     'assets': {
         'point_of_sale._assets_pos': [
-            'custom_pos_receipt/static/src/utils/amount_in_words.js',
-            'custom_pos_receipt/static/src/overrides/order_receipt.js',
-            'custom_pos_receipt/static/src/overrides/order_receipt.xml',
-            'custom_pos_receipt/static/src/overrides/receipt_style.css',
+            'pos_receipt_custom/static/src/overrides/receipt.xml',
+            'pos_receipt_custom/static/src/overrides/receipt.js',
+            'pos_receipt_custom/static/src/overrides/receipt.css',
         ],
     },
     'installable': True,
