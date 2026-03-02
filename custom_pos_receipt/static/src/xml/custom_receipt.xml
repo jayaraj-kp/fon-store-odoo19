@@ -5,11 +5,16 @@
 
         <!-- CHANGE 1: Rename "Discounts" to "You Have Saved" -->
         <xpath expr="//span[@class='label-discount']" position="replace">
-            <span class="label-discount">🎉 You Have Saved 🎉</span>
+            <span class="label-discount">🎉 You Have Saved</span>
         </xpath>
 
-        <!-- CHANGE 3: Add GST Breakdown Table after tax section -->
-        <xpath expr="//div[@class='pos-receipt-taxes']" position="after">
+        <!-- CHANGE 2: Reduce QR Code size (via CSS is better, but can also set style here) -->
+        <xpath expr="//img[@id='posqrcode']" position="attributes">
+            <attribute name="style">width:100px;height:100px;</attribute>
+        </xpath>
+
+        <!-- CHANGE 3: Add GST Table — placed before the footer divider -->
+        <xpath expr="//div[@class='before-footer']" position="before">
             <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
             <t t-if="gstLines and gstLines.length">
                 <div class="gst-table-wrapper">
