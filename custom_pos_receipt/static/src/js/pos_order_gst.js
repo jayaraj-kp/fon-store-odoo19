@@ -6,12 +6,17 @@ patch(PosOrder.prototype, {
 
     getGstBreakdown() {
         const grouped = {};
-        for (const line of this.get_orderlines()) {
-            const lineTaxes = line.get_applicable_taxes();
-            const linePrice = line.get_price_without_tax();
+        // Odoo 19 uses this.lines (not get_orderlines)
+        const lines = this.lines || this.orderlines || [];
+
+        for (const line of lines) {
+            const lineTaxes = line.tax_ids || [];
+            const linePrice = line.price_subtotal || 0;
+
             for (const tax of lineTaxes) {
                 const rate = tax.amount || 0;
                 const key = `rate_${rate}`;
+
                 if (!grouped[key]) {
                     grouped[key] = {
                         rate: rate,
@@ -31,7 +36,8 @@ patch(PosOrder.prototype, {
     },
 
     getTotalTaxableAmount() {
-        return this.get_orderlines().reduce((sum, l) => sum + l.get_price_without_tax(), 0);
+        const lines = this.lines || this.orderlines || [];
+        return lines.reduce((sum, l) => sum + (l.price_subtotal || 0), 0);
     },
 
     getTotalCgst() {
