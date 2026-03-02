@@ -58,78 +58,109 @@ function applyDiscountToLine(line, offer) {
 
 function autoApplyToLine(line) {
     const service = getOfferService();
-    if (!service) { console.warn("[SpecialOffer] No service found"); return; }
+    if (!service) return;
     const offers = service.getActiveOffers().filter(o => o.offer_type === "flat_discount");
-    console.log("[SpecialOffer] autoApplyToLine - offers:", offers.length, "line product:", getLineProductId(line));
     for (const offer of offers) {
         if (lineMatchesOffer(line, offer)) {
             if (applyDiscountToLine(line, offer)) {
-                console.log(`[SpecialOffer] ✅ Auto-applied "${offer.name}"`);
+                console.log(`[SpecialOffer] ✅ Auto-applied "${offer.name}" to product:`, getLineProductId(line));
                 break;
             }
         }
     }
 }
 
-// ── Find the last added line after product addition ──────────────────────────
-function getLastLine(order) {
-    // Odoo 19: order.lines is a direct reactive array
-    if (Array.isArray(order.lines) && order.lines.length > 0)
-        return order.lines[order.lines.length - 1];
-    // Odoo 17/18: get_orderlines()
-    if (typeof order.get_orderlines === "function") {
-        const lines = order.get_orderlines();
-        return lines?.[lines.length - 1] ?? null;
-    }
-    if (order.orderlines?.models?.length)
-        return order.orderlines.models[order.orderlines.models.length - 1];
-    return null;
-}
-
-// ── Patch PosOrder ───────────────────────────────────────────────────────────
-function patchPosOrder() {
-    const mod = odoo.loader.modules.get("@point_of_sale/app/models/pos_order");
-    if (!mod?.PosOrder) {
-        console.warn("[SpecialOffer] PosOrder module not found");
+// ── Patch PosOrderline setup() ───────────────────────────────────────────────
+// In Odoo 19, each orderline is a reactive model object.
+// We patch the PosOrderline class - when a new line is created (setup called),
+// we auto-apply the offer after a short delay to let the line fully initialize.
+function patchPosOrderline() {
+    const mod = odoo.loader.modules.get("@point_of_sale/app/models/pos_order_line");
+    if (!mod?.PosOrderline) {
+        console.warn("[SpecialOffer] PosOrderline not found, trying alternate path...");
         return false;
     }
 
-    const PosOrder = mod.PosOrder;
+    const proto = mod.PosOrderline.prototype;
+    console.log("[SpecialOffer] PosOrderline methods:", Object.getOwnPropertyNames(proto).join(", "));
 
-    // Log all method names to find the correct add product method
-    const proto = PosOrder.prototype;
-    const methods = Object.getOwnPropertyNames(proto).filter(m =>
-        m.toLowerCase().includes("add") || m.toLowerCase().includes("product")
-    );
-    console.log("[SpecialOffer] PosOrder methods with 'add/product':", methods);
-
-    // Patch every possible method name Odoo 19 might use
-    const methodNames = ["add_product", "addProduct", "addOrderline", "add_orderline"];
-
-    for (const methodName of methodNames) {
-        if (typeof proto[methodName] === "function") {
-            const original = proto[methodName];
-            proto[methodName] = function(...args) {
-                const result = original.apply(this, args);
-                // Use setTimeout to wait for the line to be fully added
-                setTimeout(() => {
-                    try {
-                        const line = getLastLine(this);
-                        if (line) {
-                            console.log("[SpecialOffer] Hooked via:", methodName, "line:", line);
-                            autoApplyToLine(line);
-                        }
-                    } catch(e) {
-                        console.warn("[SpecialOffer] Hook error:", e);
+    // Patch 'setup' - called when a new line is instantiated in Odoo 19 ORM
+    if (typeof proto.setup === "function") {
+        const originalSetup = proto.setup;
+        proto.setup = function(...args) {
+            originalSetup.apply(this, args);
+            // Wait for product_id to be set on the reactive object
+            setTimeout(() => {
+                try {
+                    const pid = getLineProductId(this);
+                    if (pid) {
+                        console.log("[SpecialOffer] New line setup, product:", pid);
+                        autoApplyToLine(this);
                     }
-                }, 50);
-                return result;
-            };
-            console.log(`[SpecialOffer] ✅ Patched PosOrder.${methodName}`);
-        }
+                } catch(e) {
+                    console.warn("[SpecialOffer] setup hook error:", e);
+                }
+            }, 100);
+        };
+        console.log("[SpecialOffer] ✅ Patched PosOrderline.setup");
+        return true;
     }
 
-    return true;
+    return false;
 }
 
-patchPosOrder();
+// ── Fallback: patch PosOrder.select_orderline or use MutationObserver ────────
+function patchViaOrderlineCreation() {
+    // Scan ALL pos modules for PosOrderline
+    for (const [path, mod] of odoo.loader.modules) {
+        if (!path.includes("point_of_sale")) continue;
+        if (!mod?.PosOrderline) continue;
+
+        const proto = mod.PosOrderline.prototype;
+        const methods = Object.getOwnPropertyNames(proto);
+        console.log(`[SpecialOffer] Found PosOrderline at ${path}, methods:`, methods.join(", "));
+
+        // Try patching 'setup'
+        if (typeof proto.setup === "function") {
+            const orig = proto.setup;
+            proto.setup = function(...args) {
+                orig.apply(this, args);
+                setTimeout(() => {
+                    try {
+                        if (getLineProductId(this)) autoApplyToLine(this);
+                    } catch(e) {}
+                }, 100);
+            };
+            console.log(`[SpecialOffer] ✅ Patched PosOrderline.setup at ${path}`);
+            return true;
+        }
+
+        // Try patching 'initialize'
+        if (typeof proto.initialize === "function") {
+            const orig = proto.initialize;
+            proto.initialize = function(...args) {
+                orig.apply(this, args);
+                setTimeout(() => {
+                    try {
+                        if (getLineProductId(this)) autoApplyToLine(this);
+                    } catch(e) {}
+                }, 100);
+            };
+            console.log(`[SpecialOffer] ✅ Patched PosOrderline.initialize at ${path}`);
+            return true;
+        }
+    }
+    return false;
+}
+
+// ── Run patches ──────────────────────────────────────────────────────────────
+if (!patchPosOrderline()) {
+    if (!patchViaOrderlineCreation()) {
+        console.warn("[SpecialOffer] ⚠️ Could not patch PosOrderline. Logging all POS modules:");
+        for (const [path, mod] of odoo.loader.modules) {
+            if (path.includes("point_of_sale") && path.includes("order")) {
+                console.log(`  ${path}:`, Object.keys(mod || {}));
+            }
+        }
+    }
+}
