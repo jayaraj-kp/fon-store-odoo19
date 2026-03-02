@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+  <!-- Extend the main POS OrderReceipt template -->
+  <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+
+    <!-- 1. Reduce QR Code size -->
+    <xpath expr="//div[hasclass('pos-receipt-qrcode')]" position="attributes">
+      <attribute name="class">pos-receipt-qrcode custom-qr-small</attribute>
+    </xpath>
+
+    <!-- 2. Replace "Discounts" line with "You Have Saved" -->
+    <xpath expr="//div[hasclass('pos-receipt-discount')]" position="replace">
+      <div t-if="props.data.total_discount > 0" class="pos-receipt-discount custom-savings">
+        <span class="savings-label">🎉 You Have Saved</span>
+        <span class="savings-amount">
+          <t t-esc="env.utils.formatCurrency(totalSavings)"/>
+        </span>
+      </div>
+    </xpath>
+
+    <!-- 3. Add GST Breakdown Table + Amount in Words + Salutation after total section -->
+    <xpath expr="//div[hasclass('pos-receipt-payments')]" position="after">
+
+      <!-- GST BREAKDOWN TABLE -->
+      <div t-if="gstBreakdown.length" class="custom-gst-table">
+        <table>
+          <thead>
+            <tr>
+              <th>GST Rate</th>
+              <th>Taxable</th>
+              <th>CGST</th>
+              <th>SGST</th>
+            </tr>
+          </thead>
+          <tbody>
+            <t t-foreach="gstBreakdown" t-as="row" t-key="row.label">
+              <tr>
+                <td><t t-esc="row.label"/></td>
+                <td><t t-esc="row.taxable.toFixed(2)"/></td>
+                <td><t t-esc="row.cgst.toFixed(2)"/></td>
+                <td><t t-esc="row.sgst.toFixed(2)"/></td>
+              </tr>
+            </t>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td><strong>Total</strong></td>
+              <td><strong><t t-esc="gstBreakdownTotals.taxable.toFixed(2)"/></strong></td>
+              <td><strong><t t-esc="gstBreakdownTotals.cgst.toFixed(2)"/></strong></td>
+              <td><strong><t t-esc="gstBreakdownTotals.sgst.toFixed(2)"/></strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- AMOUNT IN WORDS -->
+      <div class="custom-amount-words">
+        <span class="words-label">Total Amount in Words: </span>
+        <span class="words-value"><t t-esc="totalAmountInWords"/></span>
+      </div>
+
+      <!-- SALUTATION -->
+      <div class="custom-salutation">
+        <p>🙏 Thank You for Visiting Us!</p>
+        <p>We look forward to serving you again.</p>
+        <p>Have a wonderful day! 😊</p>
+      </div>
+
+    </xpath>
+
+  </t>
+
+</templates>

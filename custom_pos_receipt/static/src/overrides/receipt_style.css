@@ -1,0 +1,84 @@
+
+/* ============================
+   Custom POS Receipt Styles
+   ============================ */
+
+/* 1. Smaller QR Code */
+.custom-qr-small img,
+.custom-qr-small canvas {
+    width: 80px !important;
+    height: 80px !important;
+}
+.custom-qr-small {
+    max-width: 80px;
+    margin: 6px auto;
+}
+
+/* 2. You Have Saved */
+.custom-savings {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    color: #2a7a2a;
+    font-weight: bold;
+    font-size: 13px;
+    border-top: 1px dashed #ccc;
+}
+
+/* 3. GST Breakdown Table */
+.custom-gst-table {
+    margin: 10px 0;
+    font-size: 11px;
+}
+.custom-gst-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.custom-gst-table th,
+.custom-gst-table td {
+    border: 1px solid #555;
+    padding: 3px 5px;
+    text-align: right;
+}
+.custom-gst-table th:first-child,
+.custom-gst-table td:first-child {
+    text-align: left;
+}
+.custom-gst-table thead tr {
+    background-color: #f0f0f0;
+    font-weight: bold;
+}
+.custom-gst-table tfoot tr {
+    background-color: #e8e8e8;
+    font-weight: bold;
+}
+
+/* 4. Amount in Words */
+.custom-amount-words {
+    margin: 8px 0;
+    padding: 5px;
+    font-size: 11px;
+    border: 1px dashed #999;
+    text-align: center;
+    font-style: italic;
+}
+.custom-amount-words .words-label {
+    font-weight: bold;
+}
+.custom-amount-words .words-value {
+    display: block;
+    margin-top: 2px;
+}
+
+/* 5. Salutation */
+.custom-salutation {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 8px 4px;
+    border-top: 2px solid #333;
+}
+.custom-salutation p {
+    margin: 3px 0;
+}
