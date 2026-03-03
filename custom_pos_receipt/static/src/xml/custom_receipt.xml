@@ -12,9 +12,9 @@
 
     <!-- ================= RENAME DISCOUNT ================= -->
 
-<template id="your_pos_ticket_hide_discount" inherit_id="point_of_sale.PosTicket">
+
     <xpath expr="//span[@class='label-discount']" position="replace"/>
-</template>
+
 
     <!-- ================= QR Resize ================= -->
 
