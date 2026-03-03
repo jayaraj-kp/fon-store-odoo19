@@ -80,3 +80,17 @@
     font-style: italic;
     font-size: 10px;
 }
+
+/* ============================= */
+/* HIDE NEED INVOICE */
+/* ============================= */
+.pos-receipt a[href*="/pos/ticket"] {
+    display: none !important;
+}
+
+/* ============================= */
+/* HIDE POWERED BY ODOO */
+/* ============================= */
+.pos-receipt-footer {
+    display: none !important;
+}

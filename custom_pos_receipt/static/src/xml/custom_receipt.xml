@@ -4,7 +4,7 @@
     <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
         <!-- ===================================================== -->
-        <!-- 1️⃣ REMOVE DEFAULT TOTAL BLOCK (Subtotal, GST, Discount) -->
+        <!-- REMOVE DEFAULT TOTAL BLOCK (Subtotal / GST / Discount) -->
         <!-- ===================================================== -->
 
         <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace">
@@ -119,30 +119,14 @@
 
         </xpath>
 
-
         <!-- ===================================================== -->
-        <!-- 2️⃣ REMOVE PAYMENT LINES -->
+        <!-- REMOVE PAYMENT LINES -->
         <!-- ===================================================== -->
 
         <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
-
         <!-- ===================================================== -->
-        <!-- 3️⃣ REMOVE 'NEED AN INVOICE' SECTION (SAFE TEXT MATCH) -->
-        <!-- ===================================================== -->
-
-        <xpath expr="//div[.//text()[contains(., 'Need an invoice')]]" position="replace"/>
-
-
-        <!-- ===================================================== -->
-        <!-- 4️⃣ REMOVE 'POWERED BY ODOO' FOOTER (SAFE TEXT MATCH) -->
-        <!-- ===================================================== -->
-
-        <xpath expr="//div[.//text()[contains(., 'Powered by Odoo')]]" position="replace"/>
-
-
-        <!-- ===================================================== -->
-        <!-- 5️⃣ RESIZE QR CODE -->
+        <!-- RESIZE QR -->
         <!-- ===================================================== -->
 
         <xpath expr="//img[@id='posqrcode']" position="attributes">
