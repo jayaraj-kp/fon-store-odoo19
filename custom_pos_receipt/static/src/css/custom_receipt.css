@@ -4,8 +4,8 @@
 .pos-receipt canvas.qr-code,
 .pos-receipt .pos-receipt-qrcode img,
 .pos-receipt .pos-receipt-qrcode canvas {
-    width: 100px !important;
-    height: 100px !important;
+    width: 80px !important;
+    height: 80px !important;
     display: block;
     margin: 0 auto;
 }
