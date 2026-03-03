@@ -3,43 +3,32 @@
     <t t-name="custom_pos_upi_qr.UpiQrBlock"
        t-inherit="point_of_sale.OrderReceipt"
        t-inherit-mode="extension">
-        <!-- Layout is handled by custom_pos_receipt/custom_receipt.xml -->
-        <!-- upi_qr_receipt.js still runs and provides upiQrSrc, upiAmount, upiVpa -->
-    </t>
-</templates>
 
+        <!-- Target the LAST child inside pos-receipt to append AFTER it -->
+        <xpath expr="//div[hasclass('pos-receipt')]" position="inside">
 
-<!--<?xml version="1.0" encoding="UTF-8"?>-->
-<!--<templates>-->
-<!--    <t t-name="custom_pos_upi_qr.UpiQrBlock"-->
-<!--       t-inherit="point_of_sale.OrderReceipt"-->
-<!--       t-inherit-mode="extension">-->
-
-<!--        &lt;!&ndash; Target the LAST child inside pos-receipt to append AFTER it &ndash;&gt;-->
-<!--        <xpath expr="//div[hasclass('pos-receipt')]" position="inside">-->
-
-<!--            <t t-if="upiQrSrc">-->
-<!--                <div class="upi-qr-wrapper">-->
-<!--                    <div class="upi-qr-divider"/>-->
-<!--                    <div class="upi-qr-header">-->
+            <t t-if="upiQrSrc">
+                <div class="upi-qr-wrapper">
+                    <div class="upi-qr-divider"/>
+                    <div class="upi-qr-header">
 <!--                        <span class="upi-logo-text">UPI</span>-->
-<!--                        <span class="upi-qr-instruction">Scan &amp; Pay ₹<t t-esc="upiAmount"/></span>-->
-<!--                    </div>-->
-<!--                    <div class="upi-qr-image-container">-->
-<!--                        <img-->
-<!--                            t-att-src="upiQrSrc"-->
-<!--                            class="upi-qr-image"-->
-<!--                            alt="UPI QR Code"-->
-<!--                        />-->
-<!--                    </div>-->
+                        <span class="upi-qr-instruction">Scan &amp; Pay ₹<t t-esc="upiAmount"/></span>
+                    </div>
+                    <div class="upi-qr-image-container">
+                        <img
+                            t-att-src="upiQrSrc"
+                            class="upi-qr-image"
+                            alt="UPI QR Code"
+                        />
+                    </div>
 <!--                    <div class="upi-qr-vpa"><t t-esc="upiVpa"/></div>-->
 <!--                    <div class="upi-qr-apps">GPay · PhonePe · Paytm · BHIM &amp; all UPI apps</div>-->
 <!--                    <div class="upi-qr-divider"/>-->
-<!--                </div>-->
-<!--            </t>-->
+                </div>
+            </t>
 
-<!--        </xpath>-->
-<!--    </t>-->
-<!--</templates>-->
+        </xpath>
+    </t>
+</templates>
 
 
