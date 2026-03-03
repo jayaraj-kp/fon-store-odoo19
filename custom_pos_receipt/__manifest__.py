@@ -1,7 +1,7 @@
 {
     'name': 'Custom POS Receipt',
     'version': '19.0.1.0.0',
-    'summary': 'Advanced POS Receipt with Custom GST, Totals & UPI QR',
+    'summary': 'Advanced POS Receipt with Custom GST & Totals',
     'category': 'Point of Sale',
     'author': 'FON Store',
     'depends': ['point_of_sale'],

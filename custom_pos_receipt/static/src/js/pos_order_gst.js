@@ -3,11 +3,6 @@
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 import { patch } from "@web/core/utils/patch";
 
-// ─── Configuration ────────────────────────────────────────────────────────────
-const UPI_ID        = "fonstoreunlimited.ibz@icici";
-const PAYEE_NAME    = "FON Store";          // shown in the payer's UPI app
-// ──────────────────────────────────────────────────────────────────────────────
-
 patch(PosOrder.prototype, {
 
     /* ================= GST BREAKDOWN ================= */
@@ -22,22 +17,22 @@ patch(PosOrder.prototype, {
 
             for (const tax of lineTaxes) {
                 const rate = tax.amount || 0;
-                const key  = `rate_${rate}`;
+                const key = `rate_${rate}`;
 
                 if (!grouped[key]) {
                     grouped[key] = {
-                        rate:    rate,
-                        label:   rate === 0 ? "GST Exempt" : `GST @ ${rate}%`,
+                        rate: rate,
+                        label: rate === 0 ? "GST Exempt" : `GST @ ${rate}%`,
                         taxable: 0,
-                        cgst:    0,
-                        sgst:    0,
+                        cgst: 0,
+                        sgst: 0,
                     };
                 }
 
                 grouped[key].taxable += linePrice;
-                const taxAmount       = linePrice * (rate / 100);
-                grouped[key].cgst    += taxAmount / 2;
-                grouped[key].sgst    += taxAmount / 2;
+                const taxAmount = linePrice * (rate / 100);
+                grouped[key].cgst += taxAmount / 2;
+                grouped[key].sgst += taxAmount / 2;
             }
         }
 
@@ -72,11 +67,11 @@ patch(PosOrder.prototype, {
         let totalSaved = 0;
 
         for (const line of lines) {
-            const qty      = line.qty        || 0;
+            const qty = line.qty || 0;
             const unitPrice = line.price_unit || 0;
-            const discount  = line.discount   || 0;
+            const discount = line.discount || 0;
 
-            const lineTotal     = unitPrice * qty;
+            const lineTotal = unitPrice * qty;
             const discountAmount = lineTotal * (discount / 100);
             totalSaved += discountAmount;
         }
@@ -92,52 +87,24 @@ patch(PosOrder.prototype, {
         const words = [
             "Zero","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
             "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen",
-            "Eighteen","Nineteen",
+            "Eighteen","Nineteen"
         ];
 
         const tens = [
             "","","Twenty","Thirty","Forty","Fifty",
-            "Sixty","Seventy","Eighty","Ninety",
+            "Sixty","Seventy","Eighty","Ninety"
         ];
 
         function convert(n) {
-            if (n < 20)   return words[n];
-            if (n < 100)  return tens[Math.floor(n / 10)] + (n % 10 ? " " + words[n % 10] : "");
-            if (n < 1000) return words[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
-            if (n < 100000)
-                return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + convert(n % 1000) : "");
-            if (n < 10000000)
-                return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + convert(n % 100000) : "");
-            return convert(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + convert(n % 10000000) : "");
+            if (n < 20) return words[n];
+            if (n < 100)
+                return tens[Math.floor(n/10)] + " " + words[n%10];
+            if (n < 1000)
+                return words[Math.floor(n/100)] + " Hundred " + convert(n%100);
+            return n;
         }
 
-        return convert(amount) + " Rupees Only";
+        return convert(amount) + " Only";
     },
 
-    /* ================= UPI PAYMENT QR ================= */
-
-    /**
-     * Returns the UPI deep-link string used to generate the QR code.
-     * Amount is fixed to 2 decimal places as required by UPI spec.
-     *
-     * Format: upi://pay?pa=<vpa>&pn=<name>&am=<amount>&cu=INR
-     */
-    getUpiPaymentString() {
-        const amount = (this.getGrandTotal() || 0).toFixed(2);
-        const params = new URLSearchParams({
-            pa: UPI_ID,
-            pn: PAYEE_NAME,
-            am: amount,
-            cu: "INR",
-        });
-        return `upi://pay?${params.toString()}`;
-    },
-
-    getUpiId() {
-        return UPI_ID;
-    },
-
-    getPayeeName() {
-        return PAYEE_NAME;
-    },
 });

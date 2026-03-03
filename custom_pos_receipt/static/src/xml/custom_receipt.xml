@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-<!-- ================================================================== -->
-<!-- Extend the POS OrderReceipt                                         -->
-<!-- ================================================================== -->
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
     <!-- ================= REMOVE DEFAULT TOTAL BLOCK ================= -->
 
     <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>
 
-    <!-- Remove default payment lines -->
+    <!-- Remove default payment lines (SAFE) -->
     <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
-    <!-- ================= REMOVE DISCOUNT LINE ================= -->
+    <!-- ================= RENAME DISCOUNT ================= -->
 
+    <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
+        <span class="label-discount">🎉 You Have Saved 🎉</span>
+    </xpath>
 
-    <!-- ================= QR Resize (existing e-invoice QR) ================= -->
+    <!-- ================= QR Resize ================= -->
 
     <xpath expr="//img[@id='posqrcode']" position="attributes">
         <attribute name="style">width:90px;height:90px;</attribute>
@@ -29,6 +29,7 @@
         <!-- GST TABLE -->
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines and gstLines.length">
+
             <div class="gst-table-wrapper">
                 <table class="gst-breakdown-table">
                     <thead>
@@ -59,9 +60,11 @@
                     </tfoot>
                 </table>
             </div>
+
         </t>
 
         <!-- CUSTOM TOTAL SECTION -->
+
         <div class="custom-total-section">
 
             <div class="line">
@@ -94,25 +97,10 @@
             </div>
 
             <div class="saved-line">
-                <span>&#127881; You Have Saved &#127881;</span>
+                <span> 🎉 You Have Saved 🎉</span>
                 <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
             </div>
 
-        </div>
-
-        <!-- ================= UPI PAYMENT QR CODE ================= -->
-        <div class="upi-qr-section">
-            <div class="upi-qr-title">&#11015; Scan &amp; Pay via UPI &#11015;</div>
-            <div class="upi-qr-canvas-wrap">
-                <img
-                    t-att-src="'https://chart.googleapis.com/chart?chs=150x150&amp;cht=qr&amp;chl=' + encodeURIComponent(order.getUpiPaymentString())"
-                    class="upi-qr-img"
-                    alt="UPI QR Code"
-                />
-            </div>
-            <div class="upi-qr-id">
-                <t t-esc="order.getUpiId()"/>
-            </div>
         </div>
 
     </xpath>
