@@ -14,26 +14,14 @@ patch(OrderReceipt.prototype, {
             return null;
         }
 
-        // Debug - find correct amount field
-        console.log('[UPI DEBUG] props keys:', JSON.stringify(Object.keys(this.props || {})));
-        console.log('[UPI DEBUG] props.info:', JSON.stringify(this.props?.info));
-        console.log('[UPI DEBUG] total_with_tax:', this.props?.info?.total_with_tax);
-        console.log('[UPI DEBUG] amount_total:', this.props?.info?.amount_total);
-        console.log('[UPI DEBUG] total:', this.props?.info?.total);
-        console.log('[UPI DEBUG] subtotal:', this.props?.info?.subtotal);
-        console.log('[UPI DEBUG] totalDue:', this.props?.info?.totalDue);
-        console.log('[UPI DEBUG] due:', this.props?.info?.due);
-
+        // Odoo 19: amount lives in props.order, not props.info
+        const order = this.props?.order;
         const amount = (
-            this.props?.info?.total_with_tax ??
-            this.props?.info?.amount_total ??
-            this.props?.info?.totalDue ??
-            this.props?.info?.due ??
-            this.props?.info?.total ??
+            order?.get_total_with_tax?.() ??
+            order?.amount_total ??
+            order?.total_with_tax ??
             0
         ).toFixed(2);
-
-        console.log('[UPI DEBUG] final amount used:', amount);
 
         const vpa  = encodeURIComponent(config.upi_vpa.trim());
         const name = encodeURIComponent(
@@ -45,15 +33,14 @@ patch(OrderReceipt.prototype, {
     },
 
     get upiAmount() {
+        const order = this.props?.order;
         const amount = (
-            this.props?.info?.total_with_tax ??
-            this.props?.info?.amount_total ??
-            this.props?.info?.totalDue ??
-            this.props?.info?.due ??
-            this.props?.info?.total ??
+            order?.get_total_with_tax?.() ??
+            order?.amount_total ??
+            order?.total_with_tax ??
             0
         );
-        return amount.toFixed(2);
+        return Number(amount).toFixed(2);
     },
 
     get upiVpa() {
