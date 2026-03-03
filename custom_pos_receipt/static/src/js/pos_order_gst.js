@@ -1,11 +1,9 @@
 /** @odoo-module **/
-
 import { patch } from "@web/core/utils/patch";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 
 patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
 
-    // ================= GST BREAKDOWN =================
     getGstBreakdown() {
         const grouped = {};
         const lines = this.orderlines?.models || [];
@@ -20,7 +18,7 @@ patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
 
                 if (!grouped[key]) {
                     grouped[key] = {
-                        rate: rate,
+                        rate,
                         label: rate === 0 ? "GST Exempt" : `GST @ ${rate}%`,
                         taxable: 0,
                         cgst: 0,
@@ -35,10 +33,9 @@ patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
             }
         }
 
-        return Object.values(grouped).sort((a, b) => a.rate - b.rate);
+        return Object.values(grouped).sort((a,b) => a.rate - b.rate);
     },
 
-    // ================= TOTALS =================
     getTotalTaxableAmount() {
         return (this.orderlines?.models || []).reduce((sum, l) => sum + (l.price_subtotal || 0), 0);
     },
@@ -60,29 +57,20 @@ patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
     },
 
     getTotalSaved() {
-        let totalSaved = 0;
-        for (const line of (this.orderlines?.models || [])) {
+        return (this.orderlines?.models || []).reduce((totalSaved, line) => {
             const lineTotal = (line.price_unit || 0) * (line.qty || 0);
-            const discountAmount = lineTotal * ((line.discount || 0) / 100);
-            totalSaved += discountAmount;
-        }
-        return totalSaved;
+            return totalSaved + (lineTotal * ((line.discount || 0)/100));
+        }, 0);
     },
 
-    // ================= AMOUNT IN WORDS =================
     getAmountInWords() {
         const amount = Math.floor(this.getGrandTotal());
-
         const words = [
             "Zero","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
             "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen",
             "Eighteen","Nineteen"
         ];
-
-        const tens = [
-            "","","Twenty","Thirty","Forty","Fifty",
-            "Sixty","Seventy","Eighty","Ninety"
-        ];
+        const tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
 
         function convert(n) {
             if (n < 20) return words[n];
@@ -93,4 +81,5 @@ patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
 
         return convert(amount) + " Only";
     },
+
 });
