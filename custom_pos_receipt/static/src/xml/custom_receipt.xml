@@ -84,7 +84,7 @@
             <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
         </div>
             <div class="receipt-company-cell">
-            <t t-if="co.name"><div class="company-name"><t t-esc="co.name"/></div></t>
+
                 <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
                 <t t-if="co.city"><div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div></t>
                 <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
