@@ -3,69 +3,54 @@
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-    <!-- ==================== RECEIPT HEADER ==================== -->
+    <!-- ==================== HEADER: Logo + Company Details + Invoice No + Date + Customer Details ==================== -->
     <xpath expr="//ReceiptHeader" position="replace">
         <t t-if="receiptCompany">
             <t t-set="co" t-value="receiptCompany"/>
             <div class="receipt-header-row">
-                <t t-if="logoUrl">
-                    <div class="receipt-logo-cell">
+                <div class="receipt-logo-cell">
+                    <t t-if="logoUrl">
                         <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
+                    </t>
+                    <div class="receipt-invoice-no" style="margin-top: 8px; font-family: monospace; font-size: 10px;">
+                        <strong>Invoice:</strong> <t t-esc="receiptRef or ''"/>
                     </div>
-                </t>
+                </div>
                 <div class="receipt-company-cell">
                     <t t-if="co.name">
                         <div class="company-name"><t t-esc="co.name"/></div>
                     </t>
-                    <t t-if="co.street">
-                        <div><t t-esc="co.street"/></div>
-                    </t>
+                    <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
                     <t t-if="co.city">
                         <div>
                             <t t-esc="co.city"/>
                             <t t-if="co.zip">, <t t-esc="co.zip"/></t>
                         </div>
                     </t>
-                    <t t-if="co.vat">
-                        <div>GSTIN: <t t-esc="co.vat"/></div>
-                    </t>
-                    <t t-if="co.phone">
-                        <div>Tel: <t t-esc="co.phone"/></div>
-                    </t>
-                    <t t-if="co.email">
-                        <div><t t-esc="co.email"/></div>
-                    </t>
+                    <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
+                    <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
+                    <t t-if="co.email"><div><t t-esc="co.email"/></div></t>
+                    <div class="receipt-invoice-date" style="margin-top: 24px; font-family: monospace; font-size: 10px;">
+                        <t t-esc="receiptDate or ''"/>
+                    </div>
                 </div>
             </div>
         </t>
 
-        <div class="receipt-meta-row">
-            <div class="receipt-invoice-no">
-                <strong>Invoice: </strong><t t-esc="receiptRef"/>
-            </div>
-            <div class="receipt-invoice-date">
-                <t t-esc="receiptDate"/>
-            </div>
-        </div>
-
         <t t-if="receiptPartner">
             <t t-set="partner" t-value="receiptPartner"/>
-            <div class="receipt-customer-block">
-                <div class="customer-name">
+            <div class="receipt-customer-block" style="margin-top: 10px;">
+                <div class="customer-name" style="font-family: monospace; font-size: 10px;">
                     <t t-if="partner.parent_name"><span t-esc="partner.parent_name"/>, </t>
                     <span t-esc="partner.name"/>
                 </div>
-                <t t-if="partner.pos_contact_address">
-                    <div><t t-esc="partner.pos_contact_address"/></div>
-                </t>
-                <t t-if="partner.phone">
-                    <div>Phone: <t t-esc="partner.phone"/></div>
-                </t>
+                <t t-if="partner.pos_contact_address"><div style="font-family: monospace; font-size: 10px;"><t t-esc="partner.pos_contact_address"/></div></t>
+                <t t-if="partner.phone"><div style="font-family: monospace; font-size: 10px;">Phone: <t t-esc="partner.phone"/></div></t>
             </div>
         </t>
     </xpath>
 
-    <!-- ==================== CUSTOM TOTAL SECTION ==================== -->
+    <!-- ==================== CUSTOM TOTAL SECTION AND OTHERS ==================== -->
     <xpath expr="//div[@class='before-footer']" position="before">
 
         <div class="custom-total-section">
@@ -89,11 +74,11 @@
                 <span>Grand Total</span>
                 <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
             </div>
-            <div class="amount-words">
+            <div class="amount-words" style="font-family: monospace; font-size: 10px; font-style: italic;">
                 <t t-esc="order.getAmountInWords()"/>
             </div>
             <t t-if="order.getTotalSaved()">
-                <div class="saved-line">
+                <div class="saved-line" style="font-family: monospace; font-size: 10px;">
                     <span>🎉 You Have Saved 🎉</span>
                     <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
                 </div>
@@ -132,7 +117,7 @@
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines and gstLines.length">
             <div class="gst-table-wrapper">
-                <table class="gst-breakdown-table">
+                <table class="gst-breakdown-table" style="font-family: monospace; font-size: 10px;">
                     <thead>
                         <tr>
                             <th>GST Rate</th>
@@ -165,14 +150,14 @@
 
         <!-- ==================== LOYALTY POINTS ==================== -->
         <t t-if="order.loyalty_points">
-            <div class="loyalty-points-block">
+            <div class="loyalty-points-block" style="font-family: monospace; font-size: 10px; font-weight: bold;">
                 <span>🏆 Loyalty Points Earned:</span>
                 <span><t t-esc="order.loyalty_points"/></span>
             </div>
         </t>
 
         <!-- ==================== FOOTER ==================== -->
-        <div class="receipt-footer-row">
+        <div class="receipt-footer-row" style="font-family: monospace; font-size: 9px; margin-top: 6px;">
             <div>Served by: <t t-esc="receiptCashier or ''"/></div>
             <div><t t-esc="receiptDate or ''"/></div>
         </div>
