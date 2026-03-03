@@ -3,33 +3,42 @@
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
+    <!-- ==================== RECEIPT HEADER ==================== -->
     <xpath expr="//ReceiptHeader" position="replace">
-        <t t-set="co" t-value="receiptCompany"/>
-        <div class="receipt-header-row">
-            <div class="receipt-logo-cell">
-                <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
+        <t t-if="receiptCompany">
+            <t t-set="co" t-value="receiptCompany"/>
+            <div class="receipt-header-row">
+                <t t-if="logoUrl">
+                    <div class="receipt-logo-cell">
+                        <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
+                    </div>
+                </t>
+                <div class="receipt-company-cell">
+                    <t t-if="co.name">
+                        <div class="company-name"><t t-esc="co.name"/></div>
+                    </t>
+                    <t t-if="co.street">
+                        <div><t t-esc="co.street"/></div>
+                    </t>
+                    <t t-if="co.city">
+                        <div>
+                            <t t-esc="co.city"/>
+                            <t t-if="co.zip">, <t t-esc="co.zip"/></t>
+                        </div>
+                    </t>
+                    <t t-if="co.vat">
+                        <div>GSTIN: <t t-esc="co.vat"/></div>
+                    </t>
+                    <t t-if="co.phone">
+                        <div>Tel: <t t-esc="co.phone"/></div>
+                    </t>
+                    <t t-if="co.email">
+                        <div><t t-esc="co.email"/></div>
+                    </t>
+                </div>
             </div>
-            <div class="receipt-company-cell">
-                <t t-if="co.name">
-                    <div class="company-name"><t t-esc="co.name"/></div>
-                </t>
-                <t t-if="co.street">
-                    <div><t t-esc="co.street"/></div>
-                </t>
-                <t t-if="co.city">
-                    <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
-                </t>
-                <t t-if="co.vat">
-                    <div>GSTIN: <t t-esc="co.vat"/></div>
-                </t>
-                <t t-if="co.phone">
-                    <div>Tel: <t t-esc="co.phone"/></div>
-                </t>
-                <t t-if="co.email">
-                    <div><t t-esc="co.email"/></div>
-                </t>
-            </div>
-        </div>
+        </t>
+
         <div class="receipt-meta-row">
             <div class="receipt-invoice-no">
                 <strong>Invoice: </strong><t t-esc="receiptRef"/>
@@ -38,8 +47,9 @@
                 <t t-esc="receiptDate"/>
             </div>
         </div>
-        <t t-set="partner" t-value="receiptPartner"/>
-        <t t-if="partner">
+
+        <t t-if="receiptPartner">
+            <t t-set="partner" t-value="receiptPartner"/>
             <div class="receipt-customer-block">
                 <div class="customer-name">
                     <t t-if="partner.parent_name"><span t-esc="partner.parent_name"/>, </t>
@@ -55,21 +65,7 @@
         </t>
     </xpath>
 
-    <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
-        <span class="label-discount">🎉 You Have Saved 🎉</span>
-    </xpath>
-
-    <xpath expr="//div[hasclass('receipt-total')]" position="replace"/>
-    <xpath expr="//div[hasclass('receipt-rounding')]" position="replace" optional="hide"/>
-    <xpath expr="//div[hasclass('receipt-to-pay')]" position="replace" optional="hide"/>
-    <xpath expr="//div[hasclass('paymentlines')]" position="replace"/>
-    <xpath expr="//div[hasclass('receipt-change')]" position="replace" optional="hide"/>
-    <xpath expr="//div[hasclass('pos-receipt-taxes')]" position="replace" optional="hide"/>
-    <xpath expr="//t[@t-set='company']" position="replace"/>
-    <xpath expr="//div[hasclass('pos-config-name')]/.." position="replace"/>
-    <xpath expr="//div[hasclass('pos-receipt-order-data')]" position="replace" optional="hide"/>
-    <xpath expr="//img[@id='posqrcode']" position="replace" optional="hide"/>
-
+    <!-- ==================== CUSTOM TOTAL SECTION ==================== -->
     <xpath expr="//div[@class='before-footer']" position="before">
 
         <div class="custom-total-section">
@@ -96,18 +92,23 @@
             <div class="amount-words">
                 <t t-esc="order.getAmountInWords()"/>
             </div>
-            <div class="saved-line">
-                <span>🎉 You Have Saved 🎉</span>
-                <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
-            </div>
+            <t t-if="order.getTotalSaved()">
+                <div class="saved-line">
+                    <span>🎉 You Have Saved 🎉</span>
+                    <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
+                </div>
+            </t>
         </div>
 
+        <!-- ==================== QR CODES ==================== -->
         <div class="receipt-qr-row">
             <div class="receipt-qr-cell">
-                <t t-if="receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized">
+                <t t-if="receiptCompany and receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized and qrCode">
                     <div class="qr-cell-label">Need an invoice?</div>
                     <img t-att-src="qrCode" class="qr-code" alt="Invoice QR"/>
-                    <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
+                    <t t-if="order.ticket_code">
+                        <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
+                    </t>
                 </t>
             </div>
             <div class="receipt-qr-cell">
@@ -119,12 +120,15 @@
                     <div class="upi-qr-image-container">
                         <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR Code"/>
                     </div>
-                    <div class="upi-qr-vpa"><t t-esc="upiVpa"/></div>
+                    <t t-if="upiVpa">
+                        <div class="upi-qr-vpa"><t t-esc="upiVpa"/></div>
+                    </t>
                     <div class="upi-qr-apps">GPay · PhonePe · Paytm · BHIM</div>
                 </t>
             </div>
         </div>
 
+        <!-- ==================== GST BREAKDOWN ==================== -->
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines and gstLines.length">
             <div class="gst-table-wrapper">
@@ -159,6 +163,7 @@
             </div>
         </t>
 
+        <!-- ==================== LOYALTY POINTS ==================== -->
         <t t-if="order.loyalty_points">
             <div class="loyalty-points-block">
                 <span>🏆 Loyalty Points Earned:</span>
@@ -166,15 +171,15 @@
             </div>
         </t>
 
+        <!-- ==================== FOOTER ==================== -->
         <div class="receipt-footer-row">
-            <div>Served by: <t t-esc="receiptCashier"/></div>
-            <div><t t-esc="receiptDate"/></div>
+            <div>Served by: <t t-esc="receiptCashier or ''"/></div>
+            <div><t t-esc="receiptDate or ''"/></div>
         </div>
 
     </xpath>
 
 </t>
-
 </templates>
 
 
