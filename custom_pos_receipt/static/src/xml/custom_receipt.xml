@@ -1,175 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<templates xml:space="preserve">
+<templates id="template" xml:space="preserve">
 
-<t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+    <!-- ========================= EXTEND ORDER RECEIPT ========================= -->
+    <t t-name="CustomPosReceipt" t-extend="point_of_sale.OrderReceipt">
 
-    <!-- HEADER: Logo left + company right -->
-    <xpath expr="//div[contains(@class,'pos-receipt-header')]" position="replace">
-        <div class="receipt-header-row">
-            <div class="receipt-logo-cell">
-                <img t-if="header.company_logo" t-att-src="header.company_logo" class="receipt-company-logo"/>
+        <!-- ================= HEADER ================= -->
+        <t t-jquery=".receipt-header-row" t-operation="replace">
+            <div class="receipt-header-row">
+                <div class="receipt-logo-cell">
+                    <img t-if="header.company_logo" t-att-src="header.company_logo" class="receipt-company-logo"/>
+                </div>
+                <div class="receipt-company-cell">
+                    <div class="company-name"><t t-esc="header.company.name"/></div>
+                    <div><t t-esc="header.company.street"/></div>
+                    <div><t t-esc="header.company.city"/></div>
+                    <div><t t-esc="header.company.phone"/></div>
+                </div>
             </div>
-            <div class="receipt-company-cell">
-                <div class="company-name"><t t-esc="header.company.name"/></div>
-                <div><t t-esc="header.company.street"/></div>
-                <div><t t-esc="header.company.city"/></div>
-                <div><t t-esc="header.company.phone"/></div>
-            </div>
-        </div>
-    </xpath>
+        </t>
 
-    <!-- INVOICE & DATE ROW -->
-    <xpath expr="//div[contains(@class,'pos-receipt-meta')]" position="replace">
-        <div class="receipt-meta-row">
-            <div class="receipt-invoice-no">
-                <strong>Invoice:</strong> <t t-esc="order.name"/>
-            </div>
-            <div class="receipt-invoice-date">
-                <strong>Date:</strong> <t t-esc="order.date"/>
-            </div>
-        </div>
-    </xpath>
-
-    <!-- CUSTOMER DETAILS -->
-    <xpath expr="//div[contains(@class,'pos-receipt-customer')]" position="replace">
-        <div class="receipt-customer-block">
-            <div class="customer-name"><strong>Customer:</strong> <t t-esc="order.partner?.name or 'Cash Customer'"/></div>
-            <div><t t-esc="order.partner?.street or ''"/></div>
-            <div><t t-esc="order.partner?.city or ''"/></div>
-            <div><t t-esc="order.partner?.phone or ''"/></div>
-        </div>
-    </xpath>
-
-    <!-- ITEM TABLE with SN, ITEM, PRICE -->
-    <xpath expr="//table[contains(@class,'pos-receipt-orderlines')]" position="replace">
-        <table class="pos-receipt-orderlines" style="width: 100%; font-size: 11px; border-collapse: collapse;">
-            <thead>
-                <tr>
-                    <th style="text-align:left; width: 10%;">SN</th>
-                    <th style="text-align:left; width: 60%;">Item</th>
-                    <th style="text-align:right; width: 30%;">Price</th>
-                </tr>
-            </thead>
-            <tbody>
-                <t t-foreach="order.lines" t-as="line" t-key="line.id">
-                    <tr>
-                        <td style="text-align:left;">
-                            <t t-esc="loop.index + 1"/>
-                        </td>
-                        <td style="text-align:left;">
-                            <t t-esc="line.product_name"/>
-                        </td>
-                        <td style="text-align:right;">
-                            <t t-esc="formatCurrency(line.price_subtotal)"/>
-                        </td>
-                    </tr>
-                    <!-- HSN CODE below each item -->
-                    <t t-if="line.l10n_in_hsn_code and header.company.country_id?.code === 'IN'">
-                        <tr>
-                            <td></td>
-                            <td colspan="2" style="font-size: 9px; color: #666;">
-                                HSN Code: <t t-esc="line.l10n_in_hsn_code"/>
-                            </td>
-                        </tr>
-                    </t>
-                </t>
-            </tbody>
-        </table>
-    </xpath>
-
-    <!-- CUSTOM TOTALS (Before Grand, Taxable Total, CGST, SGST, Grand Total, Amount in Words, Discount Saved) -->
-    <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace">
-        <div class="custom-total-section">
-            <div class="line">
-                <span>Before Grand Total</span>
-                <span><t t-esc="formatCurrency(order.getBeforeGrandTotal())"/></span>
-            </div>
-            <div class="line">
-                <span>Taxable Total</span>
-                <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>
-            </div>
-            <div class="line">
-                <span>CGST</span>
-                <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>
-            </div>
-            <div class="line">
-                <span>SGST</span>
-                <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>
-            </div>
-            <div class="line total">
-                <span>Grand Total</span>
-                <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
-            </div>
-            <div class="amount-words"><t t-esc="order.getAmountInWords()"/></div>
-            <div class="line">
-                <span>🎉 You Have Saved 🎉</span>
-                <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
-            </div>
-        </div>
-    </xpath>
-
-    <!-- QR CODES: Need Invoice (left) + Payment (right) side by side -->
-    <xpath expr="//div[contains(@class,'pos-receipt-qr')]" position="replace">
-        <div class="receipt-qr-row">
-            <div class="receipt-qr-cell">
-                <div class="qr-cell-label">Need an Invoice?</div>
-                <img t-if="order.pos_reference" t-att-src="'/qr?code=' + order.pos_reference" class="qr-code"/>
-                <div class="qr-cell-code"><t t-esc="order.pos_reference"/></div>
-            </div>
-            <div class="receipt-qr-cell">
-                <div class="qr-cell-label">Scan  Pay</div>
-                <img t-if="order.payment_qr_code" t-att-src="order.payment_qr_code" class="qr-code"/>
-            </div>
-        </div>
-    </xpath>
-
-    <!-- GST TABLE below QR codes -->
-    <xpath expr="//div[contains(@class,'gst-table-wrapper')]" position="replace">
-        <div class="gst-table-wrapper">
-            <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
-            <t t-if="gstLines.length > 0">
-                <table class="gst-breakdown-table">
-                    <thead>
-                        <tr>
-                            <th>GST Rate</th>
-                            <th style="text-align:right;">Taxable</th>
-                            <th style="text-align:right;">CGST</th>
-                            <th style="text-align:right;">SGST</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">
-                            <tr>
-                                <td><t t-esc="gline.label"/></td>
-                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.taxable)"/></td>
-                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.cgst)"/></td>
-                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.sgst)"/></td>
-                            </tr>
-                        </t>
-                    </tbody>
-                </table>
+        <!-- ================= ORDER LINES ================= -->
+        <t t-jquery=".receipt-orderline" t-operation="after">
+            <t t-if="line.l10n_in_hsn_code && header.company.country_id?.code === 'IN'">
+                <div class="pos-receipt-left-padding">
+                    <span>HSN Code: </span>
+                    <t t-esc="line.l10n_in_hsn_code"/>
+                </div>
             </t>
-        </div>
-    </xpath>
+        </t>
 
-    <!-- LOYALTY POINTS BLOCK -->
-    <xpath expr="//div[contains(@class,'loyalty-points-block')]" position="replace">
-        <div class="loyalty-points-block">
-            <span>Loyalty Points Earned:</span>
-            <span><t t-esc="order.loyalty_points or 0"/></span>
-        </div>
-    </xpath>
+        <!-- ================= GST BREAKDOWN ================= -->
+        <t t-jquery=".receipt-totals" t-operation="after">
+            <div class="receipt-gst-breakdown">
+                <t t-foreach="order.getGstBreakdown()" t-as="gst">
+                    <div>
+                        <span><t t-esc="gst.label"/>:</span>
+                        <span>Taxable: <t t-esc="gst.taxable.toFixed(2)"/></span>,
+                        <span>CGST: <t t-esc="gst.cgst.toFixed(2)"/></span>,
+                        <span>SGST: <t t-esc="gst.sgst.toFixed(2)"/></span>
+                    </div>
+                </t>
+            </div>
+        </t>
 
-    <!-- FOOTER: Served By (left) + Date (right) -->
-    <xpath expr="//div[contains(@class,'pos-receipt-footer')]" position="replace">
-        <div class="receipt-footer-row">
-            <div class="served-by">Served By: <t t-esc="order.user?.name or 'Admin'"/></div>
-            <div class="receipt-date"><t t-esc="order.date"/></div>
-        </div>
-    </xpath>
+        <!-- ================= TOTALS ================= -->
+        <t t-jquery=".receipt-total" t-operation="replace">
+            <div class="receipt-total">
+                <div><span>Subtotal:</span> <span><t t-esc="order.getBeforeGrandTotal().toFixed(2)"/></span></div>
+                <div><span>Discount:</span> <span><t t-esc="order.getTotalSaved().toFixed(2)"/></span></div>
+                <div><span>CGST Total:</span> <span><t t-esc="order.getTotalCgst().toFixed(2)"/></span></div>
+                <div><span>SGST Total:</span> <span><t t-esc="order.getTotalSgst().toFixed(2)"/></span></div>
+                <div><span>Grand Total:</span> <span><t t-esc="order.getGrandTotal().toFixed(2)"/></span></div>
+                <div><span>In Words:</span> <span><t t-esc="order.getAmountInWords()"/></span></div>
+            </div>
+        </t>
 
-</t>
-
+    </t>
 </templates>
 
 
