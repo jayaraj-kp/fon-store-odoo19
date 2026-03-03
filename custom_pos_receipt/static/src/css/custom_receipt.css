@@ -13,20 +13,9 @@
 }
 
 /* ============================= */
-/* CSS SAFETY FALLBACK:                       */
-/* Hide default Subtotal / GST / You Have Saved rows */
-/* (belt-and-braces in case the xpath doesn't fire)  */
-/* ============================= */
-.pos-receipt .pos-receipt-right-align {
-    display: none !important;
-}
-
-/* ============================= */
-/* CSS SAFETY FALLBACK:                        */
-/* Hide "Need an invoice?" + "Code:" block     */
+/* CSS FALLBACK: Hide "Need an invoice?" and "Code:" text */
 /* ============================= */
 .pos-receipt .ask-for-invoice,
-.pos-receipt [class*="ask-for-invoice"],
 .pos-receipt .pos-receipt-invoice-button,
 .pos-receipt .pos-receipt-qrcode p,
 .pos-receipt .pos-receipt-qrcode .pos-receipt-qrcode-description {
