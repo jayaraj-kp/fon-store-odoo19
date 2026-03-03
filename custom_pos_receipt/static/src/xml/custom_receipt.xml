@@ -3,6 +3,10 @@
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
+              <xpath expr="//img[@id='posqrcode']" position="attributes">
+        <attribute name="style">width:90px;height:90px;margin-top:300px;</attribute>
+    </xpath>
+
     <!-- ==================== HEADER: Logo + Company Details + Invoice No + Date + Customer Details ==================== -->
     <xpath expr="//ReceiptHeader" position="replace">
         <t t-if="receiptCompany">
@@ -84,6 +88,9 @@
                 </div>
             </t>
         </div>
+
+
+
 
         <!-- ==================== QR CODES ==================== -->
         <div class="receipt-qr-row">
