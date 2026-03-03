@@ -114,7 +114,7 @@
             <t t-if="props.order.upiQrSrc">
                 <div class="qr-cell-label">
                     <span class="upi-logo-text">UPI</span>
-                    Scan & Pay &#x20B9;<t t-esc="props.order.upiAmount"/>
+                    Scan Pay &#x20B9;<t t-esc="props.order.upiAmount"/>
                 </div>
                 <div class="upi-qr-image-container">
                     <img t-att-src="props.order.upiQrSrc" class="upi-qr-image"/>
