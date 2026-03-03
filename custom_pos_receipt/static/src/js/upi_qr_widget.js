@@ -1,7 +1,8 @@
 /** @odoo-module **/
 
 import { Component, onMounted, useRef } from "@odoo/owl";
-import { registry } from "@web/core/registry";
+import { patch } from "@web/core/utils/patch";
+import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/order_receipt";
 
 /**
  * UpiQrCode – renders a UPI payment QR on a <canvas> element.
@@ -63,5 +64,13 @@ export class UpiQrCode extends Component {
     }
 }
 
-// Register so the XML template can reference it
-registry.category("pos_receipt_components").add("UpiQrCode", UpiQrCode);
+// ─── CRITICAL FIX ────────────────────────────────────────────────────────────
+// Register UpiQrCode inside OrderReceipt's components map so OWL can resolve
+// the <UpiQrCode> tag used in custom_receipt.xml
+// ─────────────────────────────────────────────────────────────────────────────
+patch(OrderReceipt, {
+    components: {
+        ...OrderReceipt.components,
+        UpiQrCode,
+    },
+});
