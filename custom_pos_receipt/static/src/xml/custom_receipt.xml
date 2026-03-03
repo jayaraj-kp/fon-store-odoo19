@@ -6,10 +6,8 @@
    t-inherit="point_of_sale.ReceiptHeader"
    t-inherit-mode="extension">
 
-    <!-- Replace entire header with our custom layout -->
     <xpath expr="//img[@class='pos-receipt-logo']" position="replace">
-
-        <!-- ROW 1: Logo (left) + Company Info (right) -->
+        <!-- Logo (left) + Company Info (right) -->
         <div class="receipt-header-row">
             <div class="receipt-logo-cell">
                 <img t-att-src="logoUrl" alt="Logo" class="receipt-company-logo"/>
@@ -26,26 +24,21 @@
                 <t t-if="co.email"><div><t t-esc="co.email"/></div></t>
             </div>
         </div>
-
     </xpath>
 
-    <!-- Hide the default date/reference block that comes after logo -->
+    <!-- Hide default date/ticket reference block -->
     <xpath expr="//div[@class='text-center pt-3']" position="replace"/>
 
-    <!-- Hide default cashier/contact block -->
+    <!-- Replace default cashier/contact block with invoice no + customer -->
     <xpath expr="//div[@class='d-flex flex-column align-items-center']" position="replace">
 
-        <!-- ROW 2: Invoice No (left) + Invoice Date (right) -->
-        <div class="receipt-meta-row" style="border-top:1px dashed #000; padding-top:4px; margin-top:4px;">
-            <div>
-                <strong>Invoice: </strong><t t-esc="order.pos_reference"/>
-            </div>
-            <div>
-                <t t-esc="order.formatDateOrTime('date_order', 'date')"/>
-            </div>
+        <!-- Invoice No (left) + Invoice Date (right) -->
+        <div class="receipt-meta-row">
+            <div><strong>Invoice: </strong><t t-esc="order.pos_reference"/></div>
+            <div><t t-esc="order.formatDateOrTime('date_order', 'date')"/></div>
         </div>
 
-        <!-- ROW 3: Customer Details (left aligned) -->
+        <!-- Customer Details -->
         <t t-if="order.partner_id">
             <div class="receipt-customer-block">
                 <div><strong><t t-esc="order.partner_id.name"/></strong></div>
@@ -70,43 +63,20 @@
    t-inherit="point_of_sale.OrderReceipt"
    t-inherit-mode="extension">
 
-    <!-- Replace the OrderDisplay (item lines) with our custom SN/ITEM/QTY/RATE/TOTAL table -->
-    <xpath expr="//OrderDisplay" position="replace">
-        <table class="receipt-items-table" style="width:100%; border-collapse:collapse; font-size:10px; font-family:monospace; margin: 6px 0;">
-            <thead>
-                <tr style="border-bottom:1px solid #000; border-top:1px solid #000;">
-                    <th style="text-align:left; padding:2px 1px;">SN</th>
-                    <th style="text-align:left; padding:2px 1px;">ITEM</th>
-                    <th style="text-align:right; padding:2px 1px;">QTY</th>
-                    <th style="text-align:right; padding:2px 1px;">RATE</th>
-                    <th style="text-align:right; padding:2px 1px;">TOTAL</th>
-                </tr>
-            </thead>
-            <tbody>
-                <t t-foreach="order.lines" t-as="line" t-key="line.uuid">
-                    <tr>
-                        <td style="text-align:left; padding:2px 1px; vertical-align:top;">
-                            <t t-esc="line_index + 1"/>
-                        </td>
-                        <td style="text-align:left; padding:2px 1px; word-break:break-word; max-width:80px;">
-                            <t t-esc="line.product_id.display_name"/>
-                            <t t-if="line.customerNote">
-                                <div style="font-style:italic; font-size:9px;"><t t-esc="line.customerNote"/></div>
-                            </t>
-                        </td>
-                        <td style="text-align:right; padding:2px 1px; vertical-align:top;">
-                            <t t-esc="line.qty"/>
-                        </td>
-                        <td style="text-align:right; padding:2px 1px; vertical-align:top;">
-                            <t t-esc="formatCurrency(line.price_unit)"/>
-                        </td>
-                        <td style="text-align:right; padding:2px 1px; vertical-align:top;">
-                            <t t-esc="formatCurrency(line.price_subtotal_incl)"/>
-                        </td>
-                    </tr>
-                </t>
-            </tbody>
-        </table>
+    <!-- Add table header ROW before the OrderDisplay (keep OrderDisplay intact for l10n_in_pos) -->
+    <xpath expr="//OrderDisplay" position="before">
+        <div class="receipt-items-header">
+            <span class="col-sn">SN</span>
+            <span class="col-item">ITEM</span>
+            <span class="col-qty">QTY</span>
+            <span class="col-rate">RATE</span>
+            <span class="col-total">TOTAL</span>
+        </div>
+    </xpath>
+
+    <!-- Wrap OrderDisplay in a bordered container -->
+    <xpath expr="//OrderDisplay" position="attributes">
+        <attribute name="class">receipt-items-body</attribute>
     </xpath>
 
     <!-- Hide Subtotal/GST tax groups block -->
@@ -115,7 +85,7 @@
     <!-- Hide Total bold row -->
     <xpath expr="//div[@class='pos-receipt-amount receipt-total fw-bolder']" position="replace"/>
 
-    <!-- Hide Payment lines (Cash etc) -->
+    <!-- Hide Payment lines -->
     <xpath expr="//div[@class='paymentlines text-start pt-1']" position="replace"/>
 
     <!-- Hide Change row -->
@@ -124,45 +94,45 @@
     <!-- Hide default invoice QR block -->
     <xpath expr="//div[@class='gap-2 d-flex flex-row pt-3']" position="replace"/>
 
-    <!-- Inject our custom section before before-footer -->
+    <!-- Inject custom section before before-footer -->
     <xpath expr="//div[@class='before-footer']" position="before">
 
-        <!-- GST BREAKDOWN TABLE (centered) -->
-        <div style="margin-top:6px; border-top:1px dashed #000; padding-top:4px;">
+        <!-- GST BREAKDOWN TABLE -->
+        <div class="gst-section">
             <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
             <t t-if="gstLines and gstLines.length">
-                <table style="width:100%; border-collapse:collapse; font-size:10px; font-family:monospace; margin-bottom:4px;">
+                <table class="gst-table">
                     <thead>
-                        <tr style="border-bottom:1px solid #000;">
-                            <th style="text-align:left; padding:2px;">GST%</th>
-                            <th style="text-align:right; padding:2px;">Taxable</th>
-                            <th style="text-align:right; padding:2px;">CGST</th>
-                            <th style="text-align:right; padding:2px;">SGST</th>
+                        <tr>
+                            <th style="text-align:left;">GST%</th>
+                            <th style="text-align:right;">Taxable</th>
+                            <th style="text-align:right;">CGST</th>
+                            <th style="text-align:right;">SGST</th>
                         </tr>
                     </thead>
                     <tbody>
                         <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">
                             <tr>
-                                <td style="text-align:left; padding:2px;"><t t-esc="gline.rate"/>%</td>
-                                <td style="text-align:right; padding:2px;"><t t-esc="formatCurrency(gline.taxable)"/></td>
-                                <td style="text-align:right; padding:2px;"><t t-esc="formatCurrency(gline.cgst)"/></td>
-                                <td style="text-align:right; padding:2px;"><t t-esc="formatCurrency(gline.sgst)"/></td>
+                                <td><t t-esc="gline.rate"/>%</td>
+                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.taxable)"/></td>
+                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.cgst)"/></td>
+                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.sgst)"/></td>
                             </tr>
                         </t>
                     </tbody>
                     <tfoot>
-                        <tr style="border-top:1px solid #000; font-weight:bold;">
-                            <td style="padding:2px;">Total</td>
-                            <td style="text-align:right; padding:2px;"><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></td>
-                            <td style="text-align:right; padding:2px;"><t t-esc="formatCurrency(order.getTotalCgst())"/></td>
-                            <td style="text-align:right; padding:2px;"><t t-esc="formatCurrency(order.getTotalSgst())"/></td>
+                        <tr class="gst-total-row">
+                            <td><strong>Total</strong></td>
+                            <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></strong></td>
+                            <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalCgst())"/></strong></td>
+                            <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalSgst())"/></strong></td>
                         </tr>
                     </tfoot>
                 </table>
             </t>
 
-            <!-- Grand Total + Amount in Words -->
-            <div class="custom-total-section" style="margin-top:4px;">
+            <!-- Grand Total Summary -->
+            <div class="custom-total-section">
                 <div class="line">
                     <span>Taxable Amount</span>
                     <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>
@@ -220,8 +190,8 @@
             </div>
         </t>
 
-        <!-- SERVED BY (left) + DATE WITH TIME (right) -->
-        <div class="receipt-footer-row" style="border-top:1px dashed #000; padding-top:4px; margin-top:6px;">
+        <!-- Served by (left) + Date with Time (right) -->
+        <div class="receipt-footer-row">
             <div>Served by: <t t-esc="order.getCashierName() or ''"/></div>
             <div><t t-esc="order.formatDateOrTime('date_order')"/></div>
         </div>

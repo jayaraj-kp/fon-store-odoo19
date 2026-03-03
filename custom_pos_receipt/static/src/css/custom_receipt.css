@@ -8,18 +8,15 @@
     margin-bottom: 4px;
     padding-bottom: 4px;
 }
-
 .receipt-logo-cell {
     flex: 0 0 auto;
     margin-right: 8px;
 }
-
 .receipt-company-logo {
     max-width: 70px;
     max-height: 55px;
     display: block;
 }
-
 .receipt-company-cell {
     flex: 1;
     text-align: right;
@@ -27,7 +24,6 @@
     font-family: monospace;
     line-height: 1.4;
 }
-
 .company-name {
     font-weight: bold;
     font-size: 11px;
@@ -41,7 +37,10 @@
     justify-content: space-between;
     font-size: 10px;
     font-family: monospace;
-    margin: 3px 0;
+    border-top: 1px dashed #000;
+    padding-top: 4px;
+    margin-top: 2px;
+    margin-bottom: 3px;
 }
 
 /* ===================================================== */
@@ -50,26 +49,55 @@
 .receipt-customer-block {
     font-size: 10px;
     font-family: monospace;
-    margin: 3px 0 4px 0;
+    margin-bottom: 4px;
     border-bottom: 1px dashed #000;
     padding-bottom: 4px;
     line-height: 1.4;
 }
 
 /* ===================================================== */
-/* ITEMS TABLE */
+/* ITEMS TABLE HEADER */
 /* ===================================================== */
-.receipt-items-table {
+.receipt-items-header {
+    display: flex;
+    font-size: 10px;
+    font-family: monospace;
+    font-weight: bold;
+    border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
+    padding: 2px 0;
+    margin-top: 4px;
+}
+.receipt-items-header .col-sn    { width: 8%;  text-align: left; }
+.receipt-items-header .col-item  { width: 42%; text-align: left; }
+.receipt-items-header .col-qty   { width: 10%; text-align: right; }
+.receipt-items-header .col-rate  { width: 20%; text-align: right; }
+.receipt-items-header .col-total { width: 20%; text-align: right; }
+
+/* ===================================================== */
+/* GST TABLE */
+/* ===================================================== */
+.gst-section {
+    margin-top: 6px;
+    border-top: 1px dashed #000;
+    padding-top: 4px;
+}
+.gst-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 10px;
     font-family: monospace;
+    margin-bottom: 4px;
 }
-
-.receipt-items-table th,
-.receipt-items-table td {
+.gst-table th,
+.gst-table td {
     padding: 2px 1px;
-    vertical-align: top;
+}
+.gst-table thead tr {
+    border-bottom: 1px solid #000;
+}
+.gst-total-row {
+    border-top: 1px solid #000;
 }
 
 /* ===================================================== */
@@ -78,22 +106,22 @@
 .custom-total-section {
     font-size: 11px;
     font-family: monospace;
+    margin-top: 4px;
+    border-top: 1px dashed #000;
+    padding-top: 4px;
 }
-
 .custom-total-section .line,
 .saved-line {
     display: flex;
     justify-content: space-between;
     margin-bottom: 2px;
 }
-
 .custom-total-section .total {
     font-weight: bold;
     border-top: 1px solid #000;
     padding-top: 3px;
     margin-top: 2px;
 }
-
 .amount-words {
     margin-top: 4px;
     font-style: italic;
@@ -118,34 +146,29 @@
     flex-wrap: nowrap;
     gap: 2px;
 }
-
 .receipt-qr-cell {
     flex: 1;
     text-align: center;
     font-size: 8px;
     font-family: monospace;
 }
-
 .qr-cell-label {
     font-weight: bold;
     font-size: 8px;
     margin-bottom: 2px;
 }
-
 .qr-code {
     width: 65px !important;
     height: 65px !important;
     display: block;
     margin: 0 auto;
 }
-
 .upi-qr-image-container {
     display: inline-block;
     border: 1px solid #5f259f;
     border-radius: 4px;
     padding: 1px;
 }
-
 .upi-qr-image {
     width: 65px !important;
     height: 65px !important;
@@ -165,28 +188,22 @@
 }
 
 /* ===================================================== */
-/* FOOTER: Served by + Date */
+/* FOOTER */
 /* ===================================================== */
 .receipt-footer-row {
     display: flex;
     justify-content: space-between;
     font-size: 9px;
     font-family: monospace;
+    border-top: 1px dashed #000;
     padding-top: 4px;
     margin-top: 4px;
 }
 
 /* ===================================================== */
-/* PRINT SAFETY */
+/* PRINT */
 /* ===================================================== */
 @media print {
-    .receipt-qr-row {
-        page-break-inside: avoid;
-        flex-wrap: nowrap;
-    }
-    .qr-code,
-    .upi-qr-image {
-        width: 60px !important;
-        height: 60px !important;
-    }
+    .receipt-qr-row { page-break-inside: avoid; flex-wrap: nowrap; }
+    .qr-code, .upi-qr-image { width: 60px !important; height: 60px !important; }
 }
