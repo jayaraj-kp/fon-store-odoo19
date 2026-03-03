@@ -1,99 +1,104 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<templates xml:space="preserve">
+<templates id="template" xml:space="preserve">
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-    <!-- ============================================================ -->
-    <!-- 1. REPLACE HEADER BLOCK                                      -->
-    <!--    Guard: only render when props.data and headerData exist    -->
-    <!-- ============================================================ -->
-    <xpath expr="//div[hasclass('pos-receipt-order-data')]" position="replace">
+    <!--
+        CONFIRMED ODOO 18/19 approach:
+        - Replace //div[@class='pos-receipt p-2'] with our full layout
+        - Keep the outer div with EXACT same class "pos-receipt p-2"
+        - All data via props.data.headerData (company info) and props.data (order info)
+        - orderlines rendered via <OrderWidget> component — keeps l10n_in HSN working
+    -->
+    <xpath expr="//div[@class='pos-receipt p-2']" position="replace">
+    <div class="pos-receipt p-2">
 
-        <t t-set="hd" t-value="props.data and props.data.headerData"/>
-        <t t-if="hd">
+        <!-- ======================================================= -->
+        <!-- ROW 1: Logo (left) + Company Details (right)            -->
+        <!-- ======================================================= -->
+        <t t-if="props.data and props.data.headerData">
+        <div class="receipt-header-row">
 
-            <!-- ── ROW 1: Logo (left) + Company Details (right) ── -->
-            <div class="receipt-header-row">
-                <div class="receipt-logo-cell">
-                    <img t-attf-src="/web/image?model=res.company&amp;id={{ hd.company.id }}&amp;field=logo"
-                         class="receipt-company-logo"
-                         alt="Logo"/>
-                </div>
-                <div class="receipt-company-cell">
-                    <div class="company-name"><t t-esc="hd.company.name"/></div>
-                    <t t-if="hd.company.street">
-                        <div><t t-esc="hd.company.street"/></div>
-                    </t>
-                    <t t-if="hd.company.city">
-                        <div>
-                            <t t-esc="hd.company.city"/>
-                            <t t-if="hd.company.zip">, <t t-esc="hd.company.zip"/></t>
-                        </div>
-                    </t>
-                    <t t-if="hd.company.vat">
-                        <div>GSTIN: <t t-esc="hd.company.vat"/></div>
-                    </t>
-                    <t t-if="hd.company.phone">
-                        <div>Tel: <t t-esc="hd.company.phone"/></div>
-                    </t>
-                    <t t-if="hd.company.email">
-                        <div><t t-esc="hd.company.email"/></div>
-                    </t>
-                </div>
+            <div class="receipt-logo-cell">
+                <img t-attf-src="/web/image?model=res.company&amp;id={{ props.data.headerData.company.id }}&amp;field=logo"
+                     class="receipt-company-logo"
+                     alt="Logo"/>
             </div>
 
-            <!-- ── ROW 2: Invoice No (left) + Date (right) ── -->
-            <div class="receipt-meta-row">
-                <div class="receipt-invoice-no">
-                    <strong>Invoice: </strong><t t-esc="props.data.name"/>
+            <div class="receipt-company-cell">
+                <div class="company-name">
+                    <t t-esc="props.data.headerData.company.name"/>
                 </div>
-                <div class="receipt-invoice-date">
-                    <t t-esc="props.data.date"/>
-                </div>
+                <t t-if="props.data.headerData.company.street">
+                    <div><t t-esc="props.data.headerData.company.street"/></div>
+                </t>
+                <t t-if="props.data.headerData.company.city">
+                    <div>
+                        <t t-esc="props.data.headerData.company.city"/>
+                        <t t-if="props.data.headerData.company.zip">, <t t-esc="props.data.headerData.company.zip"/></t>
+                    </div>
+                </t>
+                <t t-if="props.data.headerData.company.vat">
+                    <div>GSTIN: <t t-esc="props.data.headerData.company.vat"/></div>
+                </t>
+                <t t-if="props.data.headerData.company.phone">
+                    <div>Tel: <t t-esc="props.data.headerData.company.phone"/></div>
+                </t>
+                <t t-if="props.data.headerData.company.email">
+                    <div><t t-esc="props.data.headerData.company.email"/></div>
+                </t>
             </div>
 
-            <!-- ── ROW 3: Customer Details ── -->
-            <t t-if="props.data.partner">
-                <div class="receipt-customer-block">
-                    <div class="customer-name"><t t-esc="props.data.partner.name"/></div>
-                    <t t-if="props.data.partner.street">
-                        <div><t t-esc="props.data.partner.street"/></div>
-                    </t>
-                    <t t-if="props.data.partner.city">
-                        <div>
-                            <t t-esc="props.data.partner.city"/>
-                            <t t-if="props.data.partner.zip"> <t t-esc="props.data.partner.zip"/></t>
-                        </div>
-                    </t>
-                    <t t-if="props.data.partner.phone">
-                        <div>Phone: <t t-esc="props.data.partner.phone"/></div>
-                    </t>
-                </div>
-            </t>
-
+        </div>
         </t>
 
-    </xpath>
+        <!-- ======================================================= -->
+        <!-- ROW 2: Invoice No (left) + Date (right)                 -->
+        <!-- ======================================================= -->
+        <t t-if="props.data">
+        <div class="receipt-meta-row">
+            <div class="receipt-invoice-no">
+                <strong>Invoice: </strong><t t-esc="props.data.name"/>
+            </div>
+            <div class="receipt-invoice-date">
+                <t t-esc="props.data.date"/>
+            </div>
+        </div>
+        </t>
 
-    <!-- ============================================================ -->
-    <!-- 2. RENAME DISCOUNT LABEL                                     -->
-    <!-- ============================================================ -->
-    <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
-        <span class="label-discount">🎉 You Have Saved 🎉</span>
-    </xpath>
+        <!-- ======================================================= -->
+        <!-- ROW 3: Customer Details                                  -->
+        <!-- ======================================================= -->
+        <t t-if="props.data and props.data.partner">
+            <div class="receipt-customer-block">
+                <div class="customer-name"><t t-esc="props.data.partner.name"/></div>
+                <t t-if="props.data.partner.street">
+                    <div><t t-esc="props.data.partner.street"/></div>
+                </t>
+                <t t-if="props.data.partner.city">
+                    <div>
+                        <t t-esc="props.data.partner.city"/>
+                        <t t-if="props.data.partner.zip"> <t t-esc="props.data.partner.zip"/></t>
+                    </div>
+                </t>
+                <t t-if="props.data.partner.phone">
+                    <div>Phone: <t t-esc="props.data.partner.phone"/></div>
+                </t>
+            </div>
+        </t>
 
-    <!-- ============================================================ -->
-    <!-- 3. REMOVE DEFAULT TOTAL + PAYMENT BLOCKS                     -->
-    <!-- ============================================================ -->
-    <xpath expr="//div[hasclass('pos-receipt-amount')]" position="replace"/>
-    <xpath expr="//div[hasclass('paymentlines')]" position="replace"/>
+        <!-- ======================================================= -->
+        <!-- ROW 4: Order Lines — keep OrderWidget intact             -->
+        <!-- l10n_in extends Orderline inside this, must stay         -->
+        <!-- ======================================================= -->
+        <OrderWidget
+            lines="props.data.orderlines"
+            formatCurrency="props.formatCurrency"
+            />
 
-    <!-- ============================================================ -->
-    <!-- 4. INSERT CUSTOM SECTIONS before before-footer               -->
-    <!-- ============================================================ -->
-    <xpath expr="//div[@class='before-footer']" position="before">
-
-        <!-- ── CUSTOM TOTAL SECTION ── -->
+        <!-- ======================================================= -->
+        <!-- ROW 5: Custom Total Section                             -->
+        <!-- ======================================================= -->
         <div class="custom-total-section">
 
             <div class="line">
@@ -132,10 +137,11 @@
 
         </div>
 
-        <!-- ── QR ROW: Invoice QR (left) + UPI QR (right) ── -->
+        <!-- ======================================================= -->
+        <!-- ROW 6: QR Codes — Invoice QR (left) + UPI QR (right)   -->
+        <!-- ======================================================= -->
         <div class="receipt-qr-row">
 
-            <!-- LEFT: Need an Invoice QR -->
             <div class="receipt-qr-cell">
                 <t t-if="props.qrCode">
                     <div class="qr-cell-label">Need an invoice?</div>
@@ -149,7 +155,6 @@
                 </t>
             </div>
 
-            <!-- RIGHT: UPI Payment QR -->
             <div class="receipt-qr-cell">
                 <t t-if="upiQrSrc">
                     <div class="qr-cell-label">
@@ -168,7 +173,9 @@
 
         </div>
 
-        <!-- ── GST TABLE ── -->
+        <!-- ======================================================= -->
+        <!-- ROW 7: GST Table                                        -->
+        <!-- ======================================================= -->
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines and gstLines.length">
             <div class="gst-table-wrapper">
@@ -203,7 +210,9 @@
             </div>
         </t>
 
-        <!-- ── LOYALTY POINTS ── -->
+        <!-- ======================================================= -->
+        <!-- ROW 8: Loyalty Points                                   -->
+        <!-- ======================================================= -->
         <t t-if="props.data and props.data.loyalty_points">
             <div class="loyalty-points-block">
                 <span>🏆 Loyalty Points Earned:</span>
@@ -211,7 +220,9 @@
             </div>
         </t>
 
-        <!-- ── FOOTER: Served By (left) + Date (right) ── -->
+        <!-- ======================================================= -->
+        <!-- ROW 9: Footer — Served By (left) + Date (right)        -->
+        <!-- ======================================================= -->
         <t t-if="props.data and props.data.headerData">
             <div class="receipt-footer-row">
                 <div>Served by: <t t-esc="props.data.headerData.cashier"/></div>
@@ -219,6 +230,11 @@
             </div>
         </t>
 
+        <!-- Keep before/after footer for Powered by Odoo etc -->
+        <div class="before-footer"/>
+        <div class="after-footer"/>
+
+    </div>
     </xpath>
 
 </t>
