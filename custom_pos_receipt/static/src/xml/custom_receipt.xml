@@ -86,10 +86,10 @@
             <div class="receipt-company-cell">
 
 <!--                <t t-if="co.street"><div><t t-esc="co.street"/></div></t>-->
-<!--                <t t-if="co.city"><div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div></t>-->
-<!--                <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>-->
-<!--                <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>-->
-<!--                <t t-if="co.email"><div><t t-esc="co.email"/></div></t>-->
+                <t t-if="co.city"><div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div></t>
+                <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
+                <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
+                <t t-if="co.email"><div><t t-esc="co.email"/></div></t>
         </div>
     </div>
 </xpath>
