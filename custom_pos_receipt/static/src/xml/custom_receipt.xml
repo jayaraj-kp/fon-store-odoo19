@@ -1,79 +1,110 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<templates id="template" xml:space="preserve">
+<templates xml:space="preserve">
 
-    <t t-inherit="point_of_sale.OrderReceipt"
-       t-inherit-mode="extension">
+<t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-        <!-- Replace FULL template -->
-        <xpath expr="." position="replace">
+    <!-- ================= REMOVE DEFAULT TOTAL BLOCK ================= -->
 
-            <div class="pos-receipt">
+    <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>
 
-                <!-- HEADER -->
-                <div class="receipt-header">
-                    <h3>
-                        <t t-esc="header.company.name"/>
-                    </h3>
-                </div>
+    <!-- Remove default payment lines (SAFE) -->
+    <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
-                <hr/>
+    <!-- ================= RENAME DISCOUNT ================= -->
 
-                <!-- ORDER LINES -->
-                <t t-foreach="order.get_orderlines()" t-as="line" t-key="line.id">
-                    <div class="receipt-line">
-                        <span>
-                            <t t-esc="line.get_product().display_name"/>
-                        </span>
-                        <span class="text-right">
-                            <t t-esc="formatCurrency(line.get_display_price())"/>
-                        </span>
-                    </div>
+    <xpath expr="//span[@class='label-discount']" position="replace">
+        <span class="label-discount">🎉 You Have Saved 🎉</span>
+    </xpath>
 
-                    <!-- HSN SAFE DISPLAY -->
-                    <t t-if="line.l10n_in_hsn_code">
-                        <div style="font-size:12px; padding-left:10px;">
-                            HSN: <t t-esc="line.l10n_in_hsn_code"/>
-                        </div>
-                    </t>
+    <!-- ================= QR Resize ================= -->
 
-                </t>
+    <xpath expr="//img[@id='posqrcode']" position="attributes">
+        <attribute name="style">width:90px;height:90px;</attribute>
+    </xpath>
 
-                <hr/>
+    <!-- ================= INSERT CUSTOM BLOCK ================= -->
 
-                <!-- CUSTOM TOTAL SECTION -->
-                <div class="custom-total-section">
+    <xpath expr="//div[@class='before-footer']" position="before">
 
-                    <div>
-                        Before Grand Total:
-                        <t t-esc="formatCurrency(order.getBeforeGrandTotal?.() || 0)"/>
-                    </div>
+        <!-- GST TABLE -->
+        <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
+        <t t-if="gstLines and gstLines.length">
 
-                    <div>
-                        Taxable Total:
-                        <t t-esc="formatCurrency(order.getTotalTaxableAmount?.() || 0)"/>
-                    </div>
-
-                    <div>
-                        CGST:
-                        <t t-esc="formatCurrency(order.getTotalCgst?.() || 0)"/>
-                    </div>
-
-                    <div>
-                        SGST:
-                        <t t-esc="formatCurrency(order.getTotalSgst?.() || 0)"/>
-                    </div>
-
-                    <div style="font-weight:bold;">
-                        Grand Total:
-                        <t t-esc="formatCurrency(order.get_total_with_tax())"/>
-                    </div>
-
-                </div>
-
+            <div class="gst-table-wrapper">
+                <table class="gst-breakdown-table">
+                    <thead>
+                        <tr>
+                            <th>GST Rate</th>
+                            <th class="text-right">Taxable</th>
+                            <th class="text-right">CGST</th>
+                            <th class="text-right">SGST</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">
+                            <tr>
+                                <td><t t-esc="gline.label"/></td>
+                                <td class="text-right"><t t-esc="formatCurrency(gline.taxable)"/></td>
+                                <td class="text-right"><t t-esc="formatCurrency(gline.cgst)"/></td>
+                                <td class="text-right"><t t-esc="formatCurrency(gline.sgst)"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td><strong>Total</strong></td>
+                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></strong></td>
+                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalCgst())"/></strong></td>
+                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalSgst())"/></strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
             </div>
 
-        </xpath>
+        </t>
 
-    </t>
+        <!-- CUSTOM TOTAL SECTION -->
+
+        <div class="custom-total-section">
+
+            <div class="line">
+                <span>Before Grand Total</span>
+                <span><t t-esc="formatCurrency(order.getBeforeGrandTotal())"/></span>
+            </div>
+
+            <div class="line">
+                <span>Taxable Total</span>
+                <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>
+            </div>
+
+            <div class="line">
+                <span>CGST</span>
+                <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>
+            </div>
+
+            <div class="line">
+                <span>SGST</span>
+                <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>
+            </div>
+
+            <div class="line total">
+                <span>Grand Total</span>
+                <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
+            </div>
+
+            <div class="amount-words">
+                <t t-esc="order.getAmountInWords()"/>
+            </div>
+
+            <div class="saved-line">
+                <span>You Have Saved</span>
+                <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
+            </div>
+
+        </div>
+
+    </xpath>
+
+</t>
 
 </templates>
