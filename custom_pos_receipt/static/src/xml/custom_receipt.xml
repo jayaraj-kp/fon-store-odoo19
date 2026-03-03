@@ -3,58 +3,73 @@
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-              <xpath expr="//img[@id='posqrcode']" position="attributes">
-        <attribute name="style">width:90px;height:90px;padding-top:100px;</attribute>
-    </xpath>
-
-    <!-- ==================== HEADER: Logo + Company Details + Invoice No + Date + Customer Details ==================== -->
     <xpath expr="//ReceiptHeader" position="replace">
-        <t t-if="receiptCompany">
-            <t t-set="co" t-value="receiptCompany"/>
-            <div class="receipt-header-row">
-                <div class="receipt-logo-cell">
-                    <t t-if="logoUrl">
-                        <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
-                    </t>
-                    <div class="receipt-invoice-no" style="margin-top: 8px; font-family: monospace; font-size: 10px;">
-                        <strong>Invoice:</strong> <t t-esc="receiptRef or ''"/>
-                    </div>
-                </div>
-                <div class="receipt-company-cell">
-                    <t t-if="co.name">
-                        <div class="company-name"><t t-esc="co.name"/></div>
-                    </t>
-                    <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
-                    <t t-if="co.city">
-                        <div>
-                            <t t-esc="co.city"/>
-                            <t t-if="co.zip">, <t t-esc="co.zip"/></t>
-                        </div>
-                    </t>
-                    <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
-                    <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
-                    <t t-if="co.email"><div><t t-esc="co.email"/></div></t>
-                    <div class="receipt-invoice-date" style="margin-top: 24px; font-family: monospace; font-size: 10px;">
-                        <t t-esc="receiptDate or ''"/>
-                    </div>
-                </div>
+        <t t-set="co" t-value="receiptCompany"/>
+        <div class="receipt-header-row">
+            <div class="receipt-logo-cell">
+                <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
             </div>
-        </t>
-
-        <t t-if="receiptPartner">
-            <t t-set="partner" t-value="receiptPartner"/>
-            <div class="receipt-customer-block" style="margin-top: 10px;">
-                <div class="customer-name" style="font-family: monospace; font-size: 10px;">
+            <div class="receipt-company-cell">
+                <t t-if="co.name">
+                    <div class="company-name"><t t-esc="co.name"/></div>
+                </t>
+                <t t-if="co.street">
+                    <div><t t-esc="co.street"/></div>
+                </t>
+                <t t-if="co.city">
+                    <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
+                </t>
+                <t t-if="co.vat">
+                    <div>GSTIN: <t t-esc="co.vat"/></div>
+                </t>
+                <t t-if="co.phone">
+                    <div>Tel: <t t-esc="co.phone"/></div>
+                </t>
+                <t t-if="co.email">
+                    <div><t t-esc="co.email"/></div>
+                </t>
+            </div>
+        </div>
+        <div class="receipt-meta-row">
+            <div class="receipt-invoice-no">
+                <strong>Invoice: </strong><t t-esc="receiptRef"/>
+            </div>
+            <div class="receipt-invoice-date">
+                <t t-esc="receiptDate"/>
+            </div>
+        </div>
+        <t t-set="partner" t-value="receiptPartner"/>
+        <t t-if="partner">
+            <div class="receipt-customer-block">
+                <div class="customer-name">
                     <t t-if="partner.parent_name"><span t-esc="partner.parent_name"/>, </t>
                     <span t-esc="partner.name"/>
                 </div>
-                <t t-if="partner.pos_contact_address"><div style="font-family: monospace; font-size: 10px;"><t t-esc="partner.pos_contact_address"/></div></t>
-                <t t-if="partner.phone"><div style="font-family: monospace; font-size: 10px;">Phone: <t t-esc="partner.phone"/></div></t>
+                <t t-if="partner.pos_contact_address">
+                    <div><t t-esc="partner.pos_contact_address"/></div>
+                </t>
+                <t t-if="partner.phone">
+                    <div>Phone: <t t-esc="partner.phone"/></div>
+                </t>
             </div>
         </t>
     </xpath>
 
-    <!-- ==================== CUSTOM TOTAL SECTION AND OTHERS ==================== -->
+    <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
+        <span class="label-discount">🎉 You Have Saved 🎉</span>
+    </xpath>
+
+    <xpath expr="//div[hasclass('receipt-total')]" position="replace"/>
+    <xpath expr="//div[hasclass('receipt-rounding')]" position="replace" optional="hide"/>
+    <xpath expr="//div[hasclass('receipt-to-pay')]" position="replace" optional="hide"/>
+    <xpath expr="//div[hasclass('paymentlines')]" position="replace"/>
+    <xpath expr="//div[hasclass('receipt-change')]" position="replace" optional="hide"/>
+    <xpath expr="//div[hasclass('pos-receipt-taxes')]" position="replace" optional="hide"/>
+    <xpath expr="//t[@t-set='company']" position="replace"/>
+    <xpath expr="//div[hasclass('pos-config-name')]/.." position="replace"/>
+    <xpath expr="//div[hasclass('pos-receipt-order-data')]" position="replace" optional="hide"/>
+    <xpath expr="//img[@id='posqrcode']" position="replace" optional="hide"/>
+
     <xpath expr="//div[@class='before-footer']" position="before">
 
         <div class="custom-total-section">
@@ -78,29 +93,21 @@
                 <span>Grand Total</span>
                 <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
             </div>
-            <div class="amount-words" style="font-family: monospace; font-size: 10px; font-style: italic;">
+            <div class="amount-words">
                 <t t-esc="order.getAmountInWords()"/>
             </div>
-            <t t-if="order.getTotalSaved()">
-                <div class="saved-line" style="font-family: monospace; font-size: 10px;">
-                    <span>🎉 You Have Saved 🎉</span>
-                    <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
-                </div>
-            </t>
+            <div class="saved-line">
+                <span>🎉 You Have Saved 🎉</span>
+                <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
+            </div>
         </div>
 
-
-
-
-        <!-- ==================== QR CODES ==================== -->
         <div class="receipt-qr-row">
             <div class="receipt-qr-cell">
-                <t t-if="receiptCompany and receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized and qrCode">
+                <t t-if="receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized">
                     <div class="qr-cell-label">Need an invoice?</div>
-                    <img t-att-src="posqrcode" class="qr-code" alt="Invoice QR"/>
-                    <t t-if="order.ticket_code">
-                        <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
-                    </t>
+                    <img t-att-src="qrCode" class="qr-code" alt="Invoice QR"/>
+                    <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
                 </t>
             </div>
             <div class="receipt-qr-cell">
@@ -112,19 +119,16 @@
                     <div class="upi-qr-image-container">
                         <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR Code"/>
                     </div>
-                    <t t-if="upiVpa">
-                        <div class="upi-qr-vpa"><t t-esc="upiVpa"/></div>
-                    </t>
+                    <div class="upi-qr-vpa"><t t-esc="upiVpa"/></div>
                     <div class="upi-qr-apps">GPay · PhonePe · Paytm · BHIM</div>
                 </t>
             </div>
         </div>
 
-        <!-- ==================== GST BREAKDOWN ==================== -->
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines and gstLines.length">
             <div class="gst-table-wrapper">
-                <table class="gst-breakdown-table" style="font-family: monospace; font-size: 10px;">
+                <table class="gst-breakdown-table">
                     <thead>
                         <tr>
                             <th>GST Rate</th>
@@ -155,126 +159,20 @@
             </div>
         </t>
 
-        <!-- ==================== LOYALTY POINTS ==================== -->
         <t t-if="order.loyalty_points">
-            <div class="loyalty-points-block" style="font-family: monospace; font-size: 10px; font-weight: bold;">
+            <div class="loyalty-points-block">
                 <span>🏆 Loyalty Points Earned:</span>
                 <span><t t-esc="order.loyalty_points"/></span>
             </div>
         </t>
 
-        <!-- ==================== FOOTER ==================== -->
-        <div class="receipt-footer-row" style="font-family: monospace; font-size: 9px; margin-top: 6px;">
-            <div>Served by: <t t-esc="receiptCashier or ''"/></div>
-            <div><t t-esc="receiptDate or ''"/></div>
+        <div class="receipt-footer-row">
+            <div>Served by: <t t-esc="receiptCashier"/></div>
+            <div><t t-esc="receiptDate"/></div>
         </div>
 
     </xpath>
 
 </t>
+
 </templates>
-
-
-
-<!--<?xml version="1.0" encoding="UTF-8"?>-->
-<!--<templates xml:space="preserve">-->
-
-<!--<t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">-->
-
-<!--    &lt;!&ndash; Remove default total &ndash;&gt;-->
-<!--    <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>-->
-
-<!--    &lt;!&ndash; Remove payment lines &ndash;&gt;-->
-<!--    <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>-->
-
-<!--    &lt;!&ndash; Rename discount &ndash;&gt;-->
-<!--    <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">-->
-<!--        <span class="label-discount">🎉 You Have Saved 🎉</span>-->
-<!--    </xpath>-->
-
-<!--    &lt;!&ndash; Replace before-footer BUT keep class name &ndash;&gt;-->
-<!--    <xpath expr="//div[@class='before-footer']" position="replace">-->
-
-<!--        &lt;!&ndash; ⚠️ IMPORTANT: keep same class so other modules can hook &ndash;&gt;-->
-<!--        <div class="before-footer">-->
-
-<!--            &lt;!&ndash; ================= GST TABLE ================= &ndash;&gt;-->
-
-<!--            <t t-set="gstLines" t-value="order.getGstBreakdown()"/>-->
-<!--            <t t-if="gstLines and gstLines.length">-->
-
-<!--                <table style="width:100%; font-size:10px;">-->
-<!--                    <thead>-->
-<!--                        <tr>-->
-<!--                            <th style="text-align:left;">GST Rate</th>-->
-<!--                            <th style="text-align:right;">Taxable</th>-->
-<!--                            <th style="text-align:right;">CGST</th>-->
-<!--                            <th style="text-align:right;">SGST</th>-->
-<!--                        </tr>-->
-<!--                    </thead>-->
-<!--                    <tbody>-->
-<!--                        <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">-->
-<!--                            <tr>-->
-<!--                                <td><t t-esc="gline.label"/></td>-->
-<!--                                <td style="text-align:right;">-->
-<!--                                    <t t-esc="formatCurrency(gline.taxable)"/>-->
-<!--                                </td>-->
-<!--                                <td style="text-align:right;">-->
-<!--                                    <t t-esc="formatCurrency(gline.cgst)"/>-->
-<!--                                </td>-->
-<!--                                <td style="text-align:right;">-->
-<!--                                    <t t-esc="formatCurrency(gline.sgst)"/>-->
-<!--                                </td>-->
-<!--                            </tr>-->
-<!--                        </t>-->
-<!--                    </tbody>-->
-<!--                </table>-->
-
-<!--            </t>-->
-
-<!--            &lt;!&ndash; ================= CUSTOM TOTAL ================= &ndash;&gt;-->
-
-<!--            <div style="margin-top:6px; font-size:11px;">-->
-
-<!--                <div style="display:flex; justify-content:space-between;">-->
-<!--                    <span>Before Grand Total</span>-->
-<!--                    <span><t t-esc="formatCurrency(order.getBeforeGrandTotal())"/></span>-->
-<!--                </div>-->
-
-<!--                <div style="display:flex; justify-content:space-between;">-->
-<!--                    <span>Taxable Total</span>-->
-<!--                    <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>-->
-<!--                </div>-->
-
-<!--                <div style="display:flex; justify-content:space-between;">-->
-<!--                    <span>CGST</span>-->
-<!--                    <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>-->
-<!--                </div>-->
-
-<!--                <div style="display:flex; justify-content:space-between;">-->
-<!--                    <span>SGST</span>-->
-<!--                    <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>-->
-<!--                </div>-->
-
-<!--                <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dashed #000; margin-top:4px;">-->
-<!--                    <span>Grand Total</span>-->
-<!--                    <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>-->
-<!--                </div>-->
-
-<!--                <div style="margin-top:4px; font-size:10px;">-->
-<!--                    <t t-esc="order.getAmountInWords()"/>-->
-<!--                </div>-->
-
-<!--                <div style="display:flex; justify-content:space-between; margin-top:4px;">-->
-<!--                    <span>🎉 You Have Saved 🎉</span>-->
-<!--                    <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>-->
-<!--                </div>-->
-
-<!--            </div>-->
-
-<!--        </div>-->
-
-<!--    </xpath>-->
-
-<!--</t>-->
-<!--</templates>-->

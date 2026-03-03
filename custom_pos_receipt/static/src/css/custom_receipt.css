@@ -35,16 +35,23 @@
     font-size: 11px;
 }
 
-.receipt-invoice-no {
-    font-family: monospace;
+/* ===================================================== */
+/* INVOICE META: Invoice No (left) + Date (right)        */
+/* ===================================================== */
+
+.receipt-meta-row {
+    display: flex;
+    justify-content: space-between;
     font-size: 10px;
-    margin-top: 6px;
+    font-family: monospace;
+    margin: 4px 0;
+}
+
+.receipt-invoice-no {
+    text-align: left;
 }
 
 .receipt-invoice-date {
-    font-family: monospace;
-    font-size: 10px;
-    margin-top: 20px;
     text-align: right;
 }
 
