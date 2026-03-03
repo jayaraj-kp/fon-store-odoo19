@@ -10,14 +10,24 @@
                 <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
             </div>
             <div class="receipt-company-cell">
-                <div class="company-name"><t t-esc="co.name || ''"/></div>
-                <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
+                <t t-if="co.name">
+                    <div class="company-name"><t t-esc="co.name"/></div>
+                </t>
+                <t t-if="co.street">
+                    <div><t t-esc="co.street"/></div>
+                </t>
                 <t t-if="co.city">
                     <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
                 </t>
-                <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
-                <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
-                <t t-if="co.email"><div><t t-esc="co.email"/></div></t>
+                <t t-if="co.vat">
+                    <div>GSTIN: <t t-esc="co.vat"/></div>
+                </t>
+                <t t-if="co.phone">
+                    <div>Tel: <t t-esc="co.phone"/></div>
+                </t>
+                <t t-if="co.email">
+                    <div><t t-esc="co.email"/></div>
+                </t>
             </div>
         </div>
         <div class="receipt-meta-row">
@@ -38,7 +48,9 @@
                 <t t-if="partner.pos_contact_address">
                     <div><t t-esc="partner.pos_contact_address"/></div>
                 </t>
-                <t t-if="partner.phone"><div>Phone: <t t-esc="partner.phone"/></div></t>
+                <t t-if="partner.phone">
+                    <div>Phone: <t t-esc="partner.phone"/></div>
+                </t>
             </div>
         </t>
     </xpath>
