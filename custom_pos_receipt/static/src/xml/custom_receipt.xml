@@ -116,7 +116,7 @@
                     </t>
                 </t>
             </div>
-            <div class="receipt-qr-cell">
+            <div class="receipt-qr-cell" style="padding-bottom:30px;">
                 <t t-if="upiQrSrc">
                     <div class="qr-cell-label">
                         Scan &amp; Pay &#x20B9;
