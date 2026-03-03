@@ -1,137 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
+    <!-- ===================================================== -->
+    <!-- OVERRIDE SCREEN RECEIPT -->
+    <!-- ===================================================== -->
+
     <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-        <!-- ===================================================== -->
-        <!-- REMOVE DEFAULT TOTAL BLOCK (Subtotal / GST / Discount) -->
-        <!-- ===================================================== -->
-
         <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace">
-
-            <!-- ================= GST TABLE ================= -->
-
-            <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
-            <t t-if="gstLines and gstLines.length">
-
-                <div class="gst-table-wrapper">
-                    <table class="gst-breakdown-table">
-                        <thead>
-                            <tr>
-                                <th>GST Rate</th>
-                                <th class="text-right">Taxable</th>
-                                <th class="text-right">CGST</th>
-                                <th class="text-right">SGST</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">
-                                <tr>
-                                    <td><t t-esc="gline.label"/></td>
-                                    <td class="text-right">
-                                        <t t-esc="formatCurrency(gline.taxable)"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <t t-esc="formatCurrency(gline.cgst)"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <t t-esc="formatCurrency(gline.sgst)"/>
-                                    </td>
-                                </tr>
-                            </t>
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td><strong>Total</strong></td>
-                                <td class="text-right">
-                                    <strong>
-                                        <t t-esc="formatCurrency(order.getTotalTaxableAmount())"/>
-                                    </strong>
-                                </td>
-                                <td class="text-right">
-                                    <strong>
-                                        <t t-esc="formatCurrency(order.getTotalCgst())"/>
-                                    </strong>
-                                </td>
-                                <td class="text-right">
-                                    <strong>
-                                        <t t-esc="formatCurrency(order.getTotalSgst())"/>
-                                    </strong>
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-
-            </t>
-
-            <!-- ================= CUSTOM TOTAL SECTION ================= -->
-
             <div class="custom-total-section">
-
-                <div class="line">
-                    <span>Before Grand Total</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getBeforeGrandTotal())"/>
-                    </span>
-                </div>
-
-                <div class="line">
-                    <span>Taxable Total</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalTaxableAmount())"/>
-                    </span>
-                </div>
-
-                <div class="line">
-                    <span>CGST</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalCgst())"/>
-                    </span>
-                </div>
-
-                <div class="line">
-                    <span>SGST</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalSgst())"/>
-                    </span>
-                </div>
-
                 <div class="line total">
                     <span>Grand Total</span>
                     <span>
-                        <t t-esc="formatCurrency(order.getGrandTotal())"/>
+                        <t t-esc="formatCurrency(order.amount_total)"/>
                     </span>
                 </div>
-
-                <div class="amount-words">
-                    <t t-esc="order.getAmountInWords()"/>
-                </div>
-
-                <div class="saved-line">
-                    <span>You Have Saved</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalSaved())"/>
-                    </span>
-                </div>
-
             </div>
-
         </xpath>
 
-        <!-- ===================================================== -->
-        <!-- REMOVE PAYMENT LINES -->
-        <!-- ===================================================== -->
+    </t>
 
+
+    <!-- ===================================================== -->
+    <!-- OVERRIDE PRINT RECEIPT (IMPORTANT PART) -->
+    <!-- ===================================================== -->
+
+    <t t-inherit="point_of_sale.PosTicket" t-inherit-mode="extension">
+
+        <!-- Remove default totals -->
+        <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace">
+            <div class="custom-total-section">
+                <div class="line total">
+                    <span>Grand Total</span>
+                    <span>
+                        <t t-esc="formatCurrency(props.data.amount_total)"/>
+                    </span>
+                </div>
+            </div>
+        </xpath>
+
+        <!-- Remove payment lines -->
         <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
-
-        <!-- ===================================================== -->
-        <!-- RESIZE QR -->
-        <!-- ===================================================== -->
-
-        <xpath expr="//img[@id='posqrcode']" position="attributes">
-            <attribute name="style">width:90px;height:90px;</attribute>
-        </xpath>
 
     </t>
 
