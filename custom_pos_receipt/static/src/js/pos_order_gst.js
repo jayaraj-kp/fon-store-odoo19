@@ -3,11 +3,12 @@
 import { patch } from "@web/core/utils/patch";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 
-patch(PosOrder.prototype, 'custom_receipt_patch', {
+patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
 
+    // ================= GST BREAKDOWN =================
     getGstBreakdown() {
         const grouped = {};
-        const lines = this.orderlines.models || [];
+        const lines = this.orderlines?.models || [];
 
         for (const line of lines) {
             const lineTaxes = line.tax_ids || [];
@@ -37,8 +38,9 @@ patch(PosOrder.prototype, 'custom_receipt_patch', {
         return Object.values(grouped).sort((a, b) => a.rate - b.rate);
     },
 
+    // ================= TOTALS =================
     getTotalTaxableAmount() {
-        return (this.orderlines.models || []).reduce((sum, l) => sum + (l.price_subtotal || 0), 0);
+        return (this.orderlines?.models || []).reduce((sum, l) => sum + (l.price_subtotal || 0), 0);
     },
 
     getTotalCgst() {
@@ -59,7 +61,7 @@ patch(PosOrder.prototype, 'custom_receipt_patch', {
 
     getTotalSaved() {
         let totalSaved = 0;
-        for (const line of (this.orderlines.models || [])) {
+        for (const line of (this.orderlines?.models || [])) {
             const lineTotal = (line.price_unit || 0) * (line.qty || 0);
             const discountAmount = lineTotal * ((line.discount || 0) / 100);
             totalSaved += discountAmount;
@@ -67,6 +69,7 @@ patch(PosOrder.prototype, 'custom_receipt_patch', {
         return totalSaved;
     },
 
+    // ================= AMOUNT IN WORDS =================
     getAmountInWords() {
         const amount = Math.floor(this.getGrandTotal());
 
@@ -90,5 +93,4 @@ patch(PosOrder.prototype, 'custom_receipt_patch', {
 
         return convert(amount) + " Only";
     },
-
 });
