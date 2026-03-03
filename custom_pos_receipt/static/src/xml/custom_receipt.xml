@@ -1,22 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-<!--
-    Odoo 18/19 POS Receipt Customization
-    Confirmed working xpaths:
-    - pos-receipt-order-data  = the header block (company, date, customer)
-    - pos-receipt-amount      = the totals block (we remove it)
-    - paymentlines            = payment lines (we remove it)
-    - pos-receipt-order-data  position="after" = insert below header, above items
-    All items/orderlines are left untouched so l10n_in HSN xpath still works.
--->
-
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
     <!-- ============================================================ -->
-    <!-- 1. REPLACE ENTIRE HEADER BLOCK (pos-receipt-order-data)      -->
-    <!--    This contains: logo, company name, date, cashier,         -->
-    <!--    order number, customer info in Odoo 18/19                 -->
+    <!-- 1. REPLACE HEADER BLOCK                                      -->
     <!-- ============================================================ -->
     <xpath expr="//div[hasclass('pos-receipt-order-data')]" position="replace">
 
@@ -97,9 +85,7 @@
     <xpath expr="//div[hasclass('paymentlines')]" position="replace"/>
 
     <!-- ============================================================ -->
-    <!-- 4. INSERT CUSTOM SECTIONS after order-data block             -->
-    <!--    (after items/orderlines, before footer)                   -->
-    <!--    Target the before-footer div which is always present      -->
+    <!-- 4. INSERT CUSTOM SECTIONS before before-footer               -->
     <!-- ============================================================ -->
     <xpath expr="//div[@class='before-footer']" position="before">
 
@@ -153,7 +139,7 @@
                          id="posqrcode"
                          class="qr-code"
                          alt="Invoice QR"/>
-                    <t t-if="props.data.ticket_code">
+                    <t t-if="props.data and props.data.ticket_code">
                         <div class="qr-cell-code">Code: <t t-esc="props.data.ticket_code"/></div>
                     </t>
                 </t>
@@ -213,8 +199,8 @@
             </div>
         </t>
 
-        <!-- ── LOYALTY POINTS ── -->
-        <t t-if="props.data.loyalty_points">
+        <!-- ── LOYALTY POINTS — safe check, skip if not present ── -->
+        <t t-if="props.data and props.data.loyalty_points">
             <div class="loyalty-points-block">
                 <span>🏆 Loyalty Points Earned:</span>
                 <span><t t-esc="props.data.loyalty_points"/></span>
