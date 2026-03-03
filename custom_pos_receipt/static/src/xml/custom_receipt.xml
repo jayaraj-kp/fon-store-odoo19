@@ -117,7 +117,7 @@
                 <div class="qr-cell-code"><t t-esc="order.pos_reference"/></div>
             </div>
             <div class="receipt-qr-cell">
-                <div class="qr-cell-label">Scan & Pay</div>
+                <div class="qr-cell-label">Scan  Pay</div>
                 <img t-if="order.payment_qr_code" t-att-src="order.payment_qr_code" class="qr-code"/>
             </div>
         </div>
