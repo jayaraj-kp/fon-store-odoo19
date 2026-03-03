@@ -10,7 +10,7 @@
 
         <!-- CHANGE 2: Reduce QR Code size (via CSS is better, but can also set style here) -->
         <xpath expr="//img[@id='posqrcode']" position="attributes">
-            <attribute name="style">width:100px;height:100px;</attribute>
+            <attribute name="style">width:90px;height:90px;</attribute>
         </xpath>
 
         <!-- CHANGE 3: Add GST Table — placed before the footer divider -->
