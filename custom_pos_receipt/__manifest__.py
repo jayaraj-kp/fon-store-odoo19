@@ -9,7 +9,6 @@
         'point_of_sale._assets_pos': [
             'custom_pos_receipt/static/src/css/custom_receipt.css',
             'custom_pos_receipt/static/src/js/pos_order_gst.js',
-            'custom_pos_receipt/static/src/js/receipt_header_patch.js',
             'custom_pos_receipt/static/src/xml/custom_receipt.xml',
         ],
     },
