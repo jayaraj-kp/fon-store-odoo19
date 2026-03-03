@@ -1,7 +1,7 @@
 {
     'name': 'Custom POS Receipt',
     'version': '19.0.1.0.0',
-    'summary': 'Rename Discounts, Reduce QR size, Add GST Table',
+    'summary': 'Advanced POS Receipt with GST & Grand Total Section',
     'category': 'Point of Sale',
     'author': 'FON Store',
     'depends': ['point_of_sale'],
