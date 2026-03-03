@@ -1,12 +1,15 @@
 /** @odoo-module **/
-import { patch } from "@web/core/utils/patch";
-import { PosOrder } from "@point_of_sale/app/models/pos_order";
 
-patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
+import { PosOrder } from "@point_of_sale/app/models/pos_order";
+import { patch } from "@web/core/utils/patch";
+
+patch(PosOrder.prototype, {
+
+    /* ================= GST BREAKDOWN ================= */
 
     getGstBreakdown() {
         const grouped = {};
-        const lines = this.orderlines?.models || [];
+        const lines = this.lines || this.orderlines || [];
 
         for (const line of lines) {
             const lineTaxes = line.tax_ids || [];
@@ -18,7 +21,7 @@ patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
 
                 if (!grouped[key]) {
                     grouped[key] = {
-                        rate,
+                        rate: rate,
                         label: rate === 0 ? "GST Exempt" : `GST @ ${rate}%`,
                         taxable: 0,
                         cgst: 0,
@@ -33,11 +36,12 @@ patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
             }
         }
 
-        return Object.values(grouped).sort((a,b) => a.rate - b.rate);
+        return Object.values(grouped).sort((a, b) => a.rate - b.rate);
     },
 
     getTotalTaxableAmount() {
-        return (this.orderlines?.models || []).reduce((sum, l) => sum + (l.price_subtotal || 0), 0);
+        const lines = this.lines || this.orderlines || [];
+        return lines.reduce((sum, l) => sum + (l.price_subtotal || 0), 0);
     },
 
     getTotalCgst() {
@@ -48,6 +52,8 @@ patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
         return this.getGstBreakdown().reduce((sum, g) => sum + g.sgst, 0);
     },
 
+    /* ================= CUSTOM TOTAL SECTION ================= */
+
     getBeforeGrandTotal() {
         return this.getTotalTaxableAmount();
     },
@@ -57,25 +63,44 @@ patch(PosOrder.prototype, 'custom_pos_receipt_patch', {
     },
 
     getTotalSaved() {
-        return (this.orderlines?.models || []).reduce((totalSaved, line) => {
-            const lineTotal = (line.price_unit || 0) * (line.qty || 0);
-            return totalSaved + (lineTotal * ((line.discount || 0)/100));
-        }, 0);
+        const lines = this.lines || this.orderlines || [];
+        let totalSaved = 0;
+
+        for (const line of lines) {
+            const qty = line.qty || 0;
+            const unitPrice = line.price_unit || 0;
+            const discount = line.discount || 0;
+
+            const lineTotal = unitPrice * qty;
+            const discountAmount = lineTotal * (discount / 100);
+            totalSaved += discountAmount;
+        }
+
+        return totalSaved;
     },
+
+    /* ================= AMOUNT IN WORDS ================= */
 
     getAmountInWords() {
         const amount = Math.floor(this.getGrandTotal());
+
         const words = [
             "Zero","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
             "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen",
             "Eighteen","Nineteen"
         ];
-        const tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+
+        const tens = [
+            "","","Twenty","Thirty","Forty","Fifty",
+            "Sixty","Seventy","Eighty","Ninety"
+        ];
 
         function convert(n) {
             if (n < 20) return words[n];
-            if (n < 100) return tens[Math.floor(n/10)] + " " + words[n%10];
-            if (n < 1000) return words[Math.floor(n/100)] + " Hundred " + convert(n%100);
+            if (n < 100)
+                return tens[Math.floor(n/10)] + " " + words[n%10];
+            if (n < 1000)
+                return words[Math.floor(n/100)] + " Hundred " + convert(n%100);
             return n;
         }
 

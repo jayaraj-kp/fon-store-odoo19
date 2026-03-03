@@ -1,6 +1,11 @@
+/* ===================================================== */
+/* RECEIPT HEADER: Logo (left) + Company Details (right) */
+/* ===================================================== */
+
 .receipt-header-row {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 6px;
     border-bottom: 1px dashed #000;
     padding-bottom: 6px;
@@ -8,6 +13,7 @@
 
 .receipt-logo-cell {
     flex: 0 0 auto;
+    margin-right: 8px;
 }
 
 .receipt-company-logo {
@@ -24,59 +30,74 @@
     line-height: 1.4;
 }
 
-.receipt-company-cell div {
-    margin-bottom: 2px;
+.receipt-company-cell .company-name {
+    font-weight: bold;
+    font-size: 11px;
 }
 
-.receipt-meta-row, .receipt-customer-block, .custom-total-section,
-.gst-table-wrapper, .receipt-qr-row, .loyalty-points-block,
-.receipt-footer-row {
+.receipt-invoice-no {
     font-family: monospace;
     font-size: 10px;
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
-.receipt-meta-row {
-    display: flex;
-    justify-content: space-between;
+.receipt-invoice-date {
+    font-family: monospace;
+    font-size: 10px;
+    margin-top: 20px;
+    text-align: right;
 }
+
+/* ===================================================== */
+/* CUSTOMER DETAILS BLOCK                                */
+/* ===================================================== */
 
 .receipt-customer-block {
+    font-size: 10px;
+    font-family: monospace;
+    margin-bottom: 6px;
     border-bottom: 1px dashed #000;
     padding-bottom: 4px;
+    line-height: 1.4;
 }
 
-.custom-total-section .line {
-    display: flex;
-    justify-content: space-between;
-}
-
-.custom-total-section .total {
+.receipt-customer-block .customer-name {
     font-weight: bold;
-    border-top: 1px solid #000;
-    margin-top: 2px;
-    padding-top: 2px;
+}
+
+/* ===================================================== */
+/* GST TABLE                                             */
+/* ===================================================== */
+
+.gst-table-wrapper {
+    margin: 8px 0;
+    border-top: 1px dashed #000;
+    padding-top: 6px;
 }
 
 .gst-breakdown-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 10px;
+    font-family: monospace;
 }
 
 .gst-breakdown-table th {
     background: #000;
     color: #fff;
     padding: 3px 4px;
+    font-size: 10px;
+}
+
+.gst-breakdown-table th.text-right,
+.gst-breakdown-table td.text-right {
+    text-align: right;
 }
 
 .gst-breakdown-table td {
     padding: 2px 4px;
     border-bottom: 1px dotted #ccc;
-}
-
-.gst-breakdown-table td.text-right {
-    text-align: right;
+    font-size: 10px;
 }
 
 .gst-breakdown-table tfoot td {
@@ -84,34 +105,162 @@
     font-weight: bold;
 }
 
+/* ===================================================== */
+/* CUSTOM TOTAL SECTION                                  */
+/* ===================================================== */
+
+.custom-total-section {
+    margin-top: 8px;
+    border-top: 1px dashed #000;
+    padding-top: 6px;
+    font-size: 11px;
+    font-family: monospace;
+}
+
+.custom-total-section .line,
+.saved-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.custom-total-section .total {
+    font-weight: bold;
+    border-top: 1px solid #000;
+    padding-top: 3px;
+    margin-top: 2px;
+}
+
+.amount-words {
+    margin-top: 4px;
+    font-style: italic;
+    font-size: 10px;
+}
+
+/* ===================================================== */
+/* QR ROW: Invoice QR (left) + UPI QR (right)            */
+/* ===================================================== */
+
 .receipt-qr-row {
     display: flex;
     justify-content: space-between;
-    margin-top: 8px;
+    align-items: flex-start;
+    margin: 10px 0;
+    border-top: 1px dashed #000;
+    padding-top: 8px;
+    gap: 8px;
 }
 
 .receipt-qr-cell {
     flex: 1;
     text-align: center;
+    font-size: 9px;
+    font-family: monospace;
 }
 
-.upi-qr-image-container {
+.receipt-qr-cell .qr-cell-label {
+    font-weight: bold;
+    font-size: 9px;
+    margin-bottom: 4px;
+}
+
+.receipt-qr-cell .qr-cell-code {
+    margin-top: 3px;
+    font-size: 9px;
+}
+
+/* ── Invoice QR size ── */
+.receipt-qr-cell img.qr-code,
+.receipt-qr-cell #posqrcode {
+    width: 90px !important;
+    height: 90px !important;
+    display: block;
+    margin: 0 auto;
+}
+
+/* ── UPI QR ── */
+.receipt-qr-cell .upi-qr-image-container {
     display: inline-block;
     border: 2px solid #5f259f;
     border-radius: 4px;
     padding: 3px;
+    margin: 2px auto;
 }
 
-.upi-logo-text {
+.receipt-qr-cell .upi-qr-image {
+    width: 90px !important;
+    height: 90px !important;
+    display: block;
+}
+
+.receipt-qr-cell .upi-logo-text {
     background-color: #5f259f;
     color: #fff;
     font-weight: 700;
     font-size: 9px;
     padding: 1px 4px;
     border-radius: 3px;
+    margin-right: 3px;
 }
 
-.loyalty-points-block, .receipt-footer-row {
+.receipt-qr-cell .upi-qr-vpa {
+    font-size: 9px;
+    font-weight: 600;
+    margin-top: 2px;
+    word-break: break-all;
+}
+
+.receipt-qr-cell .upi-qr-apps {
+    font-size: 8px;
+    color: #666;
+    margin-top: 2px;
+}
+
+/* ===================================================== */
+/* LOYALTY POINTS                                        */
+/* ===================================================== */
+
+.loyalty-points-block {
     display: flex;
     justify-content: space-between;
+    margin: 6px 0;
+    font-size: 10px;
+    font-family: monospace;
+    border-top: 1px dashed #000;
+    padding-top: 4px;
+    font-weight: bold;
+}
+
+/* ===================================================== */
+/* FOOTER: Served By (left) + Date (right)               */
+/* ===================================================== */
+
+.receipt-footer-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    font-family: monospace;
+    border-top: 1px dashed #000;
+    padding-top: 4px;
+    margin-top: 6px;
+}
+
+/* ===================================================== */
+/* PRINT SAFETY                                          */
+/* ===================================================== */
+
+@media print {
+    .receipt-qr-row {
+        page-break-inside: avoid;
+    }
+
+    .upi-logo-text {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .gst-breakdown-table th {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
