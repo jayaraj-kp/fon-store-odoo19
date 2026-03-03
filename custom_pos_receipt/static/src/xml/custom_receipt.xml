@@ -3,29 +3,29 @@
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-    <!-- ================= REMOVE DEFAULT TOTAL BLOCK ================= -->
+    <!-- Remove default total -->
     <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>
 
-    <!-- ================= REMOVE DEFAULT PAYMENT LINES ================= -->
+    <!-- Remove payment lines -->
     <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
-    <!-- ================= RENAME DISCOUNT LABEL ================= -->
+    <!-- Rename discount -->
     <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
         <span class="label-discount">🎉 You Have Saved 🎉</span>
     </xpath>
 
-    <!-- ================= MAIN CUSTOM RECEIPT BLOCK ================= -->
-    <!-- IMPORTANT: We replace before-footer ONLY ONCE -->
-
+    <!-- Replace before-footer BUT keep class name -->
     <xpath expr="//div[@class='before-footer']" position="replace">
 
-        <!-- ================= GST BREAKDOWN TABLE ================= -->
+        <!-- ⚠️ IMPORTANT: keep same class so other modules can hook -->
+        <div class="before-footer">
 
-        <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
-        <t t-if="gstLines and gstLines.length">
+            <!-- ================= GST TABLE ================= -->
 
-            <div class="gst-table-wrapper" style="margin-top:6px;">
-                <table class="gst-breakdown-table" style="width:100%; font-size:10px; border-collapse:collapse;">
+            <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
+            <t t-if="gstLines and gstLines.length">
+
+                <table style="width:100%; font-size:10px;">
                     <thead>
                         <tr>
                             <th style="text-align:left;">GST Rate</th>
@@ -50,113 +50,48 @@
                             </tr>
                         </t>
                     </tbody>
-                    <tfoot>
-                        <tr>
-                            <td><strong>Total</strong></td>
-                            <td style="text-align:right;">
-                                <strong>
-                                    <t t-esc="formatCurrency(order.getTotalTaxableAmount())"/>
-                                </strong>
-                            </td>
-                            <td style="text-align:right;">
-                                <strong>
-                                    <t t-esc="formatCurrency(order.getTotalCgst())"/>
-                                </strong>
-                            </td>
-                            <td style="text-align:right;">
-                                <strong>
-                                    <t t-esc="formatCurrency(order.getTotalSgst())"/>
-                                </strong>
-                            </td>
-                        </tr>
-                    </tfoot>
                 </table>
-            </div>
 
-        </t>
+            </t>
 
-        <!-- ================= CUSTOM TOTAL SECTION ================= -->
+            <!-- ================= CUSTOM TOTAL ================= -->
 
-        <div class="custom-total-section" style="margin-top:8px; font-size:11px;">
+            <div style="margin-top:6px; font-size:11px;">
 
-            <div style="display:flex; justify-content:space-between;">
-                <span>Before Grand Total</span>
-                <span>
-                    <t t-esc="formatCurrency(order.getBeforeGrandTotal())"/>
-                </span>
-            </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span>Before Grand Total</span>
+                    <span><t t-esc="formatCurrency(order.getBeforeGrandTotal())"/></span>
+                </div>
 
-            <div style="display:flex; justify-content:space-between;">
-                <span>Taxable Total</span>
-                <span>
-                    <t t-esc="formatCurrency(order.getTotalTaxableAmount())"/>
-                </span>
-            </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span>Taxable Total</span>
+                    <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>
+                </div>
 
-            <div style="display:flex; justify-content:space-between;">
-                <span>CGST</span>
-                <span>
-                    <t t-esc="formatCurrency(order.getTotalCgst())"/>
-                </span>
-            </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span>CGST</span>
+                    <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>
+                </div>
 
-            <div style="display:flex; justify-content:space-between;">
-                <span>SGST</span>
-                <span>
-                    <t t-esc="formatCurrency(order.getTotalSgst())"/>
-                </span>
-            </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span>SGST</span>
+                    <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>
+                </div>
 
-            <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dashed #000; margin-top:4px; padding-top:4px;">
-                <span>Grand Total</span>
-                <span>
-                    <t t-esc="formatCurrency(order.getGrandTotal())"/>
-                </span>
-            </div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dashed #000; margin-top:4px;">
+                    <span>Grand Total</span>
+                    <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
+                </div>
 
-            <div style="margin-top:4px; font-size:10px;">
-                <t t-esc="order.getAmountInWords()"/>
-            </div>
+                <div style="margin-top:4px; font-size:10px;">
+                    <t t-esc="order.getAmountInWords()"/>
+                </div>
 
-            <div style="display:flex; justify-content:space-between; margin-top:4px;">
-                <span>🎉 You Have Saved 🎉</span>
-                <span>
-                    <t t-esc="formatCurrency(order.getTotalSaved())"/>
-                </span>
-            </div>
+                <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                    <span>🎉 You Have Saved 🎉</span>
+                    <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
+                </div>
 
-        </div>
-
-        <!-- ================= QR SECTION ================= -->
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0; border-top:1px dashed #000; padding-top:6px;">
-
-            <!-- LEFT: Invoice QR -->
-            <div style="text-align:center; flex:1;">
-                <t t-if="receipt.useCustomerFacing">
-                    <div style="font-size:9px; font-weight:bold;">
-                        Need an invoice?
-                    </div>
-                    <img t-att-src="receipt.qr_code_data"
-                         style="width:80px;height:80px;"/>
-                    <div style="font-size:9px;">
-                        Code: <t t-esc="receipt.ticket_code"/>
-                    </div>
-                </t>
-            </div>
-
-            <!-- RIGHT: UPI QR -->
-            <div style="text-align:center; flex:1;">
-                <t t-if="receipt.upi_qr_code">
-                    <div style="font-size:9px; font-weight:bold;">
-                        UPI Scan &amp; Pay
-                    </div>
-                    <img t-att-src="receipt.upi_qr_code"
-                         style="width:80px;height:80px; border:2px solid #6B3FA0;"/>
-                    <div style="font-size:9px;">
-                        <t t-esc="receipt.upi_id"/>
-                    </div>
-                </t>
             </div>
 
         </div>
