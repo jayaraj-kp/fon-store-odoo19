@@ -1,0 +1,99 @@
+/* ============================================================
+   POS UPI QR Code Receipt Styles
+   custom_pos_upi_qr/static/src/css/upi_qr.css
+   ============================================================ */
+
+.upi-qr-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin: 8px 0;
+    font-family: inherit;
+}
+
+/* Dashed divider line */
+.upi-qr-divider {
+    width: 100%;
+    border-top: 1px dashed #aaa;
+    margin: 6px 0;
+}
+
+/* Header: "UPI" badge + instruction */
+.upi-qr-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 6px 0;
+}
+
+/* Bold coloured "UPI" badge */
+.upi-logo-text {
+    background-color: #5f259f;   /* UPI purple */
+    color: #fff;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+}
+
+.upi-qr-instruction {
+    font-size: 13px;
+    font-weight: 600;
+    color: #222;
+}
+
+/* QR image container */
+.upi-qr-image-container {
+    background: #fff;
+    border: 2px solid #5f259f;
+    border-radius: 6px;
+    padding: 4px;
+    margin: 4px 0;
+    line-height: 0;
+}
+
+.upi-qr-image {
+    width: 140px;
+    height: 140px;
+    display: block;
+}
+
+/* UPI VPA / ID label */
+.upi-qr-vpa {
+    font-size: 11px;
+    font-weight: 600;
+    color: #333;
+    margin-top: 4px;
+    word-break: break-all;
+    text-align: center;
+}
+
+/* Accepted apps line */
+.upi-qr-apps {
+    font-size: 9px;
+    color: #888;
+    text-align: center;
+    margin-top: 2px;
+    margin-bottom: 4px;
+}
+
+/* ── Print tweaks ─────────────────────────────────────── */
+@media print {
+    .upi-qr-wrapper {
+        page-break-inside: avoid;
+    }
+
+    .upi-qr-image {
+        width: 130px;
+        height: 130px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .upi-logo-text {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

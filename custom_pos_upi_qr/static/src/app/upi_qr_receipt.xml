@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+
+    <!--
+        Extend the standard POS receipt template to inject a UPI QR code block.
+        The block is rendered only when:
+          - upi_qr_on_receipt is True in POS config, AND
+          - upi_vpa is set in POS config
+        Both conditions are checked via the `upiQrSrc` getter on the component.
+
+        Position: added at the end of .pos-receipt, just before the
+        existing "Need an invoice?" block (which is controlled by props.qrCode).
+    -->
+    <t t-name="custom_pos_upi_qr.UpiQrBlock"
+       t-inherit="point_of_sale.OrderReceipt"
+       t-inherit-mode="extension">
+
+        <xpath expr="//div[hasclass('pos-receipt')]" position="inside">
+
+            <t t-if="upiQrSrc">
+                <div class="upi-qr-wrapper">
+
+                    <!-- Dashed separator line -->
+                    <div class="upi-qr-divider"/>
+
+                    <!-- Header row: UPI logo text + instruction -->
+                    <div class="upi-qr-header">
+                        <span class="upi-logo-text">UPI</span>
+                        <span class="upi-qr-instruction">Scan &amp; Pay ₹<t t-esc="upiAmount"/></span>
+                    </div>
+
+                    <!-- QR image fetched from our Odoo controller -->
+                    <div class="upi-qr-image-container">
+                        <img
+                            t-att-src="upiQrSrc"
+                            class="upi-qr-image"
+                            alt="UPI QR Code"
+                        />
+                    </div>
+
+                    <!-- UPI ID label below QR -->
+                    <div class="upi-qr-vpa">
+                        <t t-esc="upiVpa"/>
+                    </div>
+
+                    <!-- Accepted apps note -->
+                    <div class="upi-qr-apps">
+                        GPay · PhonePe · Paytm · BHIM &amp; all UPI apps
+                    </div>
+
+                    <div class="upi-qr-divider"/>
+
+                </div>
+            </t>
+
+        </xpath>
+    </t>
+
+</templates>

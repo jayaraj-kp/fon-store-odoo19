@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_pos_config_form_upi_qr" model="ir.ui.view">
+        <field name="name">pos.config.form.upi.qr</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Inject UPI QR section inside Bills &amp; Receipts tab -->
+            <xpath expr="//div[@id='bills_and_receipts']" position="inside">
+                <div class="o_setting_box">
+                    <div class="o_setting_left_pane">
+                        <field name="upi_qr_on_receipt"/>
+                    </div>
+                    <div class="o_setting_right_pane">
+                        <label for="upi_qr_on_receipt"/>
+                        <div class="text-muted">
+                            Print a dynamic UPI QR code on each receipt —
+                            customers scan with GPay, PhonePe, Paytm etc.
+                            and the exact amount is pre-filled.
+                        </div>
+                        <div class="content-group mt8" attrs="{'invisible': [('upi_qr_on_receipt', '=', False)]}">
+                            <div class="row mt8">
+                                <label for="upi_vpa" class="col-lg-4 o_light_label"/>
+                                <field name="upi_vpa"
+                                       class="col-lg-8"
+                                       placeholder="e.g. yourstore@paytm or 9876543210@ybl"/>
+                            </div>
+                            <div class="row mt4">
+                                <label for="upi_merchant_name" class="col-lg-4 o_light_label"/>
+                                <field name="upi_merchant_name"
+                                       class="col-lg-8"
+                                       placeholder="Name shown on customer's UPI app"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
