@@ -3,68 +3,106 @@
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-    <!-- ================= REMOVE DEFAULT TOTAL BLOCK ================= -->
+    <!-- ============================================================ -->
+    <!-- 1. REMOVE DEFAULT LOGO (we reposition it manually)           -->
+    <!-- ============================================================ -->
+    <xpath expr="//div[hasclass('pos-receipt-logo')]" position="replace"/>
 
-    <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>
+    <!-- ============================================================ -->
+    <!-- 2. REMOVE DEFAULT HEADER CONTACT BLOCK (we rebuild it)       -->
+    <!-- ============================================================ -->
+    <xpath expr="//div[hasclass('pos-receipt-contact')]" position="replace">
 
-    <!-- Remove default payment lines (SAFE) -->
-    <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
+        <!-- ── ROW 1: Logo (left) + Company Details (right) ── -->
+        <div class="receipt-header-row">
+            <div class="receipt-logo-cell">
+                <img t-if="receipt.company.logo"
+                     t-att-src="receipt.company.logo"
+                     class="receipt-company-logo"
+                     alt="Logo"/>
+            </div>
+            <div class="receipt-company-cell">
+                <div class="company-name"><t t-esc="receipt.company.name"/></div>
+                <t t-if="receipt.company.street">
+                    <div><t t-esc="receipt.company.street"/></div>
+                </t>
+                <t t-if="receipt.company.city">
+                    <div>
+                        <t t-esc="receipt.company.city"/>
+                        <t t-if="receipt.company.zip">, <t t-esc="receipt.company.zip"/></t>
+                    </div>
+                </t>
+                <t t-if="receipt.company.country">
+                    <div><t t-esc="receipt.company.country"/></div>
+                </t>
+                <t t-if="receipt.company.vat">
+                    <div>GSTIN: <t t-esc="receipt.company.vat"/></div>
+                </t>
+                <t t-if="receipt.company.phone">
+                    <div>Tel: <t t-esc="receipt.company.phone"/></div>
+                </t>
+                <t t-if="receipt.company.email">
+                    <div><t t-esc="receipt.company.email"/></div>
+                </t>
+            </div>
+        </div>
 
-    <!-- ================= RENAME DISCOUNT ================= -->
+        <!-- ── ROW 2: Invoice No (left) + Invoice Date (right) ── -->
+        <div class="receipt-meta-row">
+            <div class="receipt-invoice-no">
+                <strong>Invoice: </strong><t t-esc="receipt.name"/>
+            </div>
+            <div class="receipt-invoice-date">
+                <t t-esc="receipt.date"/>
+            </div>
+        </div>
 
+        <!-- ── ROW 3: Customer Details (left-aligned) ── -->
+        <t t-if="receipt.partner">
+            <div class="receipt-customer-block">
+                <div class="customer-name"><t t-esc="receipt.partner.name"/></div>
+                <t t-if="receipt.partner.street">
+                    <div><t t-esc="receipt.partner.street"/></div>
+                </t>
+                <t t-if="receipt.partner.city">
+                    <div>
+                        <t t-esc="receipt.partner.city"/>
+                        <t t-if="receipt.partner.zip"> <t t-esc="receipt.partner.zip"/></t>
+                    </div>
+                </t>
+                <t t-if="receipt.partner.phone">
+                    <div>Phone: <t t-esc="receipt.partner.phone"/></div>
+                </t>
+            </div>
+        </t>
+
+    </xpath>
+
+    <!-- ============================================================ -->
+    <!-- 3. RENAME DISCOUNT LABEL                                     -->
+    <!-- ============================================================ -->
     <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
         <span class="label-discount">🎉 You Have Saved 🎉</span>
     </xpath>
 
-    <!-- ================= QR Resize ================= -->
+    <!-- ============================================================ -->
+    <!-- 4. REMOVE DEFAULT TOTAL + PAYMENT BLOCKS                     -->
+    <!-- ============================================================ -->
+    <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>
+    <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
-    <xpath expr="//img[@id='posqrcode']" position="attributes">
-        <attribute name="style">width:90px;height:90px;</attribute>
-    </xpath>
+    <!-- ============================================================ -->
+    <!-- 5. REMOVE DEFAULT UPI QR (we reposition it manually)         -->
+    <!--    The UPI module appends .upi-qr-wrapper inside pos-receipt -->
+    <!--    We override that block via the after-footer area below     -->
+    <!-- ============================================================ -->
 
-    <!-- ================= INSERT CUSTOM BLOCK ================= -->
+    <!-- ============================================================ -->
+    <!-- 6. INSERT CUSTOM SECTIONS before before-footer               -->
+    <!-- ============================================================ -->
+    <xpath expr="//div[@class='before-footer']" position="replace">
 
-    <xpath expr="//div[@class='before-footer']" position="before">
-
-        <!-- GST TABLE -->
-        <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
-        <t t-if="gstLines and gstLines.length">
-
-            <div class="gst-table-wrapper">
-                <table class="gst-breakdown-table">
-                    <thead>
-                        <tr>
-                            <th>GST Rate</th>
-                            <th class="text-right">Taxable</th>
-                            <th class="text-right">CGST</th>
-                            <th class="text-right">SGST</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">
-                            <tr>
-                                <td><t t-esc="gline.label"/></td>
-                                <td class="text-right"><t t-esc="formatCurrency(gline.taxable)"/></td>
-                                <td class="text-right"><t t-esc="formatCurrency(gline.cgst)"/></td>
-                                <td class="text-right"><t t-esc="formatCurrency(gline.sgst)"/></td>
-                            </tr>
-                        </t>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td><strong>Total</strong></td>
-                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></strong></td>
-                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalCgst())"/></strong></td>
-                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalSgst())"/></strong></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-        </t>
-
-        <!-- CUSTOM TOTAL SECTION -->
-
+        <!-- ── CUSTOM TOTAL SECTION ── -->
         <div class="custom-total-section">
 
             <div class="line">
@@ -97,14 +135,222 @@
             </div>
 
             <div class="saved-line">
-                <span> 🎉 You Have Saved 🎉</span>
+                <span>🎉 You Have Saved 🎉</span>
                 <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
             </div>
 
         </div>
 
+        <!-- ── ROW: Need Invoice QR (left) + UPI Payment QR (right) ── -->
+        <div class="receipt-qr-row">
+
+            <!-- LEFT: Need an Invoice QR -->
+            <div class="receipt-qr-cell">
+                <t t-if="props.qrCode">
+                    <div class="qr-cell-label">Need an invoice?</div>
+                    <img t-att-src="props.qrCode"
+                         id="posqrcode"
+                         class="qr-code"
+                         style="width:90px;height:90px;"
+                         alt="Invoice QR"/>
+                    <t t-if="receipt.ticket_code">
+                        <div class="qr-cell-code">Code: <t t-esc="receipt.ticket_code"/></div>
+                    </t>
+                </t>
+            </div>
+
+            <!-- RIGHT: UPI Payment QR -->
+            <div class="receipt-qr-cell">
+                <t t-if="upiQrSrc">
+                    <div class="qr-cell-label">
+                        <span class="upi-logo-text">UPI</span>
+                        Scan &amp; Pay ₹<t t-esc="upiAmount"/>
+                    </div>
+                    <div class="upi-qr-image-container">
+                        <img t-att-src="upiQrSrc"
+                             class="upi-qr-image"
+                             style="width:90px;height:90px;"
+                             alt="UPI QR Code"/>
+                    </div>
+                    <div class="upi-qr-vpa"><t t-esc="upiVpa"/></div>
+                    <div class="upi-qr-apps">GPay · PhonePe · Paytm · BHIM</div>
+                </t>
+            </div>
+
+        </div>
+
+        <!-- ── GST TABLE ── -->
+        <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
+        <t t-if="gstLines and gstLines.length">
+            <div class="gst-table-wrapper">
+                <table class="gst-breakdown-table">
+                    <thead>
+                        <tr>
+                            <th>GST Rate</th>
+                            <th class="text-right">Taxable</th>
+                            <th class="text-right">CGST</th>
+                            <th class="text-right">SGST</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">
+                            <tr>
+                                <td><t t-esc="gline.label"/></td>
+                                <td class="text-right"><t t-esc="formatCurrency(gline.taxable)"/></td>
+                                <td class="text-right"><t t-esc="formatCurrency(gline.cgst)"/></td>
+                                <td class="text-right"><t t-esc="formatCurrency(gline.sgst)"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td><strong>Total</strong></td>
+                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></strong></td>
+                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalCgst())"/></strong></td>
+                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalSgst())"/></strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </t>
+
+        <!-- ── LOYALTY POINTS (shown if present on order) ── -->
+        <t t-if="receipt.loyalty_points">
+            <div class="loyalty-points-block">
+                <span>🏆 Loyalty Points Earned:</span>
+                <span><t t-esc="receipt.loyalty_points"/></span>
+            </div>
+        </t>
+
+    </xpath>
+
+    <!-- ============================================================ -->
+    <!-- 7. FOOTER: Served By (left) + Date (right)                   -->
+    <!-- ============================================================ -->
+    <xpath expr="//div[@class='after-footer']" position="after">
+        <div class="receipt-footer-row">
+            <div>
+                Served by: <t t-esc="receipt.cashier"/>
+            </div>
+            <div>
+                <t t-esc="receipt.date"/>
+            </div>
+        </div>
     </xpath>
 
 </t>
 
 </templates>
+
+
+
+<!--<?xml version="1.0" encoding="UTF-8"?>-->
+<!--<templates xml:space="preserve">-->
+
+<!--<t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">-->
+
+<!--    &lt;!&ndash; ================= REMOVE DEFAULT TOTAL BLOCK ================= &ndash;&gt;-->
+
+<!--    <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>-->
+
+<!--    &lt;!&ndash; Remove default payment lines (SAFE) &ndash;&gt;-->
+<!--    <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>-->
+
+<!--    &lt;!&ndash; ================= RENAME DISCOUNT ================= &ndash;&gt;-->
+
+<!--    <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">-->
+<!--        <span class="label-discount">🎉 You Have Saved 🎉</span>-->
+<!--    </xpath>-->
+
+<!--    &lt;!&ndash; ================= QR Resize ================= &ndash;&gt;-->
+
+<!--    <xpath expr="//img[@id='posqrcode']" position="attributes">-->
+<!--        <attribute name="style">width:90px;height:90px;</attribute>-->
+<!--    </xpath>-->
+
+<!--    &lt;!&ndash; ================= INSERT CUSTOM BLOCK ================= &ndash;&gt;-->
+
+<!--    <xpath expr="//div[@class='before-footer']" position="before">-->
+
+<!--        &lt;!&ndash; GST TABLE &ndash;&gt;-->
+<!--        <t t-set="gstLines" t-value="order.getGstBreakdown()"/>-->
+<!--        <t t-if="gstLines and gstLines.length">-->
+
+<!--            <div class="gst-table-wrapper">-->
+<!--                <table class="gst-breakdown-table">-->
+<!--                    <thead>-->
+<!--                        <tr>-->
+<!--                            <th>GST Rate</th>-->
+<!--                            <th class="text-right">Taxable</th>-->
+<!--                            <th class="text-right">CGST</th>-->
+<!--                            <th class="text-right">SGST</th>-->
+<!--                        </tr>-->
+<!--                    </thead>-->
+<!--                    <tbody>-->
+<!--                        <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">-->
+<!--                            <tr>-->
+<!--                                <td><t t-esc="gline.label"/></td>-->
+<!--                                <td class="text-right"><t t-esc="formatCurrency(gline.taxable)"/></td>-->
+<!--                                <td class="text-right"><t t-esc="formatCurrency(gline.cgst)"/></td>-->
+<!--                                <td class="text-right"><t t-esc="formatCurrency(gline.sgst)"/></td>-->
+<!--                            </tr>-->
+<!--                        </t>-->
+<!--                    </tbody>-->
+<!--                    <tfoot>-->
+<!--                        <tr>-->
+<!--                            <td><strong>Total</strong></td>-->
+<!--                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></strong></td>-->
+<!--                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalCgst())"/></strong></td>-->
+<!--                            <td class="text-right"><strong><t t-esc="formatCurrency(order.getTotalSgst())"/></strong></td>-->
+<!--                        </tr>-->
+<!--                    </tfoot>-->
+<!--                </table>-->
+<!--            </div>-->
+
+<!--        </t>-->
+
+<!--        &lt;!&ndash; CUSTOM TOTAL SECTION &ndash;&gt;-->
+
+<!--        <div class="custom-total-section">-->
+
+<!--            <div class="line">-->
+<!--                <span>Before Grand Total</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getBeforeGrandTotal())"/></span>-->
+<!--            </div>-->
+
+<!--            <div class="line">-->
+<!--                <span>Taxable Total</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>-->
+<!--            </div>-->
+
+<!--            <div class="line">-->
+<!--                <span>CGST</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>-->
+<!--            </div>-->
+
+<!--            <div class="line">-->
+<!--                <span>SGST</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>-->
+<!--            </div>-->
+
+<!--            <div class="line total">-->
+<!--                <span>Grand Total</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>-->
+<!--            </div>-->
+
+<!--            <div class="amount-words">-->
+<!--                <t t-esc="order.getAmountInWords()"/>-->
+<!--            </div>-->
+
+<!--            <div class="saved-line">-->
+<!--                <span> 🎉 You Have Saved 🎉</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>-->
+<!--            </div>-->
+
+<!--        </div>-->
+
+<!--    </xpath>-->
+
+<!--</t>-->
+
+<!--</templates>-->
