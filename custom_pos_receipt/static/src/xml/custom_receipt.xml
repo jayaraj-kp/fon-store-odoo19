@@ -6,8 +6,8 @@
    t-inherit="point_of_sale.ReceiptHeader"
    t-inherit-mode="extension">
 
+    <!-- Only replace the logo img — leave everything else untouched for l10n_in_pos -->
     <xpath expr="//img[@class='pos-receipt-logo']" position="replace">
-        <!-- Logo (left) + Company Info (right) -->
         <div class="receipt-header-row">
             <div class="receipt-logo-cell">
                 <img t-att-src="logoUrl" alt="Logo" class="receipt-company-logo"/>
@@ -26,35 +26,8 @@
         </div>
     </xpath>
 
-    <!-- Hide default date/ticket reference block -->
+    <!-- Hide the default ticket reference/date block -->
     <xpath expr="//div[@class='text-center pt-3']" position="replace"/>
-
-    <!-- Replace default cashier/contact block with invoice no + customer -->
-    <xpath expr="//div[@class='d-flex flex-column align-items-center']" position="replace">
-
-        <!-- Invoice No (left) + Invoice Date (right) -->
-        <div class="receipt-meta-row">
-            <div><strong>Invoice: </strong><t t-esc="order.pos_reference"/></div>
-            <div><t t-esc="order.formatDateOrTime('date_order', 'date')"/></div>
-        </div>
-
-        <!-- Customer Details -->
-        <t t-if="order.partner_id">
-            <div class="receipt-customer-block">
-                <div><strong><t t-esc="order.partner_id.name"/></strong></div>
-                <t t-if="order.partner_id.pos_contact_address">
-                    <div><t t-esc="order.partner_id.pos_contact_address"/></div>
-                </t>
-                <t t-if="order.partner_id.phone">
-                    <div>Phone: <t t-esc="order.partner_id.phone"/></div>
-                </t>
-                <t t-if="order.partner_id.vat">
-                    <div>GSTIN: <t t-esc="order.partner_id.vat"/></div>
-                </t>
-            </div>
-        </t>
-
-    </xpath>
 
 </t>
 
@@ -63,7 +36,15 @@
    t-inherit="point_of_sale.OrderReceipt"
    t-inherit-mode="extension">
 
-    <!-- Add table header ROW before the OrderDisplay (keep OrderDisplay intact for l10n_in_pos) -->
+    <!-- Add Invoice No + Date row AFTER the ReceiptHeader component -->
+    <xpath expr="//ReceiptHeader" position="after">
+        <div class="receipt-meta-row">
+            <div><strong>Invoice: </strong><t t-esc="order.pos_reference"/></div>
+            <div><t t-esc="order.formatDateOrTime('date_order', 'date')"/></div>
+        </div>
+    </xpath>
+
+    <!-- Add items table header before OrderDisplay -->
     <xpath expr="//OrderDisplay" position="before">
         <div class="receipt-items-header">
             <span class="col-sn">SN</span>
@@ -72,11 +53,6 @@
             <span class="col-rate">RATE</span>
             <span class="col-total">TOTAL</span>
         </div>
-    </xpath>
-
-    <!-- Wrap OrderDisplay in a bordered container -->
-    <xpath expr="//OrderDisplay" position="attributes">
-        <attribute name="class">receipt-items-body</attribute>
     </xpath>
 
     <!-- Hide Subtotal/GST tax groups block -->
