@@ -1,10 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-<xpath expr="//ReceiptHeader" position="replace">
-    <t t-set="co" t-value="receiptCompany"/>
-    <t t-if="co">
+    <xpath expr="//ReceiptHeader" position="replace">
+        <t t-set="co" t-value="receiptCompany"/>
         <div class="receipt-header-row">
             <div class="receipt-logo-cell">
                 <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
@@ -30,33 +30,30 @@
                 </t>
             </div>
         </div>
-    </t>
-
-    <div class="receipt-meta-row">
-        <div class="receipt-invoice-no">
-            <strong>Invoice: </strong><t t-esc="receiptRef"/>
-        </div>
-        <div class="receipt-invoice-date">
-            <t t-esc="receiptDate"/>
-        </div>
-    </div>
-
-    <t t-set="partner" t-value="receiptPartner"/>
-    <t t-if="partner">
-        <div class="receipt-customer-block">
-            <div class="customer-name">
-                <t t-if="partner.parent_name"><span t-esc="partner.parent_name"/>, </t>
-                <span t-esc="partner.name"/>
+        <div class="receipt-meta-row">
+            <div class="receipt-invoice-no">
+                <strong>Invoice: </strong><t t-esc="receiptRef"/>
             </div>
-            <t t-if="partner.pos_contact_address">
-                <div><t t-esc="partner.pos_contact_address"/></div>
-            </t>
-            <t t-if="partner.phone">
-                <div>Phone: <t t-esc="partner.phone"/></div>
-            </t>
+            <div class="receipt-invoice-date">
+                <t t-esc="receiptDate"/>
+            </div>
         </div>
-    </t>
-</xpath>
+        <t t-set="partner" t-value="receiptPartner"/>
+        <t t-if="partner">
+            <div class="receipt-customer-block">
+                <div class="customer-name">
+                    <t t-if="partner.parent_name"><span t-esc="partner.parent_name"/>, </t>
+                    <span t-esc="partner.name"/>
+                </div>
+                <t t-if="partner.pos_contact_address">
+                    <div><t t-esc="partner.pos_contact_address"/></div>
+                </t>
+                <t t-if="partner.phone">
+                    <div>Phone: <t t-esc="partner.phone"/></div>
+                </t>
+            </div>
+        </t>
+    </xpath>
 
     <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
         <span class="label-discount">🎉 You Have Saved 🎉</span>
@@ -107,7 +104,7 @@
 
         <div class="receipt-qr-row">
             <div class="receipt-qr-cell">
-                <t t-if="receiptCompany and receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized">
+                <t t-if="receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized">
                     <div class="qr-cell-label">Need an invoice?</div>
                     <img t-att-src="qrCode" class="qr-code" alt="Invoice QR"/>
                     <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
