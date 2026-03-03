@@ -13,7 +13,7 @@
     <!-- ================= RENAME DISCOUNT ================= -->
 
 
-    <xpath expr="//div[.//span[@class='label-discount']]" position="replace"/>
+<!--    <xpath expr="//div[.//span[@class='label-discount']]" position="replace"/>-->
 
 
     <!-- ================= QR Resize ================= -->
