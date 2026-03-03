@@ -12,9 +12,9 @@
 
     <!-- ================= RENAME DISCOUNT ================= -->
 
-<!--    <xpath expr="//span[@class='label-discount']" position="replace">-->
-<!--        <span class="label-discount">🎉 You Have Saved 🎉</span>-->
-<!--    </xpath>-->
+    <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
+        <span class="label-discount">🎉 You Have Saved 🎉</span>
+    </xpath>
 
     <!-- ================= QR Resize ================= -->
 
