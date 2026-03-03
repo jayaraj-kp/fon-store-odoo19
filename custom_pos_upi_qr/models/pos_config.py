@@ -39,7 +39,6 @@ class PosConfig(models.Model):
     )
 
     def _get_fields_for_pos(self):
-        """Expose UPI fields to the POS frontend JS."""
         fields = super()._get_fields_for_pos()
         fields += ['upi_vpa', 'upi_merchant_name', 'upi_qr_on_receipt']
         return fields
