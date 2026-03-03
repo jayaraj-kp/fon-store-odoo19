@@ -4,10 +4,10 @@
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
     <!-- ===================================================== -->
-    <!-- 1️⃣ CUSTOM HEADER (Logo Left, Company Right)          -->
+    <!-- 1️⃣ INSERT CUSTOM HEADER AT TOP (SAFE)                 -->
     <!-- ===================================================== -->
 
-    <xpath expr="//div[contains(@class,'pos-receipt-header')]" position="replace">
+    <xpath expr="//div[contains(@class,'pos-receipt')]" position="inside">
 
         <div class="receipt-header-row">
 
@@ -28,179 +28,72 @@
 
         </div>
 
-    </xpath>
-
-    <!-- ===================================================== -->
-    <!-- 2️⃣ INVOICE META ROW                                  -->
-    <!-- ===================================================== -->
-
-    <xpath expr="//div[contains(@class,'pos-receipt-contact')]" position="before">
-
         <div class="receipt-meta-row">
-
-            <div class="receipt-invoice-no">
-                Invoice: <t t-esc="order.name"/>
-            </div>
-
-            <div class="receipt-invoice-date">
-                <t t-esc="order.date_order"/>
-            </div>
-
+            <div>Invoice: <t t-esc="order.name"/></div>
+            <div><t t-esc="order.date_order"/></div>
         </div>
 
     </xpath>
 
     <!-- ===================================================== -->
-    <!-- 3️⃣ REMOVE DEFAULT TOTAL BLOCK                        -->
+    <!-- 2️⃣ REMOVE DEFAULT TOTAL BLOCK SAFELY                 -->
     <!-- ===================================================== -->
 
     <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>
 
     <!-- ===================================================== -->
-    <!-- 4️⃣ CUSTOM TOTAL + GST (KEEP before-footer class)     -->
+    <!-- 3️⃣ REPLACE before-footer (SAFE ANCHOR)               -->
     <!-- ===================================================== -->
 
     <xpath expr="//div[contains(@class,'before-footer')]" position="replace">
 
         <div class="before-footer">
 
-            <!-- ===== Custom Total ===== -->
+            <!-- ===== Custom Totals ===== -->
 
             <div class="custom-total-section">
 
                 <div class="line">
                     <span>Taxable</span>
                     <span>
-                        <t t-esc="formatCurrency(order.getTotalTaxableAmount())"/>
+                        <t t-esc="formatCurrency(order.get_total_with_tax() - order.get_total_tax())"/>
                     </span>
                 </div>
 
                 <div class="line">
-                    <span>CGST</span>
+                    <span>Total Tax</span>
                     <span>
-                        <t t-esc="formatCurrency(order.getTotalCgst())"/>
-                    </span>
-                </div>
-
-                <div class="line">
-                    <span>SGST</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalSgst())"/>
+                        <t t-esc="formatCurrency(order.get_total_tax())"/>
                     </span>
                 </div>
 
                 <div class="line total">
                     <span>Grand Total</span>
                     <span>
-                        <t t-esc="formatCurrency(order.getGrandTotal())"/>
+                        <t t-esc="formatCurrency(order.get_total_with_tax())"/>
                     </span>
                 </div>
 
-                <div class="amount-words">
-                    <t t-esc="order.getAmountInWords()"/>
-                </div>
-
             </div>
 
-            <!-- ===== QR ROW ===== -->
+            <!-- ===== QR Section ===== -->
 
             <div class="receipt-qr-row">
 
-                <!-- Left: Invoice QR -->
                 <div class="receipt-qr-cell">
-                    <div class="qr-cell-label">Need Invoice?</div>
-
                     <img t-if="receipt.qr_code_data"
                          t-att-src="receipt.qr_code_data"
-                         class="qr-code"/>
-
-                    <div class="qr-cell-code">
-                        <t t-esc="receipt.ticket_code"/>
-                    </div>
+                         style="width:80px;"/>
                 </div>
 
-                <!-- Right: Payment QR (from your other module) -->
                 <div class="receipt-qr-cell"
                      t-if="receipt.upi_qr_code">
 
-                    <div class="qr-cell-label">Scan &amp; Pay</div>
-
-                    <div class="upi-qr-image-container">
-                        <img t-att-src="receipt.upi_qr_code"
-                             class="upi-qr-image"/>
-                    </div>
-
-                    <div class="upi-qr-vpa">
-                        <t t-esc="receipt.upi_id"/>
-                    </div>
+                    <img t-att-src="receipt.upi_qr_code"
+                         style="width:80px;"/>
 
                 </div>
 
-            </div>
-
-            <!-- ===== GST Table ===== -->
-
-            <div class="gst-table-wrapper">
-
-                <t t-set="gstLines"
-                   t-value="order.getGstBreakdown()"/>
-
-                <table class="gst-breakdown-table"
-                       t-if="gstLines and gstLines.length">
-
-                    <thead>
-                        <tr>
-                            <th>GST%</th>
-                            <th class="text-right">Taxable</th>
-                            <th class="text-right">CGST</th>
-                            <th class="text-right">SGST</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        <t t-foreach="gstLines"
-                           t-as="gline"
-                           t-key="gline.rate">
-
-                            <tr>
-                                <td><t t-esc="gline.rate"/>%</td>
-                                <td class="text-right">
-                                    <t t-esc="formatCurrency(gline.taxable)"/>
-                                </td>
-                                <td class="text-right">
-                                    <t t-esc="formatCurrency(gline.cgst)"/>
-                                </td>
-                                <td class="text-right">
-                                    <t t-esc="formatCurrency(gline.sgst)"/>
-                                </td>
-                            </tr>
-
-                        </t>
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-    </xpath>
-
-    <!-- ===================================================== -->
-    <!-- 5️⃣ FOOTER (Served By Left | Date Right)              -->
-    <!-- ===================================================== -->
-
-    <xpath expr="//div[contains(@class,'pos-receipt-footer')]" position="replace">
-
-        <div class="receipt-footer-row">
-
-            <div>
-                Served By:
-                <t t-esc="order.get_cashier().name"/>
-            </div>
-
-            <div>
-                <t t-esc="order.date_order"/>
             </div>
 
         </div>
