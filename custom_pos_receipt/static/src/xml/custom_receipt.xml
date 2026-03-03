@@ -1,35 +1,36 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
     <xpath expr="//ReceiptHeader" position="replace">
         <t t-set="co" t-value="receiptCompany"/>
-        <div class="receipt-header-row">
-            <div class="receipt-logo-cell">
-                <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
+        <t t-if="co">
+            <div class="receipt-header-row">
+                <div class="receipt-logo-cell">
+                    <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
+                </div>
+                <div class="receipt-company-cell">
+                    <t t-if="co.name">
+                        <div class="company-name"><t t-esc="co.name"/></div>
+                    </t>
+                    <t t-if="co.street">
+                        <div><t t-esc="co.street"/></div>
+                    </t>
+                    <t t-if="co.city">
+                        <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
+                    </t>
+                    <t t-if="co.vat">
+                        <div>GSTIN: <t t-esc="co.vat"/></div>
+                    </t>
+                    <t t-if="co.phone">
+                        <div>Tel: <t t-esc="co.phone"/></div>
+                    </t>
+                    <t t-if="co.email">
+                        <div><t t-esc="co.email"/></div>
+                    </t>
+                </div>
             </div>
-            <div class="receipt-company-cell">
-                <t t-if="co.name">
-                    <div class="company-name"><t t-esc="co.name"/></div>
-                </t>
-                <t t-if="co.street">
-                    <div><t t-esc="co.street"/></div>
-                </t>
-                <t t-if="co.city">
-                    <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
-                </t>
-                <t t-if="co.vat">
-                    <div>GSTIN: <t t-esc="co.vat"/></div>
-                </t>
-                <t t-if="co.phone">
-                    <div>Tel: <t t-esc="co.phone"/></div>
-                </t>
-                <t t-if="co.email">
-                    <div><t t-esc="co.email"/></div>
-                </t>
-            </div>
-        </div>
+        </t>
         <div class="receipt-meta-row">
             <div class="receipt-invoice-no">
                 <strong>Invoice: </strong><t t-esc="receiptRef"/>
@@ -104,7 +105,7 @@
 
         <div class="receipt-qr-row">
             <div class="receipt-qr-cell">
-                <t t-if="receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized">
+                <t t-if="receiptCompany and receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized">
                     <div class="qr-cell-label">Need an invoice?</div>
                     <img t-att-src="qrCode" class="qr-code" alt="Invoice QR"/>
                     <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
