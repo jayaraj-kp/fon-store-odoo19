@@ -4,7 +4,7 @@
     <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
         <!-- ===================================================== -->
-        <!-- 1️⃣ REMOVE SUBTOTAL / GST / DISCOUNT BLOCK (DEFAULT TOTALS) -->
+        <!-- 1️⃣ REMOVE DEFAULT TOTAL BLOCK (Subtotal, GST, Discount) -->
         <!-- ===================================================== -->
 
         <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace">
@@ -121,28 +121,28 @@
 
 
         <!-- ===================================================== -->
-        <!-- 2️⃣ REMOVE DEFAULT PAYMENT LINES (Cash, UPI, etc) -->
+        <!-- 2️⃣ REMOVE PAYMENT LINES -->
         <!-- ===================================================== -->
 
         <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
 
         <!-- ===================================================== -->
-        <!-- 3️⃣ REMOVE NEED AN INVOICE SECTION -->
+        <!-- 3️⃣ REMOVE 'NEED AN INVOICE' SECTION (SAFE TEXT MATCH) -->
         <!-- ===================================================== -->
 
-        <xpath expr="//div[contains(@class,'pos-receipt-contact')]" position="replace"/>
-
-
-        <!-- ===================================================== -->
-        <!-- 4️⃣ REMOVE POWERED BY ODOO -->
-        <!-- ===================================================== -->
-
-        <xpath expr="//div[contains(@class,'pos-receipt-footer')]" position="replace"/>
+        <xpath expr="//div[.//text()[contains(., 'Need an invoice')]]" position="replace"/>
 
 
         <!-- ===================================================== -->
-        <!-- 5️⃣ QR Resize (keep if you want QR) -->
+        <!-- 4️⃣ REMOVE 'POWERED BY ODOO' FOOTER (SAFE TEXT MATCH) -->
+        <!-- ===================================================== -->
+
+        <xpath expr="//div[.//text()[contains(., 'Powered by Odoo')]]" position="replace"/>
+
+
+        <!-- ===================================================== -->
+        <!-- 5️⃣ RESIZE QR CODE -->
         <!-- ===================================================== -->
 
         <xpath expr="//img[@id='posqrcode']" position="attributes">
