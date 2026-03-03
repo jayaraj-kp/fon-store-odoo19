@@ -4,32 +4,41 @@
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
     <xpath expr="//ReceiptHeader" position="replace">
-        <t t-set="co" t-value="receiptCompany"/>
+        <!--
+            SAFE: use props.company (Odoo 17/18 canonical prop name).
+            Falls back gracefully if undefined.
+        -->
+        <t t-set="co" t-value="props.company or receiptCompany or {}"/>
+
         <div class="receipt-header-row">
             <div class="receipt-logo-cell">
                 <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
             </div>
             <div class="receipt-company-cell">
-                <t t-if="co.name">
+                <t t-if="co and co.name">
                     <div class="company-name"><t t-esc="co.name"/></div>
                 </t>
-                <t t-if="co.street">
+                <t t-if="co and co.street">
                     <div><t t-esc="co.street"/></div>
                 </t>
-                <t t-if="co.city">
-                    <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
+                <t t-if="co and co.city">
+                    <div>
+                        <t t-esc="co.city"/>
+                        <t t-if="co.zip">, <t t-esc="co.zip"/></t>
+                    </div>
                 </t>
-                <t t-if="co.vat">
+                <t t-if="co and co.vat">
                     <div>GSTIN: <t t-esc="co.vat"/></div>
                 </t>
-                <t t-if="co.phone">
+                <t t-if="co and co.phone">
                     <div>Tel: <t t-esc="co.phone"/></div>
                 </t>
-                <t t-if="co.email">
+                <t t-if="co and co.email">
                     <div><t t-esc="co.email"/></div>
                 </t>
             </div>
         </div>
+
         <div class="receipt-meta-row">
             <div class="receipt-invoice-no">
                 <strong>Invoice: </strong><t t-esc="receiptRef"/>
@@ -38,11 +47,15 @@
                 <t t-esc="receiptDate"/>
             </div>
         </div>
+
+        <!-- SAFE: guard the whole partner block -->
         <t t-set="partner" t-value="receiptPartner"/>
-        <t t-if="partner">
+        <t t-if="partner and partner.name">
             <div class="receipt-customer-block">
                 <div class="customer-name">
-                    <t t-if="partner.parent_name"><span t-esc="partner.parent_name"/>, </t>
+                    <t t-if="partner.parent_name">
+                        <span t-esc="partner.parent_name"/>,&#160;
+                    </t>
                     <span t-esc="partner.name"/>
                 </div>
                 <t t-if="partner.pos_contact_address">
@@ -55,30 +68,29 @@
         </t>
     </xpath>
 
+    <!-- Replace discount label -->
     <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
-        <span class="label-discount">🎉 You Have Saved 🎉</span>
+        <span class="label-discount">&#x1F389; You Have Saved &#x1F389;</span>
     </xpath>
 
-    <xpath expr="//div[hasclass('receipt-total')]" position="replace"/>
-    <xpath expr="//div[hasclass('receipt-rounding')]" position="replace" optional="hide"/>
-    <xpath expr="//div[hasclass('receipt-to-pay')]" position="replace" optional="hide"/>
-    <xpath expr="//div[hasclass('paymentlines')]" position="replace"/>
-    <xpath expr="//div[hasclass('receipt-change')]" position="replace" optional="hide"/>
-    <xpath expr="//div[hasclass('pos-receipt-taxes')]" position="replace" optional="hide"/>
-    <xpath expr="//t[@t-set='company']" position="replace"/>
-    <xpath expr="//div[hasclass('pos-config-name')]/.." position="replace"/>
-    <xpath expr="//div[hasclass('pos-receipt-order-data')]" position="replace" optional="hide"/>
-    <xpath expr="//img[@id='posqrcode']" position="replace" optional="hide"/>
+    <!-- Remove default total/payment blocks -->
+    <xpath expr="//div[hasclass('receipt-total')]"           position="replace"/>
+    <xpath expr="//div[hasclass('receipt-rounding')]"        position="replace" optional="hide"/>
+    <xpath expr="//div[hasclass('receipt-to-pay')]"          position="replace" optional="hide"/>
+    <xpath expr="//div[hasclass('paymentlines')]"            position="replace"/>
+    <xpath expr="//div[hasclass('receipt-change')]"          position="replace" optional="hide"/>
+    <xpath expr="//div[hasclass('pos-receipt-taxes')]"       position="replace" optional="hide"/>
+    <xpath expr="//t[@t-set='company']"                      position="replace"/>
+    <xpath expr="//div[hasclass('pos-config-name')]/.."      position="replace"/>
+    <xpath expr="//div[hasclass('pos-receipt-order-data')]"  position="replace" optional="hide"/>
+    <xpath expr="//img[@id='posqrcode']"                     position="replace" optional="hide"/>
 
     <xpath expr="//div[@class='before-footer']" position="before">
 
+        <!-- ===== CUSTOM TOTALS ===== -->
         <div class="custom-total-section">
             <div class="line">
-                <span>Before Grand Total</span>
-                <span><t t-esc="formatCurrency(order.getBeforeGrandTotal())"/></span>
-            </div>
-            <div class="line">
-                <span>Taxable Total</span>
+                <span>Taxable Amount</span>
                 <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>
             </div>
             <div class="line">
@@ -97,34 +109,43 @@
                 <t t-esc="order.getAmountInWords()"/>
             </div>
             <div class="saved-line">
-                <span>🎉 You Have Saved 🎉</span>
+                <span>&#x1F389; You Have Saved &#x1F389;</span>
                 <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
             </div>
         </div>
 
+        <!-- ===== QR ROW ===== -->
         <div class="receipt-qr-row">
+            <!-- Invoice QR (built-in Odoo feature) -->
             <div class="receipt-qr-cell">
-                <t t-if="receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized">
+                <t t-if="receiptCompany and receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized">
                     <div class="qr-cell-label">Need an invoice?</div>
                     <img t-att-src="qrCode" class="qr-code" alt="Invoice QR"/>
                     <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
                 </t>
             </div>
+
+            <!--
+                UPI QR: only renders when upiQrSrc is provided.
+                To enable, extend the OrderReceipt component in JS and
+                pass upiQrSrc / upiVpa / upiAmount as computed props.
+            -->
             <div class="receipt-qr-cell">
                 <t t-if="upiQrSrc">
                     <div class="qr-cell-label">
                         <span class="upi-logo-text">UPI</span>
-                        Scan &amp; Pay &#x20B9;<t t-esc="upiAmount"/>
+                        Scan &amp; Pay &#x20B9;<t t-esc="upiAmount or ''"/>
                     </div>
                     <div class="upi-qr-image-container">
                         <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR Code"/>
                     </div>
-                    <div class="upi-qr-vpa"><t t-esc="upiVpa"/></div>
+                    <div class="upi-qr-vpa"><t t-esc="upiVpa or ''"/></div>
                     <div class="upi-qr-apps">GPay · PhonePe · Paytm · BHIM</div>
                 </t>
             </div>
         </div>
 
+        <!-- ===== GST BREAKDOWN TABLE ===== -->
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines and gstLines.length">
             <div class="gst-table-wrapper">
@@ -159,15 +180,20 @@
             </div>
         </t>
 
+        <!-- ===== LOYALTY POINTS ===== -->
         <t t-if="order.loyalty_points">
             <div class="loyalty-points-block">
-                <span>🏆 Loyalty Points Earned:</span>
+                <span>&#x1F3C6; Loyalty Points Earned:</span>
                 <span><t t-esc="order.loyalty_points"/></span>
             </div>
         </t>
 
+        <!-- ===== FOOTER ===== -->
         <div class="receipt-footer-row">
-            <div>Served by: <t t-esc="receiptCashier"/></div>
+            <!-- receiptCashier may be undefined in some Odoo versions; guard it -->
+            <div>
+                <t t-if="receiptCashier">Served by: <t t-esc="receiptCashier"/></t>
+            </div>
             <div><t t-esc="receiptDate"/></div>
         </div>
 
