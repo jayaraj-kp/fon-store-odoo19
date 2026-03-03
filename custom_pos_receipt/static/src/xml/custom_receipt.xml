@@ -4,10 +4,10 @@
     <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
         <!-- ===================================================== -->
-        <!-- 1️⃣ REMOVE COMPLETE DEFAULT TOTAL SECTION -->
+        <!-- 1️⃣ REMOVE ORDER SUMMARY COMPONENT COMPLETELY -->
         <!-- ===================================================== -->
 
-        <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace">
+        <xpath expr="//OrderSummary" position="replace">
             <!-- ================= GST TABLE ================= -->
 
             <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
@@ -64,7 +64,7 @@
 
             </t>
 
-            <!-- ================= CUSTOM TOTAL SECTION ================= -->
+            <!-- ================= CUSTOM TOTAL BLOCK ================= -->
 
             <div class="custom-total-section">
 
@@ -118,16 +118,10 @@
 
         </xpath>
 
-        <!-- ===================================================== -->
-        <!-- 2️⃣ REMOVE DEFAULT PAYMENT LINES (Cash, UPI, etc) -->
-        <!-- ===================================================== -->
+        <!-- REMOVE PAYMENT LINES -->
+        <xpath expr="//PaymentLines" position="replace"/>
 
-        <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
-
-        <!-- ===================================================== -->
-        <!-- 3️⃣ QR Resize -->
-        <!-- ===================================================== -->
-
+        <!-- QR Resize -->
         <xpath expr="//img[@id='posqrcode']" position="attributes">
             <attribute name="style">width:90px;height:90px;</attribute>
         </xpath>
