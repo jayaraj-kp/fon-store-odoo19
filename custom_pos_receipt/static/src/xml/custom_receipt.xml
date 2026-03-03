@@ -37,6 +37,8 @@
     <!-- 1. REPLACE ReceiptHeader with our Logo+Company+Invoice+Customer -->
     <!-- ============================================================ -->
     <xpath expr="//ReceiptHeader" position="replace">
+        <t t-if="order and order.company">
+        <t t-set="co" t-value="order.company"/>
 
         <!-- ── ROW 1: Logo (left) + Company Details (right) ── -->
         <div class="receipt-header-row">
@@ -44,7 +46,6 @@
                 <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
             </div>
             <div class="receipt-company-cell">
-                <t t-set="co" t-value="order.company"/>
                 <div class="company-name"><t t-esc="co.name"/></div>
                 <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
                 <t t-if="co.city">
@@ -87,6 +88,7 @@
             </div>
         </t>
 
+        </t><!-- /t-if order and order.company -->
     </xpath>
 
     <!-- ============================================================ -->
