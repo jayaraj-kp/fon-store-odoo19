@@ -6,7 +6,7 @@
    t-inherit="point_of_sale.ReceiptHeader"
    t-inherit-mode="extension">
 
-    <!-- Only replace the logo img — leave everything else untouched for l10n_in_pos -->
+    <!-- ONLY touch the logo image — leave ALL other elements for l10n_in_pos -->
     <xpath expr="//img[@class='pos-receipt-logo']" position="replace">
         <div class="receipt-header-row">
             <div class="receipt-logo-cell">
@@ -25,9 +25,6 @@
             </div>
         </div>
     </xpath>
-
-    <!-- Hide the default ticket reference/date block -->
-    <xpath expr="//div[@class='text-center pt-3']" position="replace"/>
 
 </t>
 
