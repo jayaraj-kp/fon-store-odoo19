@@ -12,7 +12,7 @@
                     <div class="upi-qr-divider"/>
                     <div class="upi-qr-header">
 <!--                        <span class="upi-logo-text">UPI</span>-->
-                        <span class="upi-qr-instruction">Scan &amp; Pay ₹<t t-esc="upiAmount"/></span>
+                        <span class="upi-qr-instruction">Scan &amp; Pay</span>
                     </div>
                     <div class="upi-qr-image-container">
                         <img
