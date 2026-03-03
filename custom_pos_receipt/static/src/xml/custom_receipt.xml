@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<templates xml:space="preserve">
+<templates id="template" xml:space="preserve">
 
-    <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+    <!-- Inherit POS Receipt -->
+    <t t-inherit="point_of_sale.OrderReceipt"
+       t-inherit-mode="extension">
 
-        <!-- ===================================================== -->
-        <!-- 1️⃣ REMOVE ORDER SUMMARY COMPONENT COMPLETELY -->
-        <!-- ===================================================== -->
+        <!-- REMOVE DEFAULT TOTAL SECTION -->
+        <xpath expr="//div[contains(@class,'order-summary')]" position="replace">
 
-        <xpath expr="//OrderSummary" position="replace">
-            <!-- ================= GST TABLE ================= -->
-
+            <!-- GST TABLE -->
             <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
             <t t-if="gstLines and gstLines.length">
 
@@ -39,33 +38,12 @@
                                 </tr>
                             </t>
                         </tbody>
-                        <tfoot>
-                            <tr>
-                                <td><strong>Total</strong></td>
-                                <td class="text-right">
-                                    <strong>
-                                        <t t-esc="formatCurrency(order.getTotalTaxableAmount())"/>
-                                    </strong>
-                                </td>
-                                <td class="text-right">
-                                    <strong>
-                                        <t t-esc="formatCurrency(order.getTotalCgst())"/>
-                                    </strong>
-                                </td>
-                                <td class="text-right">
-                                    <strong>
-                                        <t t-esc="formatCurrency(order.getTotalSgst())"/>
-                                    </strong>
-                                </td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
 
             </t>
 
-            <!-- ================= CUSTOM TOTAL BLOCK ================= -->
-
+            <!-- CUSTOM TOTAL SECTION -->
             <div class="custom-total-section">
 
                 <div class="line">
@@ -107,23 +85,8 @@
                     <t t-esc="order.getAmountInWords()"/>
                 </div>
 
-                <div class="saved-line">
-                    <span>You Have Saved</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalSaved())"/>
-                    </span>
-                </div>
-
             </div>
 
-        </xpath>
-
-        <!-- REMOVE PAYMENT LINES -->
-        <xpath expr="//PaymentLines" position="replace"/>
-
-        <!-- QR Resize -->
-        <xpath expr="//img[@id='posqrcode']" position="attributes">
-            <attribute name="style">width:90px;height:90px;</attribute>
         </xpath>
 
     </t>
