@@ -250,8 +250,9 @@
 
     <!-- ============================================================ -->
     <!-- 6. REMOVE DEFAULT NEED-INVOICE QR block (we moved it above)  -->
+    <!--    Target the unique img#posqrcode and hide its container     -->
     <!-- ============================================================ -->
-    <xpath expr="//div[hasclass('d-flex') and hasclass('flex-row') and hasclass('pt-3')]" position="replace" optional="hide"/>
+    <xpath expr="//img[@id='posqrcode']" position="replace" optional="hide"/>
 
 </t>
 
