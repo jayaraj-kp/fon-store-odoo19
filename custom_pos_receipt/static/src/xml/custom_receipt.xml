@@ -18,9 +18,33 @@
 
     <!-- ================= QR Resize ================= -->
 
-    <xpath expr="//img[@id='posqrcode']" position="attributes">
-        <attribute name="style">width:90px;height:90px;</attribute>
-    </xpath>
+    <!-- Replace existing QR block -->
+    <xpath expr="//div[@class='before-footer']" position="replace">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0; border-top:1px dashed #000; padding-top:6px;">
+
+        <!-- LEFT: Need Invoice QR -->
+        <div style="text-align:center; flex:1;">
+            <t t-if="receipt.useCustomerFacing">
+                <div style="font-size:9px; font-weight:bold;">Need an invoice?</div>
+                <img t-att-src="receipt.qr_code_data" id="posqrcode"
+                     style="width:80px;height:80px;"/>
+                <div style="font-size:9px;">Code: <t t-esc="receipt.ticket_code"/></div>
+            </t>
+        </div>
+
+        <!-- RIGHT: Payment QR (from your other module) -->
+        <div style="text-align:center; flex:1;">
+            <!-- Your payment QR module renders here -->
+            <!-- Share the other module details so we can hook it in -->
+            <t t-if="receipt.upi_qr_code">
+                <div style="font-size:9px; font-weight:bold;">UPI Scan &amp; Pay</div>
+                <img t-att-src="receipt.upi_qr_code" style="width:80px;height:80px; border:2px solid #6B3FA0;"/>
+                <div style="font-size:9px;"><t t-esc="receipt.upi_id"/></div>
+            </t>
+        </div>
+
+    </div>
+</xpath>
 
     <!-- ================= INSERT CUSTOM BLOCK ================= -->
 
