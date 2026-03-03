@@ -3,55 +3,39 @@
 
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
-    <!-- ================= REMOVE DEFAULT TOTAL BLOCK ================= -->
-
+    <!-- Remove default total block -->
     <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>
 
     <!-- Remove default payment lines -->
     <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
-    <!-- =============================================================== -->
-    <!-- HIDE: Subtotal / GST / You Have Saved (default right-align rows) -->
-    <!-- These are the 3 lines shown by default above the QR code:       -->
-    <!--   Subtotal  ₹ 170.57                                            -->
-    <!--   GST       ₹   8.53                                            -->
-    <!--   You Have Saved  ₹ 19.90                                       -->
-    <!-- =============================================================== -->
+    <!-- Hide Subtotal, GST, You Have Saved default rows -->
     <xpath expr="//div[contains(@class,'pos-receipt-right-align')]" position="replace"/>
 
-    <!-- =============================================================== -->
-    <!-- HIDE: "Need an invoice?" + "Code: xxx" text above QR code       -->
-    <!-- =============================================================== -->
-
-    <!-- Primary target – Odoo 17/18/19 ask-for-invoice wrapper -->
+    <!-- Hide Need an invoice and Code text block -->
     <xpath expr="//div[contains(@class,'ask-for-invoice')]" position="replace"/>
 
-    <!-- Fallback – t-if block when it is a direct <t> node -->
+    <!-- Fallback for t-if ask for invoice node -->
     <xpath expr="//t[@t-if='receipt.ask_for_invoice']" position="replace" optional="hide"/>
 
-    <!-- Also strip any <p> QR-description sitting inside the qrcode div -->
+    <!-- Remove description paragraph inside QR code div -->
     <xpath expr="//div[contains(@class,'pos-receipt-qrcode')]//p" position="replace"/>
 
-    <!-- ================= RENAME DISCOUNT LABEL ================= -->
-
+    <!-- Rename discount label -->
     <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
-        <span class="label-discount">🎉 You Have Saved 🎉</span>
+        <span class="label-discount">&#127881; You Have Saved &#127881;</span>
     </xpath>
 
-    <!-- ================= QR CODE RESIZE ================= -->
-
+    <!-- Resize QR code image -->
     <xpath expr="//img[@id='posqrcode']" position="attributes">
         <attribute name="style">width:90px;height:90px;display:block;margin:0 auto;</attribute>
     </xpath>
 
-    <!-- ================= INSERT CUSTOM BLOCK (before footer) ================= -->
-
+    <!-- Insert GST table and custom totals before footer -->
     <xpath expr="//div[@class='before-footer']" position="before">
 
-        <!-- ---- GST TABLE ---- -->
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines and gstLines.length">
-
             <div class="gst-table-wrapper">
                 <table class="gst-breakdown-table">
                     <thead>
@@ -82,10 +66,7 @@
                     </tfoot>
                 </table>
             </div>
-
         </t>
-
-        <!-- ---- CUSTOM TOTAL SECTION ---- -->
 
         <div class="custom-total-section">
 
@@ -119,7 +100,7 @@
             </div>
 
             <div class="saved-line">
-                <span>🎉 You Have Saved 🎉</span>
+                <span>&#127881; You Have Saved &#127881;</span>
                 <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
             </div>
 
