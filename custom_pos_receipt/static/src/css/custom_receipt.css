@@ -13,16 +13,6 @@
 }
 
 /* ============================= */
-/* CSS FALLBACK: Hide "Need an invoice?" and "Code:" text */
-/* ============================= */
-.pos-receipt .ask-for-invoice,
-.pos-receipt .pos-receipt-invoice-button,
-.pos-receipt .pos-receipt-qrcode p,
-.pos-receipt .pos-receipt-qrcode .pos-receipt-qrcode-description {
-    display: none !important;
-}
-
-/* ============================= */
 /* GST Table */
 /* ============================= */
 .gst-table-wrapper {
