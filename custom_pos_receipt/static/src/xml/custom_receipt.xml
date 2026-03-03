@@ -7,64 +7,115 @@
     <xpath expr="//img[@id='posqrcode']" position="replace"/>
 
     <!-- ==================== RECEIPT HEADER ==================== -->
-    <xpath expr="//ReceiptHeader" position="replace">
-        <t t-if="receiptCompany">
-            <t t-set="co" t-value="receiptCompany"/>
-            <div class="receipt-header-row">
+<!--    <xpath expr="//ReceiptHeader" position="replace">-->
+<!--        <t t-if="receiptCompany">-->
+<!--            <t t-set="co" t-value="receiptCompany"/>-->
+<!--            <div class="receipt-header-row">-->
 
-                <t t-if="logoUrl">
-                    <div class="receipt-logo-cell">
-                        <img t-att-src="logoUrl"
-                             class="receipt-company-logo"
-                             alt="Logo"/>
-                    </div>
-                </t>
+<!--                <t t-if="logoUrl">-->
+<!--                    <div class="receipt-logo-cell">-->
+<!--                        <img t-att-src="logoUrl"-->
+<!--                             class="receipt-company-logo"-->
+<!--                             alt="Logo"/>-->
+<!--                    </div>-->
+<!--                </t>-->
 
-                <div class="receipt-company-cell">
-                    <t t-if="co.name">
-                        <div class="company-name">
-                            <t t-esc="co.name"/>
-                        </div>
-                    </t>
-                    <t t-if="co.street">
-                        <div><t t-esc="co.street"/></div>
-                    </t>
-                    <t t-if="co.city">
-                        <div>
-                            <t t-esc="co.city"/>
-                            <t t-if="co.zip">, <t t-esc="co.zip"/></t>
-                        </div>
-                    </t>
-                    <t t-if="co.vat">
-                        <div>GSTIN: <t t-esc="co.vat"/></div>
-                    </t>
-                    <t t-if="co.phone">
-                        <div>Tel: <t t-esc="co.phone"/></div>
-                    </t>
-                    <t t-if="co.email">
-                        <div><t t-esc="co.email"/></div>
-                    </t>
-                </div>
+<!--                <div class="receipt-company-cell">-->
+<!--                    <t t-if="co.name">-->
+<!--                        <div class="company-name">-->
+<!--                            <t t-esc="co.name"/>-->
+<!--                        </div>-->
+<!--                    </t>-->
+<!--                    <t t-if="co.street">-->
+<!--                        <div><t t-esc="co.street"/></div>-->
+<!--                    </t>-->
+<!--                    <t t-if="co.city">-->
+<!--                        <div>-->
+<!--                            <t t-esc="co.city"/>-->
+<!--                            <t t-if="co.zip">, <t t-esc="co.zip"/></t>-->
+<!--                        </div>-->
+<!--                    </t>-->
+<!--                    <t t-if="co.vat">-->
+<!--                        <div>GSTIN: <t t-esc="co.vat"/></div>-->
+<!--                    </t>-->
+<!--                    <t t-if="co.phone">-->
+<!--                        <div>Tel: <t t-esc="co.phone"/></div>-->
+<!--                    </t>-->
+<!--                    <t t-if="co.email">-->
+<!--                        <div><t t-esc="co.email"/></div>-->
+<!--                    </t>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </t>-->
+
+<!--        <div class="receipt-meta-row">-->
+<!--            <div class="receipt-invoice-no">-->
+<!--                <strong>Invoice:</strong>-->
+<!--                <t t-esc="receiptRef"/>-->
+<!--            </div>-->
+<!--            <div class="receipt-invoice-date">-->
+<!--                <t t-esc="receiptDate"/>-->
+<!--            </div>-->
+<!--        </div>-->
+
+<!--        <t t-if="receiptPartner">-->
+<!--            <t t-set="partner" t-value="receiptPartner"/>-->
+<!--            <div class="receipt-customer-block">-->
+<!--                <div class="customer-name">-->
+<!--                    <t t-if="partner.parent_name">-->
+<!--                        <span t-esc="partner.parent_name"/>,-->
+<!--                    </t>-->
+<!--                    <span t-esc="partner.name"/>-->
+<!--                </div>-->
+<!--                <t t-if="partner.pos_contact_address">-->
+<!--                    <div><t t-esc="partner.pos_contact_address"/></div>-->
+<!--                </t>-->
+<!--                <t t-if="partner.phone">-->
+<!--                    <div>Phone: <t t-esc="partner.phone"/></div>-->
+<!--                </t>-->
+<!--            </div>-->
+<!--        </t>-->
+<!--    </xpath>-->
+        <xpath expr="//ReceiptHeader" position="replace">
+        <t t-set="co" t-value="receiptCompany"/>
+        <div class="receipt-header-row">
+            <div class="receipt-logo-cell">
+                <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
             </div>
-        </t>
-
+            <div class="receipt-company-cell">
+                <t t-if="co.name">
+                    <div class="company-name"><t t-esc="co.name"/></div>
+                </t>
+                <t t-if="co.street">
+                    <div><t t-esc="co.street"/></div>
+                </t>
+                <t t-if="co.city">
+                    <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
+                </t>
+                <t t-if="co.vat">
+                    <div>GSTIN: <t t-esc="co.vat"/></div>
+                </t>
+                <t t-if="co.phone">
+                    <div>Tel: <t t-esc="co.phone"/></div>
+                </t>
+                <t t-if="co.email">
+                    <div><t t-esc="co.email"/></div>
+                </t>
+            </div>
+        </div>
         <div class="receipt-meta-row">
             <div class="receipt-invoice-no">
-                <strong>Invoice:</strong>
-                <t t-esc="receiptRef"/>
+                <strong>Invoice: </strong><t t-esc="receiptRef"/>
             </div>
             <div class="receipt-invoice-date">
                 <t t-esc="receiptDate"/>
             </div>
         </div>
-
-        <t t-if="receiptPartner">
-            <t t-set="partner" t-value="receiptPartner"/>
+        <t t-set="partner" t-value="receiptPartner"/>
+        <t t-if="partner">
             <div class="receipt-customer-block">
                 <div class="customer-name">
-                    <t t-if="partner.parent_name">
-                        <span t-esc="partner.parent_name"/>,
-                    </t>
+                    <t t-if="partner.parent_name"><span t-esc="partner.parent_name"/>, </t>
                     <span t-esc="partner.name"/>
                 </div>
                 <t t-if="partner.pos_contact_address">
