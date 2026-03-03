@@ -10,6 +10,45 @@
     <!-- Remove default payment lines (SAFE) -->
     <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
+     <div class="custom-total-section">
+
+            <div class="line">
+                <span>Before Grand Total</span>
+                <span><t t-esc="formatCurrency(order.getBeforeGrandTotal())"/></span>
+            </div>
+
+            <div class="line">
+                <span>Taxable Total</span>
+                <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>
+            </div>
+
+            <div class="line">
+                <span>CGST</span>
+                <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>
+            </div>
+
+            <div class="line">
+                <span>SGST</span>
+                <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>
+            </div>
+
+            <div class="line total">
+                <span>Grand Total</span>
+                <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
+            </div>
+
+            <div class="amount-words">
+                <t t-esc="order.getAmountInWords()"/>
+            </div>
+
+<!--            <div class="saved-line">-->
+<!--                <span> 🎉 You Have Saved 🎉</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>-->
+<!--            </div>-->
+
+        </div>
+
+
     <!-- ================= RENAME DISCOUNT ================= -->
 
     <xpath expr="//span[@class='label-discount']" position="replace" optional="hide">
@@ -65,43 +104,6 @@
 
         <!-- CUSTOM TOTAL SECTION -->
 
-        <div class="custom-total-section">
-
-            <div class="line">
-                <span>Before Grand Total</span>
-                <span><t t-esc="formatCurrency(order.getBeforeGrandTotal())"/></span>
-            </div>
-
-            <div class="line">
-                <span>Taxable Total</span>
-                <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>
-            </div>
-
-            <div class="line">
-                <span>CGST</span>
-                <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>
-            </div>
-
-            <div class="line">
-                <span>SGST</span>
-                <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>
-            </div>
-
-            <div class="line total">
-                <span>Grand Total</span>
-                <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
-            </div>
-
-            <div class="amount-words">
-                <t t-esc="order.getAmountInWords()"/>
-            </div>
-
-            <div class="saved-line">
-                <span> 🎉 You Have Saved 🎉</span>
-                <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
-            </div>
-
-        </div>
 
     </xpath>
 
