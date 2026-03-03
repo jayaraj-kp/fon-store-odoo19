@@ -6,36 +6,16 @@
     <!-- ==================== 1. HIDE DEFAULT INVOICE QR (it moved to our section) ==================== -->
     <xpath expr="//img[@id='posqrcode']" position="replace"/>
 
-    <!-- ==================== 2. REPLACE RECEIPT HEADER ==================== -->
-    <xpath expr="//ReceiptHeader" position="replace">
+    <!-- ==================== 2. ADD LOGO AT TOP OF RECEIPT ==================== -->
+    <!-- Odoo 19: ReceiptHeader is a separate component; we inject our logo before the order lines -->
+    <xpath expr="//div[@class='pos-receipt-contact']" position="before">
         <t t-set="co" t-value="receiptCompany"/>
         <t t-set="logoUrl" t-value="co and co.logo_web or ''"/>
-
-        <div class="receipt-header-row">
-            <!-- Logo on left -->
-            <t t-if="logoUrl">
-                <div class="receipt-logo-cell">
-                    <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
-                </div>
-            </t>
-
-            <!-- Company info on right -->
-            <div class="receipt-company-cell">
-                <t t-if="co">
-                    <div class="company-name"><t t-esc="co.name"/></div>
-                    <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
-                    <t t-if="co.city">
-                        <div>
-                            <t t-esc="co.city"/>
-                            <t t-if="co.zip">, <t t-esc="co.zip"/></t>
-                        </div>
-                    </t>
-                    <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
-                    <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
-                    <t t-if="co.email"><div><t t-esc="co.email"/></div></t>
-                </t>
+        <t t-if="logoUrl">
+            <div style="text-align:center; margin-bottom:6px;">
+                <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
             </div>
-        </div>
+        </t>
     </xpath>
 
     <!-- ==================== 3. INJECT CUSTOM SECTION BEFORE FOOTER ==================== -->
