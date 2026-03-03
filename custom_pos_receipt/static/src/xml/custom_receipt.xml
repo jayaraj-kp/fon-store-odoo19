@@ -2,20 +2,23 @@
 <templates xml:space="preserve">
 
 <!--
-    Odoo 19 POS Receipt Customization
-    - Uses targeted xpaths only (NO full pos-receipt replace)
-    - Keeps OrderWidget/Orderline intact so l10n_in HSN codes still work
-    - All data via props.data and props.data.headerData
+    Odoo 18/19 POS Receipt Customization
+    Confirmed working xpaths:
+    - pos-receipt-order-data  = the header block (company, date, customer)
+    - pos-receipt-amount      = the totals block (we remove it)
+    - paymentlines            = payment lines (we remove it)
+    - pos-receipt-order-data  position="after" = insert below header, above items
+    All items/orderlines are left untouched so l10n_in HSN xpath still works.
 -->
+
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
     <!-- ============================================================ -->
-    <!-- 1. REPLACE THE COMPANY HEADER BLOCK                          -->
-    <!--    Target: the ReceiptHeader component OR the first div      -->
-    <!--    inside pos-receipt that has company info                  -->
-    <!--    We use "before" on OrderWidget which is always present    -->
+    <!-- 1. REPLACE ENTIRE HEADER BLOCK (pos-receipt-order-data)      -->
+    <!--    This contains: logo, company name, date, cashier,         -->
+    <!--    order number, customer info in Odoo 18/19                 -->
     <!-- ============================================================ -->
-    <xpath expr="//ReceiptHeader" position="replace">
+    <xpath expr="//div[hasclass('pos-receipt-order-data')]" position="replace">
 
         <!-- ── ROW 1: Logo (left) + Company Details (right) ── -->
         <div class="receipt-header-row">
@@ -90,14 +93,15 @@
     <!-- ============================================================ -->
     <!-- 3. REMOVE DEFAULT TOTAL + PAYMENT BLOCKS                     -->
     <!-- ============================================================ -->
-    <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace"/>
-    <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
+    <xpath expr="//div[hasclass('pos-receipt-amount')]" position="replace"/>
+    <xpath expr="//div[hasclass('paymentlines')]" position="replace"/>
 
     <!-- ============================================================ -->
-    <!-- 4. INSERT EVERYTHING AFTER OrderWidget                       -->
-    <!--    (custom totals, QR row, GST table, loyalty, footer)       -->
+    <!-- 4. INSERT CUSTOM SECTIONS after order-data block             -->
+    <!--    (after items/orderlines, before footer)                   -->
+    <!--    Target the before-footer div which is always present      -->
     <!-- ============================================================ -->
-    <xpath expr="//OrderWidget" position="after">
+    <xpath expr="//div[@class='before-footer']" position="before">
 
         <!-- ── CUSTOM TOTAL SECTION ── -->
         <div class="custom-total-section">
