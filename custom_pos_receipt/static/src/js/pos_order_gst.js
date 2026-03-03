@@ -5,9 +5,8 @@ import { patch } from "@web/core/utils/patch";
 
 patch(PosOrder.prototype, {
 
-    /* ============================= */
-    /* GST BREAKDOWN */
-    /* ============================= */
+    /* ================= GST BREAKDOWN ================= */
+
     getGstBreakdown() {
         const grouped = {};
         const lines = this.lines || this.orderlines || [];
@@ -53,9 +52,7 @@ patch(PosOrder.prototype, {
         return this.getGstBreakdown().reduce((sum, g) => sum + g.sgst, 0);
     },
 
-    /* ============================= */
-    /* TOTAL SECTION FUNCTIONS */
-    /* ============================= */
+    /* ================= CUSTOM TOTAL SECTION ================= */
 
     getBeforeGrandTotal() {
         return this.getTotalTaxableAmount();
@@ -82,9 +79,8 @@ patch(PosOrder.prototype, {
         return totalSaved;
     },
 
-    /* ============================= */
-    /* AMOUNT IN WORDS */
-    /* ============================= */
+    /* ================= AMOUNT IN WORDS ================= */
+
     getAmountInWords() {
         const amount = Math.floor(this.getGrandTotal());
 
