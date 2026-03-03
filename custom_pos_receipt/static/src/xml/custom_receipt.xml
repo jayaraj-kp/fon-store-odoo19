@@ -1,6 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
+<!-- ================================================================== -->
+<!-- OWL template for the UpiQrCode component                           -->
+<!-- ================================================================== -->
+<t t-name="custom_pos_receipt.UpiQrCode">
+    <div class="upi-qr-section">
+        <div class="upi-qr-title">⬇ Scan &amp; Pay via UPI ⬇</div>
+        <div class="upi-qr-canvas-wrap">
+            <canvas t-ref="upiCanvas" class="upi-qr-canvas"/>
+        </div>
+        <div class="upi-qr-id">
+            <t t-esc="props.upiId"/>
+        </div>
+    </div>
+</t>
+
+<!-- ================================================================== -->
+<!-- Extend the POS OrderReceipt                                         -->
+<!-- ================================================================== -->
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
     <!-- ================= REMOVE DEFAULT TOTAL BLOCK ================= -->
@@ -13,10 +31,8 @@
     <!-- ================= RENAME DISCOUNT ================= -->
 
 
-<!--    <xpath expr="//div[.//span[@class='label-discount']]" position="replace"/>-->
 
-
-    <!-- ================= QR Resize ================= -->
+    <!-- ================= QR Resize (existing e-invoice QR) ================= -->
 
     <xpath expr="//img[@id='posqrcode']" position="attributes">
         <attribute name="style">width:90px;height:90px;</attribute>
@@ -102,6 +118,13 @@
             </div>
 
         </div>
+
+        <!-- ================= UPI PAYMENT QR CODE ================= -->
+
+        <UpiQrCode
+            upiString="order.getUpiPaymentString()"
+            upiId="order.getUpiId()"
+        />
 
     </xpath>
 
