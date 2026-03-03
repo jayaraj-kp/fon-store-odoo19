@@ -18,7 +18,12 @@ class PosConfig(models.Model):
         help='Print a dynamic UPI QR code on each receipt with the exact bill amount',
     )
 
-    def _get_pos_ui_pos_config_fields(self, params):
-        """Include UPI fields in data sent to POS frontend."""
-        result = super()._get_pos_ui_pos_config_fields(params)
-        return result + ['upi_vpa', 'upi_merchant_name', 'upi_qr_on_receipt']
+    def _load_pos_config(self):
+        """Include UPI fields in the config data sent to POS frontend (Odoo 19)."""
+        config = super()._load_pos_config()
+        config.update({
+            'upi_vpa': self.upi_vpa or '',
+            'upi_merchant_name': self.upi_merchant_name or '',
+            'upi_qr_on_receipt': self.upi_qr_on_receipt,
+        })
+        return config

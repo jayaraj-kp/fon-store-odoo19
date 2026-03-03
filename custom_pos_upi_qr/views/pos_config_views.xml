@@ -6,35 +6,27 @@
         <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
         <field name="arch" type="xml">
 
-            <!-- Inject UPI QR section inside Bills &amp; Receipts tab -->
-            <xpath expr="//div[@id='bills_and_receipts']" position="inside">
-                <div class="o_setting_box">
-                    <div class="o_setting_left_pane">
-                        <field name="upi_qr_on_receipt"/>
-                    </div>
-                    <div class="o_setting_right_pane">
-                        <label for="upi_qr_on_receipt"/>
-                        <div class="text-muted">
-                            Print a dynamic UPI QR code on each receipt —
-                            customers scan with GPay, PhonePe, Paytm etc.
-                            and the exact amount is pre-filled.
-                        </div>
-                        <div class="content-group mt8" attrs="{'invisible': [('upi_qr_on_receipt', '=', False)]}">
-                            <div class="row mt8">
-                                <label for="upi_vpa" class="col-lg-4 o_light_label"/>
-                                <field name="upi_vpa"
-                                       class="col-lg-8"
-                                       placeholder="e.g. yourstore@paytm or 9876543210@ybl"/>
-                            </div>
-                            <div class="row mt4">
-                                <label for="upi_merchant_name" class="col-lg-4 o_light_label"/>
-                                <field name="upi_merchant_name"
-                                       class="col-lg-8"
-                                       placeholder="Name shown on customer's UPI app"/>
-                            </div>
-                        </div>
-                    </div>
+            <!--
+                Anchor on the 'qr_code_at_bottom' field (the "Need an invoice?" QR toggle).
+                This field is confirmed present in Odoo 19 CE since it already shows on the receipt.
+                We add our UPI QR settings block directly after it.
+            -->
+            <xpath expr="//field[@name='qr_code_at_bottom']" position="after">
+
+                <!-- UPI QR toggle -->
+                <field name="upi_qr_on_receipt" widget="boolean_toggle"/>
+                <label for="upi_qr_on_receipt" string="UPI QR Code on Receipt"/>
+
+                <!-- UPI sub-fields, shown only when the toggle is ON -->
+                <div invisible="not upi_qr_on_receipt" class="ms-3 mt4">
+                    <label for="upi_vpa" string="UPI ID (VPA)"/>
+                    <field name="upi_vpa"
+                           placeholder="e.g. yourstore@paytm or 9876543210@ybl"/>
+                    <label for="upi_merchant_name" string="Merchant Name (shown on UPI app)"/>
+                    <field name="upi_merchant_name"
+                           placeholder="Name customers see when they scan"/>
                 </div>
+
             </xpath>
 
         </field>
