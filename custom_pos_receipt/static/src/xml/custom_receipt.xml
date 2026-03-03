@@ -16,10 +16,7 @@
                 <div class="company-name"><t t-esc="co.name"/></div>
                 <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
                 <t t-if="co.city">
-                    <div>
-                        <t t-esc="co.city"/>
-                        <t t-if="co.zip">, <t t-esc="co.zip"/></t>
-                    </div>
+                    <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
                 </t>
                 <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
                 <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
@@ -35,25 +32,24 @@
    t-inherit="point_of_sale.OrderReceipt"
    t-inherit-mode="extension">
 
-    <!-- 1. Hide Subtotal / GST / Total / Payment / Change / Discount block -->
+    <!-- 1. Hide Subtotal/GST tax groups block -->
     <xpath expr="//div[@class='pos-receipt-taxes pt-3']" position="replace"/>
-    <xpath expr="//div[hasclass('pos-receipt-amount') and hasclass('receipt-total')]" position="replace"/>
+
+    <!-- 2. Hide Total bold row -->
+    <xpath expr="//div[@class='pos-receipt-amount receipt-total fw-bolder']" position="replace"/>
+
+    <!-- 3. Hide Payment lines (Cash etc) - uses t-foreach so target the div with t-foreach -->
     <xpath expr="//div[@class='paymentlines text-start pt-1']" position="replace"/>
-    <xpath expr="//div[hasclass('pos-receipt-amount') and hasclass('receipt-change')]" position="replace"/>
 
-    <!-- 2. Hide the default invoice QR block -->
-    <xpath expr="//div[contains(@class,'d-flex') and contains(@class,'flex-row') and contains(@class,'pt-3') and .//img[@id='posqrcode']]" position="replace"/>
+    <!-- 4. Hide Change row -->
+    <xpath expr="//div[@class='pos-receipt-amount receipt-change']" position="replace"/>
 
-    <!-- 3. Hide bottom company address + contact block -->
-    <xpath expr="//div[@class='d-flex gap-2 pt-3']" position="replace"/>
+    <!-- 5. Hide default invoice QR block (exact class from source) -->
+    <xpath expr="//div[@class='gap-2 d-flex flex-row pt-3']" position="replace"/>
 
-    <!-- 4. Hide "Powered by Odoo" -->
-    <xpath expr="//div[@class='pos-receipt-order-data text-center pt-3']" position="replace"/>
-
-    <!-- 5. Inject our custom section before before-footer -->
+    <!-- 6. Inject our custom section just before before-footer -->
     <xpath expr="//div[@class='before-footer']" position="before">
 
-        <!-- CUSTOM TOTAL SECTION -->
         <div class="custom-total-section">
             <div class="line">
                 <span>Taxable Amount</span>
@@ -82,9 +78,8 @@
             </t>
         </div>
 
-        <!-- QR CODES: Invoice QR (left) + UPI QR (right) -->
+        <!-- QR CODES side by side -->
         <div class="receipt-qr-row">
-
             <div class="receipt-qr-cell">
                 <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and qrCode">
                     <div class="qr-cell-label">Need an invoice?</div>
@@ -94,7 +89,6 @@
                     </t>
                 </t>
             </div>
-
             <div class="receipt-qr-cell">
                 <t t-if="upiQrSrc">
                     <div class="qr-cell-label">Scan &amp; Pay &#x20B9;</div>
@@ -103,10 +97,9 @@
                     </div>
                 </t>
             </div>
-
         </div>
 
-        <!-- LOYALTY POINTS -->
+        <!-- Loyalty Points -->
         <t t-if="order.loyalty_points">
             <div class="loyalty-points-block">
                 <span>&#127942; Loyalty Points Earned:</span>
@@ -114,133 +107,13 @@
             </div>
         </t>
 
-        <!-- COMPANY FOOTER (our version, once, at the bottom) -->
-        <div class="receipt-footer-row">
-            <t t-set="co" t-value="order.company"/>
-            <div>
-                <div><t t-esc="co.name"/></div>
-                <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
-                <t t-if="co.city"><div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div></t>
-            </div>
-            <div style="text-align:right;">
-                <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
-                <t t-if="co.email"><div><t t-esc="co.email"/></div></t>
-            </div>
-        </div>
-
     </xpath>
+
+    <!-- 7. Hide bottom duplicate company address block -->
+    <xpath expr="//div[@class='d-flex gap-2 pt-3']" position="replace"/>
+
+    <!-- 8. Hide "Powered by Odoo" -->
+    <xpath expr="//div[@class='pos-receipt-order-data text-center pt-3']" position="replace"/>
 
 </t>
 </templates>
-
-
-<!--<?xml version="1.0" encoding="UTF-8"?>-->
-<!--<templates id="template" xml:space="preserve">-->
-
-<!--&lt;!&ndash; ==================== TEMPLATE 1: RECEIPT HEADER ==================== &ndash;&gt;-->
-<!--<t t-name="point_of_sale.ReceiptHeader"-->
-<!--   t-inherit="point_of_sale.ReceiptHeader"-->
-<!--   t-inherit-mode="extension">-->
-
-<!--    &lt;!&ndash; Replace the logo with logo (left) + company info (right) side by side &ndash;&gt;-->
-<!--    <xpath expr="//img[@class='pos-receipt-logo']" position="replace">-->
-<!--        <div class="receipt-header-row">-->
-<!--            <div class="receipt-logo-cell">-->
-<!--                <img t-att-src="logoUrl" alt="Logo" class="receipt-company-logo"/>-->
-<!--            </div>-->
-<!--            <div class="receipt-company-cell">-->
-<!--                <t t-set="co" t-value="order.company"/>-->
-<!--                <div class="company-name"><t t-esc="co.name"/></div>-->
-<!--                <t t-if="co.street"><div><t t-esc="co.street"/></div></t>-->
-<!--                <t t-if="co.city">-->
-<!--                    <div>-->
-<!--                        <t t-esc="co.city"/>-->
-<!--                        <t t-if="co.zip">, <t t-esc="co.zip"/></t>-->
-<!--                    </div>-->
-<!--                </t>-->
-<!--                <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>-->
-<!--                <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>-->
-<!--                <t t-if="co.email"><div><t t-esc="co.email"/></div></t>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </xpath>-->
-
-<!--</t>-->
-
-<!--&lt;!&ndash; ==================== TEMPLATE 2: ORDER RECEIPT ==================== &ndash;&gt;-->
-<!--<t t-name="point_of_sale.OrderReceipt"-->
-<!--   t-inherit="point_of_sale.OrderReceipt"-->
-<!--   t-inherit-mode="extension">-->
-
-<!--    &lt;!&ndash; Hide the default invoice QR block (we show it ourselves below) &ndash;&gt;-->
-<!--    <xpath expr="//div[contains(@class,'d-flex') and contains(@class,'flex-row') and contains(@class,'pt-3') and .//img[@id='posqrcode']]" position="replace"/>-->
-
-<!--    &lt;!&ndash; Inject custom section before the empty before-footer div &ndash;&gt;-->
-<!--    <xpath expr="//div[@class='before-footer']" position="before">-->
-
-<!--        &lt;!&ndash; CUSTOM TOTAL SECTION &ndash;&gt;-->
-<!--        <div class="custom-total-section">-->
-<!--            <div class="line">-->
-<!--                <span>Taxable Amount</span>-->
-<!--                <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>-->
-<!--            </div>-->
-<!--            <div class="line">-->
-<!--                <span>CGST</span>-->
-<!--                <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>-->
-<!--            </div>-->
-<!--            <div class="line">-->
-<!--                <span>SGST</span>-->
-<!--                <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>-->
-<!--            </div>-->
-<!--            <div class="line total">-->
-<!--                <span>Grand Total</span>-->
-<!--                <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>-->
-<!--            </div>-->
-<!--            <div class="amount-words">-->
-<!--                <t t-esc="order.getAmountInWords()"/>-->
-<!--            </div>-->
-<!--            <t t-if="order.getTotalSaved()">-->
-<!--                <div class="saved-line">-->
-<!--                    <span>&#127881; You Have Saved &#127881;</span>-->
-<!--                    <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>-->
-<!--                </div>-->
-<!--            </t>-->
-<!--        </div>-->
-
-<!--        &lt;!&ndash; QR CODES: Invoice QR (left) + UPI QR (right) &ndash;&gt;-->
-<!--        <div class="receipt-qr-row">-->
-
-<!--            <div class="receipt-qr-cell">-->
-<!--                <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and qrCode">-->
-<!--                    <div class="qr-cell-label">Need an invoice?</div>-->
-<!--                    <img t-att-src="qrCode" class="qr-code" alt="Invoice QR"/>-->
-<!--                    <t t-if="order.ticket_code">-->
-<!--                        <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>-->
-<!--                    </t>-->
-<!--                </t>-->
-<!--            </div>-->
-
-<!--            <div class="receipt-qr-cell">-->
-<!--                <t t-if="upiQrSrc">-->
-<!--                    <div class="qr-cell-label">Scan &amp; Pay &#x20B9;</div>-->
-<!--                    <div class="upi-qr-image-container">-->
-<!--                        <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR Code"/>-->
-<!--                    </div>-->
-<!--                </t>-->
-<!--            </div>-->
-
-<!--        </div>-->
-
-<!--        &lt;!&ndash; LOYALTY POINTS &ndash;&gt;-->
-<!--        <t t-if="order.loyalty_points">-->
-<!--            <div class="loyalty-points-block">-->
-<!--                <span>&#127942; Loyalty Points Earned:</span>-->
-<!--                <span><t t-esc="order.loyalty_points"/></span>-->
-<!--            </div>-->
-<!--        </t>-->
-
-<!--    </xpath>-->
-
-<!--</t>-->
-<!--</templates>-->
-
