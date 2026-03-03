@@ -1,24 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
-<t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+<!-- ==================== TEMPLATE 1: RECEIPT HEADER ==================== -->
+<!-- ReceiptHeader is a separate component in Odoo 17/18/19 - must inherit independently -->
+<t t-name="custom_pos_receipt.ReceiptHeader"
+   t-inherit="point_of_sale.ReceiptHeader"
+   t-inherit-mode="extension">
 
-    <!-- ==================== 1. HIDE DEFAULT INVOICE QR (it moved to our section) ==================== -->
-    <xpath expr="//img[@id='posqrcode']" position="replace"/>
-
-    <!-- ==================== 2. ADD LOGO AT TOP OF RECEIPT ==================== -->
-    <!-- Odoo 19: ReceiptHeader is a separate component; we inject our logo before the order lines -->
-    <xpath expr="//div[@class='pos-receipt-contact']" position="before">
-        <t t-set="co" t-value="receiptCompany"/>
-        <t t-set="logoUrl" t-value="co and co.logo_web or ''"/>
-        <t t-if="logoUrl">
-            <div style="text-align:center; margin-bottom:6px;">
-                <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
+    <!-- Replace the logo img with our logo+company side-by-side layout -->
+    <xpath expr="//img" position="replace">
+        <div class="receipt-header-row">
+            <!-- Logo on left -->
+            <div class="receipt-logo-cell">
+                <img t-attf-src="/web/image?model=res.company&amp;id={{props.data.company.id}}&amp;field=logo"
+                     class="receipt-company-logo"
+                     alt="Logo"/>
             </div>
-        </t>
+            <!-- Company info on right -->
+            <div class="receipt-company-cell">
+                <t t-if="props.data.company">
+                    <div class="company-name"><t t-esc="props.data.company.name"/></div>
+                    <t t-if="props.data.company.street">
+                        <div><t t-esc="props.data.company.street"/></div>
+                    </t>
+                    <t t-if="props.data.company.city">
+                        <div>
+                            <t t-esc="props.data.company.city"/>
+                            <t t-if="props.data.company.zip">, <t t-esc="props.data.company.zip"/></t>
+                        </div>
+                    </t>
+                    <t t-if="props.data.company.vat">
+                        <div>GSTIN: <t t-esc="props.data.company.vat"/></div>
+                    </t>
+                    <t t-if="props.data.company.phone">
+                        <div>Tel: <t t-esc="props.data.company.phone"/></div>
+                    </t>
+                    <t t-if="props.data.company.email">
+                        <div><t t-esc="props.data.company.email"/></div>
+                    </t>
+                </t>
+            </div>
+        </div>
     </xpath>
 
-    <!-- ==================== 3. INJECT CUSTOM SECTION BEFORE FOOTER ==================== -->
+</t>
+
+<!-- ==================== TEMPLATE 2: ORDER RECEIPT ==================== -->
+<t t-name="custom_pos_receipt.OrderReceipt"
+   t-inherit="point_of_sale.OrderReceipt"
+   t-inherit-mode="extension">
+
+    <!-- Hide the default invoice QR (we place it ourselves below) -->
+    <xpath expr="//img[@id='posqrcode']" position="replace"/>
+
+    <!-- Inject custom totals + QR section before the footer -->
     <xpath expr="//div[@class='before-footer']" position="before">
 
         <!-- CUSTOM TOTAL SECTION -->
@@ -50,10 +85,9 @@
             </t>
         </div>
 
-        <!-- ==================== QR CODES (side by side) ==================== -->
+        <!-- QR CODES: Invoice QR (left) + UPI QR (right) -->
         <div class="receipt-qr-row">
 
-            <!-- LEFT: Invoice QR -->
             <div class="receipt-qr-cell">
                 <t t-if="receiptCompany
                          and receiptCompany.point_of_sale_use_ticket_qr_code
@@ -67,7 +101,6 @@
                 </t>
             </div>
 
-            <!-- RIGHT: UPI QR -->
             <div class="receipt-qr-cell">
                 <t t-if="upiQrSrc">
                     <div class="qr-cell-label">Scan &amp; Pay &#x20B9;</div>
