@@ -80,10 +80,10 @@
     <t t-set="co" t-value="receiptCompany"/>
         <t t-set="logoUrl" t-value="receiptCompany and receiptCompany.logo_web or ''"/>
         <div class="receipt-header-row">
-        <div class="receipt-logo-cell">
-            <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
+        <div class="pos-receipt-logo-cell">
+            <img t-att-src="logoUrl" class="pos-receipt-company-logo" alt="Logo"/>
         </div>
-            <div class="receipt-company-cell">
+            <div class="pos-receipt-company-cell">
 
 <!--                <t t-if="co.street"><div><t t-esc="co.street"/></div></t>-->
 <!--                <t t-if="co.city"><div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div></t>-->
