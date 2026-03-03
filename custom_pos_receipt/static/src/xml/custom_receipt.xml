@@ -44,60 +44,56 @@
     <!-- ===================================================== -->
     <!-- 3️⃣ REPLACE before-footer (SAFE ANCHOR)               -->
     <!-- ===================================================== -->
-
-   <xpath expr="//div[contains(@class,'before-footer')]" position="replace">
-
+<xpath expr="//div[contains(@class,'before-footer')]" position="replace">
     <div class="before-footer">
 
         <!-- ===== Custom Totals ===== -->
+        <t t-if="props.data">
+            <div class="custom-total-section">
 
-        <div class="custom-total-section">
+                <div class="line">
+                    <span>Taxable</span>
+                    <span>
+                        <t t-esc="formatCurrency(props.data.subtotal || 0)"/>
+                    </span>
+                </div>
 
-            <div class="line">
-                <span>Taxable</span>
-                <span>
-                    <t t-esc="formatCurrency(props.data.subtotal)"/>
-                </span>
-            </div>
+                <div class="line">
+                    <span>Total Tax</span>
+                    <span>
+                        <t t-esc="formatCurrency(props.data.total_tax || 0)"/>
+                    </span>
+                </div>
 
-            <div class="line">
-                <span>Total Tax</span>
-                <span>
-                    <t t-esc="formatCurrency(props.data.total_tax)"/>
-                </span>
-            </div>
-
-            <div class="line total">
-                <span>Grand Total</span>
-                <span>
-                    <t t-esc="formatCurrency(props.data.total_with_tax)"/>
-                </span>
-            </div>
-
-        </div>
-
-        <!-- ===== QR Section ===== -->
-
-        <div class="receipt-qr-row">
-
-            <div class="receipt-qr-cell">
-                <img t-if="props.data.qr_code_data"
-                     t-att-src="props.data.qr_code_data"
-                     style="width:80px;"/>
-            </div>
-
-            <div class="receipt-qr-cell"
-                 t-if="props.data.upi_qr_code">
-
-                <img t-att-src="props.data.upi_qr_code"
-                     style="width:80px;"/>
+                <div class="line total">
+                    <span>Grand Total</span>
+                    <span>
+                        <t t-esc="formatCurrency(props.data.total_with_tax || 0)"/>
+                    </span>
+                </div>
 
             </div>
 
-        </div>
+            <!-- ===== QR Section ===== -->
+            <div class="receipt-qr-row">
 
+                <div class="receipt-qr-cell">
+                    <img t-if="props.data.qr_code_data"
+                         t-att-src="props.data.qr_code_data"
+                         style="width:80px;"/>
+                </div>
+
+                <div class="receipt-qr-cell"
+                     t-if="props.data.upi_qr_code">
+
+                    <img t-att-src="props.data.upi_qr_code"
+                         style="width:80px;"/>
+
+                </div>
+
+            </div>
+        </t>
     </div>
-
 </xpath>
 </t>
 
