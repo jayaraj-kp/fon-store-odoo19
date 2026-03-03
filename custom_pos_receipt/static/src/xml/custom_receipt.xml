@@ -38,70 +38,51 @@
     <!-- ============================================================ -->
     <xpath expr="//ReceiptHeader" position="replace">
 
-        <!-- Safety: store company in variable, guard everything -->
-        <t t-set="co" t-value="order.company"/>
-
         <!-- ── ROW 1: Logo (left) + Company Details (right) ── -->
-        <t t-if="co">
         <div class="receipt-header-row">
             <div class="receipt-logo-cell">
-                <img t-attf-src="/web/image?model=res.company&amp;id={{ co.id }}&amp;field=logo"
-                     class="receipt-company-logo"
-                     alt="Logo"/>
+                <img t-att-src="logoUrl" class="receipt-company-logo" alt="Logo"/>
             </div>
             <div class="receipt-company-cell">
+                <t t-set="co" t-value="order.company"/>
                 <div class="company-name"><t t-esc="co.name"/></div>
-                <t t-if="co.street">
-                    <div><t t-esc="co.street"/></div>
-                </t>
+                <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
                 <t t-if="co.city">
                     <div>
                         <t t-esc="co.city"/>
                         <t t-if="co.zip">, <t t-esc="co.zip"/></t>
                     </div>
                 </t>
-                <t t-if="co.vat">
-                    <div>GSTIN: <t t-esc="co.vat"/></div>
-                </t>
-                <t t-if="co.phone">
-                    <div>Tel: <t t-esc="co.phone"/></div>
-                </t>
-                <t t-if="co.email">
-                    <div><t t-esc="co.email"/></div>
-                </t>
+                <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
+                <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
+                <t t-if="co.email"><div><t t-esc="co.email"/></div></t>
             </div>
         </div>
-        </t>
 
         <!-- ── ROW 2: Invoice No (left) + Date (right) ── -->
         <div class="receipt-meta-row">
             <div class="receipt-invoice-no">
-                <strong>Invoice: </strong><t t-esc="order.name"/>
+                <strong>Invoice: </strong><t t-esc="order.pos_reference"/>
             </div>
             <div class="receipt-invoice-date">
-                <t t-esc="order.date_order"/>
+                <t t-esc="order.formatDateOrTime('date_order')"/>
             </div>
         </div>
 
         <!-- ── ROW 3: Customer Details ── -->
-        <t t-set="partner" t-value="order.get_partner and order.get_partner()"/>
-        <t t-if="!partner">
-            <t t-set="partner" t-value="order.partner_id"/>
-        </t>
-        <t t-if="partner and partner.id">
+        <t t-if="order.partner_id">
             <div class="receipt-customer-block">
-                <div class="customer-name"><t t-esc="partner.name"/></div>
-                <t t-if="partner.street">
-                    <div><t t-esc="partner.street"/></div>
+                <div class="customer-name">
+                    <t t-if="order.partner_id.parent_name">
+                        <span t-esc="order.partner_id.parent_name"/>,
+                    </t>
+                    <span t-esc="order.partner_id.name"/>
+                </div>
+                <t t-if="order.partner_id.pos_contact_address">
+                    <div><t t-esc="order.partner_id.pos_contact_address"/></div>
                 </t>
-                <t t-if="partner.city">
-                    <div>
-                        <t t-esc="partner.city"/>
-                        <t t-if="partner.zip"> <t t-esc="partner.zip"/></t>
-                    </div>
-                </t>
-                <t t-if="partner.phone">
-                    <div>Phone: <t t-esc="partner.phone"/></div>
+                <t t-if="order.partner_id.phone">
+                    <div>Phone: <t t-esc="order.partner_id.phone"/></div>
                 </t>
             </div>
         </t>
@@ -131,9 +112,10 @@
 
     <!-- ============================================================ -->
     <!-- 5. REMOVE BOTTOM COMPANY ADDRESS BLOCK                       -->
-    <!--    This is the d-flex gap-2 pt-3 div with Left/Right columns -->
+    <!--    Remove the t-set="company" AND the div that uses it       -->
     <!-- ============================================================ -->
     <xpath expr="//t[@t-set='company']" position="replace"/>
+    <xpath expr="//div[hasclass('pos-config-name')]/.." position="replace"/>
 
     <!-- ============================================================ -->
     <!-- 5b. REMOVE "Powered by Odoo" block                          -->
@@ -260,8 +242,8 @@
 
         <!-- ── FOOTER: Served By (left) + Date (right) ── -->
         <div class="receipt-footer-row">
-            <div>Served by: <t t-esc="order.employee ? order.employee.name : order.cashier?.name"/></div>
-            <div><t t-esc="order.formatDateOrTime('date_order', 'date')"/></div>
+            <div>Served by: <t t-esc="order.getCashierName()"/></div>
+            <div><t t-esc="order.formatDateOrTime('date_order')"/></div>
         </div>
 
     </xpath>
