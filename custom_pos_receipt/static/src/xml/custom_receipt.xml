@@ -1,18 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
-    <!-- Inherit POS Receipt -->
     <t t-inherit="point_of_sale.OrderReceipt"
        t-inherit-mode="extension">
 
-        <!-- REMOVE DEFAULT TOTAL SECTION -->
-        <xpath expr="//div[contains(@class,'order-summary')]" position="replace">
+        <!-- Replace COMPLETE receipt content safely -->
+        <xpath expr="." position="replace">
 
-            <!-- GST TABLE -->
-            <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
-            <t t-if="gstLines and gstLines.length">
+            <div class="pos-receipt">
 
-                <div class="gst-table-wrapper">
+                <!-- ORDER LINES (KEEP DEFAULT LOOP) -->
+                <t t-foreach="order.get_orderlines()" t-as="line" t-key="line.id">
+                    <div class="receipt-line">
+                        <span><t t-esc="line.get_product().display_name"/></span>
+                        <span class="text-right">
+                            <t t-esc="formatCurrency(line.get_display_price())"/>
+                        </span>
+                    </div>
+                </t>
+
+                <hr/>
+
+                <!-- GST BREAKDOWN -->
+                <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
+                <t t-if="gstLines and gstLines.length">
+
                     <table class="gst-breakdown-table">
                         <thead>
                             <tr>
@@ -39,50 +51,53 @@
                             </t>
                         </tbody>
                     </table>
-                </div>
 
-            </t>
+                </t>
 
-            <!-- CUSTOM TOTAL SECTION -->
-            <div class="custom-total-section">
+                <hr/>
 
-                <div class="line">
-                    <span>Before Grand Total</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getBeforeGrandTotal())"/>
-                    </span>
-                </div>
+                <!-- CUSTOM TOTAL SECTION -->
+                <div class="custom-total-section">
 
-                <div class="line">
-                    <span>Taxable Total</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalTaxableAmount())"/>
-                    </span>
-                </div>
+                    <div class="line">
+                        <span>Before Grand Total</span>
+                        <span>
+                            <t t-esc="formatCurrency(order.getBeforeGrandTotal())"/>
+                        </span>
+                    </div>
 
-                <div class="line">
-                    <span>CGST</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalCgst())"/>
-                    </span>
-                </div>
+                    <div class="line">
+                        <span>Taxable Total</span>
+                        <span>
+                            <t t-esc="formatCurrency(order.getTotalTaxableAmount())"/>
+                        </span>
+                    </div>
 
-                <div class="line">
-                    <span>SGST</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getTotalSgst())"/>
-                    </span>
-                </div>
+                    <div class="line">
+                        <span>CGST</span>
+                        <span>
+                            <t t-esc="formatCurrency(order.getTotalCgst())"/>
+                        </span>
+                    </div>
 
-                <div class="line total">
-                    <span>Grand Total</span>
-                    <span>
-                        <t t-esc="formatCurrency(order.getGrandTotal())"/>
-                    </span>
-                </div>
+                    <div class="line">
+                        <span>SGST</span>
+                        <span>
+                            <t t-esc="formatCurrency(order.getTotalSgst())"/>
+                        </span>
+                    </div>
 
-                <div class="amount-words">
-                    <t t-esc="order.getAmountInWords()"/>
+                    <div class="line total">
+                        <strong>Grand Total</strong>
+                        <strong>
+                            <t t-esc="formatCurrency(order.getGrandTotal())"/>
+                        </strong>
+                    </div>
+
+                    <div class="amount-words">
+                        <t t-esc="order.getAmountInWords()"/>
+                    </div>
+
                 </div>
 
             </div>
