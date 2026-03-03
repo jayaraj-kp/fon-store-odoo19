@@ -4,10 +4,11 @@
     <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
         <!-- ===================================================== -->
-        <!-- 1️⃣ REMOVE COMPLETE DEFAULT TOTAL SECTION -->
+        <!-- 1️⃣ REMOVE SUBTOTAL / GST / DISCOUNT BLOCK (DEFAULT TOTALS) -->
         <!-- ===================================================== -->
 
         <xpath expr="//div[contains(@class,'pos-receipt-amount')]" position="replace">
+
             <!-- ================= GST TABLE ================= -->
 
             <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
@@ -118,14 +119,30 @@
 
         </xpath>
 
+
         <!-- ===================================================== -->
         <!-- 2️⃣ REMOVE DEFAULT PAYMENT LINES (Cash, UPI, etc) -->
         <!-- ===================================================== -->
 
         <xpath expr="//div[contains(@class,'paymentlines')]" position="replace"/>
 
+
         <!-- ===================================================== -->
-        <!-- 3️⃣ QR Resize -->
+        <!-- 3️⃣ REMOVE NEED AN INVOICE SECTION -->
+        <!-- ===================================================== -->
+
+        <xpath expr="//div[contains(@class,'pos-receipt-contact')]" position="replace"/>
+
+
+        <!-- ===================================================== -->
+        <!-- 4️⃣ REMOVE POWERED BY ODOO -->
+        <!-- ===================================================== -->
+
+        <xpath expr="//div[contains(@class,'pos-receipt-footer')]" position="replace"/>
+
+
+        <!-- ===================================================== -->
+        <!-- 5️⃣ QR Resize (keep if you want QR) -->
         <!-- ===================================================== -->
 
         <xpath expr="//img[@id='posqrcode']" position="attributes">
