@@ -27,9 +27,9 @@
                         <t t-if="co.zip">, <t t-esc="co.zip"/></t>
                     </div>
                 </t>
-                <t t-if="co and co.vat">
-                    <div>GSTIN: <t t-esc="co.vat"/></div>
-                </t>
+<!--                <t t-if="co and co.vat">-->
+<!--                    <div>GSTIN: <t t-esc="co.vat"/></div>-->
+<!--                </t>-->
                 <t t-if="co and co.phone">
                     <div>Tel: <t t-esc="co.phone"/></div>
                 </t>
