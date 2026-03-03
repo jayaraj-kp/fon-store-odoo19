@@ -6,38 +6,33 @@ import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/
 patch(OrderReceipt.prototype, {
 
     get upiQrSrc() {
-        // Try multiple ways to access config in Odoo 19
-        const config = this.pos?.config
-                    || this.env?.services?.pos?.config
-                    || this.env?.pos?.config;
+    const config = this.pos?.config
+                || this.env?.services?.pos?.config
+                || this.env?.pos?.config;
 
-        console.log('[UPI DEBUG] config:', config);
-        console.log('[UPI DEBUG] upi_qr_on_receipt:', config?.upi_qr_on_receipt);
-        console.log('[UPI DEBUG] upi_vpa:', config?.upi_vpa);
+    if (!config || !config.upi_qr_on_receipt || !config.upi_vpa) {
+        return null;
+    }
 
-        if (!config || !config.upi_qr_on_receipt || !config.upi_vpa) {
-            return null;
-        }
+    // DEBUG - find the correct amount path
+    console.log('[UPI DEBUG] props:', JSON.stringify(Object.keys(this.props || {})));
+    console.log('[UPI DEBUG] props.info:', JSON.stringify(this.props?.info));
+    console.log('[UPI DEBUG] total_with_tax:', this.props?.info?.total_with_tax);
+    console.log('[UPI DEBUG] amount_total:', this.props?.info?.amount_total);
+    console.log('[UPI DEBUG] total:', this.props?.info?.total);
 
-        const amount = (this.props?.info?.total_with_tax ?? 0).toFixed(2);
-        const vpa    = encodeURIComponent(config.upi_vpa.trim());
-        const name   = encodeURIComponent(
-            (config.upi_merchant_name || config.name || 'Store').trim()
-        );
-        const note   = encodeURIComponent('POS Payment');
+    const amount = (
+        this.props?.info?.total_with_tax ??
+        this.props?.info?.amount_total ??
+        this.props?.info?.total ??
+        0
+    ).toFixed(2);
 
-        return `/pos/upi_qr?vpa=${vpa}&name=${name}&amount=${amount}&note=${note}`;
-    },
+    console.log('[UPI DEBUG] final amount:', amount);
 
-    get upiAmount() {
-        const amount = this.props?.info?.total_with_tax ?? 0;
-        return amount.toFixed(2);
-    },
+    const vpa  = encodeURIComponent(config.upi_vpa.trim());
+    const name = encodeURIComponent((config.upi_merchant_name || config.name || 'Store').trim());
+    const note = encodeURIComponent('POS Payment');
 
-    get upiVpa() {
-        const config = this.pos?.config
-                    || this.env?.services?.pos?.config
-                    || this.env?.pos?.config;
-        return config?.upi_vpa || '';
-    },
-});
+    return `/pos/upi_qr?vpa=${vpa}&name=${name}&amount=${amount}&note=${note}`;
+},
