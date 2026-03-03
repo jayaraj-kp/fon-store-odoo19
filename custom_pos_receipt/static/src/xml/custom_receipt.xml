@@ -4,7 +4,7 @@
 <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
 
               <xpath expr="//img[@id='posqrcode']" position="attributes">
-        <attribute name="style">width:90px;height:90px;padding-top:300px;</attribute>
+        <attribute name="style">width:90px;height:90px;padding-top:100px;</attribute>
     </xpath>
 
     <!-- ==================== HEADER: Logo + Company Details + Invoice No + Date + Customer Details ==================== -->
@@ -97,7 +97,7 @@
             <div class="receipt-qr-cell">
                 <t t-if="receiptCompany and receiptCompany.point_of_sale_use_ticket_qr_code and order.finalized and qrCode">
                     <div class="qr-cell-label">Need an invoice?</div>
-                    <img t-att-src="qrCode" class="qr-code" alt="Invoice QR"/>
+                    <img t-att-src="posqrcode" class="qr-code" alt="Invoice QR"/>
                     <t t-if="order.ticket_code">
                         <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
                     </t>
