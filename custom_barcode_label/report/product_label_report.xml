@@ -72,7 +72,7 @@
 
         <!-- 88mm = 14 + 60 + 14  (logo | center | right) -->
         <table cellspacing="0" cellpadding="0"
-               style="width:88mm;height:28mm;border-collapse:collapse;
+               style="width:30mm;height:13mm;border-collapse:collapse;
                       border:0.3mm solid #999;font-family:Arial,sans-serif;
                       background:#fff;table-layout:fixed;margin:0;padding:0;">
             <colgroup>
@@ -101,7 +101,7 @@
 
                     <!-- Name -->
                     <table cellspacing="0" cellpadding="0"
-                           style="width:60mm;table-layout:fixed;border-collapse:collapse;">
+                           style="width:20mm;table-layout:fixed;border-collapse:collapse;">
                         <tr>
                             <td style="width:60mm;height:10mm;
                                        text-align:center;vertical-align:middle;
@@ -113,7 +113,7 @@
                         </tr>
                         <tr>
                             <!-- Barcode -->
-                            <td style="width:60mm;height:18mm;
+                            <td style="width:20mm;height:8mm;
                                        text-align:center;vertical-align:middle;
                                        padding:1mm 2mm;">
                                 <t t-if="product.barcode">
