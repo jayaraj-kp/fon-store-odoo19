@@ -60,8 +60,7 @@ class ProductProduct(models.Model):
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=3,
-                border=1,
+                box_size=3, border=1,
             )
             qr.add_data(handle)
             qr.make(fit=True)
@@ -78,7 +77,6 @@ class ProductProduct(models.Model):
         return u"\u20b9{:,.2f}".format(self.lst_price)
 
     def get_company_logo_b64(self):
-        """Return company logo as base64 - avoids wkhtmltopdf network errors."""
         company = self.company_id or self.env.company
         if company.logo:
             logo = company.logo
@@ -92,50 +90,3 @@ class ResCompany(models.Model):
     _inherit = 'res.company'
 
     instagram_handle = fields.Char(string='Instagram Handle (Labels)')
-
-
-class IrActionsReport(models.Model):
-    _inherit = 'ir.actions.report'
-
-    def _build_wkhtmltopdf_args(self, paperformat_id, landscape,
-                                 specific_paperformat_args=None,
-                                 set_viewport_size=False):
-        """
-        For our 50x25mm label:
-        - Force all margins to 0
-        - Remove --orientation flag (width > height already defines landscape)
-        - Keep page-width=50mm, page-height=25mm
-        """
-        args = super()._build_wkhtmltopdf_args(
-            paperformat_id, landscape,
-            specific_paperformat_args=specific_paperformat_args,
-            set_viewport_size=set_viewport_size,
-        )
-
-        if paperformat_id and paperformat_id.page_width == 50 and paperformat_id.page_height == 25:
-            new_args = []
-            skip_next = False
-            for arg in args:
-                if skip_next:
-                    skip_next = False
-                    continue
-                # Zero out all margins and header spacing
-                if arg in ('--margin-top', '--margin-bottom',
-                           '--margin-left', '--margin-right',
-                           '--header-spacing'):
-                    new_args.append(arg)
-                    new_args.append('0')
-                    skip_next = True
-                # Remove orientation flag - width/height already defines it
-                elif arg == '--orientation':
-                    skip_next = True  # skip the value too
-                # Remove header/footer html files
-                elif arg in ('--header-html', '--footer-html'):
-                    skip_next = True
-                else:
-                    new_args.append(arg)
-
-            _logger.info("LABEL 50x25 final args: %s", new_args)
-            return new_args
-
-        return args
