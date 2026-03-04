@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-    <!-- Paper Format: 50mm wide x 25mm tall -->
     <record id="paperformat_label_50x25" model="report.paperformat">
         <field name="name">Label 50x25mm Roll</field>
         <field name="default" eval="False"/>
@@ -12,7 +11,6 @@
         <field name="dpi">96</field>
     </record>
 
-    <!-- Report Action -->
     <record id="action_report_custom_product_label" model="ir.actions.report">
         <field name="name">Custom Product Label 50x25</field>
         <field name="model">product.product</field>
@@ -27,162 +25,93 @@
     <template id="report_product_label_template">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
-                <t t-set="company" t-value="product.company_id or res_company"/>
                 <t t-set="barcode_img" t-value="product.get_barcode_image_b64()"/>
                 <t t-set="qr_img" t-value="product.get_instagram_qr_b64()"/>
+                <t t-set="logo_b64" t-value="product.get_company_logo_b64()"/>
 
-                <!-- Fill full page viewport - works with any page size wkhtmltopdf sets -->
-                <div style="
-                    width: 100%;
-                    height: 100vh;
-                    display: flex;
-                    flex-direction: row;
-                    overflow: hidden;
-                    border: 0.3mm solid #000;
-                    background: #fff;
-                    page-break-after: always;
-                    font-family: Arial, sans-serif;
-                    box-sizing: border-box;
-                ">
-                    <!-- LEFT: Logo vertical B&amp;W strip -->
-                    <div style="
-                        width: 14%;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        border-right: 0.5px solid #000;
-                        overflow: hidden;
-                        padding: 2%;
-                        box-sizing: border-box;
-                        flex-shrink: 0;
-                    ">
-                        <img t-att-src="'/web/image/res.company/%s/logo' % company.id"
-                             style="
-                                width: 100%;
-                                max-height: 80%;
-                                object-fit: contain;
-                                filter: grayscale(100%) contrast(1.3);
-                                transform: rotate(-90deg);
-                             "
-                             alt=""/>
+                <!--
+                    PAGE IS 50mm x 25mm with 0 margins = full usable area
+                    All images are base64 embedded - no network calls needed
+                    Layout:
+                    ┌───────┬──────────────────────────┬───────┐
+                    │       │  Product Name       MRP  │       │
+                    │  LOGO │                          │  QR   │
+                    │       │  ▐▌▐▐▌▌▐▌ (barcode)     │       │
+                    └───────┴──────────────────────────┴───────┘
+                -->
+                <div style="width:100%; height:100vh; display:flex; flex-direction:row; overflow:hidden; background:#fff; box-sizing:border-box; page-break-after:always; border:0.4px solid #000;">
+
+                    <!-- LEFT: Logo B&amp;W vertical -->
+                    <div style="width:14%; min-width:14%; height:100%; display:flex; align-items:center; justify-content:center; border-right:0.4px solid #000; overflow:hidden; padding:1%; box-sizing:border-box; flex-shrink:0;">
+                        <t t-if="logo_b64">
+                            <img t-att-src="'data:image/png;base64,' + logo_b64"
+                                 style="max-width:100%; max-height:80%; object-fit:contain; filter:grayscale(100%) contrast(1.3); transform:rotate(-90deg);"
+                                 alt=""/>
+                        </t>
                     </div>
 
-                    <!-- RIGHT: Content area -->
-                    <div style="
-                        flex: 1;
-                        display: flex;
-                        flex-direction: column;
-                        height: 100%;
-                        padding: 3% 3% 2% 4%;
-                        overflow: hidden;
-                        box-sizing: border-box;
-                    ">
-                        <!-- TOP ROW: Item Name + MRP -->
-                        <div style="
-                            display: flex;
-                            flex-direction: row;
-                            align-items: flex-start;
-                            justify-content: space-between;
-                            height: 36%;
-                            overflow: hidden;
-                            flex-shrink: 0;
-                        ">
-                            <!-- Item Name -->
-                            <div style="
-                                flex: 1;
-                                font-family: 'Arial Narrow', Arial, sans-serif;
-                                font-size: 7pt;
-                                font-weight: bold;
-                                line-height: 1.25;
-                                color: #000;
-                                overflow: hidden;
-                                padding-right: 2%;
-                                word-break: break-word;
-                            ">
+                    <!-- CENTER: Name + Barcode -->
+                    <div style="flex:1; display:flex; flex-direction:column; height:100%; padding:3% 2% 2% 3%; box-sizing:border-box; overflow:hidden;">
+
+                        <!-- TOP: Item name left, MRP right -->
+                        <div style="display:flex; flex-direction:row; align-items:flex-start; justify-content:space-between; flex-shrink:0; overflow:hidden; height:38%;">
+                            <div style="flex:1; font-family:'Arial Narrow',Arial,sans-serif; font-size:7pt; font-weight:bold; line-height:1.25; color:#000; word-break:break-word; overflow:hidden; padding-right:2%;">
                                 <t t-esc="product.name"/>
                                 <t t-if="product.product_template_attribute_value_ids">
                                     <br/>
-                                    <span style="font-size: 5.5pt; font-weight: normal;">
+                                    <span style="font-size:5pt; font-weight:normal;">
                                         <t t-esc="', '.join(product.product_template_attribute_value_ids.mapped('name'))"/>
                                     </span>
                                 </t>
                             </div>
-                            <!-- MRP -->
-                            <div style="
-                                text-align: right;
-                                white-space: nowrap;
-                                flex-shrink: 0;
-                            ">
-                                <span style="font-size: 5pt; font-weight: bold; color: #000; display: block; line-height: 1.1;">MRP</span>
-                                <span style="font-size: 7pt; font-weight: bold; color: #000; display: block; line-height: 1.2;">
+                            <div style="text-align:right; flex-shrink:0; white-space:nowrap;">
+                                <span style="font-size:4.5pt; font-weight:bold; display:block; line-height:1.1; font-family:Arial,sans-serif;">MRP</span>
+                                <span style="font-size:7pt; font-weight:bold; display:block; line-height:1.2; font-family:Arial,sans-serif;">
                                     <t t-esc="product.get_label_price()"/>
                                 </span>
                             </div>
                         </div>
 
                         <!-- SPACER -->
-                        <div style="flex: 1;"></div>
+                        <div style="flex:1;"/>
 
-                        <!-- BOTTOM ROW: Barcode + QR -->
-                        <div style="
-                            display: flex;
-                            flex-direction: row;
-                            align-items: flex-end;
-                            height: 58%;
-                            overflow: hidden;
-                            flex-shrink: 0;
-                        ">
-                            <!-- Barcode - center, no number -->
-                            <div style="
-                                flex: 1;
-                                display: flex;
-                                align-items: flex-end;
-                                justify-content: center;
-                                overflow: hidden;
-                                height: 100%;
-                            ">
-                                <t t-if="barcode_img">
-                                    <img t-att-src="'data:image/png;base64,' + barcode_img"
-                                         style="max-width: 100%; max-height: 90%; object-fit: contain;"
-                                         alt=""/>
-                                </t>
-                                <t t-elif="product.barcode">
-                                    <img t-att-src="'/report/barcode/Code128/%s?width=250&amp;height=80&amp;humanreadable=0' % product.barcode"
-                                         style="max-width: 100%; max-height: 90%; object-fit: contain;"
-                                         alt=""/>
-                                </t>
-                                <t t-else="">
-                                    <span style="font-size: 5pt; color: #aaa;">No Barcode</span>
-                                </t>
-                            </div>
-
-                            <!-- QR Code - bottom right -->
-                            <div style="
-                                width: 26%;
-                                height: 100%;
-                                flex-shrink: 0;
-                                display: flex;
-                                align-items: flex-end;
-                                justify-content: flex-end;
-                                overflow: hidden;
-                            ">
-                                <t t-if="qr_img">
-                                    <img t-att-src="'data:image/png;base64,' + qr_img"
-                                         style="width: 100%; max-height: 100%; object-fit: contain;"
-                                         alt=""/>
-                                </t>
-                                <t t-else="">
-                                    <div style="width:100%; padding-bottom:100%; border: 0.5px dashed #bbb; position:relative;">
-                                        <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:4pt; color:#bbb; text-align:center; white-space:nowrap;">Set Instagram</span>
+                        <!-- BOTTOM: Barcode centered, no number -->
+                        <div style="display:flex; align-items:flex-end; justify-content:center; height:56%; overflow:hidden;">
+                            <t t-if="barcode_img">
+                                <img t-att-src="'data:image/png;base64,' + barcode_img"
+                                     style="max-width:100%; max-height:95%; object-fit:contain;"
+                                     alt=""/>
+                            </t>
+                            <t t-elif="product.barcode">
+                                <!-- fallback text barcode if library not installed -->
+                                <div style="text-align:center; font-family:monospace; font-size:5pt; letter-spacing:1px; color:#000;">
+                                    <div style="font-size:18pt; letter-spacing:-1px; line-height:1;">
+                                        <t t-esc="product.barcode"/>
                                     </div>
-                                </t>
-                            </div>
+                                </div>
+                            </t>
+                            <t t-else="">
+                                <span style="font-size:4pt; color:#aaa; font-family:Arial,sans-serif;">No Barcode</span>
+                            </t>
                         </div>
 
                     </div>
-                </div>
 
+                    <!-- RIGHT: Instagram QR -->
+                    <div style="width:22%; min-width:22%; height:100%; display:flex; align-items:center; justify-content:center; border-left:0.4px solid #000; overflow:hidden; padding:1%; box-sizing:border-box; flex-shrink:0;">
+                        <t t-if="qr_img">
+                            <img t-att-src="'data:image/png;base64,' + qr_img"
+                                 style="width:100%; max-height:90%; object-fit:contain;"
+                                 alt=""/>
+                        </t>
+                        <t t-else="">
+                            <div style="width:90%; padding-bottom:90%; border:0.4px dashed #bbb; position:relative; box-sizing:border-box;">
+                                <span style="position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); font-size:3.5pt; color:#bbb; text-align:center; font-family:Arial,sans-serif;">Set Instagram</span>
+                            </div>
+                        </t>
+                    </div>
+
+                </div>
             </t>
         </t>
     </template>
