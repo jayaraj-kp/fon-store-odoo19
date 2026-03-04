@@ -69,6 +69,15 @@
     display: none !important;
 }
 
+/* Hide default Discounts row */
+.pos-receipt .label-discount,
+.pos-receipt .label-discount ~ span {
+    display: none !important;
+}
+.pos-receipt .text-start:has(.label-discount) {
+    display: none !important;
+}
+
 /* ===================================================== */
 /* CUSTOM ITEMS TABLE                                    */
 /* ===================================================== */
