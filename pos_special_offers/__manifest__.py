@@ -1,8 +1,8 @@
 {
     'name': 'POS Special Offers',
-    'version': '19.0.5.0.0',
+    'version': '19.0.6.0.0',
     'category': 'Point of Sale',
-    'summary': 'Special offers with flat discount, coupon, purchase limit for POS',
+    'summary': 'Special offers with flat discount, coupon, auto-apply for POS',
     'depends': ['point_of_sale'],
     'data': [
         'security/ir.model.access.csv',
@@ -17,7 +17,6 @@
             'pos_special_offers/static/src/xml/SpecialOfferPopup.xml',
             'pos_special_offers/static/src/xml/SpecialOfferButton.xml',
             'pos_special_offers/static/src/xml/NavbarPatch.xml',
-            # auto_apply loads last — after all POS modules are registered
             'pos_special_offers/static/src/js/special_offer_auto_apply.js',
         ],
     },
