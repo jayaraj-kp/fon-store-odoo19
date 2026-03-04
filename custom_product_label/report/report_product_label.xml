@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-    <!--
-        50mm wide x 25mm tall.
-        Orientation NOT set to Landscape here - width > height already implies it.
-        Odoo passes --page-width 50mm --page-height 25mm to wkhtmltopdf.
-        Adding --orientation Landscape was causing wkhtmltopdf to swap to portrait.
-    -->
+    <!-- 50mm wide x 25mm tall. Portrait orientation set intentionally.
+         Width=50 > Height=25 so wkhtmltopdf renders it wide naturally.
+         The Python override strips the orientation flag completely. -->
     <record id="paperformat_label_50x25" model="report.paperformat">
         <field name="name">Label 50x25mm Roll</field>
         <field name="default" eval="False"/>
@@ -35,16 +32,7 @@
                 <t t-set="qr_img"     t-value="product.get_instagram_qr_b64()"/>
                 <t t-set="logo_b64"   t-value="product.get_company_logo_b64()"/>
 
-                <!--
-                    Label layout: 50mm wide x 25mm tall
-                    Uses 100vw x 100vh so it fills the page regardless of rendering quirks.
 
-                    ┌────────┬───────────────────────────┬────────┐
-                    │        │  Item Name (Arial Narrow)  │        │
-                    │  LOGO  │                  MRP ₹xxx  │   QR   │
-                    │  (B&W) │  ████ Barcode ████         │  CODE  │
-                    └────────┴───────────────────────────┴────────┘
-                -->
                 <div style="
                     width: 100vw;
                     height: 100vh;
