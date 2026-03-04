@@ -90,3 +90,37 @@ class ResCompany(models.Model):
     _inherit = 'res.company'
 
     instagram_handle = fields.Char(string='Instagram Handle (Labels)')
+
+
+class IrActionsReport(models.Model):
+    _inherit = 'ir.actions.report'
+
+    def _build_wkhtmltopdf_args(self, paperformat_id, landscape,
+                                 specific_paperformat_args=None,
+                                 set_viewport_size=False):
+        args = super()._build_wkhtmltopdf_args(
+            paperformat_id, landscape,
+            specific_paperformat_args=specific_paperformat_args,
+            set_viewport_size=set_viewport_size,
+        )
+        if paperformat_id and paperformat_id.name == 'FON Label 50x25mm':
+            new_args = []
+            skip_next = False
+            for arg in args:
+                if skip_next:
+                    skip_next = False
+                    continue
+                if arg in ('--margin-top', '--margin-bottom', '--margin-left',
+                           '--margin-right', '--header-spacing'):
+                    new_args.append(arg)
+                    new_args.append('0')
+                    skip_next = True
+                elif arg == '--orientation':
+                    skip_next = True
+                elif arg in ('--header-html', '--footer-html'):
+                    skip_next = True
+                else:
+                    new_args.append(arg)
+            _logger.info("FON Label args: %s", new_args)
+            return new_args
+        return args
