@@ -51,6 +51,21 @@ patch(PosOrder.prototype, {
         return this.getGstBreakdown().reduce((sum, g) => sum + g.sgst, 0);
     },
 
+    /* ================= LINE ITEMS FOR TABLE ================= */
+    getReceiptLines() {
+        const lines = this.lines || this.orderlines || [];
+        return lines.map((line, index) => ({
+            sn: index + 1,
+            name: line.product_id?.display_name || line.full_product_name || '',
+            qty: line.qty || 0,
+            uom: line.product_id?.uom_id?.name || 'Units',
+            rate: line.price_unit || 0,
+            discount: line.discount || 0,
+            total: line.price_subtotal_incl || 0,
+            note: line.customerNote || '',
+        }));
+    },
+
     /* ================= CUSTOM TOTAL SECTION ================= */
     getBeforeGrandTotal() {
         return this.getTotalTaxableAmount();
@@ -63,17 +78,14 @@ patch(PosOrder.prototype, {
     getTotalSaved() {
         const lines = this.lines || this.orderlines || [];
         let totalSaved = 0;
-
         for (const line of lines) {
             const qty = line.qty || 0;
             const unitPrice = line.price_unit || 0;
             const discount = line.discount || 0;
-
             const lineTotal = unitPrice * qty;
             const discountAmount = lineTotal * (discount / 100);
             totalSaved += discountAmount;
         }
-
         return totalSaved;
     },
 
@@ -86,7 +98,6 @@ patch(PosOrder.prototype, {
             "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen",
             "Eighteen","Nineteen"
         ];
-
         const tens = [
             "","","Twenty","Thirty","Forty","Fifty",
             "Sixty","Seventy","Eighty","Ninety"
@@ -96,9 +107,12 @@ patch(PosOrder.prototype, {
             if (n < 20) return words[n];
             if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? " " + words[n % 10] : "");
             if (n < 1000) return words[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
-            return n;
+            if (n < 100000) return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + convert(n % 1000) : "");
+            if (n < 10000000) return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + convert(n % 100000) : "");
+            return convert(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + convert(n % 10000000) : "");
         }
 
+        if (amount === 0) return "Zero Only";
         return convert(amount) + " Only";
     },
 
