@@ -24,99 +24,140 @@
         <field name="binding_type">report</field>
     </record>
 
+    <!-- Standalone HTML template - NOT using web.html_container to avoid A4 override -->
     <template id="report_product_label_template">
-        <t t-call="web.html_container">
-            <t t-foreach="docs" t-as="product">
-                <t t-set="company" t-value="product.company_id or res_company"/>
-                <t t-set="barcode_img" t-value="product.get_barcode_image_b64()"/>
-                <t t-set="qr_img" t-value="product.get_instagram_qr_b64()"/>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: 50mm 25mm; margin: 0mm; }
+        html, body { width: 50mm; height: 25mm; margin: 0; padding: 0; background: #fff; }
 
-                <!--
-                    LABEL LAYOUT (50mm x 25mm = 188px x 94px at 96dpi)
-                    ┌──────┬──────────────────────────────────────────┐
-                    │      │  Item Name (Arial Narrow)    MRP ₹189.52 │
-                    │ LOGO │                                           │
-                    │ (rot)│  ▐▌▐▐▌▌▐▐▌▌▌▐▐▌ (barcode)    [QR CODE]  │
-                    └──────┴──────────────────────────────────────────┘
-                -->
-                <div style="width:188px; height:94px; display:flex; flex-direction:row; overflow:hidden; background:#fff; box-sizing:border-box; page-break-after:always; margin:0; padding:0; border:1px solid #000;">
+        .label {
+            width: 50mm;
+            height: 25mm;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+            border: 0.3mm solid #000;
+            background: #fff;
+            page-break-after: always;
+        }
+        .logo-col {
+            width: 7mm;
+            min-width: 7mm;
+            height: 25mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 0.3mm solid #000;
+            overflow: hidden;
+            padding: 0.5mm;
+        }
+        .logo-col img {
+            width: 5mm;
+            max-height: 20mm;
+            object-fit: contain;
+            filter: grayscale(100%) contrast(1.3);
+            transform: rotate(-90deg);
+        }
+        .content-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 25mm;
+            padding: 1mm 1mm 1mm 1.5mm;
+            overflow: hidden;
+        }
+        .top-row {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: space-between;
+            height: 9mm;
+            overflow: hidden;
+        }
+        .item-name {
+            flex: 1;
+            font-family: 'Arial Narrow', Arial, sans-serif;
+            font-size: 6pt;
+            font-weight: bold;
+            line-height: 1.2;
+            color: #000;
+            overflow: hidden;
+            padding-right: 1mm;
+            max-height: 9mm;
+            word-break: break-word;
+        }
+        .item-variant { font-size: 4.5pt; font-weight: normal; }
+        .mrp-box { text-align: right; white-space: nowrap; flex-shrink: 0; min-width: 12mm; }
+        .mrp-label { font-family: Arial, sans-serif; font-size: 4pt; font-weight: bold; color: #000; display: block; line-height: 1.1; }
+        .mrp-price { font-family: Arial, sans-serif; font-size: 6.5pt; font-weight: bold; color: #000; display: block; line-height: 1.2; }
+        .bottom-row {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+            height: 14mm;
+            margin-top: auto;
+            overflow: hidden;
+        }
+        .barcode-box { flex: 1; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; height: 14mm; }
+        .barcode-box img { max-width: 100%; height: 13mm; object-fit: contain; }
+        .qr-box { width: 13mm; height: 13mm; min-width: 13mm; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: flex-end; overflow: hidden; }
+        .qr-box img { width: 13mm; height: 13mm; object-fit: contain; }
+        .qr-placeholder { width: 13mm; height: 13mm; border: 0.3mm dashed #bbb; display: flex; align-items: center; justify-content: center; font-size: 3.5pt; color: #bbb; font-family: Arial, sans-serif; text-align: center; }
+        .no-barcode { font-size: 4pt; color: #aaa; font-family: Arial, sans-serif; }
+    </style>
+</head>
+<body>
+    <t t-foreach="docs" t-as="product">
+        <t t-set="company" t-value="product.company_id or res_company"/>
+        <t t-set="barcode_img" t-value="product.get_barcode_image_b64()"/>
+        <t t-set="qr_img" t-value="product.get_instagram_qr_b64()"/>
 
-                    <!-- ══ LEFT STRIP: Company Logo vertical ══ -->
-                    <div style="width:24px; min-width:24px; height:92px; display:flex; align-items:center; justify-content:center; border-right:1px solid #000; overflow:hidden; background:#fff;">
-                        <img t-att-src="'/web/image/res.company/%s/logo' % company.id"
-                             style="height:20px; width:80px; object-fit:contain; filter:grayscale(100%) contrast(1.3); transform:rotate(-90deg); transform-origin:center center;"
-                             alt=""/>
+        <div class="label">
+            <div class="logo-col">
+                <img t-att-src="'/web/image/res.company/%s/logo' % company.id" alt=""/>
+            </div>
+            <div class="content-col">
+                <div class="top-row">
+                    <div class="item-name">
+                        <t t-esc="product.name"/>
+                        <t t-if="product.product_template_attribute_value_ids">
+                            <br/><span class="item-variant"><t t-esc="', '.join(product.product_template_attribute_value_ids.mapped('name'))"/></span>
+                        </t>
                     </div>
-
-                    <!-- ══ MAIN AREA ══ -->
-                    <div style="flex:1; display:flex; flex-direction:column; height:92px; box-sizing:border-box; padding:3px 3px 3px 4px;">
-
-                        <!-- TOP ROW: Item Name | MRP -->
-                        <div style="display:flex; flex-direction:row; align-items:flex-start; justify-content:space-between; height:32px; overflow:hidden;">
-
-                            <!-- Item Name - top left/center -->
-                            <div style="flex:1; font-family:'Arial Narrow',Arial,sans-serif; font-size:7.5pt; font-weight:bold; line-height:1.25; color:#000; overflow:hidden; padding-right:4px; max-height:32px;">
-                                <t t-esc="product.name"/>
-                                <t t-if="product.product_template_attribute_value_ids">
-                                    <br/>
-                                    <span style="font-size:5.5pt; font-weight:normal;">
-                                        <t t-esc="', '.join(product.product_template_attribute_value_ids.mapped('name'))"/>
-                                    </span>
-                                </t>
-                            </div>
-
-                            <!-- MRP - top right -->
-                            <div style="text-align:right; white-space:nowrap; min-width:40px; flex-shrink:0;">
-                                <span style="font-size:5pt; font-weight:bold; color:#000; display:block; line-height:1.1; font-family:Arial,sans-serif;">MRP</span>
-                                <span style="font-size:7.5pt; font-weight:bold; color:#000; display:block; line-height:1.2; font-family:Arial,sans-serif;">
-                                    <t t-esc="product.get_label_price()"/>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- SPACER -->
-                        <div style="flex:1;"></div>
-
-                        <!-- BOTTOM ROW: Barcode (center) + QR (right) -->
-                        <div style="display:flex; flex-direction:row; align-items:flex-end; height:54px; overflow:hidden;">
-
-                            <!-- Barcode - bottom center, no number -->
-                            <div style="flex:1; display:flex; align-items:flex-end; justify-content:center; overflow:hidden;">
-                                <t t-if="barcode_img">
-                                    <img t-att-src="'data:image/png;base64,' + barcode_img"
-                                         style="max-width:100%; height:48px; object-fit:contain;"
-                                         alt=""/>
-                                </t>
-                                <t t-elif="product.barcode">
-                                    <img t-att-src="'/report/barcode/Code128/%s?width=200&amp;height=70&amp;humanreadable=0' % product.barcode"
-                                         style="max-width:100%; height:48px; object-fit:contain;"
-                                         alt=""/>
-                                </t>
-                                <t t-else="">
-                                    <span style="font-size:5pt; color:#aaa;">No Barcode</span>
-                                </t>
-                            </div>
-
-                            <!-- QR Code - bottom right -->
-                            <div style="width:48px; min-width:48px; height:52px; display:flex; align-items:flex-end; justify-content:flex-end; flex-shrink:0; overflow:hidden;">
-                                <t t-if="qr_img">
-                                    <img t-att-src="'data:image/png;base64,' + qr_img"
-                                         style="width:46px; height:46px; object-fit:contain;"
-                                         alt=""/>
-                                </t>
-                                <t t-else="">
-                                    <div style="width:46px; height:46px; border:1px dashed #bbb; display:flex; align-items:center; justify-content:center; font-size:4pt; color:#bbb; font-family:Arial,sans-serif;">
-                                        Set Instagram
-                                    </div>
-                                </t>
-                            </div>
-
-                        </div>
+                    <div class="mrp-box">
+                        <span class="mrp-label">MRP</span>
+                        <span class="mrp-price"><t t-esc="product.get_label_price()"/></span>
                     </div>
                 </div>
+                <div class="bottom-row">
+                    <div class="barcode-box">
+                        <t t-if="barcode_img">
+                            <img t-att-src="'data:image/png;base64,' + barcode_img" alt=""/>
+                        </t>
+                        <t t-elif="product.barcode">
+                            <img t-att-src="'/report/barcode/Code128/%s?width=200&amp;height=70&amp;humanreadable=0' % product.barcode" alt=""/>
+                        </t>
+                        <t t-else=""><span class="no-barcode">No Barcode</span></t>
+                    </div>
+                    <div class="qr-box">
+                        <t t-if="qr_img">
+                            <img t-att-src="'data:image/png;base64,' + qr_img" alt=""/>
+                        </t>
+                        <t t-else="">
+                            <div class="qr-placeholder">Set<br/>Instagram</div>
+                        </t>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            </t>
-        </t>
+    </t>
+</body>
+</html>
     </template>
 
 </odoo>
