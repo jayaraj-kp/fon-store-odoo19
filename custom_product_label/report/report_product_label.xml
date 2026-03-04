@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-    <!-- Paper Format: 50mm x 25mm roll -->
+    <!-- Paper Format: 50mm wide x 25mm tall -->
     <record id="paperformat_label_50x25" model="report.paperformat">
         <field name="name">Label 50x25mm Roll</field>
         <field name="default" eval="False"/>
@@ -24,71 +24,146 @@
         <field name="binding_type">report</field>
     </record>
 
-    <!-- QWeb Report Template -->
+    <!-- QWeb Report Template - fully inline styles, no external CSS -->
     <template id="report_product_label_template">
         <t t-call="web.html_container">
-            <style>@page { size: 50mm 25mm; margin: 0mm; } body { margin: 0; padding: 0; }</style>
             <t t-foreach="docs" t-as="product">
+                <t t-set="company" t-value="product.company_id or res_company"/>
                 <t t-set="barcode_img" t-value="product.get_barcode_image_b64()"/>
                 <t t-set="qr_img" t-value="product.get_instagram_qr_b64()"/>
-                <t t-set="company" t-value="product.company_id or res_company"/>
-                <t t-set="logo_src" t-value="'/web/image/res.company/%s/logo' % company.id"/>
 
-                <div class="label-wrapper">
-                    <!-- LEFT: Company Logo (vertical, rotated) -->
-                    <div class="label-logo-col">
-                        <img t-att-src="logo_src" class="label-logo" alt="Logo"/>
+                <!-- One label per page -->
+                <div style="
+                    width: 188px;
+                    height: 94px;
+                    display: flex;
+                    flex-direction: row;
+                    overflow: hidden;
+                    background: #fff;
+                    box-sizing: border-box;
+                    page-break-after: always;
+                    margin: 0;
+                    padding: 0;
+                    font-family: Arial, sans-serif;
+                ">
+                    <!-- LEFT: Company Logo column (B&amp;W vertical) -->
+                    <div style="
+                        width: 28px;
+                        min-width: 28px;
+                        height: 94px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        border-right: 1px solid #ccc;
+                        overflow: hidden;
+                        padding: 2px;
+                        box-sizing: border-box;
+                    ">
+                        <img t-att-src="'/web/image/res.company/%s/logo' % company.id"
+                             style="
+                                width: 22px;
+                                max-height: 75px;
+                                object-fit: contain;
+                                filter: grayscale(100%);
+                                transform: rotate(-90deg);
+                             "
+                             alt="Logo"/>
                     </div>
 
-                    <!-- MAIN CONTENT AREA -->
-                    <div class="label-content-col">
-
-                        <!-- TOP ROW: Item Name + MRP -->
-                        <div class="label-top-row">
-                            <div class="label-item-name">
-                                <span t-esc="product.name"/>
+                    <!-- RIGHT: Main content -->
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        height: 94px;
+                        padding: 2px 3px 2px 3px;
+                        box-sizing: border-box;
+                        overflow: hidden;
+                    ">
+                        <!-- TOP: Item name + MRP -->
+                        <div style="
+                            display: flex;
+                            flex-direction: row;
+                            align-items: flex-start;
+                            justify-content: space-between;
+                            min-height: 32px;
+                            max-height: 36px;
+                            overflow: hidden;
+                        ">
+                            <!-- Item Name -->
+                            <div style="
+                                flex: 1;
+                                font-family: 'Arial Narrow', Arial, sans-serif;
+                                font-size: 7pt;
+                                font-weight: bold;
+                                line-height: 1.2;
+                                color: #000;
+                                overflow: hidden;
+                                max-height: 36px;
+                                word-break: break-word;
+                                padding-right: 3px;
+                            ">
+                                <t t-esc="product.name"/>
                                 <t t-if="product.product_template_attribute_value_ids">
                                     <br/>
-                                    <span class="label-variant"
-                                          t-esc="', '.join(product.product_template_attribute_value_ids.mapped('name'))"/>
+                                    <span style="font-size:5.5pt; font-weight:normal; color:#444;">
+                                        <t t-esc="', '.join(product.product_template_attribute_value_ids.mapped('name'))"/>
+                                    </span>
                                 </t>
                             </div>
-                            <div class="label-mrp">
-                                <span class="mrp-label">MRP</span><br/>
-                                <span class="mrp-price" t-esc="product.get_label_price()"/>
+                            <!-- MRP -->
+                            <div style="
+                                text-align: right;
+                                white-space: nowrap;
+                                font-family: Arial, sans-serif;
+                                min-width: 38px;
+                            ">
+                                <span style="font-size:5pt; font-weight:bold; color:#000; display:block; line-height:1.1;">MRP</span>
+                                <span style="font-size:7pt; font-weight:bold; color:#000; display:block; line-height:1.2;">
+                                    <t t-esc="product.get_label_price()"/>
+                                </span>
                             </div>
                         </div>
 
-                        <!-- BOTTOM ROW: Instagram QR + Barcode -->
-                        <div class="label-bottom-row">
-                            <!-- QR Code bottom left -->
-                            <div class="label-qr">
+                        <!-- SPACER -->
+                        <div style="flex:1;"></div>
+
+                        <!-- BOTTOM: QR + Barcode -->
+                        <div style="
+                            display: flex;
+                            flex-direction: row;
+                            align-items: flex-end;
+                            height: 52px;
+                            overflow: hidden;
+                        ">
+                            <!-- Instagram QR - bottom left -->
+                            <div style="width:46px; height:46px; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
                                 <t t-if="qr_img">
-                                    <img t-att-src="'data:image/png;base64,' + qr_img" class="qr-img" alt="QR"/>
+                                    <img t-att-src="'data:image/png;base64,' + qr_img"
+                                         style="width:44px; height:44px; object-fit:contain;"
+                                         alt="QR"/>
                                 </t>
                                 <t t-else="">
-                                    <div class="qr-placeholder">QR</div>
+                                    <div style="width:44px;height:44px;border:1px dashed #aaa;display:flex;align-items:center;justify-content:center;font-size:4pt;color:#aaa;">QR</div>
                                 </t>
                             </div>
 
-                            <!-- Barcode bottom center -->
-                            <div class="label-barcode">
+                            <!-- Barcode - bottom center, no number -->
+                            <div style="flex:1; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; padding: 0 2px;">
                                 <t t-if="barcode_img">
                                     <img t-att-src="'data:image/png;base64,' + barcode_img"
-                                         class="barcode-img" alt="Barcode"/>
+                                         style="max-width:100%; height:44px; object-fit:contain;"
+                                         alt="Barcode"/>
                                 </t>
                                 <t t-elif="product.barcode">
-                                    <!-- fallback: use Odoo built-in barcode rendering -->
-                                    <img t-att-src="'/report/barcode/Code128/%s?width=200&amp;height=40&amp;humanreadable=0' % product.barcode"
-                                         class="barcode-img" alt="Barcode"/>
+                                    <img t-att-src="'/report/barcode/Code128/%s?width=180&amp;height=60&amp;humanreadable=0' % product.barcode"
+                                         style="max-width:100%; height:44px; object-fit:contain;"
+                                         alt="Barcode"/>
                                 </t>
                                 <t t-else="">
-                                    <div class="no-barcode">No Barcode</div>
+                                    <span style="font-size:5pt;color:#aaa;">No Barcode</span>
                                 </t>
                             </div>
-
-                            <!-- Spacer right (balances QR) -->
-                            <div class="label-bottom-right"></div>
                         </div>
 
                     </div>
