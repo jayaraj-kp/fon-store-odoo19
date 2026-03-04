@@ -198,8 +198,8 @@
     margin-bottom: 3px;
 }
 .qr-code {
-    width: 70px !important;
-    height: 70px !important;
+    width: 800px !important;
+    height: 80px !important;
     display: block;
     margin: 0 auto;
 }
