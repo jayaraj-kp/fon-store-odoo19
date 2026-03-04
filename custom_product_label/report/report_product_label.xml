@@ -9,12 +9,6 @@
         <field name="page_height">25</field>
         <field name="page_width">50</field>
         <field name="orientation">Landscape</field>
-        <field name="top_margin">0</field>
-        <field name="bottom_margin">0</field>
-        <field name="left_margin">0</field>
-        <field name="right_margin">0</field>
-        <field name="header_line" eval="False"/>
-        <field name="header_spacing">0</field>
         <field name="dpi">96</field>
     </record>
 
@@ -33,6 +27,7 @@
     <!-- QWeb Report Template -->
     <template id="report_product_label_template">
         <t t-call="web.html_container">
+            <style>@page { size: 50mm 25mm; margin: 0mm; } body { margin: 0; padding: 0; }</style>
             <t t-foreach="docs" t-as="product">
                 <t t-set="barcode_img" t-value="product.get_barcode_image_b64()"/>
                 <t t-set="qr_img" t-value="product.get_instagram_qr_b64()"/>
