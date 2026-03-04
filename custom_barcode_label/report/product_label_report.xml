@@ -2,64 +2,13 @@
 <odoo>
 
     <!--
-        ============================================================
-        INHERIT & OVERRIDE: product.report_productsbarcodelabel
-        This completely replaces the label layout with:
-          - Company logo (top)
-          - Product name (large, centered)
-          - Barcode IMAGE only (no numeric text below it)
-          - Price (bottom right, prominent)
-        ============================================================
+    ================================================================
+      STEP 1 — Paper Format: 90 x 30 mm label
+      Adjust page_height / page_width to match your label stock.
+    ================================================================
     -->
-
-    <template id="report_productsbarcodelabel"
-              inherit_id="product.report_productsbarcodelabel"
-              priority="20">
-
-        <!-- Remove the default content and replace entirely -->
-        <xpath expr="//div[hasclass('page')]" position="replace">
-            <div class="page">
-                <t t-foreach="docs" t-as="doc">
-                    <t t-set="lpp" t-value="int(doc.get('lpp', 1))"/>
-                    <t t-set="products" t-value="doc.get('products', [])"/>
-                    <t t-foreach="range(lpp)" t-as="label_index">
-                        <t t-if="label_index &lt; len(products)">
-                            <t t-set="product" t-value="products[label_index]"/>
-                            <div class="custom-label-page">
-                                <t t-call="custom_barcode_label.custom_label_content">
-                                    <t t-set="product" t-value="product"/>
-                                </t>
-                            </div>
-                        </t>
-                    </t>
-                </t>
-            </div>
-        </xpath>
-
-    </template>
-
-    <!--
-        ============================================================
-        FULL OVERRIDE using a standalone inherited template approach.
-        We override the entire barcode label template instead.
-        ============================================================
-    -->
-
-    <!-- Step 1: Override the outer report action to point to our layout -->
-    <record id="action_report_barcodelabel_custom" model="ir.actions.report">
-        <field name="name">Product Label (Custom)</field>
-        <field name="model">product.product</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">custom_barcode_label.custom_label_main</field>
-        <field name="report_file">custom_barcode_label.custom_label_main</field>
-        <field name="binding_model_id" ref="product.model_product_product"/>
-        <field name="binding_type">report</field>
-        <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>
-    </record>
-
-    <!-- Step 2: Custom paper format — 90mm x 30mm label -->
     <record id="paperformat_custom_label" model="report.paperformat">
-        <field name="name">Custom Product Label (90x30mm)</field>
+        <field name="name">Custom Label 90x30mm</field>
         <field name="default">False</field>
         <field name="format">custom</field>
         <field name="page_height">30</field>
@@ -67,245 +16,223 @@
         <field name="orientation">Landscape</field>
         <field name="margin_top">2</field>
         <field name="margin_bottom">2</field>
-        <field name="margin_left">3</field>
-        <field name="margin_right">3</field>
+        <field name="margin_left">2</field>
+        <field name="margin_right">2</field>
         <field name="header_line">False</field>
         <field name="header_spacing">0</field>
         <field name="dpi">96</field>
     </record>
 
-    <!-- Step 3: Main report template -->
-    <template id="custom_label_main">
+    <!--
+    ================================================================
+      STEP 2 — Report Action
+      Model = product.product  (same as Odoo standard label)
+      Bound to product list so "Print > Custom Label" appears there.
+    ================================================================
+    -->
+    <record id="action_report_custom_label" model="ir.actions.report">
+        <field name="name">Custom Product Label</field>
+        <field name="model">product.product</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_barcode_label.report_custom_label_document</field>
+        <field name="report_file">custom_barcode_label.report_custom_label_document</field>
+        <field name="binding_model_id" ref="product.model_product_product"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>
+    </record>
+
+    <!--
+    ================================================================
+      STEP 3 — QWeb Templates
+
+      report_custom_label_document  : outer page shell
+      report_custom_label_content   : the single label card (reusable)
+    ================================================================
+    -->
+
+    <!-- Outer document — iterates over selected product.product records -->
+    <template id="report_custom_label_document">
         <t t-call="web.html_container">
-            <t t-foreach="docs" t-as="o">
-                <t t-call="web.external_layout">
-                    <t t-call="custom_barcode_label.custom_label_document">
-                        <t t-set="o" t-value="o"/>
-                    </t>
+            <t t-foreach="docs" t-as="product">
+                <t t-call="web.basic_layout">
+                    <div class="page">
+                        <t t-call="custom_barcode_label.report_custom_label_content"/>
+                    </div>
                 </t>
             </t>
         </t>
     </template>
 
-    <!-- Step 4: Document wrapper -->
-    <template id="custom_label_document">
-        <div class="page custom-label-wrapper">
-            <t t-call="custom_barcode_label.custom_label_content">
-                <t t-set="product" t-value="o"/>
-            </t>
-        </div>
-    </template>
+    <!-- Single label card -->
+    <template id="report_custom_label_content">
+        <div class="cl-label">
 
-    <!-- Step 5: The actual label layout (reusable) -->
-    <template id="custom_label_content">
-        <div class="custom-label-card">
+            <!-- ── ROW 1: Logo (left)  +  Product name (right / centre) ── -->
+            <div class="cl-row cl-top">
 
-            <!-- TOP ROW: Company Logo LEFT | Product Name CENTER -->
-            <div class="label-top-row">
-                <!-- Company Logo -->
-                <div class="label-logo">
+                <div class="cl-logo">
                     <t t-if="product.company_id and product.company_id.logo">
                         <img t-att-src="image_data_uri(product.company_id.logo)"
-                             alt="Company Logo"
-                             class="company-logo-img"/>
+                             class="cl-logo-img" alt="logo"/>
                     </t>
                     <t t-else="">
-                        <!-- Fallback: company name as text if no logo -->
-                        <span class="company-name-text">
-                            <t t-esc="product.company_id.name if product.company_id else ''"/>
+                        <span class="cl-company-name">
+                            <t t-esc="product.company_id.name or ''"/>
                         </span>
                     </t>
                 </div>
 
-                <!-- Product Name -->
-                <div class="label-product-name">
-                    <span t-field="product.name" class="product-name-text"/>
-                    <!-- Optional: show variant attributes if any -->
-                    <t t-if="product.product_template_attribute_value_ids">
-                        <br/>
-                        <small class="variant-attrs">
-                            <t t-foreach="product.product_template_attribute_value_ids"
-                               t-as="attr_val">
-                                <t t-esc="attr_val.name"/>
-                                <t t-if="not attr_val_last"> / </t>
-                            </t>
-                        </small>
-                    </t>
+                <div class="cl-name">
+                    <span t-field="product.display_name"/>
                 </div>
+
             </div>
 
-            <!-- MIDDLE ROW: Barcode (image only, NO numeric text) -->
-            <div class="label-barcode-row">
+            <!-- ── ROW 2: Barcode image (no numeric text) ── -->
+            <div class="cl-row cl-mid">
                 <t t-if="product.barcode">
-                    <img t-att-src="'/report/barcode/Code128/' + product.barcode"
-                         class="barcode-img"
-                         alt="Barcode"/>
                     <!--
-                        NOTE: We intentionally do NOT display product.barcode
-                        as text — the number is hidden as requested.
+                        /report/barcode/ renders the barcode as a PNG image.
+                        humanreadable=0  → suppresses the digits printed below
+                        the bars (this is the Odoo built-in way to hide the number).
                     -->
+                    <img t-att-src="'/report/barcode/?type=%s&amp;value=%s&amp;width=%s&amp;height=%s&amp;humanreadable=%s'
+                                    % ('Code128', product.barcode, 600, 100, 0)"
+                         class="cl-barcode-img" alt="barcode"/>
+                </t>
+                <t t-else="">
+                    <span class="cl-no-barcode">No barcode</span>
                 </t>
             </div>
 
-            <!-- BOTTOM ROW: Price (prominent, right-aligned) -->
-            <div class="label-bottom-row">
-                <div class="label-price">
-                    <t t-if="product.lst_price">
-                        <span class="price-currency">
-                            <t t-esc="product.currency_id.symbol if product.currency_id else '₹'"/>
-                        </span>
-                        <span class="price-value">
-                            <t t-esc="'%.2f' % product.lst_price"/>
-                        </span>
-                    </t>
+            <!-- ── ROW 3: Price (bottom-right, prominent) ── -->
+            <div class="cl-row cl-bottom">
+                <div class="cl-price">
+                    <span class="cl-currency">
+                        <t t-esc="product.currency_id.symbol if product.currency_id else '₹'"/>
+                    </span>
+                    <span class="cl-amount">
+                        <t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
+                    </span>
                 </div>
             </div>
 
-        </div>
-    </template>
+        </div><!-- /.cl-label -->
 
-    <!-- ============================================================
-         CSS Styles — Scoped to our label
-         ============================================================ -->
-    <template id="custom_label_assets" inherit_id="web.report_assets_common">
-        <xpath expr="//link[last()]" position="after">
-            <style type="text/css">
-                /* ---- Reset &amp; base ---- */
-                * { box-sizing: border-box; margin: 0; padding: 0; }
+        <!-- ── Scoped CSS (injected once per label render) ── -->
+        <style type="text/css">
+            /* ---------- reset ---------- */
+            * { box-sizing: border-box; margin: 0; padding: 0; }
 
-                body {
-                    font-family: Arial, Helvetica, sans-serif;
-                    font-size: 10px;
-                    color: #000;
-                    background: #fff;
+            /* ---------- label card ----------
+               Matches the 90×30 mm paper format minus margins (2 mm each side).
+               Tweak width/height if your physical label differs.
+            ---------------------------------------- */
+            .cl-label {
+                width:  86mm;
+                height: 26mm;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 9px;
+                color: #000;
+                background: #fff;
+                border: 0.3mm solid #bbb;   /* remove this line for borderless labels */
+                padding: 1mm 1.5mm;
+                overflow: hidden;
+            }
+
+            /* ---------- rows ---------- */
+            .cl-row {
+                display: flex;
+                align-items: center;
+                width: 100%;
+            }
+
+            /* -- top row -- */
+            .cl-top { gap: 2mm; height: 9mm; }
+
+            .cl-logo {
+                flex: 0 0 auto;
+                width: 20mm;
+                height: 9mm;
+                display: flex;
+                align-items: center;
+            }
+            .cl-logo-img {
+                max-width: 20mm;
+                max-height: 9mm;
+                object-fit: contain;
+            }
+            .cl-company-name {
+                font-size: 7px;
+                font-weight: bold;
+                color: #444;
+                word-break: break-word;
+            }
+
+            .cl-name {
+                flex: 1;
+                text-align: center;
+                font-size: 10px;
+                font-weight: bold;
+                line-height: 1.2;
+                overflow: hidden;
+                word-break: break-word;
+            }
+
+            /* -- middle row: barcode -- */
+            .cl-mid {
+                justify-content: center;
+                height: 10mm;
+                overflow: hidden;
+            }
+            .cl-barcode-img {
+                max-width: 62mm;
+                height: 9mm;
+                object-fit: contain;
+                /* humanreadable=0 already hides the number in the PNG;
+                   this rule makes doubly sure no text appears */
+            }
+            .cl-no-barcode {
+                font-size: 7px;
+                color: #aaa;
+                font-style: italic;
+            }
+
+            /* -- bottom row: price -- */
+            .cl-bottom {
+                justify-content: flex-end;
+                height: 6mm;
+                border-top: 0.2mm solid #ddd;
+                padding-top: 0.5mm;
+            }
+            .cl-price {
+                display: flex;
+                align-items: baseline;
+                gap: 0.5mm;
+            }
+            .cl-currency {
+                font-size: 8px;
+                font-weight: bold;
+            }
+            .cl-amount {
+                font-size: 13px;
+                font-weight: bold;
+                letter-spacing: -0.3px;
+            }
+
+            /* ---------- print ---------- */
+            @media print {
+                .cl-label {
+                    border-color: #999;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
                 }
+            }
+        </style>
 
-                /* ---- Label card: 84mm x 26mm usable area ---- */
-                .custom-label-card {
-                    width:  84mm;
-                    height: 26mm;
-                    border: 1px solid #ccc;
-                    border-radius: 2px;
-                    padding: 1.5mm 2mm;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                    overflow: hidden;
-                    page-break-after: always;
-                    background: #fff;
-                }
-
-                /* ---- TOP ROW ---- */
-                .label-top-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 2mm;
-                    flex-shrink: 0;
-                    height: 8mm;
-                }
-
-                /* Logo box */
-                .label-logo {
-                    flex: 0 0 auto;
-                    width: 18mm;
-                    height: 8mm;
-                    display: flex;
-                    align-items: center;
-                    justify-content: flex-start;
-                }
-
-                .company-logo-img {
-                    max-width: 18mm;
-                    max-height: 8mm;
-                    object-fit: contain;
-                }
-
-                .company-name-text {
-                    font-size: 7px;
-                    font-weight: bold;
-                    color: #333;
-                    line-height: 1.2;
-                }
-
-                /* Product name */
-                .label-product-name {
-                    flex: 1;
-                    text-align: center;
-                    overflow: hidden;
-                }
-
-                .product-name-text {
-                    font-size: 9px;
-                    font-weight: bold;
-                    color: #000;
-                    line-height: 1.2;
-                    display: block;
-                    word-break: break-word;
-                }
-
-                .variant-attrs {
-                    font-size: 7px;
-                    color: #555;
-                }
-
-                /* ---- MIDDLE ROW: Barcode ---- */
-                .label-barcode-row {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    flex: 1;
-                    padding: 0.5mm 0;
-                    overflow: hidden;
-                }
-
-                .barcode-img {
-                    max-width: 60mm;
-                    max-height: 9mm;
-                    height: 9mm;
-                    object-fit: contain;
-                    /* No text underneath — barcode image only */
-                }
-
-                /* ---- BOTTOM ROW: Price ---- */
-                .label-bottom-row {
-                    display: flex;
-                    justify-content: flex-end;
-                    align-items: center;
-                    flex-shrink: 0;
-                    height: 6mm;
-                    border-top: 0.3mm solid #eee;
-                    padding-top: 0.5mm;
-                }
-
-                .label-price {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 0.5mm;
-                }
-
-                .price-currency {
-                    font-size: 8px;
-                    font-weight: bold;
-                    color: #000;
-                }
-
-                .price-value {
-                    font-size: 12px;
-                    font-weight: bold;
-                    color: #000;
-                    letter-spacing: -0.3px;
-                }
-
-                /* ---- Print overrides ---- */
-                @media print {
-                    .custom-label-card {
-                        border: 1px solid #999;
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
-                    }
-                }
-            </style>
-        </xpath>
     </template>
 
 </odoo>
