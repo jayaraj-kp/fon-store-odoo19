@@ -4,7 +4,6 @@
     <!--
     ================================================================
       STEP 1 — Paper Format: 90 x 30 mm label
-      Adjust page_height / page_width to match your label stock.
     ================================================================
     -->
     <record id="paperformat_custom_label" model="report.paperformat">
@@ -25,9 +24,7 @@
 
     <!--
     ================================================================
-      STEP 2 — Report Action
-      Model = product.product  (same as Odoo standard label)
-      Bound to product list so "Print > Custom Label" appears there.
+      STEP 2a — Bound to product.product (Inventory list view)
     ================================================================
     -->
     <record id="action_report_custom_label" model="ir.actions.report">
@@ -36,7 +33,23 @@
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">custom_barcode_label.report_custom_label_document</field>
         <field name="report_file">custom_barcode_label.report_custom_label_document</field>
-        <field name="binding_model_id" ref="product.model_product_product"/>
+        <field name="binding_model_id" search="[('model','=','product.product')]" model="ir.model"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>
+    </record>
+
+    <!--
+    ================================================================
+      STEP 2b — Bound to product.template (product form Print menu)
+    ================================================================
+    -->
+    <record id="action_report_custom_label_tmpl" model="ir.actions.report">
+        <field name="name">Custom Product Label</field>
+        <field name="model">product.template</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_barcode_label.report_custom_label_tmpl_document</field>
+        <field name="report_file">custom_barcode_label.report_custom_label_tmpl_document</field>
+        <field name="binding_model_id" search="[('model','=','product.template')]" model="ir.model"/>
         <field name="binding_type">report</field>
         <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>
     </record>
@@ -44,13 +57,10 @@
     <!--
     ================================================================
       STEP 3 — QWeb Templates
-
-      report_custom_label_document  : outer page shell
-      report_custom_label_content   : the single label card (reusable)
     ================================================================
     -->
 
-    <!-- Outer document — iterates over selected product.product records -->
+    <!-- product.product context (Inventory list view) -->
     <template id="report_custom_label_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
@@ -63,13 +73,27 @@
         </t>
     </template>
 
-    <!-- Single label card -->
+    <!-- product.template context (product form view) -->
+    <template id="report_custom_label_tmpl_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="tmpl">
+                <t t-foreach="tmpl.product_variant_ids" t-as="product">
+                    <t t-call="web.basic_layout">
+                        <div class="page">
+                            <t t-call="custom_barcode_label.report_custom_label_content"/>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- Single label card — variable in scope: product (product.product) -->
     <template id="report_custom_label_content">
         <div class="cl-label">
 
-            <!-- ── ROW 1: Logo (left)  +  Product name (right / centre) ── -->
+            <!-- ROW 1: Logo left + Product name centre -->
             <div class="cl-row cl-top">
-
                 <div class="cl-logo">
                     <t t-if="product.company_id and product.company_id.logo">
                         <img t-att-src="image_data_uri(product.company_id.logo)"
@@ -81,35 +105,27 @@
                         </span>
                     </t>
                 </div>
-
                 <div class="cl-name">
                     <span t-field="product.display_name"/>
                 </div>
-
             </div>
 
-            <!-- ── ROW 2: Barcode image (no numeric text) ── -->
+            <!-- ROW 2: Barcode image only (humanreadable=0 hides digits) -->
             <div class="cl-row cl-mid">
                 <t t-if="product.barcode">
-                    <!--
-                        /report/barcode/ renders the barcode as a PNG image.
-                        humanreadable=0  → suppresses the digits printed below
-                        the bars (this is the Odoo built-in way to hide the number).
-                    -->
-                    <img t-att-src="'/report/barcode/?type=%s&amp;value=%s&amp;width=%s&amp;height=%s&amp;humanreadable=%s'
-                                    % ('Code128', product.barcode, 600, 100, 0)"
+                    <img t-att-src="'/report/barcode/?type=%s&amp;value=%s&amp;width=%s&amp;height=%s&amp;humanreadable=%s' % ('Code128', product.barcode, 600, 100, 0)"
                          class="cl-barcode-img" alt="barcode"/>
                 </t>
                 <t t-else="">
-                    <span class="cl-no-barcode">No barcode</span>
+                    <span class="cl-no-barcode">No barcode set</span>
                 </t>
             </div>
 
-            <!-- ── ROW 3: Price (bottom-right, prominent) ── -->
+            <!-- ROW 3: Price bottom-right -->
             <div class="cl-row cl-bottom">
                 <div class="cl-price">
                     <span class="cl-currency">
-                        <t t-esc="product.currency_id.symbol if product.currency_id else '₹'"/>
+                        <t t-esc="product.currency_id.symbol if product.currency_id else '&#8377;'"/>
                     </span>
                     <span class="cl-amount">
                         <t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
@@ -117,119 +133,34 @@
                 </div>
             </div>
 
-        </div><!-- /.cl-label -->
+        </div>
 
-        <!-- ── Scoped CSS (injected once per label render) ── -->
         <style type="text/css">
-            /* ---------- reset ---------- */
             * { box-sizing: border-box; margin: 0; padding: 0; }
-
-            /* ---------- label card ----------
-               Matches the 90×30 mm paper format minus margins (2 mm each side).
-               Tweak width/height if your physical label differs.
-            ---------------------------------------- */
             .cl-label {
-                width:  86mm;
-                height: 26mm;
-                display: flex;
-                flex-direction: column;
+                width: 86mm; height: 26mm;
+                display: flex; flex-direction: column;
                 justify-content: space-between;
                 font-family: Arial, Helvetica, sans-serif;
-                font-size: 9px;
-                color: #000;
-                background: #fff;
-                border: 0.3mm solid #bbb;   /* remove this line for borderless labels */
-                padding: 1mm 1.5mm;
-                overflow: hidden;
+                font-size: 9px; color: #000; background: #fff;
+                border: 0.3mm solid #bbb;
+                padding: 1mm 1.5mm; overflow: hidden;
             }
-
-            /* ---------- rows ---------- */
-            .cl-row {
-                display: flex;
-                align-items: center;
-                width: 100%;
-            }
-
-            /* -- top row -- */
+            .cl-row { display: flex; align-items: center; width: 100%; }
             .cl-top { gap: 2mm; height: 9mm; }
-
-            .cl-logo {
-                flex: 0 0 auto;
-                width: 20mm;
-                height: 9mm;
-                display: flex;
-                align-items: center;
-            }
-            .cl-logo-img {
-                max-width: 20mm;
-                max-height: 9mm;
-                object-fit: contain;
-            }
-            .cl-company-name {
-                font-size: 7px;
-                font-weight: bold;
-                color: #444;
-                word-break: break-word;
-            }
-
-            .cl-name {
-                flex: 1;
-                text-align: center;
-                font-size: 10px;
-                font-weight: bold;
-                line-height: 1.2;
-                overflow: hidden;
-                word-break: break-word;
-            }
-
-            /* -- middle row: barcode -- */
-            .cl-mid {
-                justify-content: center;
-                height: 10mm;
-                overflow: hidden;
-            }
-            .cl-barcode-img {
-                max-width: 62mm;
-                height: 9mm;
-                object-fit: contain;
-                /* humanreadable=0 already hides the number in the PNG;
-                   this rule makes doubly sure no text appears */
-            }
-            .cl-no-barcode {
-                font-size: 7px;
-                color: #aaa;
-                font-style: italic;
-            }
-
-            /* -- bottom row: price -- */
-            .cl-bottom {
-                justify-content: flex-end;
-                height: 6mm;
-                border-top: 0.2mm solid #ddd;
-                padding-top: 0.5mm;
-            }
-            .cl-price {
-                display: flex;
-                align-items: baseline;
-                gap: 0.5mm;
-            }
-            .cl-currency {
-                font-size: 8px;
-                font-weight: bold;
-            }
-            .cl-amount {
-                font-size: 13px;
-                font-weight: bold;
-                letter-spacing: -0.3px;
-            }
-
-            /* ---------- print ---------- */
+            .cl-logo { flex: 0 0 auto; width: 20mm; height: 9mm; display: flex; align-items: center; }
+            .cl-logo-img { max-width: 20mm; max-height: 9mm; object-fit: contain; }
+            .cl-company-name { font-size: 7px; font-weight: bold; color: #444; word-break: break-word; }
+            .cl-name { flex: 1; text-align: center; font-size: 10px; font-weight: bold; line-height: 1.2; overflow: hidden; word-break: break-word; }
+            .cl-mid { justify-content: center; height: 10mm; overflow: hidden; }
+            .cl-barcode-img { max-width: 62mm; height: 9mm; object-fit: contain; }
+            .cl-no-barcode { font-size: 7px; color: #aaa; font-style: italic; }
+            .cl-bottom { justify-content: flex-end; height: 6mm; border-top: 0.2mm solid #ddd; padding-top: 0.5mm; }
+            .cl-price { display: flex; align-items: baseline; gap: 0.5mm; }
+            .cl-currency { font-size: 8px; font-weight: bold; }
+            .cl-amount { font-size: 13px; font-weight: bold; letter-spacing: -0.3px; }
             @media print {
-                .cl-label {
-                    border-color: #999;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
+                .cl-label { border-color: #999; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
         </style>
 
