@@ -1,0 +1,182 @@
+/* ============================================================
+   Custom Product Label - 50mm x 25mm
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Arial+Narrow&display=swap');
+
+/* Page reset for thermal label */
+@page {
+    size: 50mm 25mm;
+    margin: 0;
+}
+
+body.o_report_layout_standard {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+}
+
+/* ---- Label wrapper: full 50x25mm ---- */
+.label-wrapper {
+    display: flex;
+    flex-direction: row;
+    width: 50mm;
+    height: 25mm;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 0.2mm solid #000; /* visible border - remove for thermal */
+    background: #fff;
+    page-break-after: always;
+}
+
+/* ---- LEFT COLUMN: Logo ---- */
+.label-logo-col {
+    width: 8mm;
+    min-width: 8mm;
+    max-width: 8mm;
+    height: 25mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 0.2mm solid #ccc;
+    overflow: hidden;
+    padding: 0.5mm;
+    box-sizing: border-box;
+}
+
+.label-logo {
+    width: 6mm;
+    max-height: 18mm;
+    object-fit: contain;
+    transform: rotate(-90deg);
+    transform-origin: center center;
+    /* B&W logo - use CSS filter */
+    filter: grayscale(100%) contrast(1.2);
+}
+
+/* ---- RIGHT CONTENT COLUMN ---- */
+.label-content-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 25mm;
+    box-sizing: border-box;
+    padding: 0.5mm 0.5mm 0 0.5mm;
+}
+
+/* ---- TOP ROW: Name + MRP ---- */
+.label-top-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    height: 10mm;
+    overflow: hidden;
+}
+
+.label-item-name {
+    flex: 1;
+    font-family: 'Arial Narrow', 'Arial', sans-serif;
+    font-size: 5.5pt;
+    font-weight: bold;
+    line-height: 1.2;
+    color: #000;
+    overflow: hidden;
+    max-height: 10mm;
+    word-break: break-word;
+    padding-right: 1mm;
+}
+
+.label-variant {
+    font-size: 4.5pt;
+    font-weight: normal;
+    color: #333;
+}
+
+.label-mrp {
+    text-align: right;
+    white-space: nowrap;
+    font-family: 'Arial Narrow', 'Arial', sans-serif;
+    min-width: 10mm;
+}
+
+.mrp-label {
+    font-size: 4pt;
+    font-weight: bold;
+    color: #000;
+    display: block;
+    line-height: 1;
+}
+
+.mrp-price {
+    font-size: 6pt;
+    font-weight: bold;
+    color: #000;
+    display: block;
+    line-height: 1.2;
+}
+
+/* ---- BOTTOM ROW: QR + Barcode ---- */
+.label-bottom-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 14mm;
+    margin-top: auto;
+    overflow: hidden;
+}
+
+/* Instagram QR - bottom left */
+.label-qr {
+    width: 12mm;
+    height: 12mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.qr-img {
+    width: 12mm;
+    height: 12mm;
+    object-fit: contain;
+}
+
+.qr-placeholder {
+    width: 12mm;
+    height: 12mm;
+    border: 0.3mm dashed #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4pt;
+    color: #999;
+}
+
+/* Barcode - bottom center */
+.label-barcode {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0 0.5mm;
+}
+
+.barcode-img {
+    max-width: 100%;
+    height: 12mm;
+    object-fit: contain;
+}
+
+.no-barcode {
+    font-size: 4pt;
+    color: #999;
+    text-align: center;
+}
+
+/* Bottom right spacer */
+.label-bottom-right {
+    width: 6mm;
+}

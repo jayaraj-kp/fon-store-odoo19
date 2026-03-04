@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Add Instagram Handle to Product Template Form -->
+    <record id="view_product_template_form_instagram" model="ir.ui.view">
+        <field name="name">product.template.form.instagram</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='barcode']" position="after">
+                <field name="instagram_handle"
+                       string="Instagram Handle"
+                       placeholder="@yourshop or https://instagram.com/yourshop"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add Instagram Handle to Company Settings -->
+    <record id="view_res_company_form_instagram" model="ir.ui.view">
+        <field name="name">res.company.form.instagram</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='phone']" position="after">
+                <field name="instagram_handle"
+                       string="Instagram Handle (for labels)"
+                       placeholder="@yourshop"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Server Action: Print Label from Product List -->
+    <record id="action_print_custom_label_server" model="ir.actions.server">
+        <field name="name">Print Custom Label (50x25mm)</field>
+        <field name="model_id" ref="product.model_product_product"/>
+        <field name="binding_model_id" ref="product.model_product_product"/>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = {
+        'type': 'ir.actions.report',
+        'report_name': 'custom_product_label.report_product_label_template',
+        'report_type': 'qweb-pdf',
+        'data': {'ids': records.ids},
+        'context': {'active_ids': records.ids},
+    }
+    action = action
+        </field>
+    </record>
+
+</odoo>

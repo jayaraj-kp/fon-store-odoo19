@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Paper Format: 50mm x 25mm roll -->
+    <record id="paperformat_label_50x25" model="report.paperformat">
+        <field name="name">Label 50x25mm Roll</field>
+        <field name="default" eval="False"/>
+        <field name="format">custom</field>
+        <field name="page_height">25</field>
+        <field name="page_width">50</field>
+        <field name="orientation">Landscape</field>
+        <field name="top_margin">0</field>
+        <field name="bottom_margin">0</field>
+        <field name="left_margin">0</field>
+        <field name="right_margin">0</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">96</field>
+    </record>
+
+    <!-- Report Action -->
+    <record id="action_report_custom_product_label" model="ir.actions.report">
+        <field name="name">Custom Product Label 50x25</field>
+        <field name="model">product.product</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_product_label.report_product_label_template</field>
+        <field name="report_file">custom_product_label.report_product_label_template</field>
+        <field name="paperformat_id" ref="paperformat_label_50x25"/>
+        <field name="binding_model_id" ref="product.model_product_product"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- QWeb Report Template -->
+    <template id="report_product_label_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="product">
+                <t t-set="barcode_img" t-value="product.get_barcode_image_b64()"/>
+                <t t-set="qr_img" t-value="product.get_instagram_qr_b64()"/>
+                <t t-set="company" t-value="product.company_id or res_company"/>
+                <t t-set="logo_src" t-value="'/web/image/res.company/%s/logo' % company.id"/>
+
+                <div class="label-wrapper">
+                    <!-- LEFT: Company Logo (vertical, rotated) -->
+                    <div class="label-logo-col">
+                        <img t-att-src="logo_src" class="label-logo" alt="Logo"/>
+                    </div>
+
+                    <!-- MAIN CONTENT AREA -->
+                    <div class="label-content-col">
+
+                        <!-- TOP ROW: Item Name + MRP -->
+                        <div class="label-top-row">
+                            <div class="label-item-name">
+                                <span t-esc="product.name"/>
+                                <t t-if="product.product_template_attribute_value_ids">
+                                    <br/>
+                                    <span class="label-variant"
+                                          t-esc="', '.join(product.product_template_attribute_value_ids.mapped('name'))"/>
+                                </t>
+                            </div>
+                            <div class="label-mrp">
+                                <span class="mrp-label">MRP</span><br/>
+                                <span class="mrp-price" t-esc="product.get_label_price()"/>
+                            </div>
+                        </div>
+
+                        <!-- BOTTOM ROW: Instagram QR + Barcode -->
+                        <div class="label-bottom-row">
+                            <!-- QR Code bottom left -->
+                            <div class="label-qr">
+                                <t t-if="qr_img">
+                                    <img t-att-src="'data:image/png;base64,' + qr_img" class="qr-img" alt="QR"/>
+                                </t>
+                                <t t-else="">
+                                    <div class="qr-placeholder">QR</div>
+                                </t>
+                            </div>
+
+                            <!-- Barcode bottom center -->
+                            <div class="label-barcode">
+                                <t t-if="barcode_img">
+                                    <img t-att-src="'data:image/png;base64,' + barcode_img"
+                                         class="barcode-img" alt="Barcode"/>
+                                </t>
+                                <t t-elif="product.barcode">
+                                    <!-- fallback: use Odoo built-in barcode rendering -->
+                                    <img t-att-src="'/report/barcode/Code128/%s?width=200&amp;height=40&amp;humanreadable=0' % product.barcode"
+                                         class="barcode-img" alt="Barcode"/>
+                                </t>
+                                <t t-else="">
+                                    <div class="no-barcode">No Barcode</div>
+                                </t>
+                            </div>
+
+                            <!-- Spacer right (balances QR) -->
+                            <div class="label-bottom-right"></div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </t>
+        </t>
+    </template>
+
+</odoo>
