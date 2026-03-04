@@ -1,13 +1,13 @@
 /* ===================================================== */
-/* #1: GLOBAL FONT — Arial Narrow throughout receipt    */
+/* #1: GLOBAL FONT — Arial Narrow                       */
 /* ===================================================== */
 .pos-receipt,
 .pos-receipt * {
-    font-family: "Arial Narrow", "Arial", sans-serif !important;
+    font-family: "Arial Narrow", Arial, sans-serif !important;
 }
 
 /* ===================================================== */
-/* RECEIPT HEADER */
+/* RECEIPT HEADER                                        */
 /* ===================================================== */
 .receipt-header-row {
     display: flex;
@@ -35,11 +35,62 @@
     font-weight: bold;
     font-size: 12px;
     line-height: 1.3;
-    word-break: normal;
 }
 
 /* ===================================================== */
-/* META ROW: Invoice# (left) + Date (right)             */
+/* HIDE DEFAULT ODOO RECEIPT BLOCKS VIA CSS             */
+/* (safer than xpath replace — avoids missing-node errors) */
+/* ===================================================== */
+
+/* Default centered header area */
+.pos-receipt .text-center.pt-3,
+.pos-receipt .d-flex.flex-column.align-items-center {
+    display: none !important;
+}
+
+/* Default tax / subtotal / total / payment / change rows */
+.pos-receipt .pos-receipt-taxes,
+.pos-receipt .pos-receipt-amount.receipt-total,
+.pos-receipt .paymentlines,
+.pos-receipt .pos-receipt-amount.receipt-change {
+    display: none !important;
+}
+
+/* Default discount row */
+.pos-receipt .label-discount,
+.pos-receipt .label-discount ~ span,
+.pos-receipt .text-start:has(.label-discount) {
+    display: none !important;
+}
+
+/* Default QR / invoice block */
+.pos-receipt .gap-2.d-flex.flex-row,
+.pos-receipt .d-flex.gap-2.pt-3 {
+    display: none !important;
+}
+
+/* Default "Powered by Odoo" and order data footer */
+.pos-receipt .pos-receipt-order-data {
+    display: none !important;
+}
+
+/* Default cashier / served-by row */
+.pos-receipt .receipt-cashier,
+.pos-receipt .cashier {
+    display: none !important;
+}
+
+/* ===================================================== */
+/* DIVIDER ABOVE INVOICE META ROW                       */
+/* ===================================================== */
+.cust-divider-top {
+    border-top: 1px dashed #000;
+    margin-top: 4px;
+    padding-top: 4px;
+}
+
+/* ===================================================== */
+/* META ROW: Invoice# left + Date right                 */
 /* ===================================================== */
 .receipt-meta-row {
     display: flex;
@@ -58,29 +109,11 @@
     line-height: 1.5;
     padding-bottom: 4px;
     margin-bottom: 2px;
-    /* border-bottom intentionally removed */
 }
 .receipt-customer-inline div {
     display: block;
     word-break: break-word;
     white-space: normal;
-}
-
-/* ===================================================== */
-/* HIDE DEFAULT ReceiptHeader content                    */
-/* ===================================================== */
-.pos-receipt .text-center.pt-3 {
-    display: none !important;
-}
-.pos-receipt .d-flex.flex-column.align-items-center {
-    display: none !important;
-}
-.pos-receipt .label-discount,
-.pos-receipt .label-discount ~ span {
-    display: none !important;
-}
-.pos-receipt .text-start:has(.label-discount) {
-    display: none !important;
 }
 
 /* ===================================================== */
@@ -108,10 +141,7 @@
 .custom-items-table .col-qty   { width: 12%; text-align: center; }
 .custom-items-table .col-gst   { width: 12%; text-align: center; }
 .custom-items-table .col-total { width: 26%; text-align: right; }
-.item-note {
-    font-size: 9px;
-    font-style: italic;
-}
+.item-note { font-size: 9px; font-style: italic; }
 
 /* ===================================================== */
 /* TOTAL SECTION                                         */
@@ -136,7 +166,7 @@
 }
 
 /* ===================================================== */
-/* #2: QR CODES — above GST table                       */
+/* QR CODES — side by side                              */
 /* ===================================================== */
 .receipt-qr-row {
     display: flex;
@@ -161,10 +191,10 @@
     margin-bottom: 3px;
 }
 
-/* Standard UPI QR (full size) */
-.qr-code {
-    width: 70px !important;
-    height: 70px !important;
+/* #3: Small invoice QR (Scan for Invoice) */
+.qr-invoice-small {
+    width: 48px !important;
+    height: 48px !important;
     display: block;
     margin: 0 auto;
     background: #fff !important;
@@ -172,16 +202,10 @@
     image-rendering: pixelated;
 }
 
-/* #3: Smaller size for "Scan for Invoice" QR */
-.qr-invoice-small {
-    width: 48px !important;
-    height: 48px !important;
-}
-
+/* UPI QR stays full size */
 .upi-qr-image-container {
     display: inline-block;
     padding: 2px;
-    border: none;
     background: #fff;
 }
 .upi-qr-image {
@@ -194,7 +218,7 @@
 }
 
 /* ===================================================== */
-/* #2: GST TABLE — below QR codes, above amount-words   */
+/* GST TABLE — between QR and amount-in-words           */
 /* ===================================================== */
 .gst-section {
     margin-top: 4px;
@@ -208,15 +232,9 @@
     margin-bottom: 4px;
 }
 .gst-table th,
-.gst-table td {
-    padding: 2px 1px;
-}
-.gst-table thead tr {
-    border-bottom: 1px solid #000;
-}
-.gst-total-row {
-    border-top: 1px solid #000;
-}
+.gst-table td { padding: 2px 1px; }
+.gst-table thead tr { border-bottom: 1px solid #000; }
+.gst-total-row { border-top: 1px solid #000; }
 
 /* ===================================================== */
 /* AMOUNT IN WORDS                                       */
@@ -232,7 +250,7 @@
 }
 
 /* ===================================================== */
-/* #5: LOYALTY POINTS BLOCK                             */
+/* LOYALTY POINTS + EXPIRY                              */
 /* ===================================================== */
 .loyalty-block {
     margin: 4px 0;
@@ -272,7 +290,7 @@
 }
 
 /* ===================================================== */
-/* FOOTER — date/time only (#4: Served by removed)      */
+/* FOOTER — date/time right-aligned, no Served by       */
 /* ===================================================== */
 .receipt-footer-row {
     display: flex;
@@ -287,8 +305,8 @@
 /* PRINT                                                 */
 /* ===================================================== */
 @media print {
-    .receipt-qr-row     { page-break-inside: avoid; flex-wrap: nowrap; }
-    .qr-invoice-small   { width: 44px !important; height: 44px !important; }
-    .upi-qr-image       { width: 65px !important; height: 65px !important; }
+    .receipt-qr-row       { page-break-inside: avoid; flex-wrap: nowrap; }
+    .qr-invoice-small     { width: 44px !important; height: 44px !important; }
+    .upi-qr-image         { width: 65px !important; height: 65px !important; }
     .receipt-company-logo { max-width: 100px; max-height: 85px; }
 }

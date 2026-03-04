@@ -13,7 +13,6 @@
             </div>
             <div class="receipt-company-cell">
                 <t t-set="co" t-value="order.company"/>
-                <!-- Company name split at first space onto two lines -->
                 <t t-set="nameLines" t-value="order.getCompanyNameLines()"/>
                 <div class="company-name">
                     <t t-esc="nameLines[0]"/>
@@ -27,7 +26,6 @@
                 </t>
                 <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
                 <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
-                <!-- Email intentionally omitted -->
             </div>
         </div>
     </xpath>
@@ -39,13 +37,21 @@
    t-inherit="point_of_sale.OrderReceipt"
    t-inherit-mode="extension">
 
-    <!-- Invoice # + Date + Customer block -->
+    <!--
+        STRATEGY: Only use xpaths that are guaranteed to exist.
+        Everything else is hidden via CSS.
+        This prevents "Missing template" fatal errors on load.
+    -->
+
+    <!-- Replace the pt-3 spacer with our invoice + customer block -->
     <xpath expr="//div[@class='pt-3']" position="replace">
-        <div style="border-top:1px dashed #000; margin-top:4px; padding-top:4px;">
+        <div class="cust-divider-top">
+            <!-- Invoice# + Date -->
             <div class="receipt-meta-row">
                 <div><strong>Invoice# <t t-esc="order.pos_reference"/></strong></div>
                 <div><t t-esc="order.getReceiptDateFormatted()"/></div>
             </div>
+            <!-- Customer: name + phone + GSTIN only -->
             <t t-if="order.partner_id">
                 <div class="receipt-customer-inline">
                     <strong><t t-esc="order.partner_id.name"/></strong>
@@ -60,7 +66,7 @@
         </div>
     </xpath>
 
-    <!-- Custom items table (RATE removed, GST column added) -->
+    <!-- Inject custom items table BEFORE OrderDisplay -->
     <xpath expr="//OrderDisplay" position="before">
         <table class="custom-items-table">
             <thead>
@@ -91,7 +97,7 @@
         </table>
     </xpath>
 
-    <!-- Keep OrderDisplay hidden for l10n_in_pos compatibility -->
+    <!-- Keep OrderDisplay but hidden — required for l10n_in_pos compatibility -->
     <xpath expr="//OrderDisplay" position="replace">
         <div style="display:none;">
             <OrderDisplay order="order" t-slot-scope="scope" mode="'receipt'">
@@ -101,24 +107,13 @@
         </div>
     </xpath>
 
-    <!-- Hide default Odoo blocks -->
-    <xpath expr="//div[@class='pos-receipt-taxes pt-3']" position="replace"/>
-    <xpath expr="//div[@class='pos-receipt-amount receipt-total fw-bolder']" position="replace"/>
-    <xpath expr="//div[@class='paymentlines text-start pt-1']" position="replace"/>
-    <xpath expr="//div[@class='pos-receipt-amount receipt-change']" position="replace"/>
-    <xpath expr="//div[@class='text-start']" position="replace"/>
-    <xpath expr="//div[@class='gap-2 d-flex flex-row pt-3']" position="replace"/>
+    <!--
+        All other default blocks (taxes, total, payments, change, QR, footer)
+        are hidden via CSS class selectors in custom_receipt.css.
+        We do NOT xpath-remove them to avoid missing-node errors in Odoo 19.
+    -->
 
-    <!-- ============================================================
-         CUSTOM BOTTOM SECTION — ORDER:
-         ① Grand Total summary
-         ② QR codes (Scan for Invoice  |  UPI Pay)
-         ③ GST breakdown table
-         ④ Amount in words
-         ⑤ Loyalty points + expiry
-         ⑥ Salutation
-         ⑦ Footer — date/time only (Served by removed)
-    ============================================================ -->
+    <!-- Inject our entire custom bottom section before the before-footer div -->
     <xpath expr="//div[@class='before-footer']" position="before">
 
         <!-- ① GRAND TOTAL SUMMARY -->
@@ -139,20 +134,20 @@
                 <span>Grand Total</span>
                 <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
             </div>
-            <t t-if="order.getTotalSaved()">
+            <t t-if="order.getTotalSaved() > 0">
                 <div class="saved-line">
-                    <span>&#127881; You Have Saved &#127881;</span>
+                    <span>&#127881; You Saved &#127881;</span>
                     <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
                 </div>
             </t>
         </div>
 
-        <!-- ② QR CODES — left: Scan for Invoice (small) | right: UPI Pay -->
+        <!-- ② QR CODES — left: Scan for Invoice (small)  |  right: UPI Pay -->
         <div class="receipt-qr-row">
             <div class="receipt-qr-cell">
                 <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and this.qrCode">
                     <div class="qr-cell-label">Scan for Invoice</div>
-                    <img t-att-src="this.qrCode" class="qr-code qr-invoice-small" alt="Invoice QR"/>
+                    <img t-att-src="this.qrCode" class="qr-invoice-small" alt="Invoice QR"/>
                     <t t-if="order.ticket_code">
                         <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
                     </t>
@@ -162,15 +157,15 @@
                 <t t-if="upiQrSrc">
                     <div class="qr-cell-label">Scan &amp; Pay &#x20B9;</div>
                     <div class="upi-qr-image-container">
-                        <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR Code"/>
+                        <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR"/>
                     </div>
                 </t>
             </div>
         </div>
 
-        <!-- ③ GST BREAKDOWN TABLE — between QR codes and amount-in-words -->
+        <!-- ③ GST BREAKDOWN TABLE — between QR codes and amount in words -->
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
-        <t t-if="gstLines and gstLines.length">
+        <t t-if="gstLines.length > 0">
             <div class="gst-section">
                 <table class="gst-table">
                     <thead>
@@ -210,19 +205,19 @@
 
         <!-- ⑤ LOYALTY POINTS + EXPIRY -->
         <t t-set="loyaltyInfo" t-value="order.getLoyaltyInfo()"/>
-        <t t-if="loyaltyInfo and loyaltyInfo.length">
+        <t t-if="loyaltyInfo.length > 0">
             <div class="loyalty-block">
                 <t t-foreach="loyaltyInfo" t-as="lp" t-key="lp_index">
                     <div class="loyalty-row">
                         <div class="loyalty-program">&#127942; <t t-esc="lp.program"/></div>
                         <div class="loyalty-detail">
-                            <span>Points Earned: <strong><t t-esc="lp.points"/></strong></span>
-                            <t t-if="lp.balance !== null and lp.balance !== undefined">
-                                <span> &nbsp;|&nbsp; Total Balance: <strong><t t-esc="lp.balance"/></strong></span>
+                            <span>Earned: <strong><t t-esc="lp.points"/></strong> pts</span>
+                            <t t-if="lp.balance !== null">
+                                <span> | Balance: <strong><t t-esc="lp.balance"/></strong> pts</span>
                             </t>
                         </div>
                         <t t-if="lp.expiry">
-                            <div class="loyalty-expiry">Expires on: <strong><t t-esc="lp.expiry"/></strong></div>
+                            <div class="loyalty-expiry">Expires: <strong><t t-esc="lp.expiry"/></strong></div>
                         </t>
                     </div>
                 </t>
@@ -234,15 +229,12 @@
             Thank you for shopping with us!
         </div>
 
-        <!-- ⑦ FOOTER — date/time only, Served by removed -->
+        <!-- ⑦ FOOTER — date/time only (Served by removed) -->
         <div class="receipt-footer-row">
             <div><t t-esc="order.formatDateOrTime('date_order')"/></div>
         </div>
 
     </xpath>
-
-    <xpath expr="//div[@class='d-flex gap-2 pt-3']" position="replace"/>
-    <xpath expr="//div[@class='pos-receipt-order-data text-center pt-3']" position="replace"/>
 
 </t>
 </templates>
