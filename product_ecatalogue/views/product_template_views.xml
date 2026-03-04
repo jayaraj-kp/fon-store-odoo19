@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="product_template_form_view_ecatalogue" model="ir.ui.view">
+        <field name="name">product.template.form.ecatalogue</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Add E-Catalogue tab after the last existing tab -->
+            <xpath expr="//notebook" position="inside">
+                <page string="E-Catalogue" name="ecatalogue">
+                    <group>
+                        <!-- Row 1: Enable toggle -->
+                        <group string="Settings">
+                            <field name="enable_ecatalogue"
+                                   widget="boolean_toggle"/>
+                        </group>
+
+                        <!-- Row 2: Terms & Conditions (right column) -->
+                        <group string="Terms &amp; Conditions"
+                               attrs="{'invisible': [('enable_ecatalogue','=',False)]}">
+                            <field name="ecatalogue_terms"
+                                   nolabel="1"
+                                   widget="html"
+                                   placeholder="Enter terms and conditions for this product…"/>
+                        </group>
+                    </group>
+
+                    <!-- Cover image + Attached images side by side -->
+                    <group attrs="{'invisible': [('enable_ecatalogue','=',False)]}">
+
+                        <!-- Cover Image -->
+                        <group string="Cover Image" col="1">
+                            <field name="ecatalogue_cover_image"
+                                   nolabel="1"
+                                   widget="image"
+                                   options="{'size': [300, 250], 'preview_image': 'ecatalogue_cover_image'}"
+                                   style="max-width:300px;"/>
+                        </group>
+
+                        <!-- Attached Images gallery -->
+                        <group string="Attached Images" col="1">
+                            <field name="ecatalogue_image_ids"
+                                   nolabel="1"
+                                   mode="kanban"
+                                   context="{'default_product_tmpl_id': active_id}">
+                                <kanban class="o_kanban_mobile">
+                                    <field name="image"/>
+                                    <field name="name"/>
+                                    <field name="sequence"/>
+                                    <templates>
+                                        <t t-name="kanban-box">
+                                            <div class="o_kanban_record d-flex flex-column align-items-center p-2"
+                                                 style="width:150px; border:1px solid #e0e0e0;
+                                                        border-radius:6px; margin:6px;
+                                                        background:#fafafa;">
+                                                <img t-att-src="kanban_image('product.ecatalogue.image',
+                                                                'image', record.id.raw_value)"
+                                                     style="width:130px; height:100px;
+                                                            object-fit:cover; border-radius:4px;"/>
+                                                <span class="mt-1 text-muted"
+                                                      style="font-size:12px;"
+                                                      t-esc="record.name.value or 'Image'"/>
+                                            </div>
+                                        </t>
+                                    </templates>
+                                </kanban>
+                            </field>
+                        </group>
+
+                    </group>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

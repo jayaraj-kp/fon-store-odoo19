@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Form view for individual catalogue image (used in dialog) -->
+    <record id="view_product_ecatalogue_image_form" model="ir.ui.view">
+        <field name="name">product.ecatalogue.image.form</field>
+        <field name="model">product.ecatalogue.image</field>
+        <field name="arch" type="xml">
+            <form string="Catalogue Image">
+                <field name="image" widget="image"
+                       options="{'size': [800, 600], 'preview_image': 'image'}"/>
+                <group>
+                    <field name="name" placeholder="Image title (optional)"/>
+                    <field name="sequence"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <!-- Kanban view shown inside the product tab -->
+    <record id="view_product_ecatalogue_image_kanban" model="ir.ui.view">
+        <field name="name">product.ecatalogue.image.kanban</field>
+        <field name="model">product.ecatalogue.image</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="image"/>
+                <field name="name"/>
+                <field name="sequence"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="o_kanban_record d-flex flex-column align-items-center p-2"
+                             style="width:160px; border:1px solid #ddd; border-radius:6px; margin:6px;">
+                            <img t-att-src="kanban_image('product.ecatalogue.image', 'image', record.id.raw_value)"
+                                 style="width:140px; height:110px; object-fit:cover; border-radius:4px;"/>
+                            <span class="mt-1 text-muted small"
+                                  t-esc="record.name.value or ''"/>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_product_ecatalogue_image_user,product.ecatalogue.image user,model_product_ecatalogue_image,base.group_user,1,1,1,1
+access_product_ecatalogue_image_portal,product.ecatalogue.image portal,model_product_ecatalogue_image,base.group_portal,1,0,0,0
