@@ -77,9 +77,6 @@
                         <td class="col-sn"><t t-esc="line.sn"/></td>
                         <td class="col-item">
                             <t t-esc="line.name"/>
-                            <t t-if="line.discount">
-                                <div class="item-discount">Disc: <t t-esc="line.discount"/>%</div>
-                            </t>
                             <t t-if="line.note">
                                 <div class="item-note"><t t-esc="line.note"/></div>
                             </t>
@@ -193,9 +190,9 @@
         <!-- QR CODES side by side -->
         <div class="receipt-qr-row">
             <div class="receipt-qr-cell">
-                <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and qrCode">
+                <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and this.qrCode">
                     <div class="qr-cell-label">Need an invoice?</div>
-                    <img t-att-src="qrCode" class="qr-code" alt="Invoice QR"/>
+                    <img t-att-src="this.qrCode" class="qr-code" alt="Invoice QR"/>
                     <t t-if="order.ticket_code">
                         <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
                     </t>

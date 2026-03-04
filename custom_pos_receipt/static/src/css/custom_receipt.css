@@ -172,7 +172,7 @@
 }
 
 /* ===================================================== */
-/* QR SECTION — side by side, no violet border          */
+/* QR SECTION — side by side                            */
 /* ===================================================== */
 .receipt-qr-row {
     display: flex;
@@ -198,23 +198,27 @@
     margin-bottom: 3px;
 }
 .qr-code {
-    width: 80px !important;
-    height: 80px !important;
+    width: 70px !important;
+    height: 70px !important;
     display: block;
     margin: 0 auto;
+    background: #fff !important;
+    padding: 2px;
+    image-rendering: pixelated;
 }
-/* NO border on UPI QR container */
 .upi-qr-image-container {
     display: inline-block;
-    padding: 0;
+    padding: 2px;
     border: none;
-    background: none;
+    background: #fff;
 }
 .upi-qr-image {
-    width: 80px !important;
-    height: 80px !important;
+    width: 70px !important;
+    height: 70px !important;
     display: block;
     margin: 0 auto;
+    background: #fff !important;
+    image-rendering: pixelated;
 }
 
 /* ===================================================== */
