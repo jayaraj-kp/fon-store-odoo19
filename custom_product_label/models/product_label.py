@@ -78,10 +78,13 @@ class ProductProduct(models.Model):
         return u"\u20b9{:,.2f}".format(self.lst_price)
 
     def get_company_logo_b64(self):
-        """Return company logo as base64 so wkhtmltopdf doesn't need network access."""
+        """Return company logo as base64 - avoids wkhtmltopdf network errors."""
         company = self.company_id or self.env.company
         if company.logo:
-            return company.logo.decode('utf-8') if isinstance(company.logo, bytes) else company.logo
+            logo = company.logo
+            if isinstance(logo, bytes):
+                return logo.decode('utf-8')
+            return logo
         return False
 
 
@@ -97,35 +100,42 @@ class IrActionsReport(models.Model):
     def _build_wkhtmltopdf_args(self, paperformat_id, landscape,
                                  specific_paperformat_args=None,
                                  set_viewport_size=False):
-        """Force zero margins for our custom label report."""
+        """
+        For our 50x25mm label:
+        - Force all margins to 0
+        - Remove --orientation flag (width > height already defines landscape)
+        - Keep page-width=50mm, page-height=25mm
+        """
         args = super()._build_wkhtmltopdf_args(
             paperformat_id, landscape,
             specific_paperformat_args=specific_paperformat_args,
             set_viewport_size=set_viewport_size,
         )
 
-        # Only modify args for our label paperformat (page_width=50, page_height=25)
         if paperformat_id and paperformat_id.page_width == 50 and paperformat_id.page_height == 25:
-            _logger.info("LABEL: Forcing zero margins for 50x25 label")
-            # Replace margin args with zeros
             new_args = []
             skip_next = False
-            for i, arg in enumerate(args):
+            for arg in args:
                 if skip_next:
                     skip_next = False
                     continue
-                if arg in ('--margin-top', '--margin-bottom', '--margin-left',
-                           '--margin-right', '--header-spacing'):
-                    # Replace value with 0
+                # Zero out all margins and header spacing
+                if arg in ('--margin-top', '--margin-bottom',
+                           '--margin-left', '--margin-right',
+                           '--header-spacing'):
                     new_args.append(arg)
                     new_args.append('0')
                     skip_next = True
+                # Remove orientation flag - width/height already defines it
+                elif arg == '--orientation':
+                    skip_next = True  # skip the value too
+                # Remove header/footer html files
                 elif arg in ('--header-html', '--footer-html'):
-                    # Skip header/footer html args and their values
                     skip_next = True
                 else:
                     new_args.append(arg)
-            _logger.info("LABEL: Final wkhtmltopdf args: %s", new_args)
+
+            _logger.info("LABEL 50x25 final args: %s", new_args)
             return new_args
 
         return args

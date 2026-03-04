@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
+    <!--
+        50mm wide x 25mm tall.
+        Orientation NOT set to Landscape here - width > height already implies it.
+        Odoo passes --page-width 50mm --page-height 25mm to wkhtmltopdf.
+        Adding --orientation Landscape was causing wkhtmltopdf to swap to portrait.
+    -->
     <record id="paperformat_label_50x25" model="report.paperformat">
         <field name="name">Label 50x25mm Roll</field>
         <field name="default" eval="False"/>
         <field name="format">custom</field>
         <field name="page_height">25</field>
         <field name="page_width">50</field>
-        <field name="orientation">Landscape</field>
+        <field name="orientation">Portrait</field>
         <field name="dpi">96</field>
     </record>
 
@@ -26,23 +32,47 @@
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
                 <t t-set="barcode_img" t-value="product.get_barcode_image_b64()"/>
-                <t t-set="qr_img" t-value="product.get_instagram_qr_b64()"/>
-                <t t-set="logo_b64" t-value="product.get_company_logo_b64()"/>
+                <t t-set="qr_img"     t-value="product.get_instagram_qr_b64()"/>
+                <t t-set="logo_b64"   t-value="product.get_company_logo_b64()"/>
 
                 <!--
-                    PAGE IS 50mm x 25mm with 0 margins = full usable area
-                    All images are base64 embedded - no network calls needed
-                    Layout:
-                    ┌───────┬──────────────────────────┬───────┐
-                    │       │  Product Name       MRP  │       │
-                    │  LOGO │                          │  QR   │
-                    │       │  ▐▌▐▐▌▌▐▌ (barcode)     │       │
-                    └───────┴──────────────────────────┴───────┘
-                -->
-                <div style="width:100%; height:100vh; display:flex; flex-direction:row; overflow:hidden; background:#fff; box-sizing:border-box; page-break-after:always; border:0.4px solid #000;">
+                    Label layout: 50mm wide x 25mm tall
+                    Uses 100vw x 100vh so it fills the page regardless of rendering quirks.
 
-                    <!-- LEFT: Logo B&amp;W vertical -->
-                    <div style="width:14%; min-width:14%; height:100%; display:flex; align-items:center; justify-content:center; border-right:0.4px solid #000; overflow:hidden; padding:1%; box-sizing:border-box; flex-shrink:0;">
+                    ┌────────┬───────────────────────────┬────────┐
+                    │        │  Item Name (Arial Narrow)  │        │
+                    │  LOGO  │                  MRP ₹xxx  │   QR   │
+                    │  (B&W) │  ████ Barcode ████         │  CODE  │
+                    └────────┴───────────────────────────┴────────┘
+                -->
+                <div style="
+                    width: 100vw;
+                    height: 100vh;
+                    max-width: 100vw;
+                    max-height: 100vh;
+                    display: flex;
+                    flex-direction: row;
+                    overflow: hidden;
+                    background: #ffffff;
+                    border: 0.5px solid #000000;
+                    box-sizing: border-box;
+                    page-break-after: always;
+                    font-family: Arial, sans-serif;
+                ">
+
+                    <!-- ═══ LEFT: Company Logo (B&amp;W, rotated -90°) ═══ -->
+                    <div style="
+                        width: 14%;
+                        flex-shrink: 0;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        border-right: 0.5px solid #000000;
+                        overflow: hidden;
+                        padding: 1%;
+                        box-sizing: border-box;
+                    ">
                         <t t-if="logo_b64">
                             <img t-att-src="'data:image/png;base64,' + logo_b64"
                                  style="max-width:100%; max-height:80%; object-fit:contain; filter:grayscale(100%) contrast(1.3); transform:rotate(-90deg);"
@@ -50,12 +80,38 @@
                         </t>
                     </div>
 
-                    <!-- CENTER: Name + Barcode -->
-                    <div style="flex:1; display:flex; flex-direction:column; height:100%; padding:3% 2% 2% 3%; box-sizing:border-box; overflow:hidden;">
-
-                        <!-- TOP: Item name left, MRP right -->
-                        <div style="display:flex; flex-direction:row; align-items:flex-start; justify-content:space-between; flex-shrink:0; overflow:hidden; height:38%;">
-                            <div style="flex:1; font-family:'Arial Narrow',Arial,sans-serif; font-size:7pt; font-weight:bold; line-height:1.25; color:#000; word-break:break-word; overflow:hidden; padding-right:2%;">
+                    <!-- ═══ CENTER: Name top, Barcode bottom ═══ -->
+                    <div style="
+                        flex: 1;
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        padding: 4% 3% 2% 4%;
+                        box-sizing: border-box;
+                        overflow: hidden;
+                    ">
+                        <!-- TOP: Product name + MRP -->
+                        <div style="
+                            display: flex;
+                            flex-direction: row;
+                            align-items: flex-start;
+                            justify-content: space-between;
+                            height: 40%;
+                            overflow: hidden;
+                            flex-shrink: 0;
+                        ">
+                            <!-- Product name (Arial Narrow, bold, 2 lines max) -->
+                            <div style="
+                                flex: 1;
+                                font-family: 'Arial Narrow', Arial, sans-serif;
+                                font-size: 7.5pt;
+                                font-weight: bold;
+                                line-height: 1.25;
+                                color: #000000;
+                                overflow: hidden;
+                                word-break: break-word;
+                                padding-right: 2%;
+                            ">
                                 <t t-esc="product.name"/>
                                 <t t-if="product.product_template_attribute_value_ids">
                                     <br/>
@@ -64,9 +120,14 @@
                                     </span>
                                 </t>
                             </div>
-                            <div style="text-align:right; flex-shrink:0; white-space:nowrap;">
-                                <span style="font-size:4.5pt; font-weight:bold; display:block; line-height:1.1; font-family:Arial,sans-serif;">MRP</span>
-                                <span style="font-size:7pt; font-weight:bold; display:block; line-height:1.2; font-family:Arial,sans-serif;">
+                            <!-- MRP top right -->
+                            <div style="
+                                text-align: right;
+                                flex-shrink: 0;
+                                white-space: nowrap;
+                            ">
+                                <span style="font-size:5pt; font-weight:bold; display:block; line-height:1.1;">MRP</span>
+                                <span style="font-size:7pt; font-weight:bold; display:block; line-height:1.2;">
                                     <t t-esc="product.get_label_price()"/>
                                 </span>
                             </div>
@@ -75,38 +136,62 @@
                         <!-- SPACER -->
                         <div style="flex:1;"/>
 
-                        <!-- BOTTOM: Barcode centered, no number -->
-                        <div style="display:flex; align-items:flex-end; justify-content:center; height:56%; overflow:hidden;">
+                        <!-- BOTTOM: Barcode (no number) -->
+                        <div style="
+                            height: 55%;
+                            display: flex;
+                            align-items: flex-end;
+                            justify-content: center;
+                            overflow: hidden;
+                            flex-shrink: 0;
+                        ">
                             <t t-if="barcode_img">
                                 <img t-att-src="'data:image/png;base64,' + barcode_img"
-                                     style="max-width:100%; max-height:95%; object-fit:contain;"
+                                     style="max-width:100%; max-height:100%; object-fit:contain;"
                                      alt=""/>
                             </t>
                             <t t-elif="product.barcode">
-                                <!-- fallback text barcode if library not installed -->
-                                <div style="text-align:center; font-family:monospace; font-size:5pt; letter-spacing:1px; color:#000;">
-                                    <div style="font-size:18pt; letter-spacing:-1px; line-height:1;">
-                                        <t t-esc="product.barcode"/>
-                                    </div>
-                                </div>
+                                <img t-att-src="'/report/barcode/Code128/%s?width=250&amp;height=80&amp;humanreadable=0' % product.barcode"
+                                     style="max-width:100%; max-height:100%; object-fit:contain;"
+                                     alt=""/>
                             </t>
                             <t t-else="">
-                                <span style="font-size:4pt; color:#aaa; font-family:Arial,sans-serif;">No Barcode</span>
+                                <span style="font-size:5pt; color:#aaa;">No Barcode Set</span>
                             </t>
                         </div>
-
                     </div>
 
-                    <!-- RIGHT: Instagram QR -->
-                    <div style="width:22%; min-width:22%; height:100%; display:flex; align-items:center; justify-content:center; border-left:0.4px solid #000; overflow:hidden; padding:1%; box-sizing:border-box; flex-shrink:0;">
+                    <!-- ═══ RIGHT: Instagram QR Code ═══ -->
+                    <div style="
+                        width: 22%;
+                        flex-shrink: 0;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        border-left: 0.5px solid #000000;
+                        overflow: hidden;
+                        padding: 2%;
+                        box-sizing: border-box;
+                    ">
                         <t t-if="qr_img">
                             <img t-att-src="'data:image/png;base64,' + qr_img"
                                  style="width:100%; max-height:90%; object-fit:contain;"
                                  alt=""/>
                         </t>
                         <t t-else="">
-                            <div style="width:90%; padding-bottom:90%; border:0.4px dashed #bbb; position:relative; box-sizing:border-box;">
-                                <span style="position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); font-size:3.5pt; color:#bbb; text-align:center; font-family:Arial,sans-serif;">Set Instagram</span>
+                            <div style="
+                                width:90%; padding-bottom:90%;
+                                border:0.5px dashed #cccccc;
+                                position:relative;
+                                box-sizing:border-box;
+                            ">
+                                <span style="
+                                    position:absolute; top:50%; left:0; right:0;
+                                    transform:translateY(-50%);
+                                    font-size:3.5pt; color:#cccccc;
+                                    text-align:center;
+                                ">Set<br/>Instagram</span>
                             </div>
                         </t>
                     </div>
