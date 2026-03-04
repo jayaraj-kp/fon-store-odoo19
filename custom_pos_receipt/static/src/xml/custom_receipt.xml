@@ -58,12 +58,7 @@
         </div>
     </xpath>
 
-    <!-- Hide the default OrderDisplay (keep in DOM for l10n_in_pos, hide visually) -->
-    <xpath expr="//OrderDisplay" position="attributes">
-        <attribute name="class">d-none</attribute>
-    </xpath>
-
-    <!-- Insert our custom item table BEFORE the hidden OrderDisplay -->
+    <!-- Insert our custom item table BEFORE OrderDisplay -->
     <xpath expr="//OrderDisplay" position="before">
         <!-- Item Table Header -->
         <table class="custom-items-table">
@@ -96,6 +91,16 @@
                 </t>
             </tbody>
         </table>
+    </xpath>
+
+    <!-- Wrap OrderDisplay in a hidden div so l10n_in_pos can still find Orderline -->
+    <xpath expr="//OrderDisplay" position="replace">
+        <div style="display:none;">
+            <OrderDisplay order="order" t-slot-scope="scope" mode="'receipt'">
+                <t t-set="line" t-value="scope.line"/>
+                <Orderline line="line" mode="'receipt'"/>
+            </OrderDisplay>
+        </div>
     </xpath>
 
     <!-- Hide Subtotal/GST tax groups block -->
