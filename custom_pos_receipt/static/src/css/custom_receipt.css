@@ -12,21 +12,27 @@
     flex: 0 0 auto;
     margin-right: 8px;
 }
+/* #4: Increased logo size */
 .receipt-company-logo {
-    max-width: 90px;
-    max-height: 75px;
+    max-width: 115px;
+    max-height: 95px;
     display: block;
 }
+/* #6: Tighter line-height in company details */
 .receipt-company-cell {
     flex: 1;
     text-align: right;
     font-size: 10px;
     font-family: monospace;
-    line-height: 1.4;
+    line-height: 1.2;
 }
+/* #5: Company name breaks at space naturally across two lines */
 .company-name {
     font-weight: bold;
     font-size: 12px;
+    word-break: normal;
+    overflow-wrap: break-word;
+    line-height: 1.3;
 }
 
 /* ===================================================== */
@@ -42,14 +48,16 @@
 }
 
 /* ===================================================== */
-/* CUSTOMER INLINE - each line breaks properly           */
+/* CUSTOMER INLINE                                       */
+/* #7: address removed (done in XML)                    */
+/* #8: border-bottom removed                            */
 /* ===================================================== */
 .receipt-customer-inline {
     font-size: 10px;
     font-family: monospace;
     text-align: left;
     line-height: 1.6;
-    border-bottom: 1px dashed #000;
+    /* border-bottom removed */
     padding-bottom: 4px;
     margin-bottom: 2px;
 }
@@ -99,11 +107,13 @@
     vertical-align: top;
     border-bottom: 1px dotted #ccc;
 }
-.custom-items-table .col-sn    { width: 8%;  text-align: left; }
-.custom-items-table .col-item  { width: 40%; text-align: left; word-break: break-word; }
+/* #11: SN centered */
+.custom-items-table .col-sn    { width: 8%;  text-align: center; }
+.custom-items-table .col-item  { width: 42%; text-align: left; word-break: break-word; }
 .custom-items-table .col-qty   { width: 12%; text-align: center; }
-.custom-items-table .col-rate  { width: 20%; text-align: right; }
-.custom-items-table .col-total { width: 20%; text-align: right; }
+/* #10: GST column replaces RATE column */
+.custom-items-table .col-gst   { width: 12%; text-align: center; }
+.custom-items-table .col-total { width: 26%; text-align: right; }
 .item-discount {
     font-size: 9px;
     color: #555;
@@ -266,5 +276,5 @@
 @media print {
     .receipt-qr-row { page-break-inside: avoid; flex-wrap: nowrap; }
     .qr-code, .upi-qr-image { width: 65px !important; height: 65px !important; }
-    .receipt-company-logo { max-width: 80px; max-height: 65px; }
+    .receipt-company-logo { max-width: 100px; max-height: 85px; }
 }
