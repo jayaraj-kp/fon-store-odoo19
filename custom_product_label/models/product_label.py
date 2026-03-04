@@ -75,3 +75,50 @@ class ResCompany(models.Model):
     _inherit = 'res.company'
 
     instagram_handle = fields.Char(string='Instagram Handle (Labels)')
+
+
+class IrActionsReport(models.Model):
+    _inherit = 'ir.actions.report'
+
+    def _build_wkhtmltopdf_args(self, paperformat_id, landscape,
+                                 specific_paperformat_args=None,
+                                 set_viewport_size=False):
+        """
+        Override to force correct page size for our label report.
+        Logs all args so we can debug what wkhtmltopdf actually receives.
+        """
+        args = super()._build_wkhtmltopdf_args(
+            paperformat_id, landscape,
+            specific_paperformat_args=specific_paperformat_args,
+            set_viewport_size=set_viewport_size
+        )
+        _logger.warning("LABEL DEBUG _build_wkhtmltopdf_args CALLED, args=%s", args)
+        return args
+
+    def _run_wkhtmltopdf(self, bodies, report_ref=False, header=None,
+                          footer=None, landscape=False,
+                          specific_paperformat_args=None,
+                          set_viewport_size=False):
+        _logger.warning("LABEL DEBUG _run_wkhtmltopdf CALLED report_ref=%s", report_ref)
+        _logger.warning("LABEL DEBUG specific_paperformat_args=%s", specific_paperformat_args)
+        _logger.warning("LABEL DEBUG landscape=%s", landscape)
+
+        # Check if it's our report and force page size
+        try:
+            report = self._get_report(report_ref) if report_ref else None
+            if report:
+                _logger.warning("LABEL DEBUG report.report_name=%s", report.report_name)
+                _logger.warning("LABEL DEBUG paperformat=%s", report.paperformat_id)
+                if report.paperformat_id:
+                    pf = report.paperformat_id
+                    _logger.warning("LABEL DEBUG pf.page_width=%s pf.page_height=%s",
+                                    pf.page_width, pf.page_height)
+        except Exception as ex:
+            _logger.warning("LABEL DEBUG error inspecting report: %s", ex)
+
+        return super()._run_wkhtmltopdf(
+            bodies, report_ref=report_ref, header=header,
+            footer=footer, landscape=landscape,
+            specific_paperformat_args=specific_paperformat_args,
+            set_viewport_size=set_viewport_size
+        )
