@@ -11,13 +11,14 @@
     'assets': {
         'point_of_sale._assets_pos': [
             'pos_special_offers/static/src/css/special_offer.css',
+            # auto_apply FIRST — exports registerAutoApplyService used by service
+            'pos_special_offers/static/src/js/special_offer_auto_apply.js',
             'pos_special_offers/static/src/js/special_offer_service.js',
             'pos_special_offers/static/src/js/special_offer_popup.js',
             'pos_special_offers/static/src/js/special_offer_button.js',
             'pos_special_offers/static/src/xml/SpecialOfferPopup.xml',
             'pos_special_offers/static/src/xml/SpecialOfferButton.xml',
             'pos_special_offers/static/src/xml/NavbarPatch.xml',
-            'pos_special_offers/static/src/js/special_offer_auto_apply.js',
         ],
     },
     'installable': True,

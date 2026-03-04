@@ -1,5 +1,6 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
+import { registerAutoApplyService } from "@pos_special_offers/js/special_offer_auto_apply";
 
 const specialOfferService = {
     dependencies: ["orm"],
@@ -22,10 +23,15 @@ const specialOfferService = {
 
         await loadOffers();
 
-        return {
+        const service = {
             getActiveOffers: () => activeOffers,
             refresh: () => loadOffers(),
         };
+
+        // Register service reference for auto-apply (direct reference, no owl.__apps__ needed)
+        registerAutoApplyService(service);
+
+        return service;
     },
 };
 
