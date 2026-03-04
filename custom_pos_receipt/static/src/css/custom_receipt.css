@@ -42,16 +42,21 @@
 }
 
 /* ===================================================== */
-/* CUSTOMER INLINE */
+/* CUSTOMER INLINE - each line breaks properly           */
 /* ===================================================== */
 .receipt-customer-inline {
     font-size: 10px;
     font-family: monospace;
     text-align: left;
-    line-height: 1.4;
+    line-height: 1.6;
     border-bottom: 1px dashed #000;
     padding-bottom: 4px;
     margin-bottom: 2px;
+}
+.receipt-customer-inline div {
+    display: block;
+    word-break: break-word;
+    white-space: normal;
 }
 
 /* ===================================================== */
@@ -65,81 +70,39 @@
 }
 
 /* ===================================================== */
-/* ITEMS TABLE HEADER */
+/* CUSTOM ITEMS TABLE                                    */
 /* ===================================================== */
-.receipt-items-header {
-    display: flex;
+.custom-items-table {
+    width: 100%;
+    border-collapse: collapse;
     font-size: 10px;
     font-family: monospace;
-    font-weight: bold;
+    margin: 4px 0;
+}
+.items-thead th {
+    padding: 3px 2px;
     border-top: 1px solid #000;
     border-bottom: 1px solid #000;
-    padding: 3px 0;
-    margin-top: 2px;
+    font-weight: bold;
 }
-.receipt-items-header .col-sn    { width: 8%;  text-align: left; }
-.receipt-items-header .col-item  { width: 40%; text-align: left; }
-.receipt-items-header .col-qty   { width: 12%; text-align: center; }
-.receipt-items-header .col-rate  { width: 20%; text-align: right; }
-.receipt-items-header .col-total { width: 20%; text-align: right; }
-
-/* ===================================================== */
-/* ORDERLINE ROWS - Style the default Odoo orderlines   */
-/* to align with our header columns                     */
-/* ===================================================== */
-
-/* Each orderline row */
-.pos-receipt-right-align {
-    text-align: right !important;
-}
-
-/* The main orderline container */
-.pos-receipt ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-/* Each product line - make it a flex row */
-.pos-receipt li.product {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    align-items: flex-start;
-    font-size: 10px;
-    font-family: monospace;
-    padding: 2px 0;
+.items-row td {
+    padding: 2px 2px;
+    vertical-align: top;
     border-bottom: 1px dotted #ccc;
 }
-
-/* Product name */
-.pos-receipt li.product .product-name {
-    flex: 0 0 40%;
-    text-align: left;
-    word-break: break-word;
-}
-
-/* Quantity */
-.pos-receipt li.product .qty {
-    flex: 0 0 12%;
-    text-align: center !important;
-}
-
-/* Unit price */
-.pos-receipt li.product .price {
-    flex: 0 0 20%;
-    text-align: right !important;
-}
-
-/* Line total */
-.pos-receipt li.product .price:last-child {
-    flex: 0 0 20%;
-    text-align: right !important;
-}
-
-/* Unit label below product name */
-.pos-receipt li.product .product-description-variant {
+.custom-items-table .col-sn    { width: 8%;  text-align: left; }
+.custom-items-table .col-item  { width: 40%; text-align: left; word-break: break-word; }
+.custom-items-table .col-qty   { width: 12%; text-align: center; }
+.custom-items-table .col-rate  { width: 20%; text-align: right; }
+.custom-items-table .col-total { width: 20%; text-align: right; }
+.item-discount {
     font-size: 9px;
     color: #555;
+    font-style: italic;
+}
+.item-note {
+    font-size: 9px;
+    font-style: italic;
 }
 
 /* ===================================================== */
@@ -200,19 +163,19 @@
 }
 
 /* ===================================================== */
-/* QR SECTION */
+/* QR SECTION — side by side, no violet border          */
 /* ===================================================== */
 .receipt-qr-row {
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: space-around;
     align-items: flex-start;
     width: 100%;
     margin: 6px 0;
     padding-top: 6px;
     border-top: 1px dashed #000;
     flex-wrap: nowrap;
-    gap: 2px;
+    gap: 4px;
 }
 .receipt-qr-cell {
     flex: 1;
@@ -223,24 +186,26 @@
 .qr-cell-label {
     font-weight: bold;
     font-size: 8px;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
 }
 .qr-code {
-    width: 65px !important;
-    height: 65px !important;
+    width: 70px !important;
+    height: 70px !important;
     display: block;
     margin: 0 auto;
 }
+/* NO border on UPI QR container */
 .upi-qr-image-container {
     display: inline-block;
-    border: 1px solid #5f259f;
-    border-radius: 4px;
-    padding: 1px;
+    padding: 0;
+    border: none;
+    background: none;
 }
 .upi-qr-image {
-    width: 65px !important;
-    height: 65px !important;
+    width: 70px !important;
+    height: 70px !important;
     display: block;
+    margin: 0 auto;
 }
 
 /* ===================================================== */
@@ -287,47 +252,6 @@
 /* ===================================================== */
 @media print {
     .receipt-qr-row { page-break-inside: avoid; flex-wrap: nowrap; }
-    .qr-code, .upi-qr-image { width: 60px !important; height: 60px !important; }
+    .qr-code, .upi-qr-image { width: 65px !important; height: 65px !important; }
     .receipt-company-logo { max-width: 80px; max-height: 65px; }
-}
-
-/* ===================================================== */
-/* CUSTOM ITEMS TABLE                                    */
-/* ===================================================== */
-.custom-items-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 10px;
-    font-family: monospace;
-    margin: 4px 0;
-}
-
-.items-thead th {
-    padding: 3px 2px;
-    border-top: 1px solid #000;
-    border-bottom: 1px solid #000;
-    font-weight: bold;
-}
-
-.items-row td {
-    padding: 2px 2px;
-    vertical-align: top;
-    border-bottom: 1px dotted #ccc;
-}
-
-.custom-items-table .col-sn    { width: 8%;  text-align: left; }
-.custom-items-table .col-item  { width: 40%; text-align: left; word-break: break-word; }
-.custom-items-table .col-qty   { width: 12%; text-align: center; }
-.custom-items-table .col-rate  { width: 20%; text-align: right; }
-.custom-items-table .col-total { width: 20%; text-align: right; }
-
-.item-discount {
-    font-size: 9px;
-    color: #555;
-    font-style: italic;
-}
-
-.item-note {
-    font-size: 9px;
-    font-style: italic;
 }

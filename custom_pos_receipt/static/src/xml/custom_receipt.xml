@@ -115,6 +115,9 @@
     <!-- Hide Change row -->
     <xpath expr="//div[@class='pos-receipt-amount receipt-change']" position="replace"/>
 
+    <!-- Hide Discount row -->
+    <xpath expr="//div[@class='text-start']" position="replace"/>
+
     <!-- Hide default invoice QR block -->
     <xpath expr="//div[@class='gap-2 d-flex flex-row pt-3']" position="replace"/>
 

@@ -44,7 +44,7 @@
                             <field name="ecatalogue_image_ids"
                                    nolabel="1"
                                    mode="kanban"
-                                   context="{'default_product_tmpl_id': active_id}">
+                                   context="{'default_product_tmpl_id': id}">
                                 <kanban class="o_kanban_mobile">
                                     <field name="image"/>
                                     <field name="name"/>
