@@ -1,7 +1,7 @@
 {
     'name': 'Custom Barcode Label',
-    'version': '19.0.1.0.0',
-    'summary': 'Custom product barcode label: company logo, no barcode number, repositioned price & name',
+    'version': '19.0.2.0.0',
+    'summary': 'Custom product barcode label: logo vertical, name, barcode, MRP, Instagram QR',
     'author': 'Your Company',
     'category': 'Inventory',
     'depends': ['product', 'stock'],
