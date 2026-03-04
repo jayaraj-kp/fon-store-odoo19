@@ -221,3 +221,19 @@
     .qr-code, .upi-qr-image { width: 60px !important; height: 60px !important; }
     .receipt-company-logo { max-width: 80px; max-height: 65px; }
 }
+
+/* ===================================================== */
+/* HIDE DEFAULT ReceiptHeader content                    */
+/* (Tax Invoice ref, date, Served by, customer block)   */
+/* We show our own versions of these below               */
+/* ===================================================== */
+
+/* Hide the ticket reference + date block */
+.pos-receipt .text-center.pt-3 {
+    display: none !important;
+}
+
+/* Hide the cashier/contact/customer wrapper */
+.pos-receipt .d-flex.flex-column.align-items-center {
+    display: none !important;
+}
