@@ -19,7 +19,7 @@
 
                         <!-- Row 2: Terms & Conditions (right column) -->
                         <group string="Terms &amp; Conditions"
-                               attrs="{'invisible': [('enable_ecatalogue','=',False)]}">
+                               invisible="not enable_ecatalogue">
                             <field name="ecatalogue_terms"
                                    nolabel="1"
                                    widget="html"
@@ -28,7 +28,7 @@
                     </group>
 
                     <!-- Cover image + Attached images side by side -->
-                    <group attrs="{'invisible': [('enable_ecatalogue','=',False)]}">
+                    <group invisible="not enable_ecatalogue">
 
                         <!-- Cover Image -->
                         <group string="Cover Image" col="1">
@@ -43,9 +43,8 @@
                         <group string="Attached Images" col="1">
                             <field name="ecatalogue_image_ids"
                                    nolabel="1"
-                                   mode="kanban"
-                                   context="{'default_product_tmpl_id': id}">
-                                <kanban class="o_kanban_mobile">
+                                   mode="kanban">
+                                <kanban>
                                     <field name="image"/>
                                     <field name="name"/>
                                     <field name="sequence"/>
