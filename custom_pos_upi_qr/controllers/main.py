@@ -1,6 +1,7 @@
 import io
 import logging
-from urllib.parse import unquote
+import re
+from urllib.parse import unquote, quote
 
 from odoo import http
 from odoo.http import request, Response
@@ -21,19 +22,29 @@ class PosUpiQrController(http.Controller):
         try:
             import qrcode
 
-            # Decode URL-encoded characters (e.g. %40 → @)
-            vpa    = unquote(vpa)
-            name   = unquote(name)
-            note   = unquote(note)
+            # Step 1: Decode URL-encoded characters from the HTTP query string (e.g. %40 → @)
+            vpa    = unquote(vpa).strip()
+            name   = unquote(name).strip()
+            note   = unquote(note).strip()
 
+            # Step 2: Sanitise amount — keep only digits and one decimal point
+            try:
+                amount = f"{float(re.sub(r'[^0-9.]', '', amount or '0')):.2f}"
+            except (ValueError, TypeError):
+                amount = '0.00'
+
+            # Step 3: Re-encode values for use *inside* the UPI deep-link URI.
+            # Without this, names/notes with spaces or special chars break the QR.
             upi_url = (
                 f"upi://pay"
-                f"?pa={vpa}"
-                f"&pn={name}"
-                f"&am={amount}"
+                f"?pa={quote(vpa, safe='@.')}"   # @ and . are valid in a VPA
+                f"&pn={quote(name, safe='')}"
+                f"&am={amount}"                   # numeric — no encoding needed
                 f"&cu=INR"
-                f"&tn={note}"
+                f"&tn={quote(note, safe='')}"
             )
+
+            _logger.debug("custom_pos_upi_qr: generating QR for %s", upi_url)
 
             qr = qrcode.QRCode(
                 version=None,
