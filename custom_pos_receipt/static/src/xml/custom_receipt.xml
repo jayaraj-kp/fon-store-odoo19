@@ -115,9 +115,6 @@
     <!-- Hide Change row -->
     <xpath expr="//div[@class='pos-receipt-amount receipt-change']" position="replace"/>
 
-    <!-- Hide Discounts row -->
-    <xpath expr="//div[@class='text-start']" position="replace"/>
-
     <!-- Hide Discount row -->
     <xpath expr="//div[@class='text-start']" position="replace"/>
 

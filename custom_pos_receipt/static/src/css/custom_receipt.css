@@ -13,7 +13,7 @@
     margin-right: 8px;
 }
 .receipt-company-logo {
-    max-width: 90px;
+    max-width: 90px;      /* bigger logo */
     max-height: 75px;
     display: block;
 }
@@ -42,7 +42,7 @@
 }
 
 /* ===================================================== */
-/* CUSTOMER INLINE */
+/* CUSTOMER INLINE (below invoice number, left side) */
 /* ===================================================== */
 .receipt-customer-inline {
     font-size: 10px;
@@ -55,16 +55,6 @@
 }
 
 /* ===================================================== */
-/* HIDE DEFAULT ReceiptHeader content                    */
-/* ===================================================== */
-.pos-receipt .text-center.pt-3 {
-    display: none !important;
-}
-.pos-receipt .d-flex.flex-column.align-items-center {
-    display: none !important;
-}
-
-/* ===================================================== */
 /* ITEMS TABLE HEADER */
 /* ===================================================== */
 .receipt-items-header {
@@ -74,73 +64,14 @@
     font-weight: bold;
     border-top: 1px solid #000;
     border-bottom: 1px solid #000;
-    padding: 3px 0;
+    padding: 2px 0;
     margin-top: 2px;
 }
 .receipt-items-header .col-sn    { width: 8%;  text-align: left; }
-.receipt-items-header .col-item  { width: 40%; text-align: left; }
-.receipt-items-header .col-qty   { width: 12%; text-align: center; }
+.receipt-items-header .col-item  { width: 42%; text-align: left; }
+.receipt-items-header .col-qty   { width: 10%; text-align: right; }
 .receipt-items-header .col-rate  { width: 20%; text-align: right; }
 .receipt-items-header .col-total { width: 20%; text-align: right; }
-
-/* ===================================================== */
-/* ORDERLINE ROWS - Style the default Odoo orderlines   */
-/* to align with our header columns                     */
-/* ===================================================== */
-
-/* Each orderline row */
-.pos-receipt-right-align {
-    text-align: right !important;
-}
-
-/* The main orderline container */
-.pos-receipt ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-/* Each product line - make it a flex row */
-.pos-receipt li.product {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    align-items: flex-start;
-    font-size: 10px;
-    font-family: monospace;
-    padding: 2px 0;
-    border-bottom: 1px dotted #ccc;
-}
-
-/* Product name */
-.pos-receipt li.product .product-name {
-    flex: 0 0 40%;
-    text-align: left;
-    word-break: break-word;
-}
-
-/* Quantity */
-.pos-receipt li.product .qty {
-    flex: 0 0 12%;
-    text-align: center !important;
-}
-
-/* Unit price */
-.pos-receipt li.product .price {
-    flex: 0 0 20%;
-    text-align: right !important;
-}
-
-/* Line total */
-.pos-receipt li.product .price:last-child {
-    flex: 0 0 20%;
-    text-align: right !important;
-}
-
-/* Unit label below product name */
-.pos-receipt li.product .product-description-variant {
-    font-size: 9px;
-    color: #555;
-}
 
 /* ===================================================== */
 /* GST TABLE */
@@ -270,7 +201,7 @@
 }
 
 /* ===================================================== */
-/* FOOTER */
+/* FOOTER: Served by + Date/Time */
 /* ===================================================== */
 .receipt-footer-row {
     display: flex;
@@ -292,42 +223,17 @@
 }
 
 /* ===================================================== */
-/* CUSTOM ITEMS TABLE                                    */
+/* HIDE DEFAULT ReceiptHeader content                    */
+/* (Tax Invoice ref, date, Served by, customer block)   */
+/* We show our own versions of these below               */
 /* ===================================================== */
-.custom-items-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 10px;
-    font-family: monospace;
-    margin: 4px 0;
+
+/* Hide the ticket reference + date block */
+.pos-receipt .text-center.pt-3 {
+    display: none !important;
 }
 
-.items-thead th {
-    padding: 3px 2px;
-    border-top: 1px solid #000;
-    border-bottom: 1px solid #000;
-    font-weight: bold;
-}
-
-.items-row td {
-    padding: 2px 2px;
-    vertical-align: top;
-    border-bottom: 1px dotted #ccc;
-}
-
-.custom-items-table .col-sn    { width: 8%;  text-align: left; }
-.custom-items-table .col-item  { width: 40%; text-align: left; word-break: break-word; }
-.custom-items-table .col-qty   { width: 12%; text-align: center; }
-.custom-items-table .col-rate  { width: 20%; text-align: right; }
-.custom-items-table .col-total { width: 20%; text-align: right; }
-
-.item-discount {
-    font-size: 9px;
-    color: #555;
-    font-style: italic;
-}
-
-.item-note {
-    font-size: 9px;
-    font-style: italic;
+/* Hide the cashier/contact/customer wrapper */
+.pos-receipt .d-flex.flex-column.align-items-center {
+    display: none !important;
 }
