@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-    <!-- Report Action - paperformat assigned via Python post_init_hook -->
     <record id="action_report_custom_product_label" model="ir.actions.report">
         <field name="name">Custom Label FON-STORE</field>
         <field name="model">product.product</field>
@@ -19,22 +18,36 @@
                 <t t-set="qr_img"     t-value="product.get_instagram_qr_b64()"/>
                 <t t-set="logo_b64"   t-value="product.get_company_logo_b64()"/>
 
-                <div style="width:100%; height:100%; display:flex; flex-direction:row; border:0.5px solid #000; background:#fff; page-break-after:always; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">
-
-                    <!-- LEFT: Logo B&amp;W rotated -->
-                    <div style="width:13%; flex-shrink:0; height:100%; display:flex; align-items:center; justify-content:center; border-right:0.5px solid #000; overflow:hidden; padding:2px; box-sizing:border-box;">
+                <div style="
+                    width: 100%;
+                    height: 99vh;
+                    display: flex;
+                    flex-direction: row;
+                    border: 0.5px solid #000;
+                    background: #fff;
+                    page-break-after: always;
+                    page-break-inside: avoid;
+                    font-family: Arial, sans-serif;
+                    box-sizing: border-box;
+                    overflow: hidden;
+                ">
+                    <!-- LEFT: Logo B&amp;W vertical -->
+                    <div style="width:13%; flex-shrink:0; height:100%; display:flex; align-items:center; justify-content:center; border-right:0.5px solid #000; overflow:hidden; padding:2px; box-sizing:border-box; background:#fff;">
                         <t t-if="logo_b64">
                             <img t-att-src="'data:image/png;base64,' + logo_b64"
                                  style="max-width:100%; max-height:80%; object-fit:contain; filter:grayscale(100%) contrast(1.3); transform:rotate(-90deg);"
                                  alt=""/>
                         </t>
+                        <t t-else="">
+                            <div style="font-size:4pt; color:#ccc; text-align:center; transform:rotate(-90deg); white-space:nowrap;">LOGO</div>
+                        </t>
                     </div>
 
-                    <!-- CENTER: Name top + Barcode bottom -->
-                    <div style="flex:1; height:100%; display:flex; flex-direction:column; padding:3px 3px 2px 4px; box-sizing:border-box; overflow:hidden;">
+                    <!-- CENTER: Name top, Barcode bottom -->
+                    <div style="flex:1; height:100%; display:flex; flex-direction:column; padding:3px 3px 3px 4px; box-sizing:border-box; overflow:hidden;">
 
-                        <!-- TOP: Name + MRP -->
-                        <div style="display:flex; flex-direction:row; align-items:flex-start; justify-content:space-between; flex-shrink:0; height:40%; overflow:hidden;">
+                        <!-- TOP: Item name + MRP -->
+                        <div style="display:flex; flex-direction:row; align-items:flex-start; justify-content:space-between; height:38%; overflow:hidden; flex-shrink:0;">
                             <div style="flex:1; font-family:'Arial Narrow',Arial,sans-serif; font-size:7pt; font-weight:bold; line-height:1.25; color:#000; word-break:break-word; overflow:hidden; padding-right:3px;">
                                 <t t-esc="product.name"/>
                                 <t t-if="product.product_template_attribute_value_ids">
@@ -46,40 +59,53 @@
                             </div>
                             <div style="text-align:right; flex-shrink:0; white-space:nowrap;">
                                 <span style="font-size:5pt; font-weight:bold; display:block; line-height:1.1;">MRP</span>
-                                <span style="font-size:7pt; font-weight:bold; display:block; line-height:1.2;"><t t-esc="product.get_label_price()"/></span>
+                                <span style="font-size:7pt; font-weight:bold; display:block; line-height:1.2;">
+                                    <t t-esc="product.get_label_price()"/>
+                                </span>
                             </div>
                         </div>
 
-                        <div style="flex:1;"/>
+                        <!-- SPACER -->
+                        <div style="flex:1; min-height:2px;"/>
 
-                        <!-- BOTTOM: Barcode no number -->
-                        <div style="height:55%; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; flex-shrink:0;">
+                        <!-- BOTTOM: Barcode, no number -->
+                        <div style="height:57%; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
                             <t t-if="barcode_img">
                                 <img t-att-src="'data:image/png;base64,' + barcode_img"
-                                     style="max-width:100%; max-height:100%; object-fit:contain;" alt=""/>
+                                     style="max-width:100%; max-height:100%; object-fit:contain;"
+                                     alt=""/>
                             </t>
-                            <t t-elif="product.barcode">
-                                <img t-att-src="'/report/barcode/Code128/%s?width=250&amp;height=80&amp;humanreadable=0' % product.barcode"
-                                     style="max-width:100%; max-height:100%; object-fit:contain;" alt=""/>
+                            <t t-else="">
+                                <t t-if="product.barcode">
+                                    <img t-att-src="'/report/barcode/Code128/%s?width=300&amp;height=100&amp;humanreadable=0' % product.barcode"
+                                         style="max-width:100%; max-height:100%; object-fit:contain;"
+                                         alt=""/>
+                                </t>
+                                <t t-else="">
+                                    <span style="font-size:5pt; color:#aaa;">No Barcode Set</span>
+                                </t>
                             </t>
-                            <t t-else=""><span style="font-size:5pt; color:#aaa;">No Barcode</span></t>
                         </div>
+
                     </div>
 
                     <!-- RIGHT: Instagram QR -->
-                    <div style="width:22%; flex-shrink:0; height:100%; display:flex; align-items:center; justify-content:center; border-left:0.5px solid #000; overflow:hidden; padding:2px; box-sizing:border-box;">
+                    <div style="width:22%; flex-shrink:0; height:100%; display:flex; align-items:center; justify-content:center; border-left:0.5px solid #000; overflow:hidden; padding:3px; box-sizing:border-box; background:#fff;">
                         <t t-if="qr_img">
                             <img t-att-src="'data:image/png;base64,' + qr_img"
-                                 style="width:96%; max-height:90%; object-fit:contain;" alt=""/>
+                                 style="width:95%; max-height:85%; object-fit:contain;"
+                                 alt=""/>
                         </t>
                         <t t-else="">
-                            <div style="width:90%; padding-bottom:90%; border:0.5px dashed #ccc; position:relative; box-sizing:border-box;">
-                                <span style="position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); font-size:3pt; color:#ccc; text-align:center;">Set Instagram</span>
+                            <div style="width:85%; padding-bottom:85%; border:0.5px dashed #ccc; position:relative; box-sizing:border-box;">
+                                <span style="position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); font-size:4pt; color:#bbb; text-align:center; line-height:1.3;">
+                                    Set<br/>Instagram
+                                </span>
                             </div>
                         </t>
                     </div>
-                </div>
 
+                </div>
             </t>
         </t>
     </template>

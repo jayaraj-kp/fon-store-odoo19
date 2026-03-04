@@ -2,14 +2,23 @@ from . import models
 
 
 def post_init_hook(env):
-    """
-    Create paperformat and assign to report after module install.
-    This avoids XML ref errors for paperformats that may not exist.
-    """
+    # Clean up any old report actions with old template names
+    old_reports = env['ir.actions.report'].search([
+        ('report_name', 'in', [
+            'custom_product_label.report_product_label_template',
+            'custom_product_label.report_fon_label',
+        ])
+    ])
+    # Keep only the one matching our current name, delete stale ones
+    current = old_reports.filtered(
+        lambda r: r.report_name == 'custom_product_label.report_fon_label'
+    )
+    (old_reports - current).unlink()
+
     # Create or find our paperformat
     PaperFormat = env['report.paperformat']
-    existing = PaperFormat.search([('name', '=', 'FON Label 50x25mm')], limit=1)
-    if not existing:
+    pf = PaperFormat.search([('name', '=', 'FON Label 50x25mm')], limit=1)
+    if not pf:
         pf = PaperFormat.create({
             'name': 'FON Label 50x25mm',
             'format': 'custom',
@@ -18,10 +27,8 @@ def post_init_hook(env):
             'orientation': 'Portrait',
             'dpi': 203,
         })
-    else:
-        pf = existing
 
-    # Assign to our report action
+    # Assign paperformat to our report
     report = env['ir.actions.report'].search([
         ('report_name', '=', 'custom_product_label.report_fon_label')
     ], limit=1)

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-    <!-- Add Instagram Handle to Product Template Form (Inventory view) -->
+    <!-- Add Instagram Handle to Product Template Form -->
     <record id="view_product_template_form_instagram" model="ir.ui.view">
         <field name="name">product.template.form.instagram</field>
         <field name="model">product.template</field>
@@ -29,9 +29,9 @@
         </field>
     </record>
 
-    <!-- Server Action bound to product.product (list + form) -->
-    <record id="action_print_custom_label_server" model="ir.actions.server">
-        <field name="name">Print Custom Label 50x25mm</field>
+    <!-- Server Action for product.product (list + form) -->
+    <record id="action_server_print_fon_label" model="ir.actions.server">
+        <field name="name">Print FON Label 50x25mm</field>
         <field name="model_id" ref="product.model_product_product"/>
         <field name="binding_model_id" ref="product.model_product_product"/>
         <field name="binding_view_types">list,form</field>
@@ -39,16 +39,16 @@
         <field name="code">
 action = {
     'type': 'ir.actions.report',
-    'report_name': 'custom_product_label.report_product_label_template',
+    'report_name': 'custom_product_label.report_fon_label',
     'report_type': 'qweb-pdf',
     'context': {'active_ids': records.ids},
 }
         </field>
     </record>
 
-    <!-- Server Action bound to product.template (POS / Sales product views) -->
-    <record id="action_print_custom_label_tmpl_server" model="ir.actions.server">
-        <field name="name">Print Custom Label 50x25mm</field>
+    <!-- Server Action for product.template (POS view) -->
+    <record id="action_server_print_fon_label_tmpl" model="ir.actions.server">
+        <field name="name">Print FON Label 50x25mm</field>
         <field name="model_id" ref="product.model_product_template"/>
         <field name="binding_model_id" ref="product.model_product_template"/>
         <field name="binding_view_types">list,form</field>
@@ -57,7 +57,7 @@ action = {
 products = records.product_variant_ids
 action = {
     'type': 'ir.actions.report',
-    'report_name': 'custom_product_label.report_product_label_template',
+    'report_name': 'custom_product_label.report_fon_label',
     'report_type': 'qweb-pdf',
     'context': {'active_ids': products.ids},
 }
