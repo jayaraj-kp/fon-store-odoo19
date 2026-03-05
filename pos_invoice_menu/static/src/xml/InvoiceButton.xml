@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <!-- ─── Invoice Button Component ─────────────────────────────────────────── -->
+    <t t-name="pos_invoice_menu.InvoiceButton" owl="1">
+        <button class="pos-invoice-topbar-btn" t-on-click="openInvoiceScreen">
+            <span class="pos-invoice-btn-icon">&#xf15c;</span>
+            <span class="pos-invoice-btn-label">Invoices</span>
+        </button>
+    </t>
+
+    <!-- ─── Patch ProductScreen top bar to add our button ────────────────────── -->
+    <!--
+        NOTE: If the button does not appear, open your browser DevTools in the POS
+        session, inspect the top header area, and find the correct XPath/class to
+        target. Common alternatives:
+            //div[hasclass('header-button')]
+            //div[hasclass('pos-top-actions')]
+            //div[hasclass('ground-content')]
+    -->
+    <t t-name="point_of_sale.ProductScreen" owl="1"
+       t-inherit="point_of_sale.ProductScreen"
+       t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('top-content')]" position="inside">
+            <InvoiceButton />
+        </xpath>
+    </t>
+
+</templates>

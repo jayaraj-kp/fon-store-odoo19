@@ -1,0 +1,355 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   POS Invoice Menu — Custom Stylesheet
+   Module: pos_invoice_menu | Odoo 19 CE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Top Bar Button ─────────────────────────────────────────────────────── */
+
+.pos-invoice-topbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    margin: 0 6px;
+    background: #017E84;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.pos-invoice-topbar-btn:hover {
+    background: #015f64;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pos-invoice-topbar-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.pos-invoice-btn-icon {
+    font-family: FontAwesome, sans-serif;
+    font-size: 13px;
+}
+
+/* ─── Full Screen Layout ─────────────────────────────────────────────────── */
+
+.pos-invoice-screen {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #f0f2f5;
+    font-family: 'Roboto', 'Segoe UI', sans-serif;
+    overflow: hidden;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+
+.pos-invoice-screen__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #1c2b36;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+}
+
+.pos-invoice-back-btn {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.pos-invoice-back-btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.pos-invoice-screen__title {
+    flex: 1;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pos-invoice-title-icon {
+    font-family: FontAwesome, sans-serif;
+    font-size: 18px;
+    opacity: 0.85;
+}
+
+.pos-invoice-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pos-invoice-search {
+    padding: 7px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 280px;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    outline: none;
+    transition: background 0.2s;
+}
+
+.pos-invoice-search::placeholder {
+    color: rgba(255,255,255,0.55);
+}
+
+.pos-invoice-search:focus {
+    background: rgba(255,255,255,0.25);
+}
+
+.pos-invoice-refresh-btn {
+    background: #017E84;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.pos-invoice-refresh-btn:hover {
+    background: #015f64;
+}
+
+/* ─── Summary Bar ────────────────────────────────────────────────────────── */
+
+.pos-invoice-summary {
+    display: flex;
+    gap: 0;
+    background: #ffffff;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+.pos-invoice-summary__item {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 24px;
+    border-right: 1px solid #dee2e6;
+}
+
+.pos-invoice-summary__label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.pos-invoice-summary__value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1c2b36;
+    margin-top: 2px;
+}
+
+.pos-invoice-summary__query {
+    color: #017E84;
+    font-style: italic;
+}
+
+/* ─── Body ───────────────────────────────────────────────────────────────── */
+
+.pos-invoice-screen__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+}
+
+/* ─── State Boxes (loading / empty / error) ──────────────────────────────── */
+
+.pos-invoice-state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #6c757d;
+    gap: 14px;
+}
+
+.pos-invoice-state-box--error {
+    color: #dc3545;
+}
+
+.pos-invoice-state-icon {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+.pos-invoice-retry-btn {
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* Spinner */
+.pos-invoice-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #dee2e6;
+    border-top-color: #017E84;
+    border-radius: 50%;
+    animation: pos-invoice-spin 0.8s linear infinite;
+}
+
+@keyframes pos-invoice-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────── */
+
+.pos-invoice-table-wrapper {
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.pos-invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.pos-invoice-table thead tr {
+    background: #1c2b36;
+    color: #ffffff;
+}
+
+.pos-invoice-table thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.pos-invoice-row {
+    border-bottom: 1px solid #f0f2f5;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.pos-invoice-row:hover {
+    background: #f8f9fa;
+}
+
+.pos-invoice-row--active {
+    background: #e8f7f8 !important;
+    border-left: 3px solid #017E84;
+}
+
+.pos-invoice-table td {
+    padding: 11px 16px;
+    color: #343a40;
+    vertical-align: middle;
+}
+
+.pos-invoice-cell--ref {
+    font-weight: 600;
+    color: #017E84;
+}
+
+.pos-invoice-cell--total {
+    font-size: 15px;
+    color: #1c2b36;
+}
+
+.pos-invoice-customer {
+    color: #495057;
+}
+
+/* ─── Status Badge ───────────────────────────────────────────────────────── */
+
+.pos-invoice-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.badge-success  { background: #d4edda; color: #155724; }
+.badge-primary  { background: #cce5ff; color: #004085; }
+.badge-info     { background: #d1ecf1; color: #0c5460; }
+.badge-secondary{ background: #e2e3e5; color: #383d41; }
+
+/* ─── Expandable Order Lines ─────────────────────────────────────────────── */
+
+.pos-invoice-detail-row {
+    background: #f8feff;
+}
+
+.pos-invoice-lines {
+    padding: 14px 20px 16px;
+    border-top: 2px dashed #b2dfdb;
+}
+
+.pos-invoice-lines h4 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #017E84;
+}
+
+.pos-invoice-lines-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.pos-invoice-lines-table th {
+    padding: 7px 12px;
+    background: #e8f7f8;
+    color: #1c2b36;
+    font-weight: 600;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.pos-invoice-lines-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #e9ecef;
+    color: #495057;
+}
+
+.pos-invoice-lines-table tr:last-child td {
+    border-bottom: none;
+}
