@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!-- ── Dummy root template for the client action (never rendered) ── -->
+    <t t-name="custom_barcode_label.PrintLabelClientAction">
+        <div/>
+    </t>
+
+    <!-- ── Main Print Dialog ─────────────────────────────────────────── -->
+    <t t-name="custom_barcode_label.PrintLabelDialog">
+        <Dialog title="'Print Barcode Labels'" size="'md'" contentClass="'o_print_label_dialog'">
+
+            <!-- Info bar -->
+            <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded"
+                 style="background:#f0f8ff; border:1px solid #b8d4f0;">
+                <i class="fa fa-print fa-2x" style="color:#1a6eb5;"/>
+                <div>
+                    <div class="fw-bold" style="font-size:14px;">
+                        Printing <t t-esc="props.label_qty"/> cop<t t-if="props.label_qty == 1">y</t><t t-else="">ies</t>
+                        for <t t-esc="props.product_count"/> product<t t-if="props.product_count != 1">s</t>
+                    </div>
+                    <div class="text-muted" style="font-size:12px;">
+                        Total labels: <strong><t t-esc="props.label_qty * props.product_count"/></strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status messages -->
+            <div t-if="state.status === 'loading'"
+                 class="d-flex align-items-center gap-2 mb-3 text-muted">
+                <i class="fa fa-spinner fa-spin"/>
+                <span>Preparing PDF, please wait…</span>
+            </div>
+
+            <div t-if="state.status === 'ready'"
+                 class="d-flex align-items-center gap-2 mb-3"
+                 style="color:#198754;">
+                <i class="fa fa-check-circle"/>
+                <span>PDF ready — the print dialog should have opened automatically.</span>
+            </div>
+
+            <div t-if="state.status === 'error'"
+                 class="alert alert-danger mb-3" role="alert">
+                <i class="fa fa-exclamation-triangle"/> <t t-esc="state.error"/>
+            </div>
+
+            <!-- Hidden iframe that loads and prints the PDF -->
+            <iframe t-ref="printIframe"
+                    style="position:absolute;width:0;height:0;border:none;visibility:hidden;"
+                    title="Print Barcode Labels"/>
+
+            <!-- Instructions -->
+            <div class="alert alert-info" role="alert" style="font-size:12px;">
+                <i class="fa fa-info-circle"/>
+                The <strong>system print dialog</strong> will open automatically so you can
+                select your printer, number of copies, and other settings.
+                If it does not open, click <strong>Open &amp; Print PDF</strong> below.
+            </div>
+
+            <!-- Footer buttons -->
+            <t t-set-slot="footer">
+                <button class="btn btn-primary" t-on-click="_loadAndPrint">
+                    <i class="fa fa-print me-1"/> Open &amp; Print PDF
+                </button>
+                <button class="btn btn-secondary" t-on-click="onDownload">
+                    <i class="fa fa-download me-1"/> Download PDF
+                </button>
+                <button class="btn btn-secondary" t-on-click="onClose">
+                    Close
+                </button>
+            </t>
+
+        </Dialog>
+    </t>
+
+</templates>

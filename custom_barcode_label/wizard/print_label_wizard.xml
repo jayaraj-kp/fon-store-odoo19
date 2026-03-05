@@ -1,45 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Wizard Form View -->
+    <!-- ─── Wizard Form View ─────────────────────────────────────────── -->
     <record id="view_print_label_wizard_form" model="ir.ui.view">
         <field name="name">custom_barcode_label.print_wizard.form</field>
         <field name="model">custom_barcode_label.print_wizard</field>
         <field name="arch" type="xml">
             <form string="Print Barcode Labels">
-                <group>
-                    <field name="label_qty"
-                           string="Copies per Label"
-                           help="Number of label copies to print for each selected product"/>
-                </group>
+                <sheet>
+                    <div class="o_form_sheet_bg">
+                        <group>
+                            <group string="Print Settings">
+                                <field name="label_qty"
+                                       string="Copies per Label"
+                                       help="Number of copies to print for each selected product"
+                                       attrs="{'required': [['label_qty', '&lt;', 1]]}"
+                                />
+                            </group>
+                        </group>
+                        <div class="alert alert-info" role="alert" style="margin-top:8px;">
+                            <i class="fa fa-info-circle"/> 
+                            Click <strong>Print</strong> to open the system print dialog where
+                            you can select your printer, paper size, and other print settings —
+                            just like the POS receipt print.
+                        </div>
+                    </div>
+                </sheet>
                 <footer>
-                    <button name="action_print"
-                            string="Print Labels"
+                    <button name="action_get_pdf_url"
+                            string="🖨️  Print"
                             type="object"
-                            class="btn-primary"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                            class="btn-primary"
+                    />
+                    <button name="action_download_pdf"
+                            string="⬇  Download PDF"
+                            type="object"
+                            class="btn-secondary"
+                    />
+                    <button string="Cancel"
+                            class="btn-secondary"
+                            special="cancel"
+                    />
                 </footer>
             </form>
         </field>
     </record>
 
-    <!-- Wizard Action (opened from product.product list) -->
+    <!-- ─── Action: open wizard from product.product list ───────────── -->
     <record id="action_print_label_wizard" model="ir.actions.act_window">
         <field name="name">Print Barcode Labels</field>
         <field name="res_model">custom_barcode_label.print_wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="binding_model_id" search="[('model','=','product.product')]" model="ir.model"/>
+        <field name="binding_model_id"
+               search="[('model','=','product.product')]"
+               model="ir.model"/>
         <field name="binding_type">action</field>
     </record>
 
-    <!-- Wizard Action (opened from product.template list) -->
+    <!-- ─── Action: open wizard from product.template list ──────────── -->
     <record id="action_print_label_wizard_tmpl" model="ir.actions.act_window">
         <field name="name">Print Barcode Labels</field>
         <field name="res_model">custom_barcode_label.print_wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="binding_model_id" search="[('model','=','product.template')]" model="ir.model"/>
+        <field name="binding_model_id"
+               search="[('model','=','product.template')]"
+               model="ir.model"/>
         <field name="binding_type">action</field>
     </record>
 
