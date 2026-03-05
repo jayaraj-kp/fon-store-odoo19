@@ -12,12 +12,17 @@ patch(PartnerList.prototype, {
         this.notification = useService("notification");
     },
 
-    async createPartner() {
+    /**
+     * In Odoo 19, the Create button calls editPartner(false) — not createPartner().
+     * We intercept here: if p=false (new partner) AND cash_customer_id is set,
+     * we show our prompt instead of the standard Edit Partner dialog.
+     */
+    async editPartner(p = false) {
         const cashCustomerId = this.pos.config.cash_customer_id;
 
-        // No cash customer configured → standard Odoo behaviour
-        if (!cashCustomerId) {
-            return super.createPartner(...arguments);
+        // If editing an EXISTING partner, or no cash customer configured → default behaviour
+        if (p || !cashCustomerId) {
+            return super.editPartner(p);
         }
 
         // Resolve master partner name
@@ -29,7 +34,7 @@ patch(PartnerList.prototype, {
             }
         } catch (_e) { /* use default */ }
 
-        // Collect the new customer name
+        // Collect new customer name
         const customerName = window.prompt(
             `New customer under "${cashCustomerName}"\n\nEnter customer name:`
         );
@@ -55,12 +60,7 @@ patch(PartnerList.prototype, {
             );
 
             if (newPartner) {
-                if (this.state && this.state.editModeProps) {
-                    this.state.editModeProps.partner = newPartner;
-                }
-                if (this.props.getPayload) {
-                    this.props.getPayload(newPartner);
-                }
+                this.clickPartner(newPartner);
             }
 
             this.notification.add(
