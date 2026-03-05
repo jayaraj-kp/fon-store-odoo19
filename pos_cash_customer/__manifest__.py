@@ -21,12 +21,12 @@
     ],
     'assets': {
         'point_of_sale._assets_pos': [
+            'pos_cash_customer/static/src/css/pos_cash_customer.css',
+            'pos_cash_customer/static/src/js/PosStore.js',
             'pos_cash_customer/static/src/js/CashCustomerButton.js',
             'pos_cash_customer/static/src/js/CreateCustomerForm.js',
-            'pos_cash_customer/static/src/js/PosStore.js',
             'pos_cash_customer/static/src/xml/CashCustomerButton.xml',
             'pos_cash_customer/static/src/xml/CreateCustomerForm.xml',
-            'pos_cash_customer/static/src/css/pos_cash_customer.css',
         ],
     },
     'installable': True,

@@ -2,19 +2,23 @@
 <templates xml:space="preserve">
 
     <!--
-        Inherit PartnerListScreen to add a CASH CUSTOMER info banner
-        above the partner list, showing cashiers which master account
-        new contacts will be saved under.
+        Odoo 19 CE POS — the partner list component template is
+        "point_of_sale.PartnerList". We add a CASH CUSTOMER info banner.
+        
+        NOTE: If your Odoo 19 build uses a different template name,
+        check the browser devtools → Sources → search "PartnerList" in
+        point_of_sale assets to confirm the exact t-name value.
     -->
-    <t t-name="pos_cash_customer.PartnerListScreenCashBanner" t-inherit="point_of_sale.PartnerListScreen" t-inherit-mode="extension">
+    <t t-name="pos_cash_customer.PartnerListBanner"
+       t-inherit="point_of_sale.PartnerList"
+       t-inherit-mode="extension">
 
-        <!-- Insert banner just before the partner search bar / list area -->
-        <xpath expr="//div[hasclass('partner-list-screen')]" position="inside">
+        <xpath expr="//div[hasclass('partner-list-container')]" position="before">
             <t t-if="cashCustomer">
                 <div class="cash-customer-banner">
                     <span class="cash-customer-icon">👤</span>
                     <span class="cash-customer-label">
-                        New contacts will be saved under:
+                        New contacts saved under:
                         <strong t-esc="cashCustomer.name"/>
                     </span>
                 </div>

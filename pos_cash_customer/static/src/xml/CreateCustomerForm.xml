@@ -2,13 +2,18 @@
 <templates xml:space="preserve">
 
     <!--
-        Extend the partner editor form to show a read-only "Parent Account"
-        field so cashiers can see that this contact will be filed under CASH CUSTOMER.
-    -->
-    <t t-name="pos_cash_customer.PartnerEditorCashParent" t-inherit="point_of_sale.PartnerEditor" t-inherit-mode="extension">
+        Odoo 19 CE POS — the partner editor template is
+        "point_of_sale.PartnerEditor". We add a parent-account row.
 
-        <!-- Add "Parent Account" display row at the top of the form fields -->
-        <xpath expr="//div[hasclass('partner-name')]" position="before">
+        NOTE: Check your browser devtools if this still fails —
+        search "PartnerEditor" or "EditPartner" in the POS assets source.
+    -->
+    <t t-name="pos_cash_customer.PartnerEditorCashParent"
+       t-inherit="point_of_sale.PartnerEditor"
+       t-inherit-mode="extension">
+
+        <!-- Add "Parent Account" display row before the name input -->
+        <xpath expr="//input[@id='partner-name']" position="before">
             <t t-if="pos.getCashCustomer and pos.getCashCustomer()">
                 <div class="cash-parent-row">
                     <span class="cash-parent-icon">🏷️</span>

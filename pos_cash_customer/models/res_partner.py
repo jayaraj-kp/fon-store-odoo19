@@ -20,26 +20,13 @@ class ResPartner(models.Model):
         return False
 
     @api.model
-    def create_from_pos_with_cash_parent(self, partner_vals):
-        """
-        Called from POS JS when creating a new customer.
-        Automatically sets parent_id to the CASH CUSTOMER if not already set.
-        """
-        cash_customer = self.search([('is_cash_customer', '=', True)], limit=1)
-        if cash_customer and not partner_vals.get('parent_id'):
-            partner_vals['parent_id'] = cash_customer.id
-            # When a parent is set, type should be 'contact'
-            partner_vals.setdefault('type', 'contact')
-
-        partner = self.create(partner_vals)
-        return partner.read(self._load_pos_data_fields(None))[0]
-
-    @api.model
     def _load_pos_data_fields(self, config_id):
-        """Fields needed by POS for partner records."""
-        return [
-            'id', 'name', 'street', 'city', 'state_id', 'country_id',
-            'vat', 'lang', 'phone', 'zip', 'mobile', 'email',
-            'barcode', 'write_date', 'property_product_pricelist',
-            'parent_id', 'is_cash_customer', 'type', 'complete_name',
-        ]
+        """
+        Odoo 19 hook — extend the list of partner fields sent to POS.
+        This ensures is_cash_customer and parent_id are available in JS.
+        """
+        params = super()._load_pos_data_fields(config_id)
+        for field in ('is_cash_customer', 'parent_id', 'complete_name'):
+            if field not in params:
+                params.append(field)
+        return params
