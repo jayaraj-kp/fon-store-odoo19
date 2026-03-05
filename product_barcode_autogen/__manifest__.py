@@ -7,22 +7,18 @@
     'description': """
 Product Barcode Auto Generator
 ================================
-Automatically generates a unique alphanumeric barcode when a new product
-is created, if no barcode is manually provided.
+Automatically generates a unique alphanumeric barcode (e.g. BC-A3F7K2M9X1Q5)
+when a new product is created, if no barcode is manually provided.
 
-Features:
-- Auto-generates alphanumeric barcode (e.g. BC-A3F7K2M9X1Q5)
-- Configurable prefix via Settings
-- Works on product.template and product.product (variants)
-- Manual barcode entry is still supported (auto-gen is skipped if filled)
-- Regenerate button on the product form
+Configuration (via Settings → Technical → System Parameters):
+  - product_barcode_autogen.barcode_prefix  (default: BC)
+  - product_barcode_autogen.barcode_length  (default: 12, range 4-20)
     """,
     'author': 'Custom',
     'depends': ['product'],
     'data': [
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
-        'views/res_config_settings_views.xml',
         'views/product_template_views.xml',
     ],
     'installable': True,
