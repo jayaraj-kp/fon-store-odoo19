@@ -10,8 +10,7 @@
                 <group string="Label Settings">
                     <field name="qty"
                            string="Copies per Product"
-                           widget="integer"
-                           attrs="{'required': [['qty', '&lt;', 1]]}"/>
+                           widget="integer"/>
                 </group>
                 <group string="Direct Printer (optional)">
                     <field name="printer_name"
