@@ -6,6 +6,7 @@ import { registry } from "@web/core/registry";
 
 export class InvoiceListScreen extends Component {
     static template = "pos_invoice_menu.InvoiceListScreen";
+    static props = {};
     static storeOnOrder = false;
 
     setup() {
@@ -76,13 +77,10 @@ export class InvoiceListScreen extends Component {
     }
 
     goBack() {
-        // Same multi-method fallback for going back
         if (typeof this.pos.showScreen === "function") {
             this.pos.showScreen("ProductScreen");
-        } else if (typeof this.env.pos?.showScreen === "function") {
-            this.env.pos.showScreen("ProductScreen");
-        } else {
-            window.history.back();
+        } else if (this.pos.ui?.showScreen) {
+            this.pos.ui.showScreen("ProductScreen");
         }
     }
 }

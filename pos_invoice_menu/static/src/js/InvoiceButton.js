@@ -7,40 +7,54 @@ import { patch } from "@web/core/utils/patch";
 
 export class InvoiceButton extends Component {
     static template = "pos_invoice_menu.InvoiceButton";
+    static props = {};  // Required in Odoo 19 dev mode to silence warning
 
     setup() {
         this.pos = useService("pos");
-        // In Odoo 19, screen navigation moved to a separate service
-        // Try to get it — falls back gracefully if not available
-        try { this.ui = useService("pos_ui"); } catch(e) { this.ui = null; }
+        try { this.posUI = useService("pos_ui"); } catch(e) { this.posUI = null; }
     }
 
     openInvoiceScreen() {
-        // Method 1: Odoo 17 standard
-        if (typeof this.pos.showScreen === "function") {
-            return this.pos.showScreen("InvoiceListScreen");
-        }
-        // Method 2: Odoo 19 — ui service
-        if (this.ui && typeof this.ui.showScreen === "function") {
-            return this.ui.showScreen("InvoiceListScreen");
-        }
-        // Method 3: via env directly
-        if (typeof this.env.pos?.showScreen === "function") {
-            return this.env.pos.showScreen("InvoiceListScreen");
-        }
-        // Method 4: pos.mainScreen setter (Odoo 17 alternative)
-        if ("mainScreen" in this.pos) {
-            this.pos.mainScreen = { name: "InvoiceListScreen", component: null };
-            return;
-        }
-        // Debug: log all available functions to console
-        console.error(
-            "[POS Invoice Menu] showScreen not found. Available pos methods:",
-            Object.getOwnPropertyNames(Object.getPrototypeOf(this.pos))
-                .filter(k => typeof this.pos[k] === "function"),
-            "\nAvailable pos keys:",
-            Object.keys(this.pos).slice(0, 30)
+        // Dump all available info to console so we can debug if needed
+        const pos = this.pos;
+        console.log("[POS Invoice Menu] Button clicked");
+        console.log("[POS Invoice Menu] pos keys:", Object.keys(pos));
+        console.log("[POS Invoice Menu] pos prototype methods:",
+            Object.getOwnPropertyNames(Object.getPrototypeOf(pos))
+                .filter(k => typeof pos[k] === "function")
         );
+
+        // Try every known screen navigation pattern across Odoo 17/18/19
+        if (typeof pos.showScreen === "function") {
+            console.log("[POS Invoice Menu] Using pos.showScreen");
+            return pos.showScreen("InvoiceListScreen");
+        }
+        if (this.posUI && typeof this.posUI.showScreen === "function") {
+            console.log("[POS Invoice Menu] Using posUI.showScreen");
+            return this.posUI.showScreen("InvoiceListScreen");
+        }
+        if (pos.ui && typeof pos.ui.showScreen === "function") {
+            console.log("[POS Invoice Menu] Using pos.ui.showScreen");
+            return pos.ui.showScreen("InvoiceListScreen");
+        }
+        if (pos.router && typeof pos.router.navigate === "function") {
+            console.log("[POS Invoice Menu] Using pos.router.navigate");
+            return pos.router.navigate("InvoiceListScreen");
+        }
+        if (typeof pos.set === "function") {
+            console.log("[POS Invoice Menu] Using pos.set selectedScreen");
+            return pos.set("selectedScreen", { name: "InvoiceListScreen" });
+        }
+        // Last resort: look through all OWL apps
+        const apps = owl.__apps__ || [];
+        for (const app of apps) {
+            const posService = app.env?.services?.pos;
+            if (posService && typeof posService.showScreen === "function") {
+                console.log("[POS Invoice Menu] Found showScreen via owl.__apps__");
+                return posService.showScreen("InvoiceListScreen");
+            }
+        }
+        console.error("[POS Invoice Menu] ❌ No showScreen method found anywhere. Please share console output.");
     }
 }
 
