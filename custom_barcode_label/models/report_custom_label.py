@@ -11,10 +11,16 @@ class ReportCustomLabel(models.AbstractModel):
     @api.model
     def _get_report_values(self, docids, data=None):
         docs = self.env['product.product'].browse(docids)
+        # data['label_qty'] is a dict: {product_id: qty} passed from wizard
+        # Falls back to {}: each product prints once
+        label_qty = {}
+        if data and isinstance(data.get('label_qty'), dict):
+            label_qty = {int(k): int(v) for k, v in data['label_qty'].items()}
         return {
             'doc_ids': docids,
             'doc_model': 'product.product',
             'docs': docs,
+            'label_qty': label_qty,
             'get_barcode': self._get_barcode,
         }
 
@@ -25,20 +31,6 @@ class ReportCustomLabel(models.AbstractModel):
         This calls the exact same code that /report/barcode/ uses,
         so it always works regardless of which barcode lib is installed.
         """
-        try:
-            from odoo.addons.base.models.ir_actions_report import IrActionsReport
-            # Odoo's barcode method: barcode(barcode_type, value, **kwargs)
-            png_bytes = IrActionsReport._render_qweb_pdf  # just checking import
-        except Exception:
-            pass
-
-        try:
-            # Use Odoo's barcode controller directly (internal call, no HTTP)
-            from odoo.addons.web.controllers.report import ReportController
-            ctrl = ReportController()
-        except Exception:
-            pass
-
         try:
             # The most direct way: use python-barcode which Odoo CE bundles
             import barcode
@@ -57,7 +49,7 @@ class ReportCustomLabel(models.AbstractModel):
             })
             buf.seek(0)
             return 'data:image/png;base64,' + base64.b64encode(buf.read()).decode()
-        except Exception as e:
+        except Exception:
             pass
 
         try:
@@ -74,7 +66,7 @@ class ReportCustomLabel(models.AbstractModel):
             renderPM.drawToFile(d, buf, fmt='PNG', dpi=96)
             buf.seek(0)
             return 'data:image/png;base64,' + base64.b64encode(buf.read()).decode()
-        except Exception as e:
+        except Exception:
             pass
 
         return ''
@@ -89,9 +81,13 @@ class ReportCustomLabelTmpl(models.AbstractModel):
     def _get_report_values(self, docids, data=None):
         docs = self.env['product.template'].browse(docids)
         products = docs.mapped('product_variant_ids')
+        label_qty = {}
+        if data and isinstance(data.get('label_qty'), dict):
+            label_qty = {int(k): int(v) for k, v in data['label_qty'].items()}
         return {
             'doc_ids': docids,
             'doc_model': 'product.template',
             'docs': products,
+            'label_qty': label_qty,
             'get_barcode': self._get_barcode,
         }

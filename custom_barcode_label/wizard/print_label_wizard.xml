@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Wizard Form View -->
+    <record id="view_print_label_wizard_form" model="ir.ui.view">
+        <field name="name">custom_barcode_label.print_wizard.form</field>
+        <field name="model">custom_barcode_label.print_wizard</field>
+        <field name="arch" type="xml">
+            <form string="Print Barcode Labels">
+                <group>
+                    <field name="label_qty"
+                           string="Copies per Label"
+                           help="Number of label copies to print for each selected product"/>
+                </group>
+                <footer>
+                    <button name="action_print"
+                            string="Print Labels"
+                            type="object"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Wizard Action (opened from product.product list) -->
+    <record id="action_print_label_wizard" model="ir.actions.act_window">
+        <field name="name">Print Barcode Labels</field>
+        <field name="res_model">custom_barcode_label.print_wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" search="[('model','=','product.product')]" model="ir.model"/>
+        <field name="binding_type">action</field>
+    </record>
+
+    <!-- Wizard Action (opened from product.template list) -->
+    <record id="action_print_label_wizard_tmpl" model="ir.actions.act_window">
+        <field name="name">Print Barcode Labels</field>
+        <field name="res_model">custom_barcode_label.print_wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" search="[('model','=','product.template')]" model="ir.model"/>
+        <field name="binding_type">action</field>
+    </record>
+
+</odoo>
