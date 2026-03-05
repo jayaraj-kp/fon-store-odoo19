@@ -11,13 +11,9 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-# The arch we want to inject into the POS config form view
-_ARCH = """
-<data>
-    <xpath expr="//notebook" position="inside">
-        <page string="Customer ID" name="customer_uid_page">
-
-            <group string="Shop Customer ID Settings" colspan="2">
+# The content block to inject – reused across different xpath wrappers
+_CONTENT = """
+            <group string="Customer ID Settings" colspan="2" name="customer_uid_group">
                 <group>
                     <field name="shop_code" placeholder="e.g. CHL, KON, TVM …"/>
                 </group>
@@ -25,7 +21,6 @@ _ARCH = """
                     <field name="customer_sequence_id" readonly="1"/>
                 </group>
             </group>
-
             <div class="alert alert-info" role="alert" style="margin:8px 0;">
                 <strong>How it works: </strong>
                 Enter a short prefix code for this shop (e.g.
@@ -34,7 +29,6 @@ _ARCH = """
                 automatically receive a unique ID like
                 <b>CHL - 00001</b>, <b>CHL - 00002</b>, etc.
             </div>
-
             <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
                 <button name="action_setup_customer_sequence"
                         type="object"
@@ -53,17 +47,25 @@ _ARCH = """
                         class="btn btn-secondary"
                         invisible="not id"/>
             </div>
-
             <group string="Statistics" invisible="not id">
                 <field name="customer_id_count"
                        string="Total Customers Created from this Shop"
                        readonly="1"/>
             </group>
-
-        </page>
-    </xpath>
-</data>
 """
+
+# Each candidate is (xpath_expr, position).
+# We try them in order; the first one that validates against the actual view wins.
+_XPATH_CANDIDATES = [
+    # Odoo 17/18/19: notebook with tabs
+    ('//notebook', 'inside', '<page string="Customer ID" name="customer_uid_page">', '</page>'),
+    # Flat form with a sheet > group structure (no notebook)
+    ('//sheet', 'inside', '<group string="Customer ID">', '</group>'),
+    # Generic: append after last group inside sheet
+    ('//sheet//group[last()]', 'after', '', ''),
+    # Last resort: just before the closing of the form
+    ('//form', 'inside', '<group string="Customer ID">', '</group>'),
+]
 
 # External ID we use to track our injected view
 _VIEW_XMLID = 'pos_customer_unique_id.view_pos_config_form_customer_uid'
@@ -73,14 +75,25 @@ def _find_pos_config_form_view(env):
     """
     Find the primary (non-inherited) form view for pos.config.
     We try known XML IDs first, then fall back to a DB search.
+    Also logs ALL pos.config form views found so the admin can check odoo.log.
     """
     IrUiView = env['ir.ui.view']
+
+    # Log ALL form views for pos.config to help diagnose
+    all_views = IrUiView.search([('model', '=', 'pos.config'), ('type', '=', 'form')])
+    for v in all_views:
+        _logger.info(
+            'POS Customer UID [DIAG] pos.config form view: id=%s name=%s inherit_id=%s xmlid=%s',
+            v.id, v.name, v.inherit_id.id if v.inherit_id else None,
+            env['ir.model.data'].search([('model', '=', 'ir.ui.view'), ('res_id', '=', v.id)], limit=1).complete_name or 'no-xmlid'
+        )
 
     # Known XML IDs across Odoo versions – try them in order
     known_refs = [
         'point_of_sale.pos_config_view_form',
         'point_of_sale.view_pos_config_form',
         'point_of_sale.pos_config_form_view',
+        'point_of_sale.pos_config_form',
     ]
     for ref in known_refs:
         try:
@@ -95,16 +108,65 @@ def _find_pos_config_form_view(env):
     view = IrUiView.search([
         ('model', '=', 'pos.config'),
         ('type', '=', 'form'),
-        ('inherit_id', '=', False),   # primary view only
+        ('inherit_id', '=', False),
         ('active', '=', True),
     ], order='priority asc', limit=1)
 
     if view:
-        _logger.info('POS Customer UID: found POS config form via DB search (id=%s)', view.id)
+        _logger.info('POS Customer UID: found POS config form via DB search (id=%s name=%s)', view.id, view.name)
         return view
 
     _logger.warning('POS Customer UID: could NOT find a primary form view for pos.config!')
     return None
+
+
+def _build_arch(xpath_expr, position, wrap_open, wrap_close):
+    """Build a complete <data> arch string for a given xpath + position."""
+    return (
+        f'<data>\n'
+        f'    <xpath expr="{xpath_expr}" position="{position}">\n'
+        f'        {wrap_open}\n'
+        f'{_CONTENT}'
+        f'        {wrap_close}\n'
+        f'    </xpath>\n'
+        f'</data>'
+    )
+
+
+def _test_arch(env, parent_view, arch):
+    """
+    Return True if `arch` is valid when inherited from `parent_view`.
+    Uses ir.ui.view._check_xml() / validate_view_arch() – whichever is available.
+    """
+    IrUiView = env['ir.ui.view']
+    try:
+        # Build a temporary in-memory view dict and validate
+        test_view = IrUiView.new({
+            'name': '_test_pos_uid',
+            'model': 'pos.config',
+            'inherit_id': parent_view.id,
+            'arch': arch,
+        })
+        # Odoo 16+: _check_xml validates the combined arch
+        IrUiView._check_xml(test_view)  # raises if invalid
+        return True
+    except Exception:
+        pass
+
+    # Fallback: just try lxml xpath to see if node exists in parent arch
+    try:
+        from lxml import etree
+        import re
+        # Extract the xpath expr
+        m = re.search(r'expr="([^"]+)"', arch)
+        if not m:
+            return False
+        xpath_expr = m.group(1)
+        root = etree.fromstring(parent_view.arch.encode())
+        nodes = root.xpath(xpath_expr)
+        return bool(nodes)
+    except Exception:
+        return False
 
 
 def post_init_hook(env):
@@ -124,17 +186,44 @@ def post_init_hook(env):
     parent_view = _find_pos_config_form_view(env)
     if not parent_view:
         _logger.error(
-            'POS Customer UID: cannot inject settings tab – POS config form view not found. '
-            'You can still use the module; shop codes can be set via the partner backend form.'
+            'POS Customer UID: cannot inject settings tab – POS config form view not found.'
         )
         return
+
+    # Log the actual parent view arch so we can diagnose xpath issues
+    _logger.info(
+        'POS Customer UID: parent view id=%s name=%s arch_preview=%.500s',
+        parent_view.id, parent_view.name,
+        (parent_view.arch or '')[:500]
+    )
+
+    # Try each xpath candidate until one validates
+    chosen_arch = None
+    for xpath_expr, position, wrap_open, wrap_close in _XPATH_CANDIDATES:
+        arch = _build_arch(xpath_expr, position, wrap_open, wrap_close)
+        if _test_arch(env, parent_view, arch):
+            chosen_arch = arch
+            _logger.info('POS Customer UID: using xpath="%s" position="%s"', xpath_expr, position)
+            break
+
+    if not chosen_arch:
+        # Last-ditch: use a completely standalone (non-inherited) form view
+        _logger.warning(
+            'POS Customer UID: no xpath matched – creating standalone auxiliary view.'
+        )
+        chosen_arch = (
+            '<form string="POS Customer ID Config">'
+            '<sheet><group string="Customer ID Settings" colspan="2">'
+            + _CONTENT +
+            '</group></sheet></form>'
+        )
 
     # Create the inherited view
     new_view = IrUiView.create({
         'name': 'pos.config.form.customer.uid',
         'model': 'pos.config',
         'inherit_id': parent_view.id,
-        'arch': _ARCH,
+        'arch': chosen_arch,
         'active': True,
         'priority': 99,
     })
@@ -149,8 +238,8 @@ def post_init_hook(env):
     })
 
     _logger.info(
-        'POS Customer UID: successfully injected Customer ID tab into pos.config '
-        'form view (parent id=%s, new view id=%s)', parent_view.id, new_view.id
+        'POS Customer UID: successfully injected Customer ID tab '
+        '(parent id=%s, new view id=%s)', parent_view.id, new_view.id
     )
 
 
