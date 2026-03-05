@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<templates xml:space="preserve">
-    <!-- No template overrides: the ID badge is handled via JS only.
-         This file intentionally left minimal to avoid OWL template
-         inheritance errors when the parent template name changes. -->
-</templates>
