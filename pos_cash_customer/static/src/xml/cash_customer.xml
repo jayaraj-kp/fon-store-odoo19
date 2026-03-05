@@ -1,7 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <!--
-        pos_cash_customer templates
-        No additional OWL templates needed – behaviour is handled via JS patch.
-    -->
+
+    <!-- Patch the Navbar to inject the customer search widget
+         between the order tabs (order number) and the product search bar -->
+    <t t-inherit="point_of_sale.Navbar" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('search-bar')]" position="before">
+            <div class="pos-cash-customer-bar d-flex align-items-center mx-2"
+                 style="position:relative;">
+                <input
+                    t-ref="cashCustomerInput"
+                    type="text"
+                    class="pos-cash-customer-input form-control form-control-sm"
+                    placeholder="Customer name / phone..."
+                    style="width:200px;border-radius:20px;font-size:13px;"
+                    t-on-input="onCashCustomerInput"
+                    t-on-keydown="onCashCustomerKeydown"
+                    t-on-blur="onCashCustomerBlur"
+                />
+                <div t-ref="cashCustomerDropdown"
+                     class="pos-cash-customer-dropdown"
+                     style="display:none;position:absolute;top:calc(100% + 4px);left:0;
+                            width:280px;background:#fff;border:1px solid #ddd;
+                            border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);
+                            z-index:9999;max-height:200px;overflow-y:auto;">
+                </div>
+            </div>
+        </xpath>
+    </t>
+
 </templates>
