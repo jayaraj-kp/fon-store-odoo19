@@ -26,6 +26,12 @@
                            options="{'no_create': False}"
                            placeholder="Tags auto-applied to every new customer this user creates"/>
                 </group>
+                <group string="Product Category Restrictions">
+                    <field name="disallowed_product_category_ids"
+                           widget="many2many_tags"
+                           options="{'no_create': True}"
+                           placeholder="Leave empty = access to all product categories"/>
+                </group>
             </xpath>
         </field>
     </record>
@@ -77,6 +83,7 @@
 
 
 
+
 <!--<?xml version="1.0" encoding="utf-8"?>-->
 <!--<odoo>-->
 
@@ -95,6 +102,9 @@
 <!--                           widget="many2many_tags"-->
 <!--                           options="{'no_create': True}"-->
 <!--                           placeholder="Leave empty = access to all warehouses" />-->
+<!--                    <field name="property_warehouse_id"-->
+<!--                           options="{'no_create': True}"-->
+<!--                           placeholder="Default warehouse for this user" />-->
 <!--                </group>-->
 <!--                <group string="Customer Defaults">-->
 <!--                    <field name="default_customer_tag_ids"-->
@@ -150,3 +160,79 @@
 <!--    </record>-->
 
 <!--</odoo>-->
+
+
+
+<!--&lt;!&ndash;<?xml version="1.0" encoding="utf-8"?>&ndash;&gt;-->
+<!--&lt;!&ndash;<odoo>&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &lt;!&ndash; =============================================&ndash;&gt;-->
+<!--&lt;!&ndash;         User Form: Allowed Warehouses + Default Customer Tags&ndash;&gt;-->
+<!--&lt;!&ndash;         ============================================= &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <record id="view_users_form_warehouse_restriction" model="ir.ui.view">&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="name">res.users.form.warehouse.restriction</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="model">res.users</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="inherit_id" ref="base.view_users_form"/>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="priority">99</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="arch" type="xml" >&ndash;&gt;-->
+<!--&lt;!&ndash;            <xpath expr="//page[@name='access_rights']/group[1]" position="before">&ndash;&gt;-->
+<!--&lt;!&ndash;                <group string="Warehouse Restrictions">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <field name="allowed_warehouse_ids"&ndash;&gt;-->
+<!--&lt;!&ndash;                           widget="many2many_tags"&ndash;&gt;-->
+<!--&lt;!&ndash;                           options="{'no_create': True}"&ndash;&gt;-->
+<!--&lt;!&ndash;                           placeholder="Leave empty = access to all warehouses" />&ndash;&gt;-->
+<!--&lt;!&ndash;                </group>&ndash;&gt;-->
+<!--&lt;!&ndash;                <group string="Customer Defaults">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <field name="default_customer_tag_ids"&ndash;&gt;-->
+<!--&lt;!&ndash;                           widget="many2many_tags"&ndash;&gt;-->
+<!--&lt;!&ndash;                           options="{'no_create': False}"&ndash;&gt;-->
+<!--&lt;!&ndash;                           placeholder="Tags auto-applied to every new customer this user creates"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                </group>&ndash;&gt;-->
+<!--&lt;!&ndash;            </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;        </field>&ndash;&gt;-->
+<!--&lt;!&ndash;    </record>&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &lt;!&ndash; =============================================&ndash;&gt;-->
+<!--&lt;!&ndash;         Sale Order Form: Filter warehouse dropdown&ndash;&gt;-->
+<!--&lt;!&ndash;         ============================================= &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <record id="view_sale_order_warehouse_restriction" model="ir.ui.view">&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="name">sale.order.form.warehouse.restriction</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="model">sale.order</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="inherit_id" ref="sale.view_order_form"/>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="priority">99</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="arch" type="xml">&ndash;&gt;-->
+<!--&lt;!&ndash;            <xpath expr="//field[@name='warehouse_id']" position="before">&ndash;&gt;-->
+<!--&lt;!&ndash;                <field name="allowed_warehouse_domain" invisible="1"/>&ndash;&gt;-->
+<!--&lt;!&ndash;            </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;            <xpath expr="//field[@name='warehouse_id']" position="attributes">&ndash;&gt;-->
+<!--&lt;!&ndash;                <attribute name="domain">[('id', 'in', allowed_warehouse_domain)]</attribute>&ndash;&gt;-->
+<!--&lt;!&ndash;            </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;        </field>&ndash;&gt;-->
+<!--&lt;!&ndash;    </record>&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &lt;!&ndash; =============================================&ndash;&gt;-->
+<!--&lt;!&ndash;         Stock Picking Form: Filter operation type and locations&ndash;&gt;-->
+<!--&lt;!&ndash;         ============================================= &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <record id="view_stock_picking_warehouse_restriction" model="ir.ui.view">&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="name">stock.picking.form.warehouse.restriction</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="model">stock.picking</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="inherit_id" ref="stock.view_picking_form"/>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="priority">99</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="arch" type="xml">&ndash;&gt;-->
+<!--&lt;!&ndash;            <xpath expr="//field[@name='picking_type_id']" position="before">&ndash;&gt;-->
+<!--&lt;!&ndash;                <field name="allowed_warehouse_domain" invisible="1"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                <field name="allowed_location_domain" invisible="1"/>&ndash;&gt;-->
+<!--&lt;!&ndash;            </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;            <xpath expr="//field[@name='picking_type_id']" position="attributes">&ndash;&gt;-->
+<!--&lt;!&ndash;                <attribute name="domain">[('warehouse_id', 'in', allowed_warehouse_domain)]</attribute>&ndash;&gt;-->
+<!--&lt;!&ndash;            </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;            <xpath expr="//field[@name='location_id']" position="attributes">&ndash;&gt;-->
+<!--&lt;!&ndash;                <attribute name="domain">[('id', 'in', allowed_location_domain)]</attribute>&ndash;&gt;-->
+<!--&lt;!&ndash;            </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;            <xpath expr="//field[@name='location_dest_id']" position="attributes">&ndash;&gt;-->
+<!--&lt;!&ndash;                <attribute name="domain">[('id', 'in', allowed_location_domain)]</attribute>&ndash;&gt;-->
+<!--&lt;!&ndash;            </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;        </field>&ndash;&gt;-->
+<!--&lt;!&ndash;    </record>&ndash;&gt;-->
+
+<!--&lt;!&ndash;</odoo>&ndash;&gt;-->
