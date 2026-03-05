@@ -248,7 +248,7 @@
     display: block;
     margin: 0 auto;
     background: #fff !important;
-    padding: 10px;
+    padding-top: 10px;
     image-rendering: pixelated;
 }
 .upi-qr-image-container {
