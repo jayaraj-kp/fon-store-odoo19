@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Extend the partner editor form to show a read-only "Parent Account"
+        field so cashiers can see that this contact will be filed under CASH CUSTOMER.
+    -->
+    <t t-name="pos_cash_customer.PartnerEditorCashParent" t-inherit="point_of_sale.PartnerEditor" t-inherit-mode="extension">
+
+        <!-- Add "Parent Account" display row at the top of the form fields -->
+        <xpath expr="//div[hasclass('partner-name')]" position="before">
+            <t t-if="pos.getCashCustomer and pos.getCashCustomer()">
+                <div class="cash-parent-row">
+                    <span class="cash-parent-icon">🏷️</span>
+                    <span class="cash-parent-text">
+                        Parent Account:
+                        <strong t-esc="pos.getCashCustomer().name"/>
+                    </span>
+                    <span class="cash-parent-badge">Auto-assigned</span>
+                </div>
+            </t>
+        </xpath>
+
+    </t>
+
+</templates>

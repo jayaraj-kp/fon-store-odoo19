@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Inherit PartnerListScreen to add a CASH CUSTOMER info banner
+        above the partner list, showing cashiers which master account
+        new contacts will be saved under.
+    -->
+    <t t-name="pos_cash_customer.PartnerListScreenCashBanner" t-inherit="point_of_sale.PartnerListScreen" t-inherit-mode="extension">
+
+        <!-- Insert banner just before the partner search bar / list area -->
+        <xpath expr="//div[hasclass('partner-list-screen')]" position="inside">
+            <t t-if="cashCustomer">
+                <div class="cash-customer-banner">
+                    <span class="cash-customer-icon">👤</span>
+                    <span class="cash-customer-label">
+                        New contacts will be saved under:
+                        <strong t-esc="cashCustomer.name"/>
+                    </span>
+                </div>
+            </t>
+        </xpath>
+
+    </t>
+
+</templates>
