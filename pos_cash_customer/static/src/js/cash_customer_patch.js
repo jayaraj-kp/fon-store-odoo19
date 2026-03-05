@@ -1,19 +1,11 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { CustomerList } from "@point_of_sale/app/screens/partner_list/partner_list";
+import { PartnerList } from "@point_of_sale/app/screens/partner_list/partner_list";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 
-/**
- * Patch CustomerList so that when a cash_customer_id is configured,
- * new customers are created as child contacts under the master CASH CUSTOMER
- * partner instead of as standalone partners.
- *
- * Deliberately imports NOTHING from point_of_sale internals beyond
- * CustomerList itself, to avoid broken-path errors across Odoo 19 patch releases.
- */
-patch(CustomerList.prototype, {
+patch(PartnerList.prototype, {
     setup() {
         super.setup(...arguments);
         this.orm = useService("orm");
@@ -37,14 +29,13 @@ patch(CustomerList.prototype, {
             }
         } catch (_e) { /* use default */ }
 
-        // Collect the new customer name via a native browser prompt.
-        // This avoids any dependency on POS or web dialog components.
+        // Collect the new customer name
         const customerName = window.prompt(
             `New customer under "${cashCustomerName}"\n\nEnter customer name:`
         );
 
         if (!customerName || !customerName.trim()) {
-            return; // user cancelled
+            return;
         }
 
         try {
