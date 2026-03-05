@@ -2,57 +2,41 @@
 <odoo>
 
     <!-- ================================================================
-         Product Template Form: Add "Regenerate Barcode" button.
+         STRATEGY: Add a brand-new "Barcode" tab into the notebook.
 
-         Root cause of previous error:
-           The barcode field is NOT in product.product_template_form_view
-           itself — it is injected by the stock module's inherited view.
-           Targeting //field[@name='barcode'] from the base view fails.
+         WHY: In Odoo 19 CE, barcode/default_code are NOT in the BASE
+         arch of product_template_form_view. They're added by inherited
+         views. Targeting them via xpath fails "cannot be located".
 
-         Fix:
-           • Use priority="20" so our view loads AFTER stock's view that
-             adds the barcode field (stock views use priority 16 by default).
-           • Target //field[@name='barcode'] — now resolvable because our
-             view inherits from the already-composed view chain via priority.
-           • Fallback anchor uses //page[@name='general_information'] which
-             is always present in the base form view.
+         <notebook position="inside"> is guaranteed to work because
+         <notebook> IS always in the base product form view arch.
     ================================================================ -->
 
-    <!--
-        Strategy (Odoo 19 CE without stock/accounting):
-          In a minimal CE install the barcode field is NOT rendered in
-          product.product_template_form_view by default.
-          We ADD the barcode field ourselves using the rock-solid anchor
-          //field[@name='default_code'] (Internal Reference), which is
-          always present in the base product form.
-    -->
     <record id="product_template_form_barcode_autogen" model="ir.ui.view">
         <field name="name">product.template.form.barcode.autogen</field>
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
-
-            <xpath expr="//field[@name='default_code']" position="after">
-                <label for="barcode" string="Barcode"/>
-                <div class="o_field_widget">
-                    <field name="barcode" string="Barcode"/>
-                    <button
-                        name="action_regenerate_barcode"
-                        string="↻ Regenerate"
-                        type="object"
-                        class="btn btn-secondary btn-sm ms-2"
-                        title="Generate a new unique alphanumeric barcode"
-                        invisible="not id"
-                    />
-                </div>
-            </xpath>
-
+            <notebook position="inside">
+                <page string="Barcode" name="barcode_autogen_page">
+                    <group string="Auto-Generated Barcode">
+                        <field name="barcode" string="Barcode"/>
+                    </group>
+                    <div class="o_row mt-2">
+                        <button
+                            name="action_regenerate_barcode"
+                            string="↻ Regenerate Barcode"
+                            type="object"
+                            class="btn btn-secondary"
+                            invisible="not id"
+                        />
+                    </div>
+                </page>
+            </notebook>
         </field>
     </record>
 
-    <!-- ================================================================
-         Settings page: Barcode Auto-Gen configuration section
-    ================================================================ -->
+    <!-- Settings: configure prefix and length -->
     <record id="res_config_settings_view_barcode_autogen" model="ir.ui.view">
         <field name="name">res.config.settings.view.barcode.autogen</field>
         <field name="model">res.config.settings</field>
@@ -62,11 +46,11 @@
                 <app string="Barcode Auto-Gen" name="product_barcode_autogen">
                     <block title="Auto-Generated Barcode Settings">
                         <setting string="Barcode Prefix"
-                                 help="Text prepended to every auto-generated barcode (e.g. 'BC' → BC-A3F7K2M9X1Q5).">
+                                 help="Prefix for auto-generated barcodes (e.g. BC → BC-A3F7K2M9X1Q5).">
                             <field name="barcode_prefix" placeholder="BC"/>
                         </setting>
                         <setting string="Random Part Length"
-                                 help="Number of random alphanumeric characters after the prefix (4–20).">
+                                 help="Number of random alphanumeric characters after the prefix (4-20).">
                             <field name="barcode_length"/>
                         </setting>
                     </block>
