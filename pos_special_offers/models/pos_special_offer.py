@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 from datetime import datetime, date
 
 
@@ -95,23 +96,23 @@ class PosSpecialOffer(models.Model):
     def _check_dates(self):
         for rec in self:
             if rec.date_from and rec.date_to and rec.date_from > rec.date_to:
-                raise models.ValidationError('Start Date & Time must be before End Date & Time.')
+                raise ValidationError('Start Date & Time must be before End Date & Time.')
 
     @api.constrains('offer_type', 'coupon_code')
     def _check_coupon_code(self):
         for rec in self:
             # Only require coupon_code if no generated codes exist
             if rec.offer_type == 'coupon' and not rec.coupon_code and not rec.coupon_ids:
-                raise models.ValidationError(
+                raise ValidationError(
                     'Coupon offers require either a Coupon Code or generated coupon codes.')
 
     @api.constrains('discount_value')
     def _check_discount_value(self):
         for rec in self:
             if rec.discount_value <= 0:
-                raise models.ValidationError('Discount Value must be greater than 0.')
+                raise ValidationError('Discount Value must be greater than 0.')
             if rec.discount_type == 'percentage' and rec.discount_value > 100:
-                raise models.ValidationError('Percentage discount cannot exceed 100%.')
+                raise ValidationError('Percentage discount cannot exceed 100%.')
 
     # ── Generate coupons wizard button ───────────────────────────────────────
     def action_generate_coupons(self):
