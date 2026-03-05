@@ -44,9 +44,8 @@ export class InvoiceListScreen extends Component {
         const query = this.state.searchQuery.trim().toLowerCase();
         if (!query) return this.state.orders;
         return this.state.orders.filter(
-            (o) =>
-                o.name.toLowerCase().includes(query) ||
-                o.partner_name.toLowerCase().includes(query)
+            (o) => o.name.toLowerCase().includes(query) ||
+                   o.partner_name.toLowerCase().includes(query)
         );
     }
 
@@ -77,7 +76,14 @@ export class InvoiceListScreen extends Component {
     }
 
     goBack() {
-        this.pos.showScreen("ProductScreen");
+        // Same multi-method fallback for going back
+        if (typeof this.pos.showScreen === "function") {
+            this.pos.showScreen("ProductScreen");
+        } else if (typeof this.env.pos?.showScreen === "function") {
+            this.env.pos.showScreen("ProductScreen");
+        } else {
+            window.history.back();
+        }
     }
 }
 

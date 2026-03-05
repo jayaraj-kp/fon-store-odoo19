@@ -9,37 +9,49 @@ export class InvoiceButton extends Component {
     static template = "pos_invoice_menu.InvoiceButton";
 
     setup() {
-        // Real service name found from loader inspection
         this.pos = useService("pos");
+        // In Odoo 19, screen navigation moved to a separate service
+        // Try to get it — falls back gracefully if not available
+        try { this.ui = useService("pos_ui"); } catch(e) { this.ui = null; }
     }
 
     openInvoiceScreen() {
-        this.pos.showScreen("InvoiceListScreen");
+        // Method 1: Odoo 17 standard
+        if (typeof this.pos.showScreen === "function") {
+            return this.pos.showScreen("InvoiceListScreen");
+        }
+        // Method 2: Odoo 19 — ui service
+        if (this.ui && typeof this.ui.showScreen === "function") {
+            return this.ui.showScreen("InvoiceListScreen");
+        }
+        // Method 3: via env directly
+        if (typeof this.env.pos?.showScreen === "function") {
+            return this.env.pos.showScreen("InvoiceListScreen");
+        }
+        // Method 4: pos.mainScreen setter (Odoo 17 alternative)
+        if ("mainScreen" in this.pos) {
+            this.pos.mainScreen = { name: "InvoiceListScreen", component: null };
+            return;
+        }
+        // Debug: log all available functions to console
+        console.error(
+            "[POS Invoice Menu] showScreen not found. Available pos methods:",
+            Object.getOwnPropertyNames(Object.getPrototypeOf(this.pos))
+                .filter(k => typeof this.pos[k] === "function"),
+            "\nAvailable pos keys:",
+            Object.keys(this.pos).slice(0, 30)
+        );
     }
 }
 
-// Patch the real Navbar — path confirmed from odoo.loader inspection
-const loader = window.odoo?.loader;
-const navbarMod = loader?.modules?.get("@point_of_sale/app/components/navbar/navbar");
-if (navbarMod?.Navbar) {
-    patch(navbarMod.Navbar, {
-        components: {
-            ...navbarMod.Navbar.components,
-            InvoiceButton,
-        },
-    });
-    console.log("[POS Invoice Menu] ✅ Navbar patched successfully");
-} else {
-    // Fallback: patch after modules finish loading
-    Promise.resolve().then(() => {
-        const mod = window.odoo?.loader?.modules?.get("@point_of_sale/app/components/navbar/navbar");
-        if (mod?.Navbar) {
-            patch(mod.Navbar, {
-                components: { ...mod.Navbar.components, InvoiceButton },
-            });
-            console.log("[POS Invoice Menu] ✅ Navbar patched (deferred)");
-        } else {
-            console.error("[POS Invoice Menu] ❌ Could not find Navbar to patch");
-        }
-    });
-}
+Promise.resolve().then(() => {
+    const mod = window.odoo?.loader?.modules?.get(
+        "@point_of_sale/app/components/navbar/navbar"
+    );
+    if (mod?.Navbar) {
+        patch(mod.Navbar, {
+            components: { ...mod.Navbar.components, InvoiceButton },
+        });
+        console.log("[POS Invoice Menu] ✅ Navbar patched");
+    }
+});
