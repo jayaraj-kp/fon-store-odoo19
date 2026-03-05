@@ -46,6 +46,18 @@
             </div>
             <t t-if="order.partner_id">
                 <div class="receipt-customer-inline">
+                    <!-- Unique Customer Number: use Internal Reference if set, else CUST-{id} -->
+                    <div class="customer-ref">
+                        Cust#:
+                        <strong>
+                            <t t-if="order.partner_id.ref">
+                                <t t-esc="order.partner_id.ref"/>
+                            </t>
+                            <t t-else="">
+                                CUST-<t t-esc="String(order.partner_id.id).padStart(5, '0')"/>
+                            </t>
+                        </strong>
+                    </div>
                     <strong><t t-esc="order.partner_id.name"/></strong>
                     <t t-if="order.partner_id.phone">
                         <div>Phone: <t t-esc="order.partner_id.phone"/></div>
@@ -340,6 +352,11 @@
 <!--                        <td class="col-item">-->
 <!--                            <div class="item-name"><t t-esc="line.name"/></div>-->
 <!--                            <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/> / <t t-esc="line.uom"/></div>-->
+<!--                            <t t-if="line.discount > 0">-->
+<!--                                <div class="item-discount-line">-->
+<!--                                    &#x1F3F7; <t t-esc="line.discount"/>% discount off on &#x20B9; <t t-esc="line.originalTotal"/>-->
+<!--                                </div>-->
+<!--                            </t>-->
 <!--                            <t t-if="line.note">-->
 <!--                                <div class="item-note"><t t-esc="line.note"/></div>-->
 <!--                            </t>-->
@@ -399,8 +416,14 @@
 <!--            </div>-->
 <!--            <div class="line total">-->
 <!--                <span>Grand Total</span>-->
-<!--                <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>-->
+<!--                <span><t t-esc="formatCurrency(order.getRoundedGrandTotal())"/></span>-->
 <!--            </div>-->
+<!--            <t t-if="order.getRoundOff() !== 0">-->
+<!--                <div class="line roundoff-line">-->
+<!--                    <span>Round Off</span>-->
+<!--                    <span><t t-esc="formatCurrency(order.getRoundOff())"/></span>-->
+<!--                </div>-->
+<!--            </t>-->
 <!--        </div>-->
 
 <!--        &lt;!&ndash; ② AMOUNT IN WORDS — directly below Grand Total &ndash;&gt;-->
@@ -510,5 +533,6 @@
 
 <!--</t>-->
 <!--</templates>-->
+
 
 

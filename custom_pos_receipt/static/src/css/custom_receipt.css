@@ -95,6 +95,14 @@
     display: block;
     word-break: break-word;
 }
+.customer-ref {
+    font-size: 9px;
+    color: #333;
+    margin-bottom: 2px;
+    letter-spacing: 0.3px;
+    border-bottom: 1px dotted #aaa;
+    padding-bottom: 2px;
+}
 
 /* ===================================================== */
 /* ITEMS TABLE                                           */
