@@ -76,16 +76,22 @@ patch(PosOrder.prototype, {
             // Strip product codes like [FS1], [LC116]
             let name = (line.product_id?.display_name || line.full_product_name || '').replace(/^\[.*?\]\s*/, '').trim();
             const gstRate = (line.tax_ids || []).length > 0 ? ((line.tax_ids[0].amount) || 0) : 0;
+            const qty      = line.qty || 0;
+            const rate     = line.price_unit || 0;
+            const discount = line.discount || 0;
+            // Original total before discount (rate × qty), rounded to 2dp
+            const originalTotal = Math.round(rate * qty * 100) / 100;
             return {
-                sn:       index + 1,
+                sn:            index + 1,
                 name,
-                qty:      line.qty || 0,
-                uom:      line.product_id?.uom_id?.name || 'Units',
-                rate:     line.price_unit || 0,
-                gst:      gstRate,
-                discount: line.discount || 0,
-                total:    line.price_subtotal_incl || 0,
-                note:     line.customerNote || '',
+                qty,
+                uom:           line.product_id?.uom_id?.name || 'Units',
+                rate,
+                gst:           gstRate,
+                discount,
+                originalTotal, // used for discount label "X% off on ₹ Y"
+                total:         line.price_subtotal_incl || 0,
+                note:          line.customerNote || '',
             };
         });
     },
@@ -93,6 +99,17 @@ patch(PosOrder.prototype, {
     /* ================= TOTALS ================= */
     getGrandTotal() {
         return this.amount_total || 0;
+    },
+
+    /* Round to nearest whole rupee */
+    getRoundedGrandTotal() {
+        return Math.round(this.getGrandTotal());
+    },
+
+    /* Difference between rounded and actual (can be +/-) */
+    getRoundOff() {
+        const diff = Math.round((this.getRoundedGrandTotal() - this.getGrandTotal()) * 100) / 100;
+        return diff === 0 ? 0 : diff;
     },
 
     getTotalSaved() {
@@ -137,7 +154,7 @@ patch(PosOrder.prototype, {
 
     /* ================= AMOUNT IN WORDS ================= */
     getAmountInWords() {
-        const amount = Math.floor(this.getGrandTotal());
+        const amount = Math.round(this.getGrandTotal());
         const w = ["Zero","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
                    "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
         const t = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
@@ -155,8 +172,6 @@ patch(PosOrder.prototype, {
     },
 
 });
-
-
 
 
 ///** @odoo-module **/
@@ -316,5 +331,6 @@ patch(PosOrder.prototype, {
 //    },
 //
 //});
-
-
+//
+//
+//
