@@ -19,31 +19,34 @@
     ================================================================ -->
 
     <!--
-        Step 1 — High-priority view that injects the Regenerate button
-        AFTER the barcode field added by stock.
-        priority="20" ensures this runs after stock's view (priority ~16).
+        Strategy (Odoo 19 CE without stock/accounting):
+          In a minimal CE install the barcode field is NOT rendered in
+          product.product_template_form_view by default.
+          We ADD the barcode field ourselves using the rock-solid anchor
+          //field[@name='default_code'] (Internal Reference), which is
+          always present in the base product form.
     -->
     <record id="product_template_form_barcode_autogen" model="ir.ui.view">
         <field name="name">product.template.form.barcode.autogen</field>
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
-        <field name="priority">20</field>
         <field name="arch" type="xml">
-            <!--
-                The barcode field is added by stock with position="after"
-                on categ_id. By the time this view (priority 20) runs, the
-                composed parent already contains barcode, so the xpath works.
-            -->
-            <xpath expr="//field[@name='barcode']" position="after">
-                <button
-                    name="action_regenerate_barcode"
-                    string="↻ Regenerate"
-                    type="object"
-                    class="btn-secondary btn-sm ms-1"
-                    title="Generate a new unique alphanumeric barcode"
-                    invisible="not id"
-                />
+
+            <xpath expr="//field[@name='default_code']" position="after">
+                <label for="barcode" string="Barcode"/>
+                <div class="o_field_widget">
+                    <field name="barcode" string="Barcode"/>
+                    <button
+                        name="action_regenerate_barcode"
+                        string="↻ Regenerate"
+                        type="object"
+                        class="btn btn-secondary btn-sm ms-2"
+                        title="Generate a new unique alphanumeric barcode"
+                        invisible="not id"
+                    />
+                </div>
             </xpath>
+
         </field>
     </record>
 
