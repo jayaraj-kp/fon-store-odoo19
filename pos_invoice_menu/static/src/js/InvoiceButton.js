@@ -1,24 +1,16 @@
 /** @odoo-module **/
 
-/**
- * POS Invoice Menu — Navbar Button
- *
- * APPROACH: Pure registry-based, zero @point_of_sale/* imports.
- *
- * Instead of patching Navbar (which requires knowing its internal path),
- * we register a "system tray" style component via the pos_widget registry.
- * Odoo 17/18/19 renders all items in registry("pos_widget") inside the POS shell.
- */
-
 import { Component } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";
+import { patch } from "@web/core/utils/patch";
 
-class InvoiceButton extends Component {
+export class InvoiceButton extends Component {
     static template = "pos_invoice_menu.InvoiceButton";
 
     setup() {
-        this.pos = useService("pos_store");
+        // Real service name found from loader inspection
+        this.pos = useService("pos");
     }
 
     openInvoiceScreen() {
@@ -26,10 +18,28 @@ class InvoiceButton extends Component {
     }
 }
 
-// Register as a POS widget — Odoo renders these automatically
-// in the POS interface without needing Navbar.components patching
-registry.category("pos_widget").add(
-    "pos_invoice_menu.InvoiceButton",
-    { component: InvoiceButton },
-    { sequence: 30 }
-);
+// Patch the real Navbar — path confirmed from odoo.loader inspection
+const loader = window.odoo?.loader;
+const navbarMod = loader?.modules?.get("@point_of_sale/app/components/navbar/navbar");
+if (navbarMod?.Navbar) {
+    patch(navbarMod.Navbar, {
+        components: {
+            ...navbarMod.Navbar.components,
+            InvoiceButton,
+        },
+    });
+    console.log("[POS Invoice Menu] ✅ Navbar patched successfully");
+} else {
+    // Fallback: patch after modules finish loading
+    Promise.resolve().then(() => {
+        const mod = window.odoo?.loader?.modules?.get("@point_of_sale/app/components/navbar/navbar");
+        if (mod?.Navbar) {
+            patch(mod.Navbar, {
+                components: { ...mod.Navbar.components, InvoiceButton },
+            });
+            console.log("[POS Invoice Menu] ✅ Navbar patched (deferred)");
+        } else {
+            console.error("[POS Invoice Menu] ❌ Could not find Navbar to patch");
+        }
+    });
+}

@@ -9,7 +9,7 @@ export class InvoiceListScreen extends Component {
     static storeOnOrder = false;
 
     setup() {
-        this.pos = useService("pos_store");
+        this.pos = useService("pos");
         this.orm = useService("orm");
         this.state = useState({
             orders: [],
