@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         Product Template Form: Add "Regenerate" button next to barcode
+    ================================================================ -->
+    <record id="product_template_form_barcode_autogen" model="ir.ui.view">
+        <field name="name">product.template.form.barcode.autogen</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Wrap the barcode field in a group with a regenerate button -->
+            <xpath expr="//field[@name='barcode']" position="after">
+                <button
+                    name="action_regenerate_barcode"
+                    string="↻ Regenerate Barcode"
+                    type="object"
+                    class="btn-secondary"
+                    title="Generate a new random alphanumeric barcode"
+                    invisible="not id"
+                />
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ================================================================
+         Settings page: Barcode Auto-Gen configuration section
+    ================================================================ -->
+    <record id="res_config_settings_view_barcode_autogen" model="ir.ui.view">
+        <field name="name">res.config.settings.view.barcode.autogen</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base_setup.action_general_configuration"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('app_settings_block')]" position="before">
+                <app string="Barcode Auto-Gen" name="product_barcode_autogen">
+                    <block title="Auto-Generated Barcode Settings">
+                        <setting string="Barcode Prefix"
+                                 help="Text prepended to every auto-generated barcode (e.g. 'BC' → BC-A3F7K2M9X1Q5).">
+                            <field name="barcode_prefix" placeholder="BC"/>
+                        </setting>
+                        <setting string="Random Part Length"
+                                 help="Number of random alphanumeric characters after the prefix (4–20).">
+                            <field name="barcode_length"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
