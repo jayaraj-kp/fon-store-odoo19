@@ -189,21 +189,38 @@
 .gst-total-row      { border-top: 1px solid #000; }
 
 /* ===================================================== */
-/* ⑤ UPI QR — centered, standalone                    */
+/* ⑤ QR CODES — side by side row                       */
 /* ===================================================== */
-.upi-qr-section {
+.receipt-qr-row {
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: flex-start;
+    width: 100%;
     border-top: 1px dashed #000;
     padding-top: 6px;
     margin: 4px 0;
+    gap: 4px;
+}
+.receipt-qr-cell {
+    flex: 1;
+    text-align: center;
+    font-size: 8px;
 }
 .qr-cell-label {
     font-weight: bold;
     font-size: 8px;
     margin-bottom: 3px;
     text-align: center;
+}
+.qr-invoice-small {
+    width: 55px !important;
+    height: 55px !important;
+    display: block;
+    margin: 0 auto;
+    background: #fff !important;
+    padding: 2px;
+    image-rendering: pixelated;
 }
 .upi-qr-image-container {
     display: inline-block;
@@ -212,12 +229,13 @@
     background: #fff;
 }
 .upi-qr-image {
-    width: 75px !important;
-    height: 75px !important;
+    width: 70px !important;
+    height: 70px !important;
     display: block;
     image-rendering: pixelated;
     background: #fff !important;
 }
+.qr-cell-code { font-size: 8px; margin-top: 2px; }
 
 /* ===================================================== */
 /* ⑥ LOYALTY                                           */
@@ -259,25 +277,7 @@
     margin-top: 4px;
 }
 
-/* ===================================================== */
-/* ⑨ INVOICE QR — very bottom, centered, small         */
-/* ===================================================== */
-.invoice-qr-bottom {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    border-top: 1px dashed #000;
-    padding-top: 6px;
-    margin-top: 4px;
-    text-align: center;
-    font-size: 8px;
-}
-.qr-invoice-small {
-    width: 50px !important;
-    height: 50px !important;
-    display: block;
-    margin: 3px auto 0;
-    background: #fff !important;
+
     padding: 2px;
     image-rendering: pixelated;
 }
@@ -291,8 +291,7 @@
 /* PRINT                                                 */
 /* ===================================================== */
 @media print {
-    .upi-qr-section       { page-break-inside: avoid; }
-    .invoice-qr-bottom    { page-break-inside: avoid; }
+    .receipt-qr-row       { page-break-inside: avoid; flex-wrap: nowrap; }
     .upi-qr-image         { width: 70px !important; height: 70px !important; }
     .qr-invoice-small     { width: 46px !important; height: 46px !important; }
     .receipt-company-logo { max-width: 100px; max-height: 85px; }

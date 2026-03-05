@@ -188,15 +188,26 @@
             </div>
         </t>
 
-        <!-- ⑤ UPI QR only — invoice QR is at the very bottom -->
-        <t t-if="upiQrSrc">
-            <div class="upi-qr-section">
-                <div class="qr-cell-label">Scan &amp; Pay &#x20B9;</div>
-                <div class="upi-qr-image-container">
-                    <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR"/>
-                </div>
+        <!-- ⑤ QR CODES side by side: Invoice QR (left) + UPI QR (right) -->
+        <div class="receipt-qr-row">
+            <div class="receipt-qr-cell">
+                <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and this.qrCode">
+                    <div class="qr-cell-label">Scan for Invoice</div>
+                    <img t-att-src="this.qrCode" class="qr-invoice-small" alt="Invoice QR"/>
+                    <t t-if="order.ticket_code">
+                        <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
+                    </t>
+                </t>
             </div>
-        </t>
+            <div class="receipt-qr-cell">
+                <t t-if="upiQrSrc">
+                    <div class="qr-cell-label">Scan &amp; Pay &#x20B9;</div>
+                    <div class="upi-qr-image-container">
+                        <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR"/>
+                    </div>
+                </t>
+            </div>
+        </div>
 
         <!-- ⑥ LOYALTY POINTS + EXPIRY -->
         <t t-set="loyaltyInfo" t-value="order.getLoyaltyInfo()"/>
@@ -230,16 +241,7 @@
             <div><t t-esc="order.formatDateOrTime('date_order')"/></div>
         </div>
 
-        <!-- ⑨ INVOICE QR — very bottom -->
-        <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and this.qrCode">
-            <div class="invoice-qr-bottom">
-                <div class="qr-cell-label">Scan for Invoice</div>
-                <img t-att-src="this.qrCode" class="qr-invoice-small" alt="Invoice QR"/>
-                <t t-if="order.ticket_code">
-                    <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
-                </t>
-            </div>
-        </t>
+
 
     </xpath>
 
