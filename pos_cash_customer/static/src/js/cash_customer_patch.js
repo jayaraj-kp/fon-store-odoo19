@@ -2,15 +2,70 @@
 
 import { patch } from "@web/core/utils/patch";
 import { CustomerList } from "@point_of_sale/app/screens/partner_list/partner_list";
-import { EditPartner } from "@point_of_sale/app/screens/partner_list/edit_partner/edit_partner";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
+import { Dialog } from "@web/core/dialog/dialog";
+import { Component, useState, xml } from "@odoo/owl";
 
 /**
- * Patch the CustomerList component to intercept the "Create" button click.
- *
- * When a cash_customer_id is configured in POS settings, new customers are
- * created as contacts under that master partner instead of as standalone partners.
+ * Simple inline dialog to collect a customer name.
+ * Uses only @web and @odoo/owl — zero dependency on POS internal components.
+ */
+class CreateContactDialog extends Component {
+    static template = xml`
+        <Dialog title="props.title" size="'sm'">
+            <div class="mb-3">
+                <label class="form-label" for="new_customer_name">
+                    Customer Name
+                </label>
+                <input
+                    id="new_customer_name"
+                    type="text"
+                    class="form-control"
+                    t-model="state.name"
+                    placeholder="Enter customer name"
+                    t-on-keydown="onKeydown"
+                />
+                <div t-if="state.error" class="text-danger mt-1" t-esc="state.error"/>
+            </div>
+            <t t-set-slot="footer">
+                <button class="btn btn-primary" t-on-click="confirm">
+                    Create Customer
+                </button>
+                <button class="btn btn-secondary" t-on-click="() => props.close()">
+                    Cancel
+                </button>
+            </t>
+        </Dialog>
+    `;
+    static components = { Dialog };
+    static props = ["title", "close", "confirm"];
+
+    setup() {
+        this.state = useState({ name: "", error: "" });
+    }
+
+    onKeydown(ev) {
+        if (ev.key === "Enter") {
+            this.confirm();
+        }
+    }
+
+    confirm() {
+        const name = this.state.name.trim();
+        if (!name) {
+            this.state.error = _t("Please enter a customer name.");
+            return;
+        }
+        this.props.confirm(name);
+        this.props.close();
+    }
+}
+
+/**
+ * Patch CustomerList to redirect the "Create" button when a
+ * cash_customer_id is configured: new partners are created as
+ * child contacts under the master CASH CUSTOMER partner.
  */
 patch(CustomerList.prototype, {
     setup() {
@@ -23,12 +78,12 @@ patch(CustomerList.prototype, {
     async createPartner() {
         const cashCustomerId = this.pos.config.cash_customer_id;
 
-        // No cash customer configured → standard Odoo behaviour
+        // No cash customer configured → fall back to standard Odoo behaviour
         if (!cashCustomerId) {
             return super.createPartner(...arguments);
         }
 
-        // Fetch the cash customer name for display purposes
+        // Fetch the master partner name for display
         let cashCustomerName = "CASH CUSTOMER";
         try {
             const partners = await this.orm.read(
@@ -43,40 +98,44 @@ patch(CustomerList.prototype, {
             // ignore – use default label
         }
 
-        // Open the EditPartner dialog pre-filled with parent_id = cashCustomerId.
-        // EditPartner is imported statically above (no dynamic loader needed in Odoo 19).
-        this.dialog.add(EditPartner, {
-            partner: {
-                parent_id: [cashCustomerId, cashCustomerName],
-                type: "contact",
-            },
+        // Open a lightweight dialog to collect the new customer's name
+        this.dialog.add(CreateContactDialog, {
             title: _t("New Customer (under %s)", cashCustomerName),
-            save: async (processedChanges) => {
-                // Always enforce the parent link
-                processedChanges.parent_id = cashCustomerId;
+            confirm: async (customerName) => {
+                try {
+                    const newPartnerId = await this.orm.create("res.partner", [
+                        {
+                            name: customerName,
+                            parent_id: cashCustomerId,
+                            type: "contact",
+                            customer_rank: 1,
+                        },
+                    ]);
 
-                const newPartnerId = await this.orm.create(
-                    "res.partner",
-                    [processedChanges]
-                );
+                    await this.pos.loadNewPartner(newPartnerId);
 
-                await this.pos.loadNewPartner(newPartnerId);
+                    const newPartner = this.pos.models["res.partner"].find(
+                        (p) => p.id === newPartnerId
+                    );
 
-                const newPartner = this.pos.models["res.partner"].find(
-                    (p) => p.id === newPartnerId
-                );
+                    if (newPartner) {
+                        if (this.state && this.state.editModeProps) {
+                            this.state.editModeProps.partner = newPartner;
+                        }
+                        if (this.props.getPayload) {
+                            this.props.getPayload(newPartner);
+                        }
+                    }
 
-                if (newPartner) {
-                    this.state.editModeProps.partner = newPartner;
-                }
-
-                this.notification.add(
-                    _t("Customer created under %s", cashCustomerName),
-                    { type: "success" }
-                );
-
-                if (this.props.getPayload) {
-                    this.props.getPayload(newPartner);
+                    this.notification.add(
+                        _t("'%s' created under %s", customerName, cashCustomerName),
+                        { type: "success" }
+                    );
+                } catch (err) {
+                    this.notification.add(
+                        _t("Failed to create customer: %s", err.message),
+                        { type: "danger" }
+                    );
                 }
             },
         });
