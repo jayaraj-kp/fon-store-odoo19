@@ -1,15 +1,24 @@
 /** @odoo-module **/
 
-import { Component } from "@odoo/owl";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { Navbar } from "@point_of_sale/app/navbar/navbar";
-import { patch } from "@web/core/utils/patch";
+/**
+ * POS Invoice Menu — Navbar Button
+ *
+ * APPROACH: Pure registry-based, zero @point_of_sale/* imports.
+ *
+ * Instead of patching Navbar (which requires knowing its internal path),
+ * we register a "system tray" style component via the pos_widget registry.
+ * Odoo 17/18/19 renders all items in registry("pos_widget") inside the POS shell.
+ */
 
-export class InvoiceButton extends Component {
+import { Component } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
+import { registry } from "@web/core/registry";
+
+class InvoiceButton extends Component {
     static template = "pos_invoice_menu.InvoiceButton";
 
     setup() {
-        this.pos = usePos();
+        this.pos = useService("pos_store");
     }
 
     openInvoiceScreen() {
@@ -17,11 +26,10 @@ export class InvoiceButton extends Component {
     }
 }
 
-// Register InvoiceButton as a sub-component of Navbar so OWL
-// can resolve <InvoiceButton/> inside the Navbar XML template patch.
-patch(Navbar, {
-    components: {
-        ...Navbar.components,
-        InvoiceButton,
-    },
-});
+// Register as a POS widget — Odoo renders these automatically
+// in the POS interface without needing Navbar.components patching
+registry.category("pos_widget").add(
+    "pos_invoice_menu.InvoiceButton",
+    { component: InvoiceButton },
+    { sequence: 30 }
+);

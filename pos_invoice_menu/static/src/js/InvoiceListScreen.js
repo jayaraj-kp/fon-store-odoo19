@@ -1,7 +1,6 @@
 /** @odoo-module **/
 
 import { Component, useState, onMounted } from "@odoo/owl";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";
 
@@ -10,9 +9,8 @@ export class InvoiceListScreen extends Component {
     static storeOnOrder = false;
 
     setup() {
-        this.pos = usePos();
+        this.pos = useService("pos_store");
         this.orm = useService("orm");
-
         this.state = useState({
             orders: [],
             loading: true,
@@ -20,11 +18,8 @@ export class InvoiceListScreen extends Component {
             selectedOrder: null,
             errorMessage: "",
         });
-
         onMounted(() => this.loadOrders());
     }
-
-    // ─── Data Loading ──────────────────────────────────────────────────────────
 
     async loadOrders() {
         this.state.loading = true;
@@ -45,8 +40,6 @@ export class InvoiceListScreen extends Component {
         }
     }
 
-    // ─── Computed / Getters ────────────────────────────────────────────────────
-
     get filteredOrders() {
         const query = this.state.searchQuery.trim().toLowerCase();
         if (!query) return this.state.orders;
@@ -61,35 +54,22 @@ export class InvoiceListScreen extends Component {
         return this.filteredOrders.reduce((sum, o) => sum + o.amount_total, 0);
     }
 
-    // ─── Formatters ────────────────────────────────────────────────────────────
-
     formatCurrency(amount) {
         const symbol = this.pos.currency?.symbol || "";
         return `${symbol} ${parseFloat(amount).toFixed(2)}`;
     }
 
     formatDate(dateStr) {
-        try {
-            return new Date(dateStr).toLocaleString();
-        } catch {
-            return dateStr;
-        }
+        try { return new Date(dateStr).toLocaleString(); }
+        catch { return dateStr; }
     }
 
     getStateBadgeClass(state) {
-        const map = {
-            paid: "badge-success",
-            done: "badge-primary",
-            invoiced: "badge-info",
-        };
-        return map[state] || "badge-secondary";
+        return { paid: "badge-success", done: "badge-primary", invoiced: "badge-info" }[state] || "badge-secondary";
     }
 
-    // ─── Actions ───────────────────────────────────────────────────────────────
-
     selectOrder(order) {
-        this.state.selectedOrder =
-            this.state.selectedOrder?.id === order.id ? null : order;
+        this.state.selectedOrder = this.state.selectedOrder?.id === order.id ? null : order;
     }
 
     isSelected(order) {
@@ -101,5 +81,4 @@ export class InvoiceListScreen extends Component {
     }
 }
 
-// Register as a POS screen
 registry.category("pos_screens").add("InvoiceListScreen", InvoiceListScreen);

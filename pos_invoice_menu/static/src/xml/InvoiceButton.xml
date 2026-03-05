@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
-    <!-- ─── Invoice Button Component ─────────────────────────────────────────── -->
+    <!--
+        InvoiceButton component template.
+        Registered via pos_widget registry — no Navbar patching needed.
+        Rendered by the POS shell automatically.
+    -->
     <t t-name="pos_invoice_menu.InvoiceButton" owl="1">
         <button class="pos-invoice-topbar-btn" t-on-click="openInvoiceScreen">
             <i class="fa fa-file-text-o"/>
@@ -9,23 +13,4 @@
         </button>
     </t>
 
-    <!--
-        Odoo 17/18/19: the top bar is rendered by `point_of_sale.Navbar`
-        Structure:
-            <div class="pos-navbar">
-                <div class="pos-leftheader"> ... </div>
-                <div class="pos-rightheader"> ... close/hamburger buttons ... </div>
-            </div>
-
-        We inject our button BEFORE the right-side buttons (before pos-rightheader).
-    -->
-    <t t-name="pos_invoice_menu.NavbarPatch" owl="1"
-       t-inherit="point_of_sale.Navbar"
-       t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('pos-rightheader')]" position="before">
-            <InvoiceButton />
-        </xpath>
-    </t>
-
 </templates>
-
