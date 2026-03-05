@@ -37,15 +37,17 @@
    t-inherit="point_of_sale.OrderReceipt"
    t-inherit-mode="extension">
 
-    <!-- Invoice# + Date + Customer block -->
+    <!-- Invoice + Date + Tax Invoice + Customer -->
     <xpath expr="//div[@class='pt-3']" position="replace">
         <div class="cust-divider-top">
-            <!-- Row 1: POS Invoice# (left) + Date (right) -->
+
+            <!-- POS Invoice# left, Date right -->
             <div class="receipt-meta-row">
                 <div><strong>Invoice# <t t-esc="order.pos_reference"/></strong></div>
                 <div><t t-esc="order.getReceiptDateFormatted()"/></div>
             </div>
-            <!-- Row 2: Tax Invoice number on same line — only when accounting invoice exists -->
+
+            <!-- Tax Invoice number — shown only when accounting invoice is linked -->
             <t t-set="accMove" t-value="order.account_move"/>
             <t t-if="accMove and accMove.name and accMove.name !== '/'">
                 <div class="acc-invoice-row">
@@ -53,23 +55,16 @@
                     <span class="acc-invoice-number"><t t-esc="accMove.name"/></span>
                 </div>
             </t>
-            <!-- Customer block: CustID shown after name, phone removed -->
+
+            <!-- Customer: Name (CustID) — phone removed -->
             <t t-if="order.partner_id">
                 <div class="receipt-customer-inline">
                     <div class="customer-name-id">
                         <strong><t t-esc="order.partner_id.name"/></strong>
                         <span class="customer-id-inline">
-                            &nbsp;(
-                            <t t-if="order.partner_id.ref">
-                                <t t-esc="order.partner_id.ref"/>
-                            </t>
-                            <t t-else="">
-                                <t t-esc="order.getCustomerRef()"/>
-                            </t>
-                            )
+                            (<t t-if="order.partner_id.ref"><t t-esc="order.partner_id.ref"/></t><t t-else=""><t t-esc="order.getCustomerRef()"/></t>)
                         </span>
                     </div>
-                    <!-- Phone removed as requested -->
                     <t t-if="order.partner_id.vat">
                         <div>GSTIN: <t t-esc="order.partner_id.vat"/></div>
                     </t>
@@ -78,7 +73,7 @@
         </div>
     </xpath>
 
-    <!-- Custom items table — GST column commented out (#3) -->
+    <!-- Items table — GST column disabled via t-if="false" -->
     <xpath expr="//OrderDisplay" position="before">
         <table class="custom-items-table">
             <thead>
@@ -86,7 +81,7 @@
                     <th class="col-sn">SN</th>
                     <th class="col-item">ITEM</th>
                     <th class="col-qty">QTY</th>
-                    <!-- GST column disabled: <th class="col-gst">GST</th> -->
+                    <t t-if="false"><th class="col-gst">GST</th></t>
                     <th class="col-total">TOTAL</th>
                 </tr>
             </thead>
@@ -107,7 +102,7 @@
                             </t>
                         </td>
                         <td class="col-qty"><t t-esc="line.qty"/></td>
-                        <!-- GST cell disabled: <td class="col-gst"><t t-esc="line.gst"/>%</td> -->
+                        <t t-if="false"><td class="col-gst"><t t-esc="line.gst"/>%</td></t>
                         <td class="col-total"><t t-esc="formatCurrency(line.total)"/></td>
                     </tr>
                 </t>
@@ -125,27 +120,9 @@
         </div>
     </xpath>
 
-    <!--
-        Default Odoo blocks are hidden via CSS (not xpath-removed)
-        to prevent fatal "Missing template" errors in Odoo 19.
-    -->
-
     <xpath expr="//div[@class='before-footer']" position="before">
 
-        <!--
-            SECTION ORDER:
-            ① Taxable / CGST / SGST / Grand Total
-            ② Amount in Words          ← directly below Grand Total
-            ③ You Saved
-            ④ GST Breakdown Table      ← below You Saved, above QR
-            ⑤ UPI QR only              ← invoice QR moved to bottom
-            ⑥ Loyalty Points + Expiry
-            ⑦ Salutation
-            ⑧ Footer: cashier name (left) + date (right)
-            ⑨ Invoice QR              ← very bottom
-        -->
-
-        <!-- ① GRAND TOTAL SUMMARY -->
+        <!-- GRAND TOTAL SUMMARY -->
         <div class="custom-total-section">
             <div class="line">
                 <span>Taxable Amount</span>
@@ -161,9 +138,9 @@
             </div>
             <div class="line total">
                 <span>Grand Total</span>
-                <span><t t-esc="formatCurrency(order.getRoundedGrandTotal())"/></span>
+                <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
             </div>
-            <t t-if="order.getRoundOff() !== 0">
+            <t t-if="order.getRoundOff and order.getRoundOff() !== 0">
                 <div class="line roundoff-line">
                     <span>Round Off</span>
                     <span><t t-esc="formatCurrency(order.getRoundOff())"/></span>
@@ -171,12 +148,12 @@
             </t>
         </div>
 
-        <!-- ② AMOUNT IN WORDS — directly below Grand Total -->
+        <!-- AMOUNT IN WORDS — directly below Grand Total -->
         <div class="amount-words">
             <t t-esc="order.getAmountInWords()"/>
         </div>
 
-        <!-- ③ YOU SAVED -->
+        <!-- YOU SAVED -->
         <t t-if="order.getTotalSaved() > 0">
             <div class="saved-line">
                 <span>&#127881; You Saved &#127881;</span>
@@ -184,43 +161,44 @@
             </div>
         </t>
 
-        <!-- ④ GST BREAKDOWN TABLE — commented out as requested
-        <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
-        <t t-if="gstLines.length > 0">
-            <div class="gst-section">
-                <table class="gst-table">
-                    <thead>
-                        <tr>
-                            <th style="text-align:left;">GST%</th>
-                            <th style="text-align:right;">Taxable</th>
-                            <th style="text-align:right;">CGST</th>
-                            <th style="text-align:right;">SGST</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">
+        <!-- GST BREAKDOWN TABLE — disabled (t-if="false" to re-enable, change to t-if="true") -->
+        <t t-if="false">
+            <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
+            <t t-if="gstLines.length > 0">
+                <div class="gst-section">
+                    <table class="gst-table">
+                        <thead>
                             <tr>
-                                <td><t t-esc="gline.rate"/>%</td>
-                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.taxable)"/></td>
-                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.cgst)"/></td>
-                                <td style="text-align:right;"><t t-esc="formatCurrency(gline.sgst)"/></td>
+                                <th style="text-align:left;">GST%</th>
+                                <th style="text-align:right;">Taxable</th>
+                                <th style="text-align:right;">CGST</th>
+                                <th style="text-align:right;">SGST</th>
                             </tr>
-                        </t>
-                    </tbody>
-                    <tfoot>
-                        <tr class="gst-total-row">
-                            <td><strong>Total</strong></td>
-                            <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></strong></td>
-                            <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalCgst())"/></strong></td>
-                            <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalSgst())"/></strong></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="gstLines" t-as="gline" t-key="gline.rate">
+                                <tr>
+                                    <td><t t-esc="gline.rate"/>%</td>
+                                    <td style="text-align:right;"><t t-esc="formatCurrency(gline.taxable)"/></td>
+                                    <td style="text-align:right;"><t t-esc="formatCurrency(gline.cgst)"/></td>
+                                    <td style="text-align:right;"><t t-esc="formatCurrency(gline.sgst)"/></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                        <tfoot>
+                            <tr class="gst-total-row">
+                                <td><strong>Total</strong></td>
+                                <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></strong></td>
+                                <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalCgst())"/></strong></td>
+                                <td style="text-align:right;"><strong><t t-esc="formatCurrency(order.getTotalSgst())"/></strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </t>
         </t>
-        END GST TABLE COMMENT -->
 
-        <!-- ⑤ QR CODES side by side: Invoice QR (left) + UPI QR (right) -->
+        <!-- QR CODES — Invoice QR (left) + UPI QR (right) -->
         <div class="receipt-qr-row">
             <div class="receipt-qr-cell">
                 <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and this.qrCode">
@@ -241,7 +219,7 @@
             </div>
         </div>
 
-        <!-- ⑥ LOYALTY POINTS + EXPIRY -->
+        <!-- LOYALTY POINTS + EXPIRY -->
         <t t-set="loyaltyInfo" t-value="order.getLoyaltyInfo()"/>
         <t t-if="loyaltyInfo.length > 0">
             <div class="loyalty-block">
@@ -262,18 +240,16 @@
             </div>
         </t>
 
-        <!-- ⑦ SALUTATION -->
+        <!-- SALUTATION -->
         <div class="receipt-salutation">
             Thank you for shopping with us!
         </div>
 
-        <!-- ⑧ FOOTER: cashier name (left) + dd/mm/yyyy HH:MM (right) -->
+        <!-- FOOTER: cashier name (left) + dd/mm/yyyy HH:MM (right) -->
         <div class="receipt-footer-row">
             <div><t t-esc="order.getCashierName() or ''"/></div>
             <div><t t-esc="order.getReceiptDateTimeFormatted()"/></div>
         </div>
-
-
 
     </xpath>
 
