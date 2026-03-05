@@ -14,7 +14,7 @@
                                 <field name="label_qty"
                                        string="Copies per Label"
                                        help="Number of copies to print for each selected product"
-                                       attrs="{'required': [['label_qty', '&lt;', 1]]}"
+                                       required="1"
                                 />
                             </group>
                         </group>
