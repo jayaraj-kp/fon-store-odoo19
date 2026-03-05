@@ -8,43 +8,38 @@ class PosSpecialOfferGenerateWizard(models.TransientModel):
     _description = 'Generate Coupon Codes Wizard'
 
     offer_id    = fields.Many2one('pos.special.offer', string='Offer', required=True)
-    prefix      = fields.Char(string='Code Prefix', help='e.g. RAMADAN → RAMADAN-A3X9')
-    count       = fields.Integer(string='Number of Codes', default=10, required=True)
-    code_length = fields.Integer(string='Random Part Length', default=6)
-    single_use  = fields.Boolean(string='Single Use per Code', default=True,
-        help='Each code can only be used once.')
+    count       = fields.Integer(string='Number of Codes to Generate', default=10, required=True)
+    code_length = fields.Integer(string='Code Length (characters)', default=8)
 
     def action_generate(self):
         self.ensure_one()
         Coupon = self.env['pos.special.offer.coupon']
-        existing_codes = set(Coupon.search([]).mapped('code'))
+        existing = set(Coupon.search([]).mapped('code'))
 
-        created = 0
+        chars    = string.ascii_uppercase + string.digits
+        created  = 0
         attempts = 0
-        max_attempts = self.count * 10
 
-        while created < self.count and attempts < max_attempts:
+        while created < self.count and attempts < self.count * 20:
             attempts += 1
-            chars = string.ascii_uppercase + string.digits
-            rand  = ''.join(random.choices(chars, k=self.code_length))
-            code  = f"{self.prefix.strip().upper()}-{rand}" if self.prefix else rand
-
-            if code in existing_codes:
+            code = ''.join(random.choices(chars, k=self.code_length))
+            if code in existing:
                 continue
-
             Coupon.create({
-                'offer_id':   self.offer_id.id,
-                'code':       code,
-                'single_use': self.single_use,
+                'offer_id':  self.offer_id.id,
+                'code':      code,
+                'single_use': True,
             })
-            existing_codes.add(code)
+            existing.add(code)
             created += 1
 
+        # Return to coupon list view
         return {
             'type': 'ir.actions.act_window',
-            'name': f'Generated {created} Coupon Codes',
+            'name': f'Generated {created} Coupon Codes — {self.offer_id.name}',
             'res_model': 'pos.special.offer.coupon',
-            'view_mode': 'list',
+            'view_mode': 'list,form',
             'domain': [('offer_id', '=', self.offer_id.id)],
             'context': {'default_offer_id': self.offer_id.id},
+            'target': 'current',
         }

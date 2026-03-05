@@ -2,7 +2,7 @@
     'name': 'POS Special Offers',
     'version': '19.0.7.0.0',
     'category': 'Point of Sale',
-    'summary': 'Special offers with flat discount, coupon, bulk coupon generation, auto-apply for POS',
+    'summary': 'Special offers with flat discount, coupon generation, auto-apply for POS',
     'depends': ['point_of_sale'],
     'data': [
         'security/ir.model.access.csv',

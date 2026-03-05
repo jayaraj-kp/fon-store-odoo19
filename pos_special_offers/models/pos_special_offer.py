@@ -125,6 +125,15 @@ class PosSpecialOffer(models.Model):
             'context': {'default_offer_id': self.id},
         }
 
+    # ── Export CSV button ─────────────────────────────────────────────────────
+    def action_export_coupons_csv(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'/pos_special_offers/export_coupons/{self.id}',
+            'target': 'new',
+        }
+
     # ── View all coupons button ───────────────────────────────────────────────
     def action_view_coupons(self):
         self.ensure_one()

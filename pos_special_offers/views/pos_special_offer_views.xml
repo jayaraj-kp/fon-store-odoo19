@@ -10,9 +10,9 @@
             decoration-success="state=='available'"
             decoration-muted="state=='used'"
             decoration-danger="state=='expired'">
+        <field name="offer_id"/>
         <field name="code"/>
-        <field name="single_use"/>
-        <field name="used_count"/>
+        <field name="used_count" string="Times Used"/>
         <field name="state" widget="badge"
           decoration-success="state=='available'"
           decoration-warning="state=='used'"
@@ -22,19 +22,25 @@
     </field>
   </record>
 
-  <!-- ── Generate wizard view ── -->
+  <!-- ── Generate wizard form ── -->
   <record id="view_pos_offer_generate_wizard_form" model="ir.ui.view">
     <field name="name">pos.special.offer.generate.wizard.form</field>
     <field name="model">pos.special.offer.generate.wizard</field>
     <field name="arch" type="xml">
       <form string="Generate Coupon Codes">
         <sheet>
+          <div class="alert alert-info" role="alert">
+            Generates random single-use coupon codes (e.g. <strong>A3X9K2M1</strong>).
+            Each code can only be redeemed once in POS.
+          </div>
           <group>
             <field name="offer_id" readonly="1"/>
-            <field name="prefix" placeholder="e.g. RAMADAN  →  RAMADAN-A3X9"/>
-            <field name="count"/>
-            <field name="code_length"/>
-            <field name="single_use"/>
+            <field name="count"
+              string="Number of Codes"
+              help="How many unique codes to generate"/>
+            <field name="code_length"
+              string="Code Length"
+              help="Number of characters per code (min 6, recommended 8)"/>
           </group>
         </sheet>
         <footer>
@@ -58,8 +64,8 @@
         <field name="name"/>
         <field name="offer_type"/>
         <field name="coupon_code" optional="show"/>
-        <field name="coupon_count" string="Codes" optional="show"/>
-        <field name="available_count" string="Available" optional="show"/>
+        <field name="coupon_count"     string="Codes"      optional="show"/>
+        <field name="available_count"  string="Available"  optional="show"/>
         <field name="date_from"/>
         <field name="date_to"/>
         <field name="discount_type"/>
@@ -108,34 +114,39 @@
             </group>
           </group>
 
-          <!-- ── Coupon section (only for coupon type) ── -->
+          <!-- ── Coupon section ── -->
           <group string="Coupon Settings" invisible="offer_type != 'coupon'">
-            <group string="Single Code">
+            <group string="Single Reusable Code">
               <field name="coupon_code"
-                placeholder="Enter a single reusable code, OR generate codes below"
-                help="Leave empty if you prefer generated unique codes below"/>
+                placeholder="Optional — or use generated codes below"/>
             </group>
-            <group string="Generated Codes Summary">
+            <group string="Generated Codes">
               <field name="coupon_count"     string="Total Generated"/>
               <field name="available_count"  string="Available"/>
               <field name="used_count_total" string="Used"/>
             </group>
-            <div class="o_field_widget" colspan="2">
+            <!-- Action buttons -->
+            <div colspan="2" style="padding: 8px 0 12px 0; display:flex; gap:8px;">
               <button name="action_generate_coupons" type="object"
-                string="⚙️ Generate Coupon Codes" class="btn btn-primary"/>
+                string="⚙️ Generate Codes"
+                class="btn btn-primary"/>
               <button name="action_view_coupons" type="object"
-                string="📋 View All Codes" class="btn btn-secondary ms-2"
+                string="📋 View All Codes"
+                class="btn btn-secondary"
+                invisible="coupon_count == 0"/>
+              <button name="action_export_coupons_csv" type="object"
+                string="⬇️ Export CSV"
+                class="btn btn-secondary"
                 invisible="coupon_count == 0"/>
             </div>
-            <!-- Inline codes list -->
-            <field name="coupon_ids" colspan="2"
-              invisible="coupon_count == 0">
+            <!-- Inline codes preview -->
+            <field name="coupon_ids" colspan="2" invisible="coupon_count == 0"
+              nolabel="1">
               <list limit="20"
                     decoration-success="state=='available'"
                     decoration-muted="state=='used'">
                 <field name="code"/>
-                <field name="single_use"/>
-                <field name="used_count"/>
+                <field name="used_count" string="Times Used"/>
                 <field name="state" widget="badge"
                   decoration-success="state=='available'"
                   decoration-warning="state=='used'"
