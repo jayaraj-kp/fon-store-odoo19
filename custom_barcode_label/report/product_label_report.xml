@@ -23,7 +23,6 @@
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">custom_barcode_label.report_custom_label_document</field>
         <field name="report_file">custom_barcode_label.report_custom_label_document</field>
-        <field name="print_report_name">'Custom_Label_' + (object.name or 'Product')</field>
         <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>
     </record>
 
@@ -33,7 +32,6 @@
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">custom_barcode_label.report_custom_label_tmpl_document</field>
         <field name="report_file">custom_barcode_label.report_custom_label_tmpl_document</field>
-        <field name="print_report_name">'Custom_Label_' + (object.name or 'Product')</field>
         <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>
     </record>
 

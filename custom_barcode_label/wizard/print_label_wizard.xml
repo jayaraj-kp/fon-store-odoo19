@@ -1,54 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ─── Wizard Form View ─────────────────────────────────────────── -->
     <record id="view_print_label_wizard_form" model="ir.ui.view">
         <field name="name">custom_barcode_label.print_wizard.form</field>
         <field name="model">custom_barcode_label.print_wizard</field>
         <field name="arch" type="xml">
             <form string="Print Barcode Labels">
                 <sheet>
-                    <div class="o_form_sheet_bg">
-                        <group>
-                            <group string="Print Settings">
-                                <field name="label_qty"
-                                       string="Copies per Label"
-                                       help="Number of copies to print for each selected product"
-                                       required="1"
-                                />
-                            </group>
+                    <group>
+                        <group string="Print Settings">
+                            <field name="label_qty"
+                                   string="Copies per Label"
+                                   help="Number of label copies to print for each selected product"
+                                   required="1"/>
                         </group>
-                        <div class="alert alert-info" role="alert" style="margin-top:8px;">
-                            <i class="fa fa-info-circle"/> 
-                            Click <strong>Print</strong> to open the system print dialog where
-                            you can select your printer, paper size, and other print settings —
-                            just like the POS receipt print.
-                        </div>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        <i class="fa fa-info-circle me-1"/>
+                        Click <strong>Open Print Dialog</strong> to preview labels and
+                        print directly to any connected printer.
                     </div>
                 </sheet>
                 <footer>
-                    <button name="action_print_labels"
-                            string="🖨️  Print Labels"
+                    <button name="action_open_print_dialog"
+                            string="🖨️  Open Print Dialog"
                             type="object"
-                            class="btn-primary"
-                    />
+                            class="btn-primary"/>
                     <button string="Cancel"
                             class="btn-secondary"
-                            special="cancel"
-                    />
+                            special="cancel"/>
                 </footer>
             </form>
         </field>
     </record>
 
-    <!-- ─────────────────────────────────────────────────────────────────
-         These TWO act_window actions appear as "Custom Product Label"
-         in the Action menu and open the wizard instead of printing directly.
-         The ir.actions.report records in product_label_report.xml have NO
-         binding so they don't add extra items to the Action menu.
-         ───────────────────────────────────────────────────────────────── -->
-
-    <!-- Binding on product.product → opens wizard -->
+    <!-- Action menu binding: product.product -->
     <record id="action_custom_label_wizard_product" model="ir.actions.act_window">
         <field name="name">Custom Product Label</field>
         <field name="res_model">custom_barcode_label.print_wizard</field>
@@ -60,7 +46,7 @@
         <field name="binding_type">action</field>
     </record>
 
-    <!-- Binding on product.template → opens wizard -->
+    <!-- Action menu binding: product.template -->
     <record id="action_custom_label_wizard_tmpl" model="ir.actions.act_window">
         <field name="name">Custom Product Label</field>
         <field name="res_model">custom_barcode_label.print_wizard</field>

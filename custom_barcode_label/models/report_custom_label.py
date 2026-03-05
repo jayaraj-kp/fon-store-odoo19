@@ -2,7 +2,11 @@
 import base64
 import io
 import json
+import logging
+
 from odoo import models, api
+
+_logger = logging.getLogger(__name__)
 
 
 class ReportCustomLabel(models.AbstractModel):
@@ -11,8 +15,10 @@ class ReportCustomLabel(models.AbstractModel):
 
     @api.model
     def _get_report_values(self, docids, data=None):
+        _logger.info("BARCODE LABEL: docids=%s data=%s", docids, data)
         docs = self.env['product.product'].browse(docids)
-        label_qty = self._load_label_qty(docids, data)
+        label_qty = self._resolve_qty(docids, data)
+        _logger.info("BARCODE LABEL: label_qty=%s", label_qty)
         return {
             'doc_ids': docids,
             'doc_model': 'product.product',
@@ -22,70 +28,62 @@ class ReportCustomLabel(models.AbstractModel):
         }
 
     @api.model
-    def _load_label_qty(self, docids, data):
+    def _resolve_qty(self, docids, data):
         """
-        Load label qty with 3 fallback layers:
-        1. data dict (may not work in Odoo 17+/19 but try anyway)
-        2. ir.config_parameter — saved by wizard BEFORE calling report
-        3. Default 1 copy per product
+        Resolve qty with 3 fallback layers.
+        Keys are always converted to int to match product.id (int).
         """
-        label_qty = {}
-
-        # Layer 1 — data dict
+        # Layer 1: data dict
         try:
             if data and isinstance(data.get('label_qty'), dict):
                 parsed = {int(k): int(v) for k, v in data['label_qty'].items()}
                 if parsed:
-                    label_qty = parsed
-        except Exception:
-            pass
+                    _logger.info("BARCODE: qty from data dict: %s", parsed)
+                    return parsed
+        except Exception as e:
+            _logger.warning("BARCODE: data dict error: %s", e)
 
-        # Layer 2 — config parameter set by wizard
-        if not label_qty:
-            try:
-                raw = self.env['ir.config_parameter'].sudo().get_param(
+        # Layer 2: ir.config_parameter (set by wizard just before opening dialog)
+        try:
+            raw = self.env['ir.config_parameter'].sudo().get_param(
+                'custom_barcode_label.pending_qty', '{}'
+            )
+            _logger.info("BARCODE: config_param raw=%s docids=%s", raw, docids)
+            stored = json.loads(raw or '{}')
+            parsed = {int(k): int(v) for k, v in stored.items() if int(k) in docids}
+            if parsed:
+                _logger.info("BARCODE: qty from config_param: %s", parsed)
+                # Clear after use so stale data doesn't affect next print
+                self.env['ir.config_parameter'].sudo().set_param(
                     'custom_barcode_label.pending_qty', '{}'
                 )
-                stored = json.loads(raw or '{}')
-                parsed = {int(k): int(v) for k, v in stored.items()
-                          if int(k) in docids}
-                if parsed:
-                    label_qty = parsed
-                    # Clear after use
-                    self.env['ir.config_parameter'].sudo().set_param(
-                        'custom_barcode_label.pending_qty', '{}'
-                    )
-            except Exception:
-                pass
+                return parsed
+            else:
+                _logger.warning("BARCODE: config_param had no matching ids. stored=%s docids=%s", stored, docids)
+        except Exception as e:
+            _logger.warning("BARCODE: config_param error: %s", e)
 
-        # Layer 3 — default 1
-        if not label_qty:
-            label_qty = {doc_id: 1 for doc_id in docids}
-
-        return label_qty
+        # Layer 3: default 1
+        _logger.info("BARCODE: using default qty=1")
+        return {doc_id: 1 for doc_id in docids}
 
     @api.model
     def _get_barcode(self, barcode_value):
-        """Generate Code128 barcode as base64 PNG data URI."""
         if not barcode_value:
             return ''
         try:
             import barcode
             from barcode.writer import ImageWriter
             buf = io.BytesIO()
-            barcode.get(
-                'code128', str(barcode_value), writer=ImageWriter()
-            ).write(buf, options={
-                'write_text': False,
-                'module_height': 10.0,
-                'quiet_zone': 2.0,
-                'font_size': 0,
-                'text_distance': 0,
-            })
+            barcode.get('code128', str(barcode_value), writer=ImageWriter()).write(
+                buf, options={
+                    'write_text': False, 'module_height': 10.0,
+                    'quiet_zone': 2.0, 'font_size': 0, 'text_distance': 0,
+                })
             buf.seek(0)
             return 'data:image/png;base64,' + base64.b64encode(buf.read()).decode()
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.warning("BARCODE: python-barcode failed: %s", e)
         try:
             from reportlab.graphics.barcode.code128 import Code128Barcode
             from reportlab.lib.units import mm
@@ -98,8 +96,8 @@ class ReportCustomLabel(models.AbstractModel):
             renderPM.drawToFile(d, buf, fmt='PNG', dpi=96)
             buf.seek(0)
             return 'data:image/png;base64,' + base64.b64encode(buf.read()).decode()
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.warning("BARCODE: reportlab failed: %s", e)
         return ''
 
 
@@ -110,10 +108,12 @@ class ReportCustomLabelTmpl(models.AbstractModel):
 
     @api.model
     def _get_report_values(self, docids, data=None):
+        _logger.info("BARCODE TMPL: docids=%s data=%s", docids, data)
         docs = self.env['product.template'].browse(docids)
         products = docs.mapped('product_variant_ids')
         product_ids = products.ids
-        label_qty = self._load_label_qty(product_ids, data)
+        label_qty = self._resolve_qty(product_ids, data)
+        _logger.info("BARCODE TMPL: label_qty=%s", label_qty)
         return {
             'doc_ids': docids,
             'doc_model': 'product.template',
