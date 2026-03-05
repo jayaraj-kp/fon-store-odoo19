@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api
+from odoo import models, fields
 
 
 class PrintLabelWizard(models.TransientModel):
@@ -14,9 +14,8 @@ class PrintLabelWizard(models.TransientModel):
 
     def action_download_pdf(self):
         """
-        Generate the barcode label PDF and open it in the browser.
-        The browser's built-in PDF viewer has a Print button so the user
-        can select any printer — identical to the POS receipt flow.
+        Store qty in config_parameter so the report model can read it
+        reliably, then trigger the PDF report action.
         """
         active_ids = self.env.context.get('active_ids', [])
         active_model = self.env.context.get('active_model', 'product.product')
@@ -33,8 +32,13 @@ class PrintLabelWizard(models.TransientModel):
             products = self.env['product.product'].browse(active_ids)
             report_ref = 'custom_barcode_label.action_report_custom_label'
 
-        # Build qty map: {str(product_id): qty}
+        # Store qty per product_id in config param as JSON
+        import json
         label_qty_map = {str(p.id): qty for p in products}
+        self.env['ir.config_parameter'].sudo().set_param(
+            'custom_barcode_label.pending_qty',
+            json.dumps(label_qty_map)
+        )
 
         return self.env.ref(report_ref).report_action(
             products.ids,

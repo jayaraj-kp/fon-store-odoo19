@@ -11,11 +11,32 @@ class ReportCustomLabel(models.AbstractModel):
     @api.model
     def _get_report_values(self, docids, data=None):
         docs = self.env['product.product'].browse(docids)
-        # data['label_qty'] is a dict: {product_id: qty} passed from wizard
-        # Falls back to {}: each product prints once
+
+        # Try 1: data dict passed directly from wizard
         label_qty = {}
-        if data and isinstance(data.get('label_qty'), dict):
-            label_qty = {int(k): int(v) for k, v in data['label_qty'].items()}
+        try:
+            if data and isinstance(data.get('label_qty'), dict):
+                label_qty = {int(k): int(v) for k, v in data['label_qty'].items()}
+        except Exception:
+            label_qty = {}
+
+        # Try 2: fallback to ir.config_parameter set by wizard
+        if not label_qty:
+            try:
+                import json
+                raw = self.env['ir.config_parameter'].sudo().get_param(
+                    'custom_barcode_label.pending_qty', '{}'
+                )
+                stored = json.loads(raw)
+                label_qty = {int(k): int(v) for k, v in stored.items()
+                             if int(k) in docids}
+            except Exception:
+                label_qty = {}
+
+        # Try 3: hard default — 1 copy per product
+        if not label_qty:
+            label_qty = {doc.id: 1 for doc in docs}
+
         return {
             'doc_ids': docids,
             'doc_model': 'product.product',
@@ -26,13 +47,8 @@ class ReportCustomLabel(models.AbstractModel):
 
     @api.model
     def _get_barcode(self, barcode_value):
-        """
-        Generate barcode using Odoo's built-in barcode route handler.
-        This calls the exact same code that /report/barcode/ uses,
-        so it always works regardless of which barcode lib is installed.
-        """
+        """Generate a Code128 barcode PNG as base64 data URI."""
         try:
-            # The most direct way: use python-barcode which Odoo CE bundles
             import barcode
             from barcode.writer import ImageWriter
             buf = io.BytesIO()
@@ -53,7 +69,6 @@ class ReportCustomLabel(models.AbstractModel):
             pass
 
         try:
-            # Alternative: reportlab (also bundled with Odoo)
             from reportlab.graphics.barcode.code128 import Code128Barcode
             from reportlab.lib.units import mm
             from reportlab.graphics.shapes import Drawing
@@ -81,9 +96,30 @@ class ReportCustomLabelTmpl(models.AbstractModel):
     def _get_report_values(self, docids, data=None):
         docs = self.env['product.template'].browse(docids)
         products = docs.mapped('product_variant_ids')
+
         label_qty = {}
-        if data and isinstance(data.get('label_qty'), dict):
-            label_qty = {int(k): int(v) for k, v in data['label_qty'].items()}
+        try:
+            if data and isinstance(data.get('label_qty'), dict):
+                label_qty = {int(k): int(v) for k, v in data['label_qty'].items()}
+        except Exception:
+            label_qty = {}
+
+        if not label_qty:
+            try:
+                import json
+                raw = self.env['ir.config_parameter'].sudo().get_param(
+                    'custom_barcode_label.pending_qty', '{}'
+                )
+                stored = json.loads(raw)
+                product_ids = products.ids
+                label_qty = {int(k): int(v) for k, v in stored.items()
+                             if int(k) in product_ids}
+            except Exception:
+                label_qty = {}
+
+        if not label_qty:
+            label_qty = {p.id: 1 for p in products}
+
         return {
             'doc_ids': docids,
             'doc_model': 'product.template',
