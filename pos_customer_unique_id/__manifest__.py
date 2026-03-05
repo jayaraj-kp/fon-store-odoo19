@@ -21,9 +21,10 @@
     'depends': ['point_of_sale', 'base_setup'],
     'data': [
         'security/ir.model.access.csv',
-        'views/pos_config_views.xml',
         'views/res_partner_views.xml',
     ],
+    'post_init_hook': 'post_init_hook',
+    'uninstall_hook': 'uninstall_hook',
     'assets': {
         'point_of_sale._assets_pos': [
             'pos_customer_unique_id/static/src/js/partner_editor_patch.js',
