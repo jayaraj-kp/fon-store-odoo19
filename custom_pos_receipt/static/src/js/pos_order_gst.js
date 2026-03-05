@@ -14,6 +14,17 @@ patch(PosOrder.prototype, {
         return `${day}/${month}/${year}`;
     },
 
+    /* ================= DATE + TIME: dd/mm/yyyy HH:MM ================= */
+    getReceiptDateTimeFormatted() {
+        const d = this.date_order ? new Date(this.date_order) : new Date();
+        const day   = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year  = d.getFullYear();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const mins  = String(d.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${mins}`;
+    },
+
     /* ================= HELPER: any date → dd/mm/yyyy ================= */
     _formatDateDMY(dateStr) {
         if (!dateStr) return null;

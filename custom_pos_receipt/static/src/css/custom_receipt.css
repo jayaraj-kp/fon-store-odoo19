@@ -108,14 +108,6 @@
     display: block;
     word-break: break-word;
 }
-.customer-ref {
-    font-size: 9px;
-    color: #333;
-    margin-bottom: 2px;
-    letter-spacing: 0.3px;
-    border-bottom: 1px dotted #aaa;
-    padding-bottom: 2px;
-}
 
 /* ===================================================== */
 /* ITEMS TABLE                                           */
@@ -137,10 +129,23 @@
     vertical-align: top;
     border-bottom: 1px dotted #ccc;
 }
+/* Customer name + ID on same line */
+.customer-name-id {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+.customer-id-inline {
+    font-size: 9px;
+    color: #444;
+    font-weight: normal;
+    white-space: nowrap;
+}
 .custom-items-table .col-sn    { width: 8%;  text-align: center; }
-.custom-items-table .col-item  { width: 42%; text-align: left; word-break: break-word; }
+.custom-items-table .col-item  { width: 54%; text-align: left; word-break: break-word; }
 .custom-items-table .col-qty   { width: 12%; text-align: center; }
-.custom-items-table .col-gst   { width: 12%; text-align: center; }
+/* GST column disabled: .custom-items-table .col-gst { width: 12%; text-align: center; } */
 .custom-items-table .col-total { width: 26%; text-align: right; }
 .item-name       { font-size: 10px; }
 .item-rate-uom   { font-size: 9px; color: #444; margin-top: 1px; }

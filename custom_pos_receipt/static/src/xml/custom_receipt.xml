@@ -40,12 +40,12 @@
     <!-- Invoice# + Date + Customer block -->
     <xpath expr="//div[@class='pt-3']" position="replace">
         <div class="cust-divider-top">
-            <!-- POS Order Reference + Date -->
+            <!-- Row 1: POS Invoice# (left) + Date (right) -->
             <div class="receipt-meta-row">
                 <div><strong>Invoice# <t t-esc="order.pos_reference"/></strong></div>
                 <div><t t-esc="order.getReceiptDateFormatted()"/></div>
             </div>
-            <!-- Accounting Invoice Number (only shown when invoice is generated) -->
+            <!-- Row 2: Tax Invoice number on same line — only when accounting invoice exists -->
             <t t-set="accMove" t-value="order.account_move"/>
             <t t-if="accMove and accMove.name and accMove.name !== '/'">
                 <div class="acc-invoice-row">
@@ -53,24 +53,23 @@
                     <span class="acc-invoice-number"><t t-esc="accMove.name"/></span>
                 </div>
             </t>
+            <!-- Customer block: CustID shown after name, phone removed -->
             <t t-if="order.partner_id">
                 <div class="receipt-customer-inline">
-                    <!-- Unique Customer Number: use Internal Reference if set, else CUST-{id} -->
-                    <div class="customer-ref">
-                        Cust#:
-                        <strong>
+                    <div class="customer-name-id">
+                        <strong><t t-esc="order.partner_id.name"/></strong>
+                        <span class="customer-id-inline">
+                            &nbsp;(
                             <t t-if="order.partner_id.ref">
                                 <t t-esc="order.partner_id.ref"/>
                             </t>
                             <t t-else="">
                                 <t t-esc="order.getCustomerRef()"/>
                             </t>
-                        </strong>
+                            )
+                        </span>
                     </div>
-                    <strong><t t-esc="order.partner_id.name"/></strong>
-                    <t t-if="order.partner_id.phone">
-                        <div>Phone: <t t-esc="order.partner_id.phone"/></div>
-                    </t>
+                    <!-- Phone removed as requested -->
                     <t t-if="order.partner_id.vat">
                         <div>GSTIN: <t t-esc="order.partner_id.vat"/></div>
                     </t>
@@ -79,7 +78,7 @@
         </div>
     </xpath>
 
-    <!-- Custom items table -->
+    <!-- Custom items table — GST column commented out (#3) -->
     <xpath expr="//OrderDisplay" position="before">
         <table class="custom-items-table">
             <thead>
@@ -87,7 +86,7 @@
                     <th class="col-sn">SN</th>
                     <th class="col-item">ITEM</th>
                     <th class="col-qty">QTY</th>
-                    <th class="col-gst">GST</th>
+                    <!-- GST column disabled: <th class="col-gst">GST</th> -->
                     <th class="col-total">TOTAL</th>
                 </tr>
             </thead>
@@ -108,7 +107,7 @@
                             </t>
                         </td>
                         <td class="col-qty"><t t-esc="line.qty"/></td>
-                        <td class="col-gst"><t t-esc="line.gst"/>%</td>
+                        <!-- GST cell disabled: <td class="col-gst"><t t-esc="line.gst"/>%</td> -->
                         <td class="col-total"><t t-esc="formatCurrency(line.total)"/></td>
                     </tr>
                 </t>
@@ -185,7 +184,7 @@
             </div>
         </t>
 
-        <!-- ④ GST BREAKDOWN TABLE — below You Saved, above QR codes -->
+        <!-- ④ GST BREAKDOWN TABLE — commented out as requested
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines.length > 0">
             <div class="gst-section">
@@ -219,6 +218,7 @@
                 </table>
             </div>
         </t>
+        END GST TABLE COMMENT -->
 
         <!-- ⑤ QR CODES side by side: Invoice QR (left) + UPI QR (right) -->
         <div class="receipt-qr-row">
@@ -267,10 +267,10 @@
             Thank you for shopping with us!
         </div>
 
-        <!-- ⑧ FOOTER: cashier name (left, no label) + date/time (right) -->
+        <!-- ⑧ FOOTER: cashier name (left) + dd/mm/yyyy HH:MM (right) -->
         <div class="receipt-footer-row">
             <div><t t-esc="order.getCashierName() or ''"/></div>
-            <div><t t-esc="order.formatDateOrTime('date_order')"/></div>
+            <div><t t-esc="order.getReceiptDateTimeFormatted()"/></div>
         </div>
 
 
