@@ -65,11 +65,16 @@ export class InvoiceListScreen extends Component {
     }
 
     getStateBadgeClass(state) {
-        return { paid: "badge-success", done: "badge-primary", invoiced: "badge-info" }[state] || "badge-secondary";
+        return {
+            paid: "badge-success",
+            done: "badge-primary",
+            invoiced: "badge-info"
+        }[state] || "badge-secondary";
     }
 
     selectOrder(order) {
-        this.state.selectedOrder = this.state.selectedOrder?.id === order.id ? null : order;
+        this.state.selectedOrder =
+            this.state.selectedOrder?.id === order.id ? null : order;
     }
 
     isSelected(order) {
@@ -77,11 +82,7 @@ export class InvoiceListScreen extends Component {
     }
 
     goBack() {
-        if (typeof this.pos.showScreen === "function") {
-            this.pos.showScreen("ProductScreen");
-        } else if (this.pos.ui?.showScreen) {
-            this.pos.ui.showScreen("ProductScreen");
-        }
+        this.pos.navigate("ProductScreen");
     }
 }
 
