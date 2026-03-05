@@ -46,22 +46,36 @@ the core `account` (accounting) module.
 
 ## XPath Troubleshooting
 
-If the **Invoices** button does not appear in the top bar:
+### Error: `Element cannot be located in element tree`
 
-1. Open POS in the browser
-2. Open DevTools (F12) → Inspector
-3. Find the top header/nav area and note the correct CSS class
-4. Edit `static/src/xml/InvoiceButton.xml` and update the XPath:
+This means the XPath target class doesn't exist in your POS build.
 
-   ```xml
-   <!-- Current (default) -->
-   <xpath expr="//div[hasclass('top-content')]" position="inside">
+**Step 1:** Open POS → browser DevTools (F12) → Console tab, paste:
+```javascript
+// Run this in the POS browser console to find the top bar class
+document.querySelector('.pos-top-bar') && console.log('✅ pos-top-bar found')
+document.querySelector('.pos-top-bar-buttons') && console.log('✅ pos-top-bar-buttons found')
+document.querySelector('.menus-buttons') && console.log('✅ menus-buttons found')
+document.querySelector('.top-content') && console.log('✅ top-content found')
+```
 
-   <!-- Try these alternatives if needed -->
-   <xpath expr="//div[hasclass('header-button')]" position="after">
-   <xpath expr="//div[hasclass('pos-top-actions')]" position="inside">
-   <xpath expr="//div[hasclass('ground-content')]" position="inside">
-   ```
+**Step 2:** Edit `static/src/xml/InvoiceButton.xml` and replace the XPath with the one that was found:
+
+| If this class exists | Use this XPath |
+|---|---|
+| `pos-top-bar-buttons` | `//div[hasclass('pos-top-bar-buttons')]` |
+| `pos-top-bar` | `//div[hasclass('pos-top-bar')]` |
+| `menus-buttons` | `//div[hasclass('menus-buttons')]` |
+| `top-content` | `//div[hasclass('top-content')]` |
+
+**Step 3:** Upgrade the module and clear browser cache:
+```bash
+# Upgrade module
+python odoo-bin -c odoo.conf -u pos_invoice_menu
+
+# Then in browser: Ctrl+Shift+R (hard refresh)
+```
+
 
 ---
 
