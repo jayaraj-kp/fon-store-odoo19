@@ -41,8 +41,8 @@ patch(PartnerList.prototype, {
         }
 
         try {
-            // Create the partner via ORM
-            const newPartnerId = await this.orm.create("res.partner", [
+            // orm.create returns an array [id] in Odoo 19 — extract the integer
+            const result = await this.orm.create("res.partner", [
                 {
                     name: customerName.trim(),
                     parent_id: cashCustomerId,
@@ -50,11 +50,12 @@ patch(PartnerList.prototype, {
                     customer_rank: 1,
                 },
             ]);
+            const newPartnerId = Array.isArray(result) ? result[0] : result;
 
-            // Load the new partner into the POS local model using data.read (Odoo 19 API)
+            // Load the new partner into the POS local model
             await this.pos.data.read("res.partner", [newPartnerId]);
 
-            // Find the newly loaded partner in the local model
+            // Retrieve from local model and select it
             const newPartner = this.pos.models["res.partner"].get(newPartnerId);
 
             if (newPartner) {
