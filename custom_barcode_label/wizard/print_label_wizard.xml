@@ -27,15 +27,10 @@
                     </div>
                 </sheet>
                 <footer>
-                    <button name="action_get_pdf_url"
-                            string="🖨️  Print"
+                    <button name="action_download_pdf"
+                            string="🖨️  Print Labels"
                             type="object"
                             class="btn-primary"
-                    />
-                    <button name="action_download_pdf"
-                            string="⬇  Download PDF"
-                            type="object"
-                            class="btn-secondary"
                     />
                     <button string="Cancel"
                             class="btn-secondary"
@@ -46,9 +41,16 @@
         </field>
     </record>
 
-    <!-- ─── Action: open wizard from product.product list ───────────── -->
-    <record id="action_print_label_wizard" model="ir.actions.act_window">
-        <field name="name">Print Barcode Labels</field>
+    <!-- ─────────────────────────────────────────────────────────────────
+         These TWO act_window actions appear as "Custom Product Label"
+         in the Action menu and open the wizard instead of printing directly.
+         The ir.actions.report records in product_label_report.xml have NO
+         binding so they don't add extra items to the Action menu.
+         ───────────────────────────────────────────────────────────────── -->
+
+    <!-- Binding on product.product → opens wizard -->
+    <record id="action_custom_label_wizard_product" model="ir.actions.act_window">
+        <field name="name">Custom Product Label</field>
         <field name="res_model">custom_barcode_label.print_wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
@@ -58,9 +60,9 @@
         <field name="binding_type">action</field>
     </record>
 
-    <!-- ─── Action: open wizard from product.template list ──────────── -->
-    <record id="action_print_label_wizard_tmpl" model="ir.actions.act_window">
-        <field name="name">Print Barcode Labels</field>
+    <!-- Binding on product.template → opens wizard -->
+    <record id="action_custom_label_wizard_tmpl" model="ir.actions.act_window">
+        <field name="name">Custom Product Label</field>
         <field name="res_model">custom_barcode_label.print_wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
