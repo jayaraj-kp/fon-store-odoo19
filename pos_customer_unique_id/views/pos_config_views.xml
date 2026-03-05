@@ -2,23 +2,22 @@
 <odoo>
     <!-- ════════════════════════════════════════════════════════════════════
          POS Configuration Form – add Customer Unique ID section
+         NOTE: Odoo 19 uses view_pos_config_form (not pos_config_form_view)
+         attrs="" replaced with inline invisible= (Odoo 17+ syntax)
     ════════════════════════════════════════════════════════════════════ -->
     <record id="view_pos_config_form_customer_uid" model="ir.ui.view">
         <field name="name">pos.config.form.customer.uid</field>
         <field name="model">pos.config</field>
-        <field name="inherit_id" ref="point_of_sale.pos_config_form_view"/>
+        <field name="inherit_id" ref="point_of_sale.view_pos_config_form"/>
         <field name="arch" type="xml">
 
-            <!-- Inject our section just before the closing of the main notebook
-                 (after all existing tabs, so it appears as a dedicated group) -->
             <xpath expr="//notebook" position="inside">
                 <page string="Customer ID" name="customer_uid_page">
-                    <group string="Shop Customer ID Settings"
-                           colspan="2">
+
+                    <group string="Shop Customer ID Settings" colspan="2">
                         <group>
                             <field name="shop_code"
-                                   placeholder="e.g. CHL, KON, TVM …"
-                                   attrs="{'required': [('shop_code', '!=', False)]}"/>
+                                   placeholder="e.g. CHL, KON, TVM …"/>
                         </group>
                         <group>
                             <field name="customer_sequence_id" readonly="1"/>
@@ -27,41 +26,41 @@
 
                     <!-- Info box -->
                     <div class="alert alert-info" role="alert" style="margin:8px 0;">
-                        <strong>How it works:</strong>
-                        Enter a short prefix code for this shop (e.g. <b>CHL</b> for Chelari,
-                        <b>KON</b> for Kondotty). When a new customer is created from this POS,
+                        <strong>How it works: </strong>
+                        Enter a short prefix code for this shop (e.g.
+                        <b>CHL</b> for Chelari, <b>KON</b> for Kondotty).
+                        When a new customer is created from this POS terminal,
                         they will automatically receive a unique ID like
                         <b>CHL - 00001</b>, <b>CHL - 00002</b>, etc.
                     </div>
 
-                    <!-- Action buttons -->
-                    <div class="o_setting_box" style="margin-top:12px;">
-                        <div class="o_setting_right_pane">
-                            <button name="action_setup_customer_sequence"
-                                    type="object"
-                                    string="🔧 Setup / Update Sequence"
-                                    class="btn btn-primary"
-                                    attrs="{'invisible': [('shop_code', '=', False)]}"/>
-                            <button name="action_reset_customer_sequence"
-                                    type="object"
-                                    string="⚠️ Reset Counter to 1"
-                                    class="btn btn-warning ms-2"
-                                    attrs="{'invisible': [('customer_sequence_id', '=', False)]}"
-                                    confirm="This will reset the customer ID counter to 1. Existing IDs will NOT change. Continue?"/>
-                            <button name="action_view_shop_customers"
-                                    type="object"
-                                    string="👥 View Shop Customers"
-                                    class="btn btn-secondary ms-2"
-                                    attrs="{'invisible': [('id', '=', False)]}"/>
-                        </div>
+                    <!-- Action buttons — Odoo 17+/19 uses invisible= attribute directly -->
+                    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <button name="action_setup_customer_sequence"
+                                type="object"
+                                string="Setup / Update Sequence"
+                                class="btn btn-primary"
+                                invisible="not shop_code"/>
+                        <button name="action_reset_customer_sequence"
+                                type="object"
+                                string="Reset Counter to 1"
+                                class="btn btn-warning"
+                                invisible="not customer_sequence_id"
+                                confirm="This will reset the customer ID counter to 1. Existing IDs will NOT change. Continue?"/>
+                        <button name="action_view_shop_customers"
+                                type="object"
+                                string="View Shop Customers"
+                                class="btn btn-secondary"
+                                invisible="not id"/>
                     </div>
 
                     <!-- Customer count stat -->
-                    <group string="Statistics" attrs="{'invisible': [('id', '=', False)]}">
+                    <group string="Statistics" invisible="not id">
                         <field name="customer_id_count"
                                string="Total Customers Created from this Shop"
                                readonly="1"/>
                     </group>
+
                 </page>
             </xpath>
         </field>

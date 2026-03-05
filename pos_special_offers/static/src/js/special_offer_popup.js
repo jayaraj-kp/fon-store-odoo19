@@ -10,6 +10,7 @@ export class SpecialOfferPopup extends Component {
     setup() {
         this.pos = usePos();
         this.offerService = useService("special_offer_service");
+        this.orm = useService("orm");
         this.state = useState({
             couponInput: "",
             appliedMsg:  "",
@@ -32,19 +33,7 @@ export class SpecialOfferPopup extends Component {
     }
 
     get allFlatOffers() {
-        return this.offerService.getActiveOffers()
-            .filter(o => o.offer_type === "flat_discount");
-    }
-
-    // Returns a human-readable scope label for an offer
-    offerScope(offer) {
-        if (offer.all_products)   return "All products";
-        if (offer.all_categories) return "All categories";
-        if (offer.product_ids.length > 0 && offer.category_ids.length > 0)
-            return "Selected products & categories";
-        if (offer.product_ids.length > 0)   return "Selected products only";
-        if (offer.category_ids.length > 0)  return "Selected categories only";
-        return "All products";  // fallback: nothing selected = all
+        return this.offerService.getActiveOffers().filter(o => o.offer_type === "flat_discount");
     }
 
     get currentOrder() {
@@ -57,9 +46,9 @@ export class SpecialOfferPopup extends Component {
         if (!order) return [];
         try {
             if (Array.isArray(order.lines) && order.lines.length > 0) return order.lines;
-            if (typeof order.get_orderlines === "function")            return order.get_orderlines() || [];
-            if (Array.isArray(order.orderlines))                       return order.orderlines;
-            if (order.orderlines?.models)                              return order.orderlines.models;
+            if (typeof order.get_orderlines === "function") return order.get_orderlines() || [];
+            if (Array.isArray(order.orderlines))            return order.orderlines;
+            if (order.orderlines?.models)                   return order.orderlines.models;
         } catch(e) {}
         return [];
     }
@@ -86,24 +75,13 @@ export class SpecialOfferPopup extends Component {
     }
 
     lineMatchesOffer(line, offer) {
-        // all_products = apply to every line
-        if (offer.all_products) return true;
-
+        if (offer.all_products)   return true;
+        if (offer.all_categories) return true;
         const pid    = this.getProductId(line);
         const catIds = this.getProductCategoryIds(line);
-
-        // all_categories = match any category
-        if (offer.all_categories) return true;
-
-        // specific product match
-        if (offer.product_ids.length > 0 && pid && offer.product_ids.includes(pid)) return true;
-
-        // specific category match
+        if (offer.product_ids.length > 0 && pid && offer.product_ids.includes(pid))           return true;
         if (offer.category_ids.length > 0 && catIds.some(c => offer.category_ids.includes(c))) return true;
-
-        // nothing selected at all = apply to everything (fallback)
-        if (offer.product_ids.length === 0 && offer.category_ids.length === 0) return true;
-
+        if (offer.product_ids.length === 0 && offer.category_ids.length === 0)                  return true;
         return false;
     }
 
@@ -124,20 +102,16 @@ export class SpecialOfferPopup extends Component {
     applyOffer(offer) {
         this.state.errorMsg   = "";
         this.state.appliedMsg = "";
-
         const order = this.currentOrder;
         if (!order) { this.state.errorMsg = "No active order found."; return; }
-
         const lines = this.getOrderLines(order);
         if (!lines.length) { this.state.errorMsg = "Please add products to the order first."; return; }
-
         let applied = 0;
         for (const line of lines) {
             if (this.lineMatchesOffer(line, offer)) {
                 if (this.applyDiscount(line, offer)) applied++;
             }
         }
-
         if (applied > 0) {
             this.state.appliedMsg = `✅ "${offer.name}" applied to ${applied} line(s)!`;
         } else {
@@ -145,18 +119,61 @@ export class SpecialOfferPopup extends Component {
         }
     }
 
-    applyCoupon() {
+    async applyCoupon() {
         this.state.errorMsg   = "";
         this.state.appliedMsg = "";
         const code = this.state.couponInput.trim();
         if (!code) { this.state.errorMsg = "Please enter a coupon code."; return; }
 
-        const offer = this.offerService.getActiveOffers().find(
-            o => o.offer_type === "coupon" &&
-                 o.coupon_code.toLowerCase() === code.toLowerCase()
-        );
-        if (!offer) { this.state.errorMsg = `Coupon "${code}" is invalid or expired.`; return; }
-        this.applyOffer(offer);
+        const allOffers = this.offerService.getActiveOffers();
+        let matchedOffer = null;
+        let matchedCoupon = null;  // {id, code, single_use} from generated_codes
+
+        for (const offer of allOffers) {
+            if (offer.offer_type !== "coupon") continue;
+
+            // 1. Check generated codes first
+            if (offer.generated_codes && offer.generated_codes.length > 0) {
+                const found = offer.generated_codes.find(
+                    c => c.code.toLowerCase() === code.toLowerCase()
+                );
+                if (found) {
+                    matchedOffer  = offer;
+                    matchedCoupon = found;
+                    break;
+                }
+            }
+
+            // 2. Fall back to single coupon_code
+            if (offer.coupon_code && offer.coupon_code.toLowerCase() === code.toLowerCase()) {
+                matchedOffer = offer;
+                break;
+            }
+        }
+
+        if (!matchedOffer) {
+            this.state.errorMsg = `Coupon "${code}" is invalid or expired.`;
+            return;
+        }
+
+        // Apply the discount
+        this.applyOffer(matchedOffer);
+
+        // Mark generated coupon as used on the server
+        if (matchedCoupon && this.state.appliedMsg) {
+            try {
+                await this.orm.call("pos.special.offer", "mark_coupon_used", [matchedCoupon.id]);
+                // Remove from local offer list so it can't be reused in this session
+                if (matchedCoupon.single_use) {
+                    matchedOffer.generated_codes = matchedOffer.generated_codes.filter(
+                        c => c.id !== matchedCoupon.id
+                    );
+                }
+            } catch(e) {
+                console.warn("[SpecialOffer] mark_coupon_used failed:", e);
+            }
+        }
+
         this.state.couponInput = "";
     }
 

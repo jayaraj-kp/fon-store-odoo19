@@ -1,132 +1,206 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <record id="view_pos_special_offer_list" model="ir.ui.view">
-        <field name="name">pos.special.offer.list</field>
-        <field name="model">pos.special.offer</field>
-        <field name="arch" type="xml">
-            <list string="Special Offers"
-                  decoration-success="state=='active'"
-                  decoration-muted="state=='expired'"
-                  decoration-warning="state=='draft'">
-                <field name="name"/>
-                <field name="offer_type"/>
-                <field name="coupon_code" optional="show"/>
-                <field name="date_from"/>
-                <field name="date_to"/>
-                <field name="discount_type"/>
-                <field name="discount_value"/>
-                <field name="all_products"/>
-                <field name="all_categories"/>
-                <field name="purchase_limit"/>
-                <field name="usage_count"/>
-                <field name="active" widget="boolean_toggle"/>
+  <!-- ── Coupon list view ── -->
+  <record id="view_pos_offer_coupon_list" model="ir.ui.view">
+    <field name="name">pos.special.offer.coupon.list</field>
+    <field name="model">pos.special.offer.coupon</field>
+    <field name="arch" type="xml">
+      <list string="Coupon Codes"
+            decoration-success="state=='available'"
+            decoration-muted="state=='used'"
+            decoration-danger="state=='expired'">
+        <field name="code"/>
+        <field name="single_use"/>
+        <field name="used_count"/>
+        <field name="state" widget="badge"
+          decoration-success="state=='available'"
+          decoration-warning="state=='used'"
+          decoration-danger="state=='expired'"/>
+        <field name="active" widget="boolean_toggle"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- ── Generate wizard view ── -->
+  <record id="view_pos_offer_generate_wizard_form" model="ir.ui.view">
+    <field name="name">pos.special.offer.generate.wizard.form</field>
+    <field name="model">pos.special.offer.generate.wizard</field>
+    <field name="arch" type="xml">
+      <form string="Generate Coupon Codes">
+        <sheet>
+          <group>
+            <field name="offer_id" readonly="1"/>
+            <field name="prefix" placeholder="e.g. RAMADAN  →  RAMADAN-A3X9"/>
+            <field name="count"/>
+            <field name="code_length"/>
+            <field name="single_use"/>
+          </group>
+        </sheet>
+        <footer>
+          <button name="action_generate" type="object"
+            string="Generate Codes" class="btn-primary"/>
+          <button string="Cancel" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <!-- ── Offer list view ── -->
+  <record id="view_pos_special_offer_list" model="ir.ui.view">
+    <field name="name">pos.special.offer.list</field>
+    <field name="model">pos.special.offer</field>
+    <field name="arch" type="xml">
+      <list string="Special Offers"
+            decoration-success="state=='active'"
+            decoration-muted="state=='expired'"
+            decoration-warning="state=='draft'">
+        <field name="name"/>
+        <field name="offer_type"/>
+        <field name="coupon_code" optional="show"/>
+        <field name="coupon_count" string="Codes" optional="show"/>
+        <field name="available_count" string="Available" optional="show"/>
+        <field name="date_from"/>
+        <field name="date_to"/>
+        <field name="discount_type"/>
+        <field name="discount_value"/>
+        <field name="active" widget="boolean_toggle"/>
+        <field name="state" widget="badge"
+          decoration-success="state=='active'"
+          decoration-warning="state=='draft'"
+          decoration-danger="state=='expired'"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- ── Offer form view ── -->
+  <record id="view_pos_special_offer_form" model="ir.ui.view">
+    <field name="name">pos.special.offer.form</field>
+    <field name="model">pos.special.offer</field>
+    <field name="arch" type="xml">
+      <form string="Special Offer">
+        <header>
+          <field name="state" widget="statusbar" statusbar_visible="draft,active,expired"/>
+        </header>
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="name" placeholder="Offer Name..."/></h1>
+          </div>
+
+          <group>
+            <group string="Offer Settings">
+              <field name="offer_type" widget="radio"/>
+              <field name="purchase_limit"/>
+              <field name="usage_count"/>
+              <field name="active"/>
+            </group>
+            <group string="Offer Period">
+              <field name="date_from" widget="datetime"/>
+              <field name="date_to"   widget="datetime"/>
+              <field name="days_remaining"/>
+            </group>
+          </group>
+
+          <group string="Discount">
+            <group>
+              <field name="discount_type"/>
+              <field name="discount_value"/>
+            </group>
+          </group>
+
+          <!-- ── Coupon section (only for coupon type) ── -->
+          <group string="Coupon Settings" invisible="offer_type != 'coupon'">
+            <group string="Single Code">
+              <field name="coupon_code"
+                placeholder="Enter a single reusable code, OR generate codes below"
+                help="Leave empty if you prefer generated unique codes below"/>
+            </group>
+            <group string="Generated Codes Summary">
+              <field name="coupon_count"     string="Total Generated"/>
+              <field name="available_count"  string="Available"/>
+              <field name="used_count_total" string="Used"/>
+            </group>
+            <div class="o_field_widget" colspan="2">
+              <button name="action_generate_coupons" type="object"
+                string="⚙️ Generate Coupon Codes" class="btn btn-primary"/>
+              <button name="action_view_coupons" type="object"
+                string="📋 View All Codes" class="btn btn-secondary ms-2"
+                invisible="coupon_count == 0"/>
+            </div>
+            <!-- Inline codes list -->
+            <field name="coupon_ids" colspan="2"
+              invisible="coupon_count == 0">
+              <list limit="20"
+                    decoration-success="state=='available'"
+                    decoration-muted="state=='used'">
+                <field name="code"/>
+                <field name="single_use"/>
+                <field name="used_count"/>
                 <field name="state" widget="badge"
-                    decoration-success="state=='active'"
-                    decoration-warning="state=='draft'"
-                    decoration-danger="state=='expired'"/>
-            </list>
-        </field>
-    </record>
+                  decoration-success="state=='available'"
+                  decoration-warning="state=='used'"
+                  decoration-danger="state=='expired'"/>
+                <field name="active" widget="boolean_toggle"/>
+              </list>
+            </field>
+          </group>
 
-    <record id="view_pos_special_offer_form" model="ir.ui.view">
-        <field name="name">pos.special.offer.form</field>
-        <field name="model">pos.special.offer</field>
-        <field name="arch" type="xml">
-            <form string="Special Offer">
-                <header>
-                    <field name="state" widget="statusbar"
-                        statusbar_visible="draft,active,expired"/>
-                </header>
-                <sheet>
-                    <div class="oe_title">
-                        <h1><field name="name" placeholder="Offer Name..."/></h1>
-                    </div>
+          <!-- ── Apply To ── -->
+          <group string="Apply To">
+            <group string="Products">
+              <field name="all_products" widget="boolean_toggle"/>
+              <field name="product_ids"
+                widget="many2many_tags"
+                string="Select Products"
+                options="{'no_create': True}"
+                invisible="all_products == True"/>
+            </group>
+            <group string="Categories">
+              <field name="all_categories" widget="boolean_toggle"/>
+              <field name="category_ids"
+                widget="many2many_tags"
+                string="Select Categories"
+                options="{'no_create': True}"
+                invisible="all_categories == True"/>
+            </group>
+          </group>
 
-                    <group>
-                        <group string="Offer Settings">
-                            <field name="offer_type" widget="radio"/>
-                            <field name="coupon_code"
-                                invisible="offer_type != 'coupon'"
-                                required="offer_type == 'coupon'"/>
-                            <field name="purchase_limit"/>
-                            <field name="usage_count"/>
-                            <field name="active"/>
-                        </group>
-                        <group string="Offer Period">
-                            <field name="date_from" widget="datetime"/>
-                            <field name="date_to"   widget="datetime"/>
-                            <field name="days_remaining"/>
-                        </group>
-                    </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
 
-                    <group string="Discount">
-                        <group>
-                            <field name="discount_type"/>
-                            <field name="discount_value"/>
-                        </group>
-                    </group>
+  <!-- ── Search ── -->
+  <record id="view_pos_special_offer_search" model="ir.ui.view">
+    <field name="name">pos.special.offer.search</field>
+    <field name="model">pos.special.offer</field>
+    <field name="arch" type="xml">
+      <search>
+        <field name="name"/>
+        <field name="coupon_code"/>
+        <filter string="Active"        name="active"   domain="[('state','=','active')]"/>
+        <filter string="Draft"         name="draft"    domain="[('state','=','draft')]"/>
+        <filter string="Expired"       name="expired"  domain="[('state','=','expired')]"/>
+        <separator/>
+        <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>
+        <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>
+      </search>
+    </field>
+  </record>
 
-                    <!-- Apply To section with All toggles + individual selectors -->
-                    <group string="Apply To">
-                        <group string="Products">
-                            <field name="all_products" widget="boolean_toggle"/>
-                            <field name="product_ids"
-                                widget="many2many_tags"
-                                string="Select Products"
-                                options="{'no_create': True}"
-                                invisible="all_products == True"
-                                help="Select specific products, or enable 'All Products' above"/>
-                        </group>
-                        <group string="Categories">
-                            <field name="all_categories" widget="boolean_toggle"/>
-                            <field name="category_ids"
-                                widget="many2many_tags"
-                                string="Select Categories"
-                                options="{'no_create': True}"
-                                invisible="all_categories == True"
-                                help="Select specific categories, or enable 'All Categories' above"/>
-                        </group>
-                    </group>
+  <record id="action_pos_special_offer" model="ir.actions.act_window">
+    <field name="name">Special Offers</field>
+    <field name="res_model">pos.special.offer</field>
+    <field name="view_mode">list,form</field>
+    <field name="search_view_id" ref="view_pos_special_offer_search"/>
+    <field name="context">{'search_default_active': 1}</field>
+  </record>
 
-                </sheet>
-            </form>
-        </field>
-    </record>
-
-    <record id="view_pos_special_offer_search" model="ir.ui.view">
-        <field name="name">pos.special.offer.search</field>
-        <field name="model">pos.special.offer</field>
-        <field name="arch" type="xml">
-            <search>
-                <field name="name"/>
-                <field name="coupon_code"/>
-                <filter string="Active"        name="active"   domain="[('state','=','active')]"/>
-                <filter string="Draft"         name="draft"    domain="[('state','=','draft')]"/>
-                <filter string="Expired"       name="expired"  domain="[('state','=','expired')]"/>
-                <separator/>
-                <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>
-                <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>
-                <separator/>
-                <filter string="All Products"   name="all_products"   domain="[('all_products','=',True)]"/>
-                <filter string="All Categories" name="all_categories" domain="[('all_categories','=',True)]"/>
-            </search>
-        </field>
-    </record>
-
-    <record id="action_pos_special_offer" model="ir.actions.act_window">
-        <field name="name">Special Offers</field>
-        <field name="res_model">pos.special.offer</field>
-        <field name="view_mode">list,form</field>
-        <field name="search_view_id" ref="view_pos_special_offer_search"/>
-        <field name="context">{'search_default_active': 1}</field>
-    </record>
-
-    <menuitem id="menu_pos_special_offers"
-        name="Special Offers"
-        parent="point_of_sale.menu_point_of_sale"
-        action="action_pos_special_offer"
-        sequence="25"
-        groups="point_of_sale.group_pos_manager"/>
+  <menuitem id="menu_pos_special_offers"
+    name="Special Offers"
+    parent="point_of_sale.menu_point_of_sale"
+    action="action_pos_special_offer"
+    sequence="25"
+    groups="point_of_sale.group_pos_manager"/>
 
 </odoo>

@@ -1,8 +1,8 @@
 {
     'name': 'POS Special Offers',
-    'version': '19.0.6.0.0',
+    'version': '19.0.7.0.0',
     'category': 'Point of Sale',
-    'summary': 'Special offers with flat discount, coupon, auto-apply for POS',
+    'summary': 'Special offers with flat discount, coupon, bulk coupon generation, auto-apply for POS',
     'depends': ['point_of_sale'],
     'data': [
         'security/ir.model.access.csv',
@@ -11,7 +11,6 @@
     'assets': {
         'point_of_sale._assets_pos': [
             'pos_special_offers/static/src/css/special_offer.css',
-            # auto_apply FIRST — exports registerAutoApplyService used by service
             'pos_special_offers/static/src/js/special_offer_auto_apply.js',
             'pos_special_offers/static/src/js/special_offer_service.js',
             'pos_special_offers/static/src/js/special_offer_popup.js',

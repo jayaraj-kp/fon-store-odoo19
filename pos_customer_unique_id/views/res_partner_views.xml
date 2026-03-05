@@ -15,7 +15,7 @@
             <xpath expr="//notebook" position="inside">
                 <page string="POS Info"
                       name="pos_info_page"
-                      attrs="{'invisible': [('pos_unique_id', '=', False)]}">
+                      invisible="not pos_unique_id">
                     <group string="Point of Sale Information">
                         <group>
                             <field name="pos_unique_id"

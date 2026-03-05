@@ -1,3 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_pos_special_offer_user,pos.special.offer user,model_pos_special_offer,point_of_sale.group_pos_user,1,1,1,0
-access_pos_special_offer_manager,pos.special.offer manager,model_pos_special_offer,point_of_sale.group_pos_manager,1,1,1,1
+access_pos_special_offer,pos.special.offer,model_pos_special_offer,point_of_sale.group_pos_manager,1,1,1,1
+access_pos_special_offer_user,pos.special.offer.user,model_pos_special_offer,point_of_sale.group_pos_user,1,0,0,0
+access_pos_special_offer_coupon,pos.special.offer.coupon,model_pos_special_offer_coupon,point_of_sale.group_pos_manager,1,1,1,1
+access_pos_special_offer_coupon_user,pos.special.offer.coupon.user,model_pos_special_offer_coupon,point_of_sale.group_pos_user,1,1,0,0
+access_pos_special_offer_generate_wizard,pos.special.offer.generate.wizard,model_pos_special_offer_generate_wizard,point_of_sale.group_pos_manager,1,1,1,1
