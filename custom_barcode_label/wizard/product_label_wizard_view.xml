@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Wizard Form View ─────────────────────────────────────────── -->
+    <record id="view_product_label_print_wizard" model="ir.ui.view">
+        <field name="name">product.label.print.wizard.form</field>
+        <field name="model">product.label.print.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Print Product Labels">
+                <group string="Label Settings">
+                    <field name="qty"
+                           string="Copies per Product"
+                           widget="integer"
+                           attrs="{'required': [['qty', '&lt;', 1]]}"/>
+                </group>
+                <group string="Direct Printer (optional)">
+                    <field name="printer_name"
+                           string="Printer Name"
+                           placeholder="e.g. Zebra_ZD410  (leave blank for default)"/>
+                </group>
+                <div class="alert alert-info" role="alert" style="margin:8px 0;">
+                    <strong>Tip:</strong>
+                    Use <b>Print PDF</b> to open the browser print dialog (choose any printer).<br/>
+                    Use <b>Direct Print</b> to send straight to a CUPS-configured label printer
+                    without a dialog (requires CUPS on the Odoo server).
+                </div>
+                <footer>
+                    <button name="action_print_pdf"
+                            string="🖨️ Print PDF"
+                            type="object"
+                            class="btn-primary"/>
+                    <button name="action_print_direct"
+                            string="⚡ Direct Print"
+                            type="object"
+                            class="btn-secondary"/>
+                    <button string="Cancel"
+                            class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ── Action: open wizard from product.product ──────────────────── -->
+    <record id="action_product_label_wizard" model="ir.actions.act_window">
+        <field name="name">Print Product Labels</field>
+        <field name="res_model">product.label.print.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id"
+               search="[('model','=','product.product')]"
+               model="ir.model"/>
+        <field name="binding_type">action</field>
+    </record>
+
+    <!-- ── Action: open wizard from product.template ─────────────────── -->
+    <record id="action_product_label_wizard_tmpl" model="ir.actions.act_window">
+        <field name="name">Print Product Labels</field>
+        <field name="res_model">product.label.print.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id"
+               search="[('model','=','product.template')]"
+               model="ir.model"/>
+        <field name="binding_type">action</field>
+    </record>
+
+</odoo>

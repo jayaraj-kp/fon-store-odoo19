@@ -11,36 +11,19 @@ class ReportCustomLabel(models.AbstractModel):
     @api.model
     def _get_report_values(self, docids, data=None):
         docs = self.env['product.product'].browse(docids)
+        qty = int(data.get('qty', 1)) if data else 1
         return {
             'doc_ids': docids,
             'doc_model': 'product.product',
             'docs': docs,
+            'qty': qty,
             'get_barcode': self._get_barcode,
         }
 
     @api.model
     def _get_barcode(self, barcode_value):
-        """
-        Generate barcode using Odoo's built-in barcode route handler.
-        This calls the exact same code that /report/barcode/ uses,
-        so it always works regardless of which barcode lib is installed.
-        """
+        """Generate barcode image as base64 data URI."""
         try:
-            from odoo.addons.base.models.ir_actions_report import IrActionsReport
-            # Odoo's barcode method: barcode(barcode_type, value, **kwargs)
-            png_bytes = IrActionsReport._render_qweb_pdf  # just checking import
-        except Exception:
-            pass
-
-        try:
-            # Use Odoo's barcode controller directly (internal call, no HTTP)
-            from odoo.addons.web.controllers.report import ReportController
-            ctrl = ReportController()
-        except Exception:
-            pass
-
-        try:
-            # The most direct way: use python-barcode which Odoo CE bundles
             import barcode
             from barcode.writer import ImageWriter
             buf = io.BytesIO()
@@ -57,24 +40,23 @@ class ReportCustomLabel(models.AbstractModel):
             })
             buf.seek(0)
             return 'data:image/png;base64,' + base64.b64encode(buf.read()).decode()
-        except Exception as e:
+        except Exception:
             pass
 
         try:
-            # Alternative: reportlab (also bundled with Odoo)
             from reportlab.graphics.barcode.code128 import Code128Barcode
             from reportlab.lib.units import mm
             from reportlab.graphics.shapes import Drawing
             from reportlab.graphics import renderPM
 
-            bc = Code128Barcode(str(barcode_value), barHeight=9*mm, barWidth=0.8)
-            d = Drawing(70*mm, 10*mm)
+            bc = Code128Barcode(str(barcode_value), barHeight=9 * mm, barWidth=0.8)
+            d = Drawing(70 * mm, 10 * mm)
             d.add(bc)
             buf = io.BytesIO()
             renderPM.drawToFile(d, buf, fmt='PNG', dpi=96)
             buf.seek(0)
             return 'data:image/png;base64,' + base64.b64encode(buf.read()).decode()
-        except Exception as e:
+        except Exception:
             pass
 
         return ''
@@ -89,9 +71,11 @@ class ReportCustomLabelTmpl(models.AbstractModel):
     def _get_report_values(self, docids, data=None):
         docs = self.env['product.template'].browse(docids)
         products = docs.mapped('product_variant_ids')
+        qty = int(data.get('qty', 1)) if data else 1
         return {
             'doc_ids': docids,
             'doc_model': 'product.template',
             'docs': products,
+            'qty': qty,
             'get_barcode': self._get_barcode,
         }

@@ -1,17 +1,13 @@
 {
     'name': 'POS Invoice Menu',
     'version': '19.0.1.0.0',
-    'summary': 'Add Invoices menu button in POS top bar',
-    'description': """
-        Adds a custom "Invoices" button to the POS top bar that displays
-        all orders/invoices for the current session. Works without the
-        core accounting module.
-    """,
+    'summary': 'Add Invoices button in POS top bar and backend menu',
     'category': 'Point of Sale',
     'author': 'Custom',
-    'website': '',
     'depends': ['point_of_sale'],
-    'data': [],
+    'data': [
+        'views/pos_invoice_menu_views.xml',
+    ],
     'assets': {
         'point_of_sale._assets_pos': [
             'pos_invoice_menu/static/src/js/InvoiceListScreen.js',

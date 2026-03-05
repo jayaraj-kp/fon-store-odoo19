@@ -42,7 +42,11 @@
     <template id="report_custom_label_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
-                <t t-call="custom_barcode_label.report_custom_label_content"/>
+                <!-- Repeat the label qty times for this product -->
+                <t t-set="copy_range" t-value="list(range(qty or 1))"/>
+                <t t-foreach="copy_range" t-as="copy_index">
+                    <t t-call="custom_barcode_label.report_custom_label_content"/>
+                </t>
             </t>
         </t>
     </template>
@@ -50,7 +54,10 @@
     <template id="report_custom_label_tmpl_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
-                <t t-call="custom_barcode_label.report_custom_label_content"/>
+                <t t-set="copy_range" t-value="list(range(qty or 1))"/>
+                <t t-foreach="copy_range" t-as="copy_index">
+                    <t t-call="custom_barcode_label.report_custom_label_content"/>
+                </t>
             </t>
         </t>
     </template>

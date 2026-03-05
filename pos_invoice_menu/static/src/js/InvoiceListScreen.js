@@ -7,7 +7,6 @@ import { registry } from "@web/core/registry";
 export class InvoiceListScreen extends Component {
     static template = "pos_invoice_menu.InvoiceListScreen";
     static props = {};
-    static storeOnOrder = false;
 
     setup() {
         this.pos = useService("pos");
@@ -86,4 +85,5 @@ export class InvoiceListScreen extends Component {
     }
 }
 
-registry.category("pos_screens").add("InvoiceListScreen", InvoiceListScreen);
+// ✅ Correct registry name confirmed from error: "pos_pages"
+registry.category("pos_pages").add("InvoiceListScreen", InvoiceListScreen);

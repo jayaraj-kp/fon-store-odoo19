@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Server action: open POS orders list ─────────────────────────────── -->
+    <record id="action_pos_invoice_orders" model="ir.actions.act_window">
+        <field name="name">POS Invoices / Orders</field>
+        <field name="res_model">pos.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', 'in', ['paid', 'done', 'invoiced'])]</field>
+        <field name="context">{'search_default_group_by_session': 1}</field>
+    </record>
+
+    <!-- ── Add "Invoices" menu item under Point of Sale top menu ───────────── -->
+    <menuitem
+        id="menu_pos_invoice_orders"
+        name="Invoices"
+        parent="point_of_sale.menu_point_of_sale"
+        action="action_pos_invoice_orders"
+        sequence="25"
+    />
+
+</odoo>
