@@ -2,7 +2,7 @@
 
 import { Component } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { Chrome } from "@point_of_sale/app/pos_app";
+import { Navbar } from "@point_of_sale/app/navbar/navbar";
 import { patch } from "@web/core/utils/patch";
 
 export class InvoiceButton extends Component {
@@ -17,11 +17,11 @@ export class InvoiceButton extends Component {
     }
 }
 
-// Patch Chrome to include InvoiceButton as a sub-component
-// so the XML template can reference it by name.
-patch(Chrome, {
+// Register InvoiceButton as a sub-component of Navbar so OWL
+// can resolve <InvoiceButton/> inside the Navbar XML template patch.
+patch(Navbar, {
     components: {
-        ...Chrome.components,
+        ...Navbar.components,
         InvoiceButton,
     },
 });

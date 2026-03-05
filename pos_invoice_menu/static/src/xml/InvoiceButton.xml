@@ -5,33 +5,27 @@
     <t t-name="pos_invoice_menu.InvoiceButton" owl="1">
         <button class="pos-invoice-topbar-btn" t-on-click="openInvoiceScreen">
             <i class="fa fa-file-text-o"/>
-            <span class="pos-invoice-btn-label"> Invoices</span>
+            <span> Invoices</span>
         </button>
     </t>
 
     <!--
-    ═══════════════════════════════════════════════════════════════════════════
-    ODOO 19 CE — POS Chrome Top Bar Patch
-    ═══════════════════════════════════════════════════════════════════════════
+        Odoo 17/18/19: the top bar is rendered by `point_of_sale.Navbar`
+        Structure:
+            <div class="pos-navbar">
+                <div class="pos-leftheader"> ... </div>
+                <div class="pos-rightheader"> ... close/hamburger buttons ... </div>
+            </div>
 
-    In Odoo 17/18/19 the top bar lives in `point_of_sale.Chrome` (NOT ProductScreen).
-    The template structure is:
-
-        <div class="pos-top-bar">
-            <div class="menus-buttons"> ... </div>
-            <div class="pos-title-section"> ... </div>
-            <div class="pos-top-bar-buttons"> ... </div>
-        </div>
-
-    We inject our button inside the right-side buttons area.
-    ═══════════════════════════════════════════════════════════════════════════
+        We inject our button BEFORE the right-side buttons (before pos-rightheader).
     -->
-    <t t-name="point_of_sale.Chrome" owl="1"
-       t-inherit="point_of_sale.Chrome"
+    <t t-name="pos_invoice_menu.NavbarPatch" owl="1"
+       t-inherit="point_of_sale.Navbar"
        t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('pos-top-bar-buttons')]" position="inside">
+        <xpath expr="//div[hasclass('pos-rightheader')]" position="before">
             <InvoiceButton />
         </xpath>
     </t>
 
 </templates>
+
