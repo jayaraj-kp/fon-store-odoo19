@@ -1,30 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
 
-    <!--
-        Odoo 19 CE POS — the partner list component template is
-        "point_of_sale.PartnerList". We add a CASH CUSTOMER info banner.
-        
-        NOTE: If your Odoo 19 build uses a different template name,
-        check the browser devtools → Sources → search "PartnerList" in
-        point_of_sale assets to confirm the exact t-name value.
-    -->
-    <t t-name="pos_cash_customer.PartnerListBanner"
-       t-inherit="point_of_sale.PartnerList"
-       t-inherit-mode="extension">
+    <!-- Standalone banner component — no xpath inheritance, no fragile selectors -->
+    <t t-name="pos_cash_customer.CashCustomerBanner">
+        <div t-if="cashCustomerName" class="cash-customer-banner">
+            <span class="cash-customer-icon">👤</span>
+            <span class="cash-customer-label">
+                New contacts saved under: <strong t-esc="cashCustomerName"/>
+            </span>
+        </div>
+    </t>
 
-        <xpath expr="//div[hasclass('partner-list-container')]" position="before">
-            <t t-if="cashCustomer">
-                <div class="cash-customer-banner">
-                    <span class="cash-customer-icon">👤</span>
-                    <span class="cash-customer-label">
-                        New contacts saved under:
-                        <strong t-esc="cashCustomer.name"/>
-                    </span>
-                </div>
-            </t>
-        </xpath>
-
+    <!-- Standalone parent-info row shown inside the create customer form -->
+    <t t-name="pos_cash_customer.CashParentRow">
+        <div t-if="cashCustomerName" class="cash-parent-row">
+            <span class="cash-parent-icon">🏷️</span>
+            <span class="cash-parent-text">
+                Parent Account: <strong t-esc="cashCustomerName"/>
+            </span>
+            <span class="cash-parent-badge">Auto-assigned</span>
+        </div>
     </t>
 
 </templates>

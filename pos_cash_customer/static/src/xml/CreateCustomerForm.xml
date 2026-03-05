@@ -1,31 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
-
-    <!--
-        Odoo 19 CE POS — the partner editor template is
-        "point_of_sale.PartnerEditor". We add a parent-account row.
-
-        NOTE: Check your browser devtools if this still fails —
-        search "PartnerEditor" or "EditPartner" in the POS assets source.
-    -->
-    <t t-name="pos_cash_customer.PartnerEditorCashParent"
-       t-inherit="point_of_sale.PartnerEditor"
-       t-inherit-mode="extension">
-
-        <!-- Add "Parent Account" display row before the name input -->
-        <xpath expr="//input[@id='partner-name']" position="before">
-            <t t-if="pos.getCashCustomer and pos.getCashCustomer()">
-                <div class="cash-parent-row">
-                    <span class="cash-parent-icon">🏷️</span>
-                    <span class="cash-parent-text">
-                        Parent Account:
-                        <strong t-esc="pos.getCashCustomer().name"/>
-                    </span>
-                    <span class="cash-parent-badge">Auto-assigned</span>
-                </div>
-            </t>
-        </xpath>
-
-    </t>
-
+    <!-- Intentionally empty - visual elements are in CashCustomerButton.xml -->
 </templates>
