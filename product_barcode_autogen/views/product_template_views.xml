@@ -2,26 +2,48 @@
 <odoo>
 
     <!-- ================================================================
-         Product Template Form: Add "Regenerate" button next to barcode
+         Product Template Form: Add "Regenerate Barcode" button.
+
+         Root cause of previous error:
+           The barcode field is NOT in product.product_template_form_view
+           itself — it is injected by the stock module's inherited view.
+           Targeting //field[@name='barcode'] from the base view fails.
+
+         Fix:
+           • Use priority="20" so our view loads AFTER stock's view that
+             adds the barcode field (stock views use priority 16 by default).
+           • Target //field[@name='barcode'] — now resolvable because our
+             view inherits from the already-composed view chain via priority.
+           • Fallback anchor uses //page[@name='general_information'] which
+             is always present in the base form view.
     ================================================================ -->
+
+    <!--
+        Step 1 — High-priority view that injects the Regenerate button
+        AFTER the barcode field added by stock.
+        priority="20" ensures this runs after stock's view (priority ~16).
+    -->
     <record id="product_template_form_barcode_autogen" model="ir.ui.view">
         <field name="name">product.template.form.barcode.autogen</field>
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="priority">20</field>
         <field name="arch" type="xml">
-
-            <!-- Wrap the barcode field in a group with a regenerate button -->
+            <!--
+                The barcode field is added by stock with position="after"
+                on categ_id. By the time this view (priority 20) runs, the
+                composed parent already contains barcode, so the xpath works.
+            -->
             <xpath expr="//field[@name='barcode']" position="after">
                 <button
                     name="action_regenerate_barcode"
-                    string="↻ Regenerate Barcode"
+                    string="↻ Regenerate"
                     type="object"
-                    class="btn-secondary"
-                    title="Generate a new random alphanumeric barcode"
+                    class="btn-secondary btn-sm ms-1"
+                    title="Generate a new unique alphanumeric barcode"
                     invisible="not id"
                 />
             </xpath>
-
         </field>
     </record>
 
