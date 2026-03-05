@@ -26,6 +26,12 @@ patch(PosOrder.prototype, {
         } catch (_) { return null; }
     },
 
+    /* ================= CUSTOMER UNIQUE REF ================= */
+    getCustomerRef() {
+        const id = this.partner_id?.id || 0;
+        return 'CUST-' + String(id).padStart(5, '0');
+    },
+
     /* ================= COMPANY NAME SPLIT ================= */
     getCompanyNameLines() {
         const name = this.company?.name || '';

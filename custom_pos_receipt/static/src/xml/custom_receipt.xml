@@ -54,7 +54,7 @@
                                 <t t-esc="order.partner_id.ref"/>
                             </t>
                             <t t-else="">
-                                CUST-<t t-esc="String(order.partner_id.id).padStart(5, '0')"/>
+                                <t t-esc="order.getCustomerRef()"/>
                             </t>
                         </strong>
                     </div>
