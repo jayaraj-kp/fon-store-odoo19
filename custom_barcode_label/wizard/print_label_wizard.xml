@@ -27,7 +27,7 @@
                     </div>
                 </sheet>
                 <footer>
-                    <button name="action_download_pdf"
+                    <button name="action_print_labels"
                             string="🖨️  Print Labels"
                             type="object"
                             class="btn-primary"
