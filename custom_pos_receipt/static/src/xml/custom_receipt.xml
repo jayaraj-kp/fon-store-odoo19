@@ -37,21 +37,13 @@
    t-inherit="point_of_sale.OrderReceipt"
    t-inherit-mode="extension">
 
-    <!--
-        STRATEGY: Only use xpaths that are guaranteed to exist.
-        Everything else is hidden via CSS.
-        This prevents "Missing template" fatal errors on load.
-    -->
-
-    <!-- Replace the pt-3 spacer with our invoice + customer block -->
+    <!-- Invoice# + Date + Customer block -->
     <xpath expr="//div[@class='pt-3']" position="replace">
         <div class="cust-divider-top">
-            <!-- Invoice# + Date -->
             <div class="receipt-meta-row">
                 <div><strong>Invoice# <t t-esc="order.pos_reference"/></strong></div>
                 <div><t t-esc="order.getReceiptDateFormatted()"/></div>
             </div>
-            <!-- Customer: name + phone + GSTIN only -->
             <t t-if="order.partner_id">
                 <div class="receipt-customer-inline">
                     <strong><t t-esc="order.partner_id.name"/></strong>
@@ -66,7 +58,7 @@
         </div>
     </xpath>
 
-    <!-- Inject custom items table BEFORE OrderDisplay -->
+    <!-- Custom items table -->
     <xpath expr="//OrderDisplay" position="before">
         <table class="custom-items-table">
             <thead>
@@ -98,7 +90,7 @@
         </table>
     </xpath>
 
-    <!-- Keep OrderDisplay but hidden — required for l10n_in_pos compatibility -->
+    <!-- Keep OrderDisplay hidden for l10n_in_pos compatibility -->
     <xpath expr="//OrderDisplay" position="replace">
         <div style="display:none;">
             <OrderDisplay order="order" t-slot-scope="scope" mode="'receipt'">
@@ -109,13 +101,24 @@
     </xpath>
 
     <!--
-        All other default blocks (taxes, total, payments, change, QR, footer)
-        are hidden via CSS class selectors in custom_receipt.css.
-        We do NOT xpath-remove them to avoid missing-node errors in Odoo 19.
+        Default Odoo blocks are hidden via CSS (not xpath-removed)
+        to prevent fatal "Missing template" errors in Odoo 19.
     -->
 
-    <!-- Inject our entire custom bottom section before the before-footer div -->
     <xpath expr="//div[@class='before-footer']" position="before">
+
+        <!--
+            SECTION ORDER:
+            ① Taxable / CGST / SGST / Grand Total
+            ② Amount in Words          ← directly below Grand Total
+            ③ You Saved
+            ④ GST Breakdown Table      ← below You Saved, above QR
+            ⑤ UPI QR only              ← invoice QR moved to bottom
+            ⑥ Loyalty Points + Expiry
+            ⑦ Salutation
+            ⑧ Footer: cashier name (left) + date (right)
+            ⑨ Invoice QR              ← very bottom
+        -->
 
         <!-- ① GRAND TOTAL SUMMARY -->
         <div class="custom-total-section">
@@ -135,36 +138,22 @@
                 <span>Grand Total</span>
                 <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
             </div>
-            <t t-if="order.getTotalSaved() > 0">
-                <div class="saved-line">
-                    <span>&#127881; You Saved &#127881;</span>
-                    <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
-                </div>
-            </t>
         </div>
 
-        <!-- ② QR CODES — left: Scan for Invoice (small)  |  right: UPI Pay -->
-        <div class="receipt-qr-row">
-            <div class="receipt-qr-cell">
-                <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and this.qrCode">
-                    <div class="qr-cell-label">Scan for Invoice</div>
-                    <img t-att-src="this.qrCode" class="qr-invoice-small" alt="Invoice QR"/>
-                    <t t-if="order.ticket_code">
-                        <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
-                    </t>
-                </t>
-            </div>
-            <div class="receipt-qr-cell">
-                <t t-if="upiQrSrc">
-                    <div class="qr-cell-label">Scan &amp; Pay &#x20B9;</div>
-                    <div class="upi-qr-image-container">
-                        <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR"/>
-                    </div>
-                </t>
-            </div>
+        <!-- ② AMOUNT IN WORDS — directly below Grand Total -->
+        <div class="amount-words">
+            <t t-esc="order.getAmountInWords()"/>
         </div>
 
-        <!-- ③ GST BREAKDOWN TABLE — between QR codes and amount in words -->
+        <!-- ③ YOU SAVED -->
+        <t t-if="order.getTotalSaved() > 0">
+            <div class="saved-line">
+                <span>&#127881; You Saved &#127881;</span>
+                <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
+            </div>
+        </t>
+
+        <!-- ④ GST BREAKDOWN TABLE — below You Saved, above QR codes -->
         <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
         <t t-if="gstLines.length > 0">
             <div class="gst-section">
@@ -199,12 +188,17 @@
             </div>
         </t>
 
-        <!-- ④ AMOUNT IN WORDS -->
-        <div class="amount-words">
-            <t t-esc="order.getAmountInWords()"/>
-        </div>
+        <!-- ⑤ UPI QR only — invoice QR is at the very bottom -->
+        <t t-if="upiQrSrc">
+            <div class="upi-qr-section">
+                <div class="qr-cell-label">Scan &amp; Pay &#x20B9;</div>
+                <div class="upi-qr-image-container">
+                    <img t-att-src="upiQrSrc" class="upi-qr-image" alt="UPI QR"/>
+                </div>
+            </div>
+        </t>
 
-        <!-- ⑤ LOYALTY POINTS + EXPIRY -->
+        <!-- ⑥ LOYALTY POINTS + EXPIRY -->
         <t t-set="loyaltyInfo" t-value="order.getLoyaltyInfo()"/>
         <t t-if="loyaltyInfo.length > 0">
             <div class="loyalty-block">
@@ -225,15 +219,27 @@
             </div>
         </t>
 
-        <!-- ⑥ SALUTATION -->
+        <!-- ⑦ SALUTATION -->
         <div class="receipt-salutation">
             Thank you for shopping with us!
         </div>
 
-        <!-- ⑦ FOOTER — date/time only (Served by removed) -->
+        <!-- ⑧ FOOTER: cashier name (left, no label) + date/time (right) -->
         <div class="receipt-footer-row">
+            <div><t t-esc="order.getCashierName() or ''"/></div>
             <div><t t-esc="order.formatDateOrTime('date_order')"/></div>
         </div>
+
+        <!-- ⑨ INVOICE QR — very bottom -->
+        <t t-if="order.company.point_of_sale_use_ticket_qr_code and order.finalized and this.qrCode">
+            <div class="invoice-qr-bottom">
+                <div class="qr-cell-label">Scan for Invoice</div>
+                <img t-att-src="this.qrCode" class="qr-invoice-small" alt="Invoice QR"/>
+                <t t-if="order.ticket_code">
+                    <div class="qr-cell-code">Code: <t t-out="order.ticket_code"/></div>
+                </t>
+            </div>
+        </t>
 
     </xpath>
 
@@ -326,7 +332,8 @@
 <!--                    <tr class="items-row">-->
 <!--                        <td class="col-sn"><t t-esc="line.sn"/></td>-->
 <!--                        <td class="col-item">-->
-<!--                            <t t-esc="line.name"/>-->
+<!--                            <div class="item-name"><t t-esc="line.name"/></div>-->
+<!--                            <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/> / <t t-esc="line.uom"/></div>-->
 <!--                            <t t-if="line.note">-->
 <!--                                <div class="item-note"><t t-esc="line.note"/></div>-->
 <!--                            </t>-->
@@ -481,3 +488,4 @@
 
 <!--</t>-->
 <!--</templates>-->
+

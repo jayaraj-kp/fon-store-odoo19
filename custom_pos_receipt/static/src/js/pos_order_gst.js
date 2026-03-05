@@ -158,6 +158,7 @@ patch(PosOrder.prototype, {
 
 
 
+
 ///** @odoo-module **/
 //
 //import { PosOrder } from "@point_of_sale/app/models/pos_order";
@@ -240,6 +241,8 @@ patch(PosOrder.prototype, {
 //                sn:       index + 1,
 //                name,
 //                qty:      line.qty || 0,
+//                uom:      line.product_id?.uom_id?.name || 'Units',
+//                rate:     line.price_unit || 0,
 //                gst:      gstRate,
 //                discount: line.discount || 0,
 //                total:    line.price_subtotal_incl || 0,
@@ -313,3 +316,5 @@ patch(PosOrder.prototype, {
 //    },
 //
 //});
+
+
