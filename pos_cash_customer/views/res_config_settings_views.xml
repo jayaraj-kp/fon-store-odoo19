@@ -3,45 +3,27 @@
     <record id="res_config_settings_view_pos_cash_customer" model="ir.ui.view">
         <field name="name">res.config.settings.view.pos.cash.customer</field>
         <field name="model">res.config.settings</field>
-        <!--
-            Inherit from base (not point_of_sale) so we are not sensitive to
-            whatever internal structure the POS settings view uses in Odoo 19.
-            We inject our own app_settings_block which appears as a separate
-            section in the General Settings page.
-        -->
         <field name="inherit_id" ref="base.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//div[hasclass('settings')]" position="inside">
-                <div class="app_settings_block"
-                     data-string="POS Cash Customer"
-                     string="POS Cash Customer"
-                     data-key="pos_cash_customer">
-                    <h2>Point of Sale — Cash Customer</h2>
-                    <div class="row mt16 o_settings_container">
-                        <div class="col-12 col-lg-6 o_setting_box"
-                             id="pos_cash_customer_setting">
-                            <div class="o_setting_left_pane"/>
-                            <div class="o_setting_right_pane">
-                                <label for="pos_cash_customer_id"
-                                       string="Cash Customer Partner"/>
-                                <div class="text-muted">
-                                    All new customers created in POS will be
-                                    added as contacts under this partner.
-                                    Leave empty to use the standard create
-                                    customer form.
-                                </div>
-                                <div class="content-group mt8">
-                                    <div class="row mt4">
-                                        <field name="pos_cash_customer_id"
-                                               class="col-lg-7"
-                                               placeholder="e.g. CASH CUSTOMER"
-                                               options="{'no_open': True}"/>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <!--
+                Odoo 17+ / 18 / 19: The old div[hasclass('settings')] XPath no longer exists.
+                The correct anchor is //form with position="inside".
+                Settings are now structured with <app>, <block>, and <setting> tags.
+            -->
+            <xpath expr="//form" position="inside">
+                <app string="POS Cash Customer"
+                     name="pos_cash_customer"
+                     data-string="POS Cash Customer">
+                    <block title="Cash Customer">
+                        <setting string="Cash Customer Partner"
+                                 help="All new customers created in POS will be added as contacts under this partner. Leave empty to use the standard create customer form."
+                                 id="pos_cash_customer_id_setting">
+                            <field name="pos_cash_customer_id"
+                                   placeholder="e.g. CASH CUSTOMER"
+                                   options="{'no_open': True}"/>
+                        </setting>
+                    </block>
+                </app>
             </xpath>
         </field>
     </record>
