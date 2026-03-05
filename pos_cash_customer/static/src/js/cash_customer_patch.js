@@ -13,11 +13,11 @@ patch(PartnerList.prototype, {
     },
 
     async editPartner(p = false) {
-        // Resolve cash_customer_id — may be an int, a Many2one tuple [id, name], or a record object
+        // Resolve cash_customer_id — may be int, [id, name] tuple, or record object
         const raw = this.pos.config.cash_customer_id;
         const cashCustomerId = Array.isArray(raw) ? raw[0] : (raw?.id || raw || 0);
 
-        // If editing an existing partner, or no cash customer configured → default behaviour
+        // Editing existing partner, or no cash customer configured → default behaviour
         if (p || !cashCustomerId) {
             return super.editPartner(p);
         }
@@ -41,6 +41,7 @@ patch(PartnerList.prototype, {
         }
 
         try {
+            // Create the partner via ORM
             const newPartnerId = await this.orm.create("res.partner", [
                 {
                     name: customerName.trim(),
@@ -50,11 +51,11 @@ patch(PartnerList.prototype, {
                 },
             ]);
 
-            await this.pos.loadNewPartner(newPartnerId);
+            // Load the new partner into the POS local model using data.read (Odoo 19 API)
+            await this.pos.data.read("res.partner", [newPartnerId]);
 
-            const newPartner = this.pos.models["res.partner"].find(
-                (p) => p.id === newPartnerId
-            );
+            // Find the newly loaded partner in the local model
+            const newPartner = this.pos.models["res.partner"].get(newPartnerId);
 
             if (newPartner) {
                 this.clickPartner(newPartner);
