@@ -248,7 +248,7 @@
     display: block;
     margin: 0 auto;
     background: #fff !important;
-    padding-top: 30px;
+
     image-rendering: pixelated;
 }
 .upi-qr-image-container {
@@ -322,6 +322,6 @@
 @media print {
     .receipt-qr-row       { page-break-inside: avoid; flex-wrap: nowrap; }
     .upi-qr-image         { width: 70px !important; height: 70px !important; }
-    .qr-invoice-small     { width: 46px !important; height: 46px !important; }
+    .qr-invoice-small     { width: 70px !important; height: 70px !important; }
     .receipt-company-logo { max-width: 100px; max-height: 85px; }
 }
