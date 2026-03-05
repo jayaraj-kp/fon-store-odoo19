@@ -12,15 +12,12 @@ patch(PartnerList.prototype, {
         this.notification = useService("notification");
     },
 
-    /**
-     * In Odoo 19, the Create button calls editPartner(false) — not createPartner().
-     * We intercept here: if p=false (new partner) AND cash_customer_id is set,
-     * we show our prompt instead of the standard Edit Partner dialog.
-     */
     async editPartner(p = false) {
-        const cashCustomerId = this.pos.config.cash_customer_id;
+        // Resolve cash_customer_id — may be an int, a Many2one tuple [id, name], or a record object
+        const raw = this.pos.config.cash_customer_id;
+        const cashCustomerId = Array.isArray(raw) ? raw[0] : (raw?.id || raw || 0);
 
-        // If editing an EXISTING partner, or no cash customer configured → default behaviour
+        // If editing an existing partner, or no cash customer configured → default behaviour
         if (p || !cashCustomerId) {
             return super.editPartner(p);
         }
@@ -34,7 +31,7 @@ patch(PartnerList.prototype, {
             }
         } catch (_e) { /* use default */ }
 
-        // Collect new customer name
+        // Collect new customer name via native prompt
         const customerName = window.prompt(
             `New customer under "${cashCustomerName}"\n\nEnter customer name:`
         );
