@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!--
+        pos_cash_customer templates
+        No additional OWL templates needed – behaviour is handled via JS patch.
+    -->
+</templates>
