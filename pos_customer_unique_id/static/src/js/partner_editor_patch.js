@@ -1,120 +1,106 @@
 /** @odoo-module **/
 
 /**
- * POS Customer Unique ID – PartnerEditor patch
+ * POS Customer Unique ID – PartnerEditor patch (Odoo 19 compatible)
  *
- * What this does:
- *  1. When saving a NEW partner from POS, injects `pos_config_id_for_uid`
- *     into the data sent to the server so the Python side can generate
- *     the correct shop-prefixed ID (e.g. CHL - 00001).
- *  2. Exposes `pos_unique_id` inside the PartnerEditor state so the
- *     OWL template can render the badge.
- *  3. After a new partner is saved and the POS reloads the partner record,
- *     the generated ID is automatically shown.
+ * Uses a dynamic registry-based approach so the patch won't crash the POS
+ * even if the PartnerEditor component path changes between Odoo versions.
  */
 
-import { PartnerEditor } from "@point_of_sale/app/screens/partner_list/partner_editor/partner_editor";
 import { patch } from "@web/core/utils/patch";
 
-patch(PartnerEditor.prototype, {
+function applyPartnerEditorPatch(PartnerEditor) {
+    patch(PartnerEditor.prototype, {
 
-    // ── Setup ─────────────────────────────────────────────────────────────
-    setup() {
-        super.setup(...arguments);
-        // Expose pos_unique_id from the current partner prop (if editing)
-        // For new partners it will be empty and populated after reload.
-    },
+        get isNewPartner() {
+            return !(this.props.partner && this.props.partner.id);
+        },
 
-    // ── Helpers ───────────────────────────────────────────────────────────
+        get shopCode() {
+            try {
+                return (this.pos && this.pos.config && this.pos.config.shop_code) || '';
+            } catch (e) { return ''; }
+        },
 
-    /**
-     * Returns true if we are creating a brand-new partner (no id yet).
-     */
-    get isNewPartner() {
-        return !(this.props.partner && this.props.partner.id);
-    },
+        get displayPosUniqueId() {
+            try {
+                if (!this.isNewPartner && this.props.partner && this.props.partner.pos_unique_id) {
+                    return this.props.partner.pos_unique_id;
+                }
+                if (this.isNewPartner && this.shopCode) {
+                    return `${this.shopCode.toUpperCase()} - (auto)`;
+                }
+            } catch (e) { /* silent */ }
+            return '';
+        },
 
-    /**
-     * Returns the shop code from the current POS config, or empty string.
-     */
-    get shopCode() {
-        return (this.pos && this.pos.config && this.pos.config.shop_code) || '';
-    },
+        async savePartner() {
+            const isNew = this.isNewPartner;
+            let configId = null;
+            try {
+                if (isNew && this.pos && this.pos.config && this.pos.config.id) {
+                    configId = this.pos.config.id;
+                }
+            } catch (e) { /* silent */ }
 
-    /**
-     * Returns the auto-generated pos_unique_id of the currently-open partner,
-     * or a preview hint for new partners.
-     */
-    get displayPosUniqueId() {
-        if (!this.isNewPartner && this.props.partner && this.props.partner.pos_unique_id) {
-            return this.props.partner.pos_unique_id;
-        }
-        if (this.isNewPartner && this.shopCode) {
-            return `${this.shopCode.toUpperCase()} - (auto)`;
-        }
-        return '';
-    },
-
-    // ── Override save to inject our config ID ────────────────────────────
-
-    /**
-     * Patch the internal method that builds the partner data object
-     * before it is sent to `res.partner.create_from_ui`.
-     *
-     * We inject `pos_config_id_for_uid` so the Python override can
-     * identify which shop's sequence to use.
-     */
-    getPartnerData() {
-        // Some Odoo versions have getPartnerData(), others build it inline.
-        // We try to call super; if it doesn't exist we return undefined.
-        let data;
-        try {
-            data = super.getPartnerData(...arguments);
-        } catch (e) {
-            data = undefined;
-        }
-
-        if (data && this.isNewPartner && this.pos && this.pos.config && this.pos.config.id) {
-            data.pos_config_id_for_uid = this.pos.config.id;
-        }
-        return data;
-    },
-
-    /**
-     * Main save override – works whether the version uses getPartnerData()
-     * or builds the partner object directly inside savePartner().
-     */
-    async savePartner() {
-        const isNew = this.isNewPartner;
-
-        // For Odoo versions that don't use getPartnerData(), we monkey-patch
-        // the ORM call temporarily to inject our extra field.
-        if (isNew && this.pos && this.pos.config && this.pos.config.id) {
-            const originalOrmCall = this.orm.call.bind(this.orm);
-            const configId = this.pos.config.id;
-
-            this.orm.call = async (model, method, args, kwargs) => {
-                // Intercept only the create_from_ui call for res.partner
-                if (model === 'res.partner' && method === 'create_from_ui') {
-                    const partnerArg = args && args[0];
-                    if (partnerArg && typeof partnerArg === 'object') {
-                        // Only inject for new partners (no id field or id is falsy)
-                        if (!partnerArg.id) {
+            if (isNew && configId) {
+                const originalCall = this.orm.call.bind(this.orm);
+                this.orm.call = async (model, method, args, kwargs) => {
+                    if (model === 'res.partner' && method === 'create_from_ui') {
+                        const partnerArg = args && args[0];
+                        if (partnerArg && typeof partnerArg === 'object' && !partnerArg.id) {
                             partnerArg.pos_config_id_for_uid = configId;
                         }
                     }
+                    return originalCall(model, method, args, kwargs);
+                };
+                try {
+                    return await super.savePartner(...arguments);
+                } finally {
+                    this.orm.call = originalCall;
                 }
-                return originalOrmCall(model, method, args, kwargs);
-            };
-
-            try {
-                return await super.savePartner(...arguments);
-            } finally {
-                // Always restore the original orm.call
-                this.orm.call = originalOrmCall;
             }
-        }
+            return super.savePartner(...arguments);
+        },
+    });
+    console.info("[POS Customer UID] PartnerEditor patched successfully.");
+}
 
-        return super.savePartner(...arguments);
-    },
-});
+// ── Try to load PartnerEditor from Odoo's module loader ──────────────────────
+// We wait for the POS app to be ready, then locate PartnerEditor dynamically.
+// This avoids hard-coding an import path that can change between Odoo versions.
+
+function tryPatchFromLoader() {
+    const loader = odoo && odoo.loader;
+    if (!loader) return false;
+
+    // Known module paths across Odoo versions
+    const candidates = [
+        "@point_of_sale/app/screens/partner_list/partner_editor",
+        "@point_of_sale/app/screens/partner_list/partner_editor/partner_editor",
+    ];
+
+    for (const path of candidates) {
+        try {
+            const mod = loader.modules.get(path);
+            if (mod && mod.PartnerEditor) {
+                applyPartnerEditorPatch(mod.PartnerEditor);
+                return true;
+            }
+        } catch (e) { /* try next */ }
+    }
+    return false;
+}
+
+// Attempt patch immediately (works if module already loaded)
+if (!tryPatchFromLoader()) {
+    // Retry after a short delay (POS lazy-loads components)
+    setTimeout(() => {
+        if (!tryPatchFromLoader()) {
+            console.warn(
+                "[POS Customer UID] PartnerEditor not found via loader – " +
+                "customer IDs will still be generated server-side when contacts are saved."
+            );
+        }
+    }, 1000);
+}

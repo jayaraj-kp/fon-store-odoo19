@@ -27,8 +27,8 @@
     'uninstall_hook': 'uninstall_hook',
     'assets': {
         'point_of_sale._assets_pos': [
-            'pos_customer_unique_id/static/src/js/partner_editor_patch.js',
             'pos_customer_unique_id/static/src/xml/partner_editor_patch.xml',
+            'pos_customer_unique_id/static/src/js/partner_editor_patch.js',
         ],
     },
     'installable': True,
