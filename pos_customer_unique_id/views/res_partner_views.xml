@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- ════════════════════════════════════════════════════════════════════
+         Contact (res.partner) Form – add POS Customer ID section
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="view_partner_form_pos_uid" model="ir.ui.view">
+        <field name="name">res.partner.form.pos.uid</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Place our group after the "Notes" chatter area, in a new tab.
+                 We inject it into the "Sales & Purchase" tab if present,
+                 otherwise just before the sheet closing. -->
+            <xpath expr="//notebook" position="inside">
+                <page string="POS Info"
+                      name="pos_info_page"
+                      attrs="{'invisible': [('pos_unique_id', '=', False)]}">
+                    <group string="Point of Sale Information">
+                        <group>
+                            <field name="pos_unique_id"
+                                   string="POS Customer ID"
+                                   readonly="1"/>
+                            <field name="pos_config_id"
+                                   string="Created at Shop"
+                                   readonly="1"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ── Partner List View: add pos_unique_id column ── -->
+    <record id="view_partner_tree_pos_uid" model="ir.ui.view">
+        <field name="name">res.partner.tree.pos.uid</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='email']" position="after">
+                <field name="pos_unique_id"
+                       string="POS ID"
+                       optional="show"
+                       readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ── Search view: allow searching by POS ID ── -->
+    <record id="view_partner_search_pos_uid" model="ir.ui.view">
+        <field name="name">res.partner.search.pos.uid</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="pos_unique_id" string="POS Customer ID"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

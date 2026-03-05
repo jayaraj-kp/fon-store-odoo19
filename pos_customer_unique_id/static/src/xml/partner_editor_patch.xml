@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Inherit the POS PartnerEditor template to add the
+        POS Customer Unique ID display badge.
+
+        - For EXISTING contacts that already have a pos_unique_id:
+          Shows a green "Customer ID" badge with the actual ID.
+
+        - For NEW contacts being created (when shop_code is configured):
+          Shows a grey "(auto)" preview so the cashier knows an ID
+          will be assigned on save.
+    -->
+    <t t-inherit="point_of_sale.PartnerEditor" t-inherit-mode="extension">
+
+        <!--
+            We inject our badge right after the partner name input field.
+            The xpath targets the row/div that wraps the name input.
+            Adjust the xpath if your Odoo version uses different class names.
+        -->
+        <xpath expr="//div[contains(@class,'partner-name')]" position="after">
+
+            <!-- Shown only when there is something to display -->
+            <t t-if="displayPosUniqueId">
+                <div class="pos-customer-uid-row d-flex align-items-center gap-2 px-3 py-2">
+                    <span class="fw-bold text-muted" style="min-width:120px;">
+                        Customer ID
+                    </span>
+                    <!-- Green badge for existing IDs -->
+                    <t t-if="!isNewPartner and props.partner and props.partner.pos_unique_id">
+                        <span class="badge rounded-pill text-bg-success fs-6 px-3 py-2"
+                              style="letter-spacing:0.05em;">
+                            <i class="fa fa-id-badge me-1"/>
+                            <t t-esc="props.partner.pos_unique_id"/>
+                        </span>
+                    </t>
+                    <!-- Grey "auto" preview for new partners -->
+                    <t t-else="">
+                        <span class="badge rounded-pill text-bg-secondary fs-6 px-3 py-2"
+                              style="letter-spacing:0.05em; opacity:0.75;">
+                            <i class="fa fa-magic me-1"/>
+                            <t t-esc="displayPosUniqueId"/>
+                        </span>
+                        <small class="text-muted fst-italic">
+                            Will be assigned on save
+                        </small>
+                    </t>
+                </div>
+            </t>
+
+        </xpath>
+
+    </t>
+
+</templates>
