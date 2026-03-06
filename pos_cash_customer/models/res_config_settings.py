@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields
 
 
 class ResConfigSettings(models.TransientModel):
@@ -8,6 +8,6 @@ class ResConfigSettings(models.TransientModel):
         'res.partner',
         string='POS Cash Customer',
         config_parameter='pos_cash_customer.cash_customer_id',
-        domain=[('is_company', '=', False)],
+        # Removed domain restriction - allow any partner (company or individual)
         help='The master CASH CUSTOMER partner. All new POS customers will be added as contacts under this partner.',
     )
