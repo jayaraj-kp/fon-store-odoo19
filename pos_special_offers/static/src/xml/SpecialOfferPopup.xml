@@ -17,6 +17,7 @@
 
             <div class="sop-body">
 
+                <!-- ── Coupon code input ── -->
                 <div class="sop-coupon-section">
                     <div class="sop-section-title">🏷️ Apply Coupon Code</div>
                     <div class="sop-coupon-row">
@@ -26,8 +27,13 @@
                             t-on-input="onCouponInput"/>
                         <button class="sop-btn-apply-coupon" t-on-click="applyCoupon">Apply</button>
                     </div>
+                    <!-- Info: what the coupon will deduct -->
+                    <div style="margin-top:8px; font-size:12px; color:#888;">
+                        💡 Coupon codes deduct a fixed amount or percentage from the matching product price.
+                    </div>
                 </div>
 
+                <!-- ── Flat discount offers list ── -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
                     <div class="sop-section-title" style="margin:0;">🔖 Active Flat Discount Offers</div>
                     <span class="sop-count-badge"><t t-esc="allFlatOffers.length"/> offer(s)</span>
@@ -49,7 +55,7 @@
                                     <span class="sop-badge sop-badge-pct"><t t-esc="offer.discount_value"/>% OFF</span>
                                 </t>
                                 <t t-else="">
-                                    <span class="sop-badge sop-badge-fixed">Fixed: <t t-esc="offer.discount_value"/></span>
+                                    <span class="sop-badge sop-badge-fixed">- ₹<t t-esc="offer.discount_value"/> OFF</span>
                                 </t>
                                 <span class="sop-offer-dates">
                                     <t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/>
@@ -60,7 +66,7 @@
                                     </span>
                                 </t>
                             </div>
-                            <!-- Scope badge: All Products / All Categories / Selected ... -->
+                            <!-- Scope badge -->
                             <div class="sop-offer-scope">
                                 <t t-if="offer.all_products">
                                     <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>
