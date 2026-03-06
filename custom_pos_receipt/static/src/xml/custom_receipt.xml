@@ -43,7 +43,7 @@
 
             <!-- POS Invoice# left, Date right -->
             <div class="receipt-meta-row">
-                <div><strong>Invoice# <t t-esc="order.pos_reference"/></strong></div>
+                <div><strong>Invoice: <t t-esc="order.pos_reference"/></strong></div>
                 <div><t t-esc="order.getReceiptDateFormatted()"/></div>
             </div>
 
