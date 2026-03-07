@@ -1,9 +1,9 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v6)
+ * custom_barcode.js  –  Odoo 19 CE  (v7)
  * ========================================
- * Fixes: Notification component crash — Odoo 19 uses this.env.services.notification
- * instead of this.notification, and does NOT accept a 'duration' prop.
+ * Fix: addProductToCurrentOrder in Odoo 19 ignores {quantity} option.
+ * After adding, we explicitly set qty on the selected order line.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -35,7 +35,6 @@ async function fetchCustomBarcodeMap() {
             for (const [barcode, entry] of Object.entries(raw)) {
                 _customBarcodeMap[barcode.toUpperCase()] = entry;
             }
-
             const keys = Object.keys(_customBarcodeMap);
             console.log(`[CustomBarcode] ✅ Map loaded — ${keys.length} barcode(s):`, keys);
         } catch (err) {
@@ -64,45 +63,70 @@ function findProductById(pos, productId) {
     return null;
 }
 
-// ── Show a safe notification (handles Odoo 17/18/19 API differences) ─────────
+// ── Get the currently selected order line ────────────────────────────────────
+function getSelectedLine(pos) {
+    const order = pos.get_order?.() || pos.selectedOrder || pos.currentOrder;
+    if (!order) return null;
+    return order.get_selected_orderline?.()
+        || order.selected_orderline
+        || order.selectedOrderline
+        || null;
+}
+
+// ── Show safe notification ────────────────────────────────────────────────────
 function showNotification(screen, message) {
     try {
-        // Odoo 19: notification service via env
         const svc = screen.env?.services?.notification;
-        if (svc) {
-            svc.add(message, { type: 'success' });
-            return;
-        }
-        // Odoo 17/18: this.notification
-        if (screen.notification) {
-            screen.notification.add(message, { type: 'success' });
-            return;
-        }
+        if (svc) { svc.add(message, { type: 'success' }); return; }
+        if (screen.notification) { screen.notification.add(message, { type: 'success' }); }
     } catch (e) {
-        // Notification is cosmetic — never crash on it
         console.warn('[CustomBarcode] Notification skipped:', e.message);
     }
 }
 
-// ── Add product + qty (Odoo 17/18/19 fallbacks) ───────────────────────────────
+// ── Add product then FORCE the quantity on the resulting line ─────────────────
 async function addProductWithQty(screen, product, qty) {
     const pos = screen.pos;
+
+    // ── Odoo 19: addProductToCurrentOrder exists but ignores quantity option ──
     if (typeof pos.addProductToCurrentOrder === 'function') {
         await pos.addProductToCurrentOrder(product, { quantity: qty });
+
+        // Odoo 19 ignores {quantity} — set it explicitly on the selected line
+        const line = getSelectedLine(pos);
+        if (line) {
+            // Try reactive assignment first (Odoo 19 uses reactive state)
+            if (typeof line.set_quantity === 'function') {
+                line.set_quantity(String(qty));   // some builds expect string
+            } else if ('qty' in line) {
+                line.qty = qty;
+            } else if ('quantity' in line) {
+                line.quantity = qty;
+            }
+            console.log(`[CustomBarcode] Line qty set to ${qty} on`, line);
+        } else {
+            console.warn('[CustomBarcode] Could not find selected line to set qty.');
+        }
         return true;
     }
+
+    // ── Odoo 17/18 ────────────────────────────────────────────────────────────
     if (typeof screen.addProductToOrder === 'function') {
         await screen.addProductToOrder(product);
-        const order = pos.get_order?.() || pos.selectedOrder;
-        const line  = order?.get_selected_orderline?.() || order?.selected_orderline;
-        if (line && typeof line.set_quantity === 'function') line.set_quantity(qty);
+        const line = getSelectedLine(pos);
+        if (line && typeof line.set_quantity === 'function') {
+            line.set_quantity(String(qty));
+        }
         return true;
     }
+
+    // ── Legacy fallback ───────────────────────────────────────────────────────
     const order = pos.get_order?.() || pos.selectedOrder;
     if (order && typeof order.add_product === 'function') {
         order.add_product(product, { quantity: qty });
         return true;
     }
+
     return false;
 }
 
@@ -131,16 +155,13 @@ patch(ProductScreen.prototype, {
                         return super._barcodeProductAction(code);
                     }
 
-                    // Safe notification — will never crash POS even if API changes
                     showNotification(this, `${entry.product_name}  ×  ${entry.qty}`);
-
                     this.numberBuffer?.reset?.();
-                    return;   // handled — do NOT call super
+                    return;
                 } else {
                     console.warn(
-                        `[CustomBarcode] Barcode "${barcodeUpper}" matched ` +
-                        `(product_id=${entry.product_id}) but product not in POS. ` +
-                        `Enable it for this POS configuration.`
+                        `[CustomBarcode] product_id=${entry.product_id} not in POS. ` +
+                        `Enable it in this POS configuration.`
                     );
                 }
             }
@@ -152,5 +173,4 @@ patch(ProductScreen.prototype, {
 
 // Pre-warm cache on module load
 fetchCustomBarcodeMap().catch(() => {});
-
-console.log('[CustomBarcode] ✅ v6 loaded.');
+console.log('[CustomBarcode] ✅ v7 loaded.');
