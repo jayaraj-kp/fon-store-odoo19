@@ -1,10 +1,10 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v8)
+ * custom_barcode.js  –  Odoo 19 CE  (v9)
  * ========================================
- * Fix: Use numberBuffer to pre-set qty BEFORE adding product.
- * This is the native Odoo 19 way — the same path the UI uses when a
- * cashier types a number then clicks a product.
+ * Root fix: Call order.add_product() directly on the Order model.
+ * This ALWAYS respects {quantity} regardless of Odoo version.
+ * pos.addProductToCurrentOrder() is a store wrapper that strips qty in Odoo 19.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -35,8 +35,7 @@ async function fetchCustomBarcodeMap() {
             for (const [barcode, entry] of Object.entries(raw)) {
                 _customBarcodeMap[barcode.toUpperCase()] = entry;
             }
-            const keys = Object.keys(_customBarcodeMap);
-            console.log(`[CustomBarcode] ✅ Map loaded — ${keys.length} barcode(s):`, keys);
+            console.log(`[CustomBarcode] ✅ Map loaded — ${Object.keys(_customBarcodeMap).length} barcode(s):`, Object.keys(_customBarcodeMap));
         } catch (err) {
             console.error('[CustomBarcode] ❌ Failed to load barcode map:', err);
             _customBarcodeMap = {};
@@ -72,92 +71,47 @@ function showNotification(screen, message) {
     } catch (e) {}
 }
 
-// ── Get current order ─────────────────────────────────────────────────────────
+// ── Get current order object ──────────────────────────────────────────────────
 function getCurrentOrder(pos) {
-    return pos.get_order?.() || pos.selectedOrder || pos.currentOrder || null;
+    return pos.get_order?.()
+        || pos.selectedOrder
+        || pos.currentOrder
+        || null;
 }
 
-// ── Force quantity on a line using every known Odoo 19 method ─────────────────
-function forceQtyOnLine(line, qty) {
-    if (!line) return false;
-    const qtyStr = String(qty);
-
-    // Method 1: set_quantity (Odoo 16/17/18/19)
-    if (typeof line.set_quantity === 'function') {
-        line.set_quantity(qtyStr);
-        console.log('[CustomBarcode] set_quantity(' + qty + ') called');
-        return true;
-    }
-    // Method 2: direct reactive property (Odoo 19 reactive model)
-    if ('qty' in line) {
-        line.qty = qty;
-        console.log('[CustomBarcode] line.qty = ' + qty);
-        return true;
-    }
-    if ('quantity' in line) {
-        line.quantity = qty;
-        console.log('[CustomBarcode] line.quantity = ' + qty);
-        return true;
-    }
-    return false;
-}
-
-// ── Main: add product with correct qty ───────────────────────────────────────
+// ── THE FIX: add product directly on the Order model ─────────────────────────
 async function addProductWithQty(screen, product, qty) {
     const pos = screen.pos;
 
-    // ── STRATEGY 1: numberBuffer pre-load (native Odoo 19 approach) ───────────
-    // Odoo POS reads the numberBuffer value when a product is added.
-    // By pre-loading it with the package qty, the line is created with the
-    // right quantity without needing set_quantity afterward.
-    const nb = screen.numberBuffer;
-    if (nb) {
-        try {
-            // Save whatever was in the buffer
-            const savedBuffer = nb.get?.() ?? null;
-
-            // Load our qty into the buffer
-            if (typeof nb.set === 'function') {
-                nb.set(String(qty));
-            } else if (typeof nb.sendKey === 'function') {
-                nb.reset?.();
-                // Type each digit
-                for (const ch of String(qty)) nb.sendKey(ch);
-            }
-
-            // Now add the product — POS will read the buffer qty
-            if (typeof pos.addProductToCurrentOrder === 'function') {
-                await pos.addProductToCurrentOrder(product, {});
-            } else if (typeof screen.addProductToOrder === 'function') {
-                await screen.addProductToOrder(product);
-            }
-
-            // Reset buffer to clean state
-            nb.reset?.();
-            console.log('[CustomBarcode] Strategy 1 (numberBuffer pre-load) used, qty=' + qty);
-            return true;
-        } catch (e) {
-            console.warn('[CustomBarcode] Strategy 1 failed:', e.message);
-            nb.reset?.();
-        }
-    }
-
-    // ── STRATEGY 2: add then set qty on line ──────────────────────────────────
-    if (typeof pos.addProductToCurrentOrder === 'function') {
-        await pos.addProductToCurrentOrder(product, { quantity: qty });
-        await new Promise(r => setTimeout(r, 50)); // wait for reactive update
-        const line = getCurrentOrder(pos)?.get_selected_orderline?.()
-                  || getCurrentOrder(pos)?.selected_orderline;
-        forceQtyOnLine(line, qty);
-        console.log('[CustomBarcode] Strategy 2 (add + set) used, qty=' + qty);
-        return true;
-    }
-
-    // ── STRATEGY 3: legacy order.add_product ─────────────────────────────────
+    // ── Method A: Direct order.add_product() — bypasses all store wrappers ────
+    // This is the underlying Order model method that has ALWAYS accepted quantity.
     const order = getCurrentOrder(pos);
     if (order && typeof order.add_product === 'function') {
         order.add_product(product, { quantity: qty });
-        console.log('[CustomBarcode] Strategy 3 (legacy add_product) used, qty=' + qty);
+        console.log('[CustomBarcode] ✅ Method A: order.add_product(qty=' + qty + ')');
+        return true;
+    }
+
+    // ── Method B: store wrapper + force qty on line afterward ─────────────────
+    if (typeof pos.addProductToCurrentOrder === 'function') {
+        await pos.addProductToCurrentOrder(product, {});
+        // Give Owl reactivity a tick to commit the new line
+        await new Promise(r => setTimeout(r, 80));
+
+        const freshOrder = getCurrentOrder(pos);
+        const line = freshOrder?.get_selected_orderline?.()
+                  || freshOrder?.selected_orderline
+                  || freshOrder?.selectedOrderline;
+
+        if (line) {
+            if (typeof line.set_quantity === 'function') {
+                line.set_quantity(String(qty));
+                console.log('[CustomBarcode] ✅ Method B: set_quantity(' + qty + ')');
+            } else if ('qty' in line) {
+                line.qty = qty;
+                console.log('[CustomBarcode] ✅ Method B: line.qty=' + qty);
+            }
+        }
         return true;
     }
 
@@ -192,10 +146,7 @@ patch(ProductScreen.prototype, {
                     this.numberBuffer?.reset?.();
                     return;
                 } else {
-                    console.warn(
-                        `[CustomBarcode] product_id=${entry.product_id} not in POS. ` +
-                        `Enable it in this POS configuration.`
-                    );
+                    console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS — enable it in POS config.`);
                 }
             }
         }
@@ -205,4 +156,4 @@ patch(ProductScreen.prototype, {
 });
 
 fetchCustomBarcodeMap().catch(() => {});
-console.log('[CustomBarcode] ✅ v8 loaded.');
+console.log('[CustomBarcode] ✅ v9 loaded.');
