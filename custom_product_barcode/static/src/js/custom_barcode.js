@@ -1,9 +1,10 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v7)
+ * custom_barcode.js  –  Odoo 19 CE  (v8)
  * ========================================
- * Fix: addProductToCurrentOrder in Odoo 19 ignores {quantity} option.
- * After adding, we explicitly set qty on the selected order line.
+ * Fix: Use numberBuffer to pre-set qty BEFORE adding product.
+ * This is the native Odoo 19 way — the same path the UI uses when a
+ * cashier types a number then clicks a product.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -30,7 +31,6 @@ async function fetchCustomBarcodeMap() {
             const json = await response.json();
             const raw  = (json?.result ?? json)?.barcodes ?? {};
 
-            // Store keys as UPPERCASE for case-insensitive matching
             _customBarcodeMap = {};
             for (const [barcode, entry] of Object.entries(raw)) {
                 _customBarcodeMap[barcode.toUpperCase()] = entry;
@@ -63,67 +63,101 @@ function findProductById(pos, productId) {
     return null;
 }
 
-// ── Get the currently selected order line ────────────────────────────────────
-function getSelectedLine(pos) {
-    const order = pos.get_order?.() || pos.selectedOrder || pos.currentOrder;
-    if (!order) return null;
-    return order.get_selected_orderline?.()
-        || order.selected_orderline
-        || order.selectedOrderline
-        || null;
-}
-
-// ── Show safe notification ────────────────────────────────────────────────────
+// ── Safe notification ─────────────────────────────────────────────────────────
 function showNotification(screen, message) {
     try {
         const svc = screen.env?.services?.notification;
         if (svc) { svc.add(message, { type: 'success' }); return; }
         if (screen.notification) { screen.notification.add(message, { type: 'success' }); }
-    } catch (e) {
-        console.warn('[CustomBarcode] Notification skipped:', e.message);
-    }
+    } catch (e) {}
 }
 
-// ── Add product then FORCE the quantity on the resulting line ─────────────────
+// ── Get current order ─────────────────────────────────────────────────────────
+function getCurrentOrder(pos) {
+    return pos.get_order?.() || pos.selectedOrder || pos.currentOrder || null;
+}
+
+// ── Force quantity on a line using every known Odoo 19 method ─────────────────
+function forceQtyOnLine(line, qty) {
+    if (!line) return false;
+    const qtyStr = String(qty);
+
+    // Method 1: set_quantity (Odoo 16/17/18/19)
+    if (typeof line.set_quantity === 'function') {
+        line.set_quantity(qtyStr);
+        console.log('[CustomBarcode] set_quantity(' + qty + ') called');
+        return true;
+    }
+    // Method 2: direct reactive property (Odoo 19 reactive model)
+    if ('qty' in line) {
+        line.qty = qty;
+        console.log('[CustomBarcode] line.qty = ' + qty);
+        return true;
+    }
+    if ('quantity' in line) {
+        line.quantity = qty;
+        console.log('[CustomBarcode] line.quantity = ' + qty);
+        return true;
+    }
+    return false;
+}
+
+// ── Main: add product with correct qty ───────────────────────────────────────
 async function addProductWithQty(screen, product, qty) {
     const pos = screen.pos;
 
-    // ── Odoo 19: addProductToCurrentOrder exists but ignores quantity option ──
+    // ── STRATEGY 1: numberBuffer pre-load (native Odoo 19 approach) ───────────
+    // Odoo POS reads the numberBuffer value when a product is added.
+    // By pre-loading it with the package qty, the line is created with the
+    // right quantity without needing set_quantity afterward.
+    const nb = screen.numberBuffer;
+    if (nb) {
+        try {
+            // Save whatever was in the buffer
+            const savedBuffer = nb.get?.() ?? null;
+
+            // Load our qty into the buffer
+            if (typeof nb.set === 'function') {
+                nb.set(String(qty));
+            } else if (typeof nb.sendKey === 'function') {
+                nb.reset?.();
+                // Type each digit
+                for (const ch of String(qty)) nb.sendKey(ch);
+            }
+
+            // Now add the product — POS will read the buffer qty
+            if (typeof pos.addProductToCurrentOrder === 'function') {
+                await pos.addProductToCurrentOrder(product, {});
+            } else if (typeof screen.addProductToOrder === 'function') {
+                await screen.addProductToOrder(product);
+            }
+
+            // Reset buffer to clean state
+            nb.reset?.();
+            console.log('[CustomBarcode] Strategy 1 (numberBuffer pre-load) used, qty=' + qty);
+            return true;
+        } catch (e) {
+            console.warn('[CustomBarcode] Strategy 1 failed:', e.message);
+            nb.reset?.();
+        }
+    }
+
+    // ── STRATEGY 2: add then set qty on line ──────────────────────────────────
     if (typeof pos.addProductToCurrentOrder === 'function') {
         await pos.addProductToCurrentOrder(product, { quantity: qty });
-
-        // Odoo 19 ignores {quantity} — set it explicitly on the selected line
-        const line = getSelectedLine(pos);
-        if (line) {
-            // Try reactive assignment first (Odoo 19 uses reactive state)
-            if (typeof line.set_quantity === 'function') {
-                line.set_quantity(String(qty));   // some builds expect string
-            } else if ('qty' in line) {
-                line.qty = qty;
-            } else if ('quantity' in line) {
-                line.quantity = qty;
-            }
-            console.log(`[CustomBarcode] Line qty set to ${qty} on`, line);
-        } else {
-            console.warn('[CustomBarcode] Could not find selected line to set qty.');
-        }
+        await new Promise(r => setTimeout(r, 50)); // wait for reactive update
+        const line = getCurrentOrder(pos)?.get_selected_orderline?.()
+                  || getCurrentOrder(pos)?.selected_orderline;
+        forceQtyOnLine(line, qty);
+        console.log('[CustomBarcode] Strategy 2 (add + set) used, qty=' + qty);
         return true;
     }
 
-    // ── Odoo 17/18 ────────────────────────────────────────────────────────────
-    if (typeof screen.addProductToOrder === 'function') {
-        await screen.addProductToOrder(product);
-        const line = getSelectedLine(pos);
-        if (line && typeof line.set_quantity === 'function') {
-            line.set_quantity(String(qty));
-        }
-        return true;
-    }
-
-    // ── Legacy fallback ───────────────────────────────────────────────────────
-    const order = pos.get_order?.() || pos.selectedOrder;
+    // ── STRATEGY 3: legacy order.add_product ─────────────────────────────────
+    const order = getCurrentOrder(pos);
     if (order && typeof order.add_product === 'function') {
         order.add_product(product, { quantity: qty });
+        console.log('[CustomBarcode] Strategy 3 (legacy add_product) used, qty=' + qty);
         return true;
     }
 
@@ -154,7 +188,6 @@ patch(ProductScreen.prototype, {
                         console.error('[CustomBarcode] add error:', err);
                         return super._barcodeProductAction(code);
                     }
-
                     showNotification(this, `${entry.product_name}  ×  ${entry.qty}`);
                     this.numberBuffer?.reset?.();
                     return;
@@ -171,6 +204,5 @@ patch(ProductScreen.prototype, {
     },
 });
 
-// Pre-warm cache on module load
 fetchCustomBarcodeMap().catch(() => {});
-console.log('[CustomBarcode] ✅ v7 loaded.');
+console.log('[CustomBarcode] ✅ v8 loaded.');
