@@ -1,12 +1,12 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v18)
+ * custom_barcode.js  –  Odoo 19 CE  (v19)
  *
- * APPROACH: Patch ProductScreen.setup() to attach a keydown listener
- * directly on the search input element via the component's ref.
- * This fires BEFORE Odoo's own handlers and intercepts Enter on custom barcodes.
+ * Problem identified: Owl re-renders the search input on every keystroke,
+ * replacing the DOM element — so onMounted listener gets detached immediately.
  *
- * Also patches _barcodeProductAction for physical scanner input.
+ * Fix: MutationObserver watches for input appearing/changing and re-attaches.
+ * Also patches _barcodeProductAction for physical scanner.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -86,7 +86,7 @@ async function handleCustomBarcode(screen, rawBarcode) {
 
     const product = findProductById(screen.pos, entry.product_id);
     if (!product) {
-        console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS — enable in POS config.`);
+        console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS.`);
         return false;
     }
 
@@ -111,74 +111,93 @@ async function handleCustomBarcode(screen, rawBarcode) {
     return true;
 }
 
+// ── Search input selectors to try ─────────────────────────────────────────────
+const SEARCH_SELECTORS = [
+    'input[placeholder*="earch"]',
+    '.search-bar input',
+    '.pos-search-bar input',
+    '.product-screen input[type="text"]',
+    '.pos input[type="text"]',
+];
+
+function findSearchInput() {
+    for (const sel of SEARCH_SELECTORS) {
+        const el = document.querySelector(sel);
+        if (el) return el;
+    }
+    return null;
+}
+
 // ── Patch ProductScreen ───────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
 
     setup() {
         super.setup();
-
-        // Pre-warm barcode cache
         fetchCustomBarcodeMap().catch(() => {});
 
-        // After the component mounts, find the search input and listen for Enter
-        onMounted(() => {
-            // Try multiple selectors Odoo 19 uses for the search bar input
-            const selectors = [
-                '.search-bar input',
-                '.pos-search-bar input',
-                'input.product-search-input',
-                '.product-screen .search input',
-                'input[placeholder*="earch"]',
-                '.search input',
-            ];
+        // We use a MutationObserver so we always have the CURRENT input element
+        // even after Owl re-renders replace it.
+        let _currentInput   = null;
+        let _keyHandler     = null;
+        let _observer       = null;
 
-            let input = null;
-            for (const sel of selectors) {
-                input = document.querySelector(sel);
-                if (input) { console.log(`[CustomBarcode] Search input found: "${sel}"`); break; }
+        const attachToInput = (input) => {
+            if (!input || input === _currentInput) return;
+            // Remove old listener
+            if (_currentInput && _keyHandler) {
+                _currentInput.removeEventListener('keydown', _keyHandler, true);
+                console.log('[CustomBarcode] Detached from old input');
             }
+            _currentInput = input;
+            _keyHandler = async (evt) => {
+                if (evt.key !== 'Enter') return;
+                const word = input.value?.trim();
+                console.log('[CustomBarcode] Search Enter pressed, value:', JSON.stringify(word));
+                if (!word) return;
 
-            if (!input) {
-                // Fallback: find any visible input in the POS screen
-                const all = document.querySelectorAll('input[type="text"], input:not([type])');
-                for (const el of all) {
-                    if (el.offsetParent !== null) { input = el; break; }
-                }
-                console.log('[CustomBarcode] Search input (fallback):', input);
-            }
-
-            if (input) {
-                this._customBarcodeKeyHandler = async (evt) => {
-                    if (evt.key !== 'Enter') return;
-                    const word = input.value?.trim();
-                    if (!word) return;
-
-                    console.log('[CustomBarcode] Search Enter pressed, value:', word);
-                    const handled = await handleCustomBarcode(this, word);
-                    if (handled) {
-                        evt.preventDefault();
-                        evt.stopImmediatePropagation();
-                        // Clear the search input
-                        input.value = '';
+                const handled = await handleCustomBarcode(this, word);
+                console.log('[CustomBarcode] handleCustomBarcode result:', handled);
+                if (handled) {
+                    evt.preventDefault();
+                    evt.stopImmediatePropagation();
+                    // Clear search input and internal state
+                    try {
+                        // Reset native input value
+                        const nativeInput = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        );
+                        nativeInput?.set?.call(input, '');
                         input.dispatchEvent(new Event('input', { bubbles: true }));
-                        // Also clear POS internal search state
-                        try { this.updateSearch?.(''); } catch(e) {}
-                        try { if (this.state) this.state.searchWord = ''; } catch(e) {}
-                    }
-                };
-                input.addEventListener('keydown', this._customBarcodeKeyHandler, true);
-                this._customBarcodeInput = input;
-            } else {
-                console.warn('[CustomBarcode] ⚠️ Could not find search input element.');
-            }
+                    } catch(e) { input.value = ''; }
+                    try { this.updateSearch?.(''); } catch(e) {}
+                    try { if (this.state?.searchWord !== undefined) this.state.searchWord = ''; } catch(e) {}
+                }
+            };
+            input.addEventListener('keydown', _keyHandler, true);
+            console.log('[CustomBarcode] ✅ Attached keydown listener to search input');
+        };
+
+        onMounted(() => {
+            // Initial attach
+            const input = findSearchInput();
+            if (input) attachToInput(input);
+
+            // MutationObserver: re-attach whenever DOM changes (Owl re-renders)
+            _observer = new MutationObserver(() => {
+                const newInput = findSearchInput();
+                if (newInput && newInput !== _currentInput) {
+                    console.log('[CustomBarcode] Input element replaced — re-attaching listener');
+                    attachToInput(newInput);
+                }
+            });
+            _observer.observe(document.body, { childList: true, subtree: true });
         });
 
         onWillUnmount(() => {
-            if (this._customBarcodeInput && this._customBarcodeKeyHandler) {
-                this._customBarcodeInput.removeEventListener(
-                    'keydown', this._customBarcodeKeyHandler, true
-                );
+            if (_currentInput && _keyHandler) {
+                _currentInput.removeEventListener('keydown', _keyHandler, true);
             }
+            _observer?.disconnect();
         });
     },
 
@@ -186,9 +205,10 @@ patch(ProductScreen.prototype, {
     async _barcodeProductAction(code) {
         const raw = typeof code === 'string'
             ? code : (code?.code ?? code?.base_code ?? code?.value ?? '');
+        console.log('[CustomBarcode] _barcodeProductAction called with:', JSON.stringify(raw));
         if (raw && await handleCustomBarcode(this, raw)) return;
         return super._barcodeProductAction(code);
     },
 });
 
-console.log('[CustomBarcode] ✅ v18 loaded — scanner + manual search handled.');
+console.log('[CustomBarcode] ✅ v19 loaded — MutationObserver search listener active.');
