@@ -1,20 +1,20 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v15 — price fix)
+ * custom_barcode.js  –  Odoo 19 CE  (v17)
  *
- * FIX: Pass price_unit directly inside addLineToCurrentOrder call.
- * Odoo 19 accepts { product_id, qty, price_unit } in one shot — no
- * separate setPriceOnLine step needed.
+ * Handles BOTH:
+ *   1. Barcode scanner  → _barcodeProductAction (existing patch)
+ *   2. Manual typing in POS search bar + Enter → new patch on search confirm
  *
- * Price rule:
- *   Package Price > 0  →  unit_price on line = package_price / qty
- *                         so POS shows:  qty × (package_price/qty) = package_price ✅
- *   Package Price = 0  →  use product's default unit price (no override)
+ * When the typed search term exactly matches a custom barcode (case-insensitive),
+ * the product is added with the correct package qty & price instead of
+ * showing "No products found".
  */
 
 import { patch }         from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 
+// ── Barcode map cache ─────────────────────────────────────────────────────────
 let _customBarcodeMap = null;
 let _fetchPromise     = null;
 
@@ -68,80 +68,159 @@ function getCurrentOrder(pos) {
     return pos.get_order?.() || pos.selectedOrder || pos.currentOrder || null;
 }
 
-// Force price on the selected line AFTER adding (safety net)
 function forcePriceOnLine(order, unitPrice) {
     const line = order?.get_selected_orderline?.()
               || order?.selected_orderline
               || order?.get_orderlines?.()?.at(-1)
-              || order?.orderlines?.at?.(-1)
-              || null;
+              || order?.orderlines?.at?.(-1) || null;
     if (!line) return;
     if (typeof line.set_unit_price === 'function') { line.set_unit_price(unitPrice); return; }
     if (typeof line.setUnitPrice   === 'function') { line.setUnitPrice(unitPrice);   return; }
     if ('price_unit' in line) line.price_unit = unitPrice;
 }
 
+// ── Core: add product with package qty + price ────────────────────────────────
+async function handleCustomBarcode(screen, barcodeStr) {
+    const map   = await fetchCustomBarcodeMap();
+    const entry = map[barcodeStr.toUpperCase()];
+    if (!entry) return false;   // not a custom barcode
+
+    const product = findProductById(screen.pos, entry.product_id);
+    if (!product) {
+        console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS — enable in POS config.`);
+        return false;
+    }
+
+    try {
+        screen.pos.addLineToCurrentOrder({
+            product_id: product,
+            qty:        entry.qty,
+            price_unit: entry.price,
+        });
+
+        await new Promise(r => setTimeout(r, 40));
+        const order = getCurrentOrder(screen.pos);
+        forcePriceOnLine(order, entry.price);
+    } catch (err) {
+        console.error('[CustomBarcode] Error adding product:', err);
+        return false;
+    }
+
+    const symbol = screen.pos.currency?.symbol ?? '₹';
+    showNotification(screen,
+        `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}`
+    );
+    screen.numberBuffer?.reset?.();
+    return true;   // handled
+}
+
+// ── Patch ProductScreen ───────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
 
+    // ── 1. Barcode scanner path ───────────────────────────────────────────────
     async _barcodeProductAction(code) {
         const raw = typeof code === 'string'
-            ? code
-            : (code?.code ?? code?.base_code ?? code?.value ?? '');
-        const barcodeUpper = raw.toUpperCase();
+            ? code : (code?.code ?? code?.base_code ?? code?.value ?? '');
 
-        if (barcodeUpper) {
-            const map   = await fetchCustomBarcodeMap();
-            const entry = map[barcodeUpper];
-
-            if (entry) {
-                const product = findProductById(this.pos, entry.product_id);
-                if (!product) {
-                    console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS.`);
-                    return super._barcodeProductAction(code);
-                }
-
-                // Calculate unit price for the line:
-                //   total package price ÷ qty  =  unit price per item on the line
-                //   POS then shows:  qty  ×  unit_price  =  package_price  ✅
-                //
-                // entry.price already accounts for the rule:
-                //   custom_price > 0 → custom_price (from server)
-                //   custom_price = 0 → unit_price × qty (from server)
-                // entry.price = per-unit selling price for this package
-                // (custom_price1 if set, else product's standard unit price)
-                // POS line: qty × price_unit = qty × entry.price = total ✅
-                const lineUnitPrice = entry.price;
-
-                try {
-                    // Pass price_unit directly — Odoo 19 applies it at line creation time
-                    this.pos.addLineToCurrentOrder({
-                        product_id: product,
-                        qty:        entry.qty,
-                        price_unit: lineUnitPrice,
-                    });
-
-                    // Safety net: if Odoo ignored price_unit, force it on the line
-                    await new Promise(r => setTimeout(r, 40));
-                    const order = getCurrentOrder(this.pos);
-                    forcePriceOnLine(order, lineUnitPrice);
-
-                } catch (err) {
-                    console.error('[CustomBarcode] Error:', err);
-                    return super._barcodeProductAction(code);
-                }
-
-                const symbol = this.pos.currency?.symbol ?? '₹';
-                showNotification(this,
-                    `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}`
-                );
-                this.numberBuffer?.reset?.();
-                return;
-            }
-        }
-
+        if (raw && await handleCustomBarcode(this, raw)) return;
         return super._barcodeProductAction(code);
+    },
+
+    // ── 2. Manual search bar path (user types + presses Enter) ───────────────
+    // Odoo 19 calls updateSearch(searchWord) when search bar value changes.
+    // When the user confirms (Enter / barcode-like string), it also calls
+    // _barcodeProductAction — but ONLY if the POS thinks it looks like a
+    // barcode. If not, it falls through to product search.
+    //
+    // We intercept at the search-confirmation level.
+    // Odoo 19 uses onSearch prop passed to SearchBar; ProductScreen handles it
+    // via its own search state. The exact method varies:
+    //   - updateSearch(val)        — called on every keystroke
+    //   - _onSearch(val) or        — called on Enter/confirm
+    //   - _searchProduct(val)
+    //
+    // We patch ALL of them for maximum compatibility.
+
+    updateSearch(searchWord) {
+        // Store the last typed value so we can check it on Enter
+        this._lastSearchWord = searchWord;
+        return super.updateSearch(searchWord);
+    },
+
+    // Called when user presses Enter in the search bar in some Odoo 19 builds
+    async _onSearch(searchWord) {
+        const word = searchWord ?? this._lastSearchWord ?? '';
+        if (word && await handleCustomBarcode(this, word)) {
+            // Clear the search bar
+            try { this.updateSearch(''); } catch(e) {}
+            return;
+        }
+        return super._onSearch?.(searchWord);
+    },
+
+    // Alternative name used in some Odoo 19 builds
+    async _searchProduct(searchWord) {
+        const word = searchWord ?? this._lastSearchWord ?? '';
+        if (word && await handleCustomBarcode(this, word)) {
+            try { this.updateSearch(''); } catch(e) {}
+            return;
+        }
+        return super._searchProduct?.(searchWord);
     },
 });
 
+// ── Also intercept the SearchBar keydown at DOM level (ultimate fallback) ─────
+// If the above patches don't catch it, we listen for Enter on the search input.
+document.addEventListener('keydown', async (evt) => {
+    if (evt.key !== 'Enter') return;
+
+    const input = evt.target;
+    if (!input || input.tagName !== 'INPUT') return;
+
+    // Only act on the POS search bar (has class or placeholder related to search)
+    const isSearchBar = input.closest?.('.search-bar, .pos-search-bar, [class*="search"]');
+    if (!isSearchBar) return;
+
+    const word = input.value?.trim();
+    if (!word) return;
+
+    // Check if this matches a custom barcode
+    const map = await fetchCustomBarcodeMap();
+    if (!map[word.toUpperCase()]) return;   // not our barcode, let POS handle it
+
+    // Prevent POS from also handling it (showing "no products found")
+    evt.stopImmediatePropagation();
+
+    // Find the active ProductScreen instance via Owl's global registry
+    // We look for the POS environment on the root app
+    try {
+        const posApp = document.querySelector('.pos, #pos-content, .point-of-sale');
+        if (!posApp?.__owl__) return;
+
+        // Walk up the Owl component tree to find ProductScreen
+        function findComponent(node, name) {
+            if (!node) return null;
+            if (node.component?.constructor?.name === name) return node.component;
+            for (const child of Object.values(node.children || {})) {
+                const found = findComponent(child, name);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        const screen = findComponent(posApp.__owl__, 'ProductScreen');
+        if (screen) {
+            const handled = await handleCustomBarcode(screen, word);
+            if (handled) {
+                input.value = '';
+                // Trigger input event to clear the search display
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    } catch(e) {
+        console.warn('[CustomBarcode] DOM fallback error:', e.message);
+    }
+}, true);  // capture phase — runs before POS handlers
+
 fetchCustomBarcodeMap().catch(() => {});
-console.log('[CustomBarcode] ✅ Loaded — package barcode scanning with price active.');
+console.log('[CustomBarcode] ✅ v17 loaded — scanner + manual search both handled.');
