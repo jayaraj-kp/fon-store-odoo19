@@ -1,45 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Add multi-barcode section to the product template form -->
     <record id="product_template_form_multi_barcode" model="ir.ui.view">
         <field name="name">product.template.form.multi.barcode</field>
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
 
-            <!-- Insert after the existing barcode field in General Information -->
-            <xpath expr="//field[@name='barcode']" position="after">
-                <separator string="Additional Barcodes &amp; Packaging"/>
-                <group col="2" colspan="2">
-                    <group string="Pack 2 (e.g. Dozen)">
-                        <field name="barcode_2" placeholder="Scan or type barcode"/>
+            <!-- Append to the end of the main sheet, before internal notes -->
+            <xpath expr="//div[@name='button_box']" position="after">
+                <group string="Additional Barcodes &amp; Packaging" name="multi_barcode_group">
+                    <group string="Pack 2 (e.g. Dozen)" name="pack2_group">
+                        <field name="barcode_2" placeholder="Scan or type barcode 2"/>
                         <field name="package_qty_2" placeholder="e.g. 12"/>
                         <field name="package_name_2" placeholder="e.g. Dozen"/>
                     </group>
-                    <group string="Pack 3 (e.g. Big Carton)">
-                        <field name="barcode_3" placeholder="Scan or type barcode"/>
+                    <group string="Pack 3 (e.g. Big Carton)" name="pack3_group">
+                        <field name="barcode_3" placeholder="Scan or type barcode 3"/>
                         <field name="package_qty_3" placeholder="e.g. 120"/>
                         <field name="package_name_3" placeholder="e.g. Big Carton"/>
                     </group>
                 </group>
             </xpath>
 
-        </field>
-    </record>
-
-    <!-- Search view: find by barcode_2 or barcode_3 -->
-    <record id="product_template_search_multi_barcode" model="ir.ui.view">
-        <field name="name">product.template.search.multi.barcode</field>
-        <field name="model">product.template</field>
-        <field name="inherit_id" ref="product.product_template_search_view"/>
-        <field name="arch" type="xml">
-            <xpath expr="//field[@name='barcode']" position="after">
-                <field name="barcode_2" string="Barcode 2"
-                       filter_domain="[('barcode_2','=',self)]"/>
-                <field name="barcode_3" string="Barcode 3"
-                       filter_domain="[('barcode_3','=',self)]"/>
-            </xpath>
         </field>
     </record>
 
