@@ -116,18 +116,41 @@ async function handleCustomBarcode(screen, rawBarcode) {
     }
 
     try {
-        // Step 1: Add line with qty (same working pattern as scanner)
+        // Pass price through options — Odoo 19 addLineToCurrentOrder accepts
+        // an options object that gets forwarded to Order._add_product_to_current_order
         screen.pos.addLineToCurrentOrder({
             product_id: product,
             qty:        entry.qty,
+        }, {
+            price_unit:     entry.price,
+            price_extra:    0,
+            lst_price:      entry.price,
+            price_manually_set: true,
         });
 
-        // Step 2: Wait for Owl reactive commit, then set price on the line
-        // (same pattern as set_quantity which works correctly)
-        await new Promise(r => setTimeout(r, 60));
+        // Wait for ALL of Odoo's post-add hooks to finish (price resets happen ~50ms after)
+        // then forcefully override with our price — this must win the last write
+        await new Promise(r => setTimeout(r, 150));
         const order = getCurrentOrder(screen.pos);
         const line  = getLastLine(order);
-        setPriceOnLine(line, entry.price);
+
+        if (line) {
+            console.log('[CustomBarcode] Before price set — price_unit:', line.price_unit, 'price:', line.price);
+            
+            // Call set_unit_price which triggers full recomputation chain
+            if (typeof line.set_unit_price === 'function') {
+                line.set_unit_price(entry.price);
+                // Call again after another tick in case Odoo resets it
+                await new Promise(r => setTimeout(r, 50));
+                line.set_unit_price(entry.price);
+            } else if (typeof line.update === 'function') {
+                line.update({ price_unit: entry.price, price_manually_set: true });
+            } else if ('price_unit' in line) {
+                line.price_unit = entry.price;
+            }
+
+            console.log('[CustomBarcode] After price set — price_unit:', line.price_unit, 'price:', line.price);
+        }
 
     } catch (err) {
         console.error('[CustomBarcode] Error adding product:', err);

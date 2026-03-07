@@ -35,21 +35,23 @@ class CustomBarcodeController(http.Controller):
                 # custom_price1 = 0 → fall back to standard unit price
                 price = tmpl.custom_price1 if tmpl.custom_price1 > 0 else unit_price
                 result[tmpl.barcode2] = {
-                    'product_id':   product_id,
-                    'product_name': product_name,
-                    'qty':          tmpl.custom_qty1,
-                    'price':        price,          # per-unit price
-                    'unit_price':   unit_price,     # standard unit price (fallback)
+                    'product_id':    product_id,
+                    'product_name':  product_name,
+                    'qty':           tmpl.custom_qty1,
+                    'price':         price,
+                    'unit_price':    unit_price,
+                    'custom_price':  tmpl.custom_price1 > 0,  # True = price was manually set
                 }
 
             if tmpl.barcode3 and tmpl.custom_qty2:
                 price = tmpl.custom_price2 if tmpl.custom_price2 > 0 else unit_price
                 result[tmpl.barcode3] = {
-                    'product_id':   product_id,
-                    'product_name': product_name,
-                    'qty':          tmpl.custom_qty2,
-                    'price':        price,
-                    'unit_price':   unit_price,
+                    'product_id':    product_id,
+                    'product_name':  product_name,
+                    'qty':           tmpl.custom_qty2,
+                    'price':         price,
+                    'unit_price':    unit_price,
+                    'custom_price':  tmpl.custom_price2 > 0,
                 }
 
         return {'barcodes': result}
