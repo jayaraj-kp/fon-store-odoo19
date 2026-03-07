@@ -1,19 +1,10 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
-import random
-import string
 
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
-
-    # Override default_code to make it truly optional in Odoo 19
-    default_code = fields.Char(
-        string='Internal Reference',
-        required=False,
-        index=True,
-    )
 
     barcode_2 = fields.Char(string='Barcode 2', copy=False, index=True)
     package_qty_2 = fields.Float(string='Package Qty 2', default=0.0)

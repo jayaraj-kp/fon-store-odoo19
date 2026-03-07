@@ -7,23 +7,16 @@
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
 
-            <!-- Make default_code (Internal Reference) clearly visible and not required in UI -->
-            <xpath expr="//field[@name='default_code']" position="attributes">
-                <attribute name="required">0</attribute>
-                <attribute name="placeholder">Auto-generated if left blank</attribute>
-            </xpath>
-
-            <!-- Add our packaging fields after the last group in General Information tab -->
-            <xpath expr="//page[@name='general_information']//group[last()]" position="after">
+            <!-- Append BEFORE internal notes - this xpath always exists in all Odoo versions -->
+            <xpath expr="//div[@name='internal_notes_tab']" position="before">
 
                 <separator string="─── Additional Barcodes &amp; Packaging ───"/>
 
-                <group col="6" colspan="4">
-                    <group string="📦 Pack 2" colspan="3" col="2">
+                <group col="4" colspan="4">
+                    <group string="📦 Pack 2 (e.g. Dozen)">
                         <field name="barcode_2"
                                string="Barcode 2"
-                               placeholder="e.g. 8901234560002"
-                               required="False"/>
+                               placeholder="e.g. 8901234560002"/>
                         <field name="package_qty_2"
                                string="Qty in Pack 2"
                                placeholder="e.g. 12"/>
@@ -31,11 +24,10 @@
                                string="Pack 2 Name"
                                placeholder="e.g. Dozen"/>
                     </group>
-                    <group string="🏭 Pack 3" colspan="3" col="2">
+                    <group string="🏭 Pack 3 (e.g. Big Carton)">
                         <field name="barcode_3"
                                string="Barcode 3"
-                               placeholder="e.g. 8901234560003"
-                               required="False"/>
+                               placeholder="e.g. 8901234560003"/>
                         <field name="package_qty_3"
                                string="Qty in Pack 3"
                                placeholder="e.g. 120"/>
@@ -45,8 +37,8 @@
                     </group>
                 </group>
 
-                <group col="2" colspan="4">
-                    <div colspan="2" style="background:#f0f8ff; border:1px solid #b8daff; border-radius:4px; padding:8px; color:#004085; font-size:12px;">
+                <group col="1" colspan="4">
+                    <div colspan="1" style="background:#f0f8ff; border:1px solid #b8daff; border-radius:4px; padding:8px; color:#004085; font-size:12px;">
                         <strong>💡 How it works:</strong>
                         Scan <b>Barcode 2</b> in POS → adds <b>Pack 2 Qty</b> units automatically.
                         Scan <b>Barcode 3</b> → adds <b>Pack 3 Qty</b> units automatically.
