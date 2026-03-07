@@ -1,40 +1,22 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v4 — Server-Side Barcode Map)
- * =================================================================
+ * custom_barcode.js  –  Odoo 19 CE  (v5 — case-insensitive barcode match)
+ * ========================================================================
  *
- * WHY THIS APPROACH
- * -----------------
- * All previous versions tried to read barcode2/barcode3 from the POS
- * product records loaded into JS. In Odoo 19 CE the POS data-loader
- * strictly controls which fields are sent and ignores our overrides,
- * so the fields always arrive as `undefined` in JS.
- *
- * SOLUTION
- * --------
- * We call a dedicated server endpoint  POST /pos/custom_barcode_map
- * once when the POS opens. The server queries product.template directly
- * (where barcode2/barcode3 definitely exist) and returns a plain JSON map:
- *
- *   { "USB3MTR": { product_id:42, qty:12, price:5.0, product_name:"..." },
- *     "BULK120": { product_id:42, qty:120, price:5.0, product_name:"..." } }
- *
- * FLOW
- * ----
- *  1. ProductScreen._barcodeProductAction() is patched.
- *  2. On first scan: fetch barcode map from server (cached for session).
- *  3. Map hit  → find product in POS store → add with qty → done.
- *  4. Map miss → standard Odoo handler (super).
+ * FIX in v5: barcode comparison is now CASE-INSENSITIVE.
+ * Map keys are stored in UPPERCASE; scanned barcodes are uppercased before
+ * lookup.  This means "usb3mtr", "USB3MTR", "Usb3Mtr" all match the same
+ * entry.
  */
 
 import { patch }         from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 
-// ── Module-level cache (one map for the whole browser session) ────────────────
-let _customBarcodeMap = null;
+// ── Module-level cache ────────────────────────────────────────────────────────
+let _customBarcodeMap = null;   // keys are UPPERCASE
 let _fetchPromise     = null;
 
-// ── Fetch map from Odoo controller ───────────────────────────────────────────
+// ── Fetch barcode map from Odoo controller ────────────────────────────────────
 async function fetchCustomBarcodeMap() {
     if (_customBarcodeMap !== null) return _customBarcodeMap;
     if (_fetchPromise)              return _fetchPromise;
@@ -49,11 +31,16 @@ async function fetchCustomBarcodeMap() {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const json = await response.json();
-            const data = json?.result ?? json;
-            _customBarcodeMap = data?.barcodes ?? {};
+            const raw  = (json?.result ?? json)?.barcodes ?? {};
+
+            // ── Store all keys in UPPERCASE for case-insensitive matching ──
+            _customBarcodeMap = {};
+            for (const [barcode, entry] of Object.entries(raw)) {
+                _customBarcodeMap[barcode.toUpperCase()] = entry;
+            }
 
             const keys = Object.keys(_customBarcodeMap);
-            console.log(`[CustomBarcode] ✅ Server map loaded — ${keys.length} barcode(s):`, keys);
+            console.log(`[CustomBarcode] ✅ Map loaded — ${keys.length} barcode(s):`, keys);
         } catch (err) {
             console.error('[CustomBarcode] ❌ Failed to load barcode map:', err);
             _customBarcodeMap = {};
@@ -80,7 +67,7 @@ function findProductById(pos, productId) {
     return null;
 }
 
-// ── Add product + qty to current order (Odoo 17/18/19 fallbacks) ─────────────
+// ── Add product + qty (Odoo 17/18/19 fallbacks) ───────────────────────────────
 async function addProductWithQty(screen, product, qty) {
     const pos = screen.pos;
     if (typeof pos.addProductToCurrentOrder === 'function') {
@@ -106,13 +93,17 @@ async function addProductWithQty(screen, product, qty) {
 patch(ProductScreen.prototype, {
 
     async _barcodeProductAction(code) {
-        const barcodeStr = typeof code === 'string'
+
+        // Normalise to plain string then UPPERCASE for case-insensitive match
+        const raw = typeof code === 'string'
             ? code
             : (code?.code ?? code?.base_code ?? code?.value ?? '');
 
-        if (barcodeStr) {
+        const barcodeUpper = raw.toUpperCase();
+
+        if (barcodeUpper) {
             const map   = await fetchCustomBarcodeMap();
-            const entry = map[barcodeStr];
+            const entry = map[barcodeUpper];   // ← keys are already uppercase
 
             if (entry) {
                 const product = findProductById(this.pos, entry.product_id);
@@ -130,11 +121,12 @@ patch(ProductScreen.prototype, {
                         );
                     } catch (_) {}
                     this.numberBuffer?.reset?.();
-                    return;
+                    return;   // handled — do NOT call super
                 } else {
                     console.warn(
-                        `[CustomBarcode] product_id=${entry.product_id} not in POS store. ` +
-                        `Ensure the product is enabled for this POS.`
+                        `[CustomBarcode] Barcode "${barcodeUpper}" matched map ` +
+                        `(product_id=${entry.product_id}) but product not found in POS. ` +
+                        `Check: is the product enabled for this POS config?`
                     );
                 }
             }
@@ -144,7 +136,7 @@ patch(ProductScreen.prototype, {
     },
 });
 
-// Pre-warm cache immediately on module load
+// Pre-warm cache on module load
 fetchCustomBarcodeMap().catch(() => {});
 
-console.log('[CustomBarcode] ✅ v4 loaded — using server-side barcode map.');
+console.log('[CustomBarcode] ✅ v5 loaded — case-insensitive server-side barcode map.');
