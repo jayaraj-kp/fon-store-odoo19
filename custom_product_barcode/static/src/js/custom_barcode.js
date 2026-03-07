@@ -1,182 +1,150 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE Multi-Barcode POS Integration
- * ===============================================================
+ * custom_barcode.js  –  Odoo 19 CE  (v4 — Server-Side Barcode Map)
+ * =================================================================
  *
- * FIX vs v1:
- *   - Removed PosStore import (@point_of_sale/app/store/pos_store does NOT
- *     exist in Odoo 19; it was renamed/removed).
- *   - Custom barcode map is now built lazily on first scan, reading directly
- *     from this.pos.models — no separate PosStore patch needed.
- *   - Multi-version fallbacks for the add-to-order API (Odoo 17/18/19).
+ * WHY THIS APPROACH
+ * -----------------
+ * All previous versions tried to read barcode2/barcode3 from the POS
+ * product records loaded into JS. In Odoo 19 CE the POS data-loader
+ * strictly controls which fields are sent and ignores our overrides,
+ * so the fields always arrive as `undefined` in JS.
  *
- * How it works
- * ────────────
- *  1. Patch only ProductScreen._barcodeProductAction(code).
- *  2. On every scan: extract barcode string → check custom map.
- *  3. Map hit  → add product with package qty, show toast, return.
- *  4. Map miss → fall through to standard Odoo handler (super).
+ * SOLUTION
+ * --------
+ * We call a dedicated server endpoint  POST /pos/custom_barcode_map
+ * once when the POS opens. The server queries product.template directly
+ * (where barcode2/barcode3 definitely exist) and returns a plain JSON map:
+ *
+ *   { "USB3MTR": { product_id:42, qty:12, price:5.0, product_name:"..." },
+ *     "BULK120": { product_id:42, qty:120, price:5.0, product_name:"..." } }
+ *
+ * FLOW
+ * ----
+ *  1. ProductScreen._barcodeProductAction() is patched.
+ *  2. On first scan: fetch barcode map from server (cached for session).
+ *  3. Map hit  → find product in POS store → add with qty → done.
+ *  4. Map miss → standard Odoo handler (super).
  */
 
-import { patch } from "@web/core/utils/patch";
+import { patch }         from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Helper – get all loaded product.product records from the POS model store
-// ─────────────────────────────────────────────────────────────────────────────
-function getAllPosProducts(pos) {
-    try {
-        const model = pos.models?.["product.product"];
-        if (!model) return [];
+// ── Module-level cache (one map for the whole browser session) ────────────────
+let _customBarcodeMap = null;
+let _fetchPromise     = null;
 
-        // Odoo 18/19 API
-        if (typeof model.getAll === "function") return model.getAll();
+// ── Fetch map from Odoo controller ───────────────────────────────────────────
+async function fetchCustomBarcodeMap() {
+    if (_customBarcodeMap !== null) return _customBarcodeMap;
+    if (_fetchPromise)              return _fetchPromise;
 
-        // Odoo 17 fallback
-        if (model.records && typeof model.records === "object") {
-            return Object.values(model.records);
+    _fetchPromise = (async () => {
+        try {
+            const response = await fetch('/pos/custom_barcode_map', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} }),
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const json = await response.json();
+            const data = json?.result ?? json;
+            _customBarcodeMap = data?.barcodes ?? {};
+
+            const keys = Object.keys(_customBarcodeMap);
+            console.log(`[CustomBarcode] ✅ Server map loaded — ${keys.length} barcode(s):`, keys);
+        } catch (err) {
+            console.error('[CustomBarcode] ❌ Failed to load barcode map:', err);
+            _customBarcodeMap = {};
         }
-        return [];
-    } catch (e) {
-        console.error("[CustomBarcode] getAllPosProducts error:", e);
-        return [];
-    }
+        return _customBarcodeMap;
+    })();
+
+    return _fetchPromise;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Helper – add a product + qty to the current order (multi-version fallback)
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Find product.product in POS store by numeric id ──────────────────────────
+function findProductById(pos, productId) {
+    try {
+        const model = pos.models?.['product.product'];
+        if (!model) return null;
+        if (typeof model.getBy  === 'function') return model.getBy('id', productId) || null;
+        if (typeof model.get    === 'function') return model.get(productId) || null;
+        if (model.records) {
+            return model.records[productId]
+                || Object.values(model.records).find(p => p.id === productId)
+                || null;
+        }
+    } catch (e) { console.error('[CustomBarcode] findProductById:', e); }
+    return null;
+}
+
+// ── Add product + qty to current order (Odoo 17/18/19 fallbacks) ─────────────
 async function addProductWithQty(screen, product, qty) {
     const pos = screen.pos;
-
-    // Odoo 19
-    if (typeof pos.addProductToCurrentOrder === "function") {
+    if (typeof pos.addProductToCurrentOrder === 'function') {
         await pos.addProductToCurrentOrder(product, { quantity: qty });
-        return;
+        return true;
     }
-
-    // Odoo 17/18: add then set qty on selected line
-    if (typeof screen.addProductToOrder === "function") {
+    if (typeof screen.addProductToOrder === 'function') {
         await screen.addProductToOrder(product);
         const order = pos.get_order?.() || pos.selectedOrder;
-        if (order) {
-            const line = order.get_selected_orderline?.() || order.selected_orderline;
-            if (line && typeof line.set_quantity === "function") {
-                line.set_quantity(qty);
-            }
-        }
-        return;
+        const line  = order?.get_selected_orderline?.() || order?.selected_orderline;
+        if (line && typeof line.set_quantity === 'function') line.set_quantity(qty);
+        return true;
     }
-
-    // Odoo 15/16 legacy
     const order = pos.get_order?.() || pos.selectedOrder;
-    if (order && typeof order.add_product === "function") {
+    if (order && typeof order.add_product === 'function') {
         order.add_product(product, { quantity: qty });
-        return;
+        return true;
     }
-
-    console.error("[CustomBarcode] No compatible add-product API found.");
+    return false;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Patch ProductScreen
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Patch ProductScreen ───────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
 
-    /**
-     * Build (and cache) the {barcode → {product, qty}} lookup map.
-     * Called lazily on the first scan so products are guaranteed to be loaded.
-     */
-    _getCustomBarcodeMap() {
-        if (this.__customBarcodeMap) return this.__customBarcodeMap;
-
-        const map = {};
-        const allProducts = getAllPosProducts(this.pos);
-
-        // ── Diagnostic: log the first product's keys so we can verify fields ──
-        if (allProducts.length > 0) {
-            const sample = allProducts[0];
-            const hasFields = {
-                barcode2: sample.barcode2 !== undefined,
-                barcode3: sample.barcode3 !== undefined,
-                custom_qty1: sample.custom_qty1 !== undefined,
-                custom_qty2: sample.custom_qty2 !== undefined,
-            };
-            console.log(
-                `[CustomBarcode] Sample product "${sample.display_name}" — custom fields present:`,
-                hasFields
-            );
-            if (!hasFields.barcode2) {
-                console.warn(
-                    "[CustomBarcode] ⚠️  barcode2/barcode3 are MISSING from POS product data. " +
-                    "Run: python odoo-bin -u custom_product_barcode  then restart the POS session."
-                );
-            }
-        }
-
-        for (const product of allProducts) {
-            if (product.barcode2) {
-                map[product.barcode2] = {
-                    product,
-                    qty: product.custom_qty1 > 0 ? product.custom_qty1 : 1,
-                };
-            }
-            if (product.barcode3) {
-                map[product.barcode3] = {
-                    product,
-                    qty: product.custom_qty2 > 0 ? product.custom_qty2 : 1,
-                };
-            }
-        }
-
-        console.log(
-            `[CustomBarcode] Map built — ${Object.keys(map).length} custom barcode(s) indexed.`,
-            Object.keys(map).length > 0 ? Object.keys(map) : "(none — check fields are loaded)"
-        );
-        this.__customBarcodeMap = map;
-        return map;
-    },
-
-    /**
-     * Intercept every POS barcode scan.
-     * code may be a plain string or a barcode object {code, type, …}.
-     */
     async _barcodeProductAction(code) {
-        // Normalise to string
-        const barcodeStr =
-            typeof code === "string"
-                ? code
-                : (code?.code ?? code?.base_code ?? code?.value ?? "");
+        const barcodeStr = typeof code === 'string'
+            ? code
+            : (code?.code ?? code?.base_code ?? code?.value ?? '');
 
         if (barcodeStr) {
-            const customData = this._getCustomBarcodeMap()[barcodeStr];
+            const map   = await fetchCustomBarcodeMap();
+            const entry = map[barcodeStr];
 
-            if (customData) {
-                const { product, qty } = customData;
+            if (entry) {
+                const product = findProductById(this.pos, entry.product_id);
 
-                try {
-                    await addProductWithQty(this, product, qty);
-                } catch (err) {
-                    console.error("[CustomBarcode] Error adding product:", err);
-                    return super._barcodeProductAction(code);
-                }
-
-                // Toast — non-critical
-                try {
-                    this.notification?.add(
-                        `${product.display_name}  ×  ${qty}`,
-                        { type: "success", duration: 2000 }
+                if (product) {
+                    try { await addProductWithQty(this, product, entry.qty); }
+                    catch (err) {
+                        console.error('[CustomBarcode] add error:', err);
+                        return super._barcodeProductAction(code);
+                    }
+                    try {
+                        this.notification?.add(
+                            `${entry.product_name}  ×  ${entry.qty}`,
+                            { type: 'success', duration: 2500 }
+                        );
+                    } catch (_) {}
+                    this.numberBuffer?.reset?.();
+                    return;
+                } else {
+                    console.warn(
+                        `[CustomBarcode] product_id=${entry.product_id} not in POS store. ` +
+                        `Ensure the product is enabled for this POS.`
                     );
-                } catch (_) {}
-
-                this.numberBuffer?.reset?.();
-                return;   // handled — do NOT call super
+                }
             }
         }
 
-        // Not a custom barcode → fall through to standard Odoo handler
         return super._barcodeProductAction(code);
     },
 });
 
-console.log("[CustomBarcode] ✅ ProductScreen._barcodeProductAction patched.");
+// Pre-warm cache immediately on module load
+fetchCustomBarcodeMap().catch(() => {});
+
+console.log('[CustomBarcode] ✅ v4 loaded — using server-side barcode map.');
