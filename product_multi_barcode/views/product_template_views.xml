@@ -7,13 +7,18 @@
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
 
+            <!-- Make default_code (Internal Reference) clearly visible and not required in UI -->
+            <xpath expr="//field[@name='default_code']" position="attributes">
+                <attribute name="required">0</attribute>
+                <attribute name="placeholder">Auto-generated if left blank</attribute>
+            </xpath>
+
+            <!-- Add our packaging fields after the last group in General Information tab -->
             <xpath expr="//page[@name='general_information']//group[last()]" position="after">
 
                 <separator string="─── Additional Barcodes &amp; Packaging ───"/>
 
                 <group col="6" colspan="4">
-
-                    <!-- Pack 2 -->
                     <group string="📦 Pack 2" colspan="3" col="2">
                         <field name="barcode_2"
                                string="Barcode 2"
@@ -26,8 +31,6 @@
                                string="Pack 2 Name"
                                placeholder="e.g. Dozen"/>
                     </group>
-
-                    <!-- Pack 3 -->
                     <group string="🏭 Pack 3" colspan="3" col="2">
                         <field name="barcode_3"
                                string="Barcode 3"
@@ -40,7 +43,6 @@
                                string="Pack 3 Name"
                                placeholder="e.g. Big Carton"/>
                     </group>
-
                 </group>
 
                 <group col="2" colspan="4">
