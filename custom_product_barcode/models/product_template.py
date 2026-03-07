@@ -54,62 +54,37 @@ class ProductTemplate(models.Model):
              '(e.g. 120 for "10 dozen").',
     )
 
-    # ── Constraints ────────────────────────────────────────────────────────────
+    # ── SQL Constraints (DB-level, no ORM cascade, no default_code side effects)
+    _sql_constraints = [
+        (
+            'barcode2_unique',
+            'UNIQUE(barcode2)',
+            'Barcode 2 must be unique across all products.',
+        ),
+        (
+            'barcode3_unique',
+            'UNIQUE(barcode3)',
+            'Barcode 3 must be unique across all products.',
+        ),
+    ]
 
+    # ── Python constraint  (only checks fields on THIS record — no search())  ──
     @api.constrains('barcode', 'barcode2', 'barcode3')
-    def _check_barcode_uniqueness(self):
+    def _check_barcodes_distinct_on_same_product(self):
         """
-        Ensures:
-          1. barcode, barcode2, barcode3 are mutually distinct on the same product.
-          2. barcode2 / barcode3 are globally unique across all products.
+        Ensures the three barcodes on the SAME product are all different.
+        No self.search() is used here so no cascade validation is triggered.
+        Global uniqueness is already enforced by the SQL UNIQUE constraints above.
         """
         for rec in self:
-            active_barcodes = [b for b in [rec.barcode, rec.barcode2, rec.barcode3] if b]
-            if len(active_barcodes) != len(set(active_barcodes)):
+            active = [b for b in (rec.barcode, rec.barcode2, rec.barcode3) if b]
+            if len(active) != len(set(active)):
                 raise ValidationError(
-                    _('Barcode, Barcode 2 and Barcode 3 on the same product must all be different.')
+                    _(
+                        'Barcode, Barcode 2 and Barcode 3 on the same product '
+                        'must all be different. Please check product "%s".'
+                    ) % rec.display_name
                 )
-
-            if rec.barcode2:
-                duplicate = self.search(
-                    [('barcode2', '=', rec.barcode2), ('id', '!=', rec.id)],
-                    limit=1,
-                )
-                if duplicate:
-                    raise ValidationError(
-                        _('Barcode 2 "%s" is already used by product "%s".')
-                        % (rec.barcode2, duplicate.display_name)
-                    )
-                # Also check it doesn't clash with any standard barcode
-                clash = self.search(
-                    [('barcode', '=', rec.barcode2), ('id', '!=', rec.id)],
-                    limit=1,
-                )
-                if clash:
-                    raise ValidationError(
-                        _('Barcode 2 "%s" is already used as the main barcode of product "%s".')
-                        % (rec.barcode2, clash.display_name)
-                    )
-
-            if rec.barcode3:
-                duplicate = self.search(
-                    [('barcode3', '=', rec.barcode3), ('id', '!=', rec.id)],
-                    limit=1,
-                )
-                if duplicate:
-                    raise ValidationError(
-                        _('Barcode 3 "%s" is already used by product "%s".')
-                        % (rec.barcode3, duplicate.display_name)
-                    )
-                clash = self.search(
-                    [('barcode', '=', rec.barcode3), ('id', '!=', rec.id)],
-                    limit=1,
-                )
-                if clash:
-                    raise ValidationError(
-                        _('Barcode 3 "%s" is already used as the main barcode of product "%s".')
-                        % (rec.barcode3, clash.display_name)
-                    )
 
     # ── Helper ─────────────────────────────────────────────────────────────────
 
