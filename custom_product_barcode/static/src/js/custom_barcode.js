@@ -107,9 +107,10 @@ patch(ProductScreen.prototype, {
                 // entry.price already accounts for the rule:
                 //   custom_price > 0 → custom_price (from server)
                 //   custom_price = 0 → unit_price × qty (from server)
-                const lineUnitPrice = entry.qty > 0
-                    ? entry.price / entry.qty
-                    : entry.unit_price;
+                // entry.price = per-unit selling price for this package
+                // (custom_price1 if set, else product's standard unit price)
+                // POS line: qty × price_unit = qty × entry.price = total ✅
+                const lineUnitPrice = entry.price;
 
                 try {
                     // Pass price_unit directly — Odoo 19 applies it at line creation time
@@ -131,7 +132,7 @@ patch(ProductScreen.prototype, {
 
                 const symbol = this.pos.currency?.symbol ?? '₹';
                 showNotification(this,
-                    `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${entry.price.toFixed(2)}`
+                    `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}`
                 );
                 this.numberBuffer?.reset?.();
                 return;
