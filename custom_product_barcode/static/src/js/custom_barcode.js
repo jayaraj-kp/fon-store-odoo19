@@ -91,7 +91,30 @@ patch(ProductScreen.prototype, {
         if (this.__customBarcodeMap) return this.__customBarcodeMap;
 
         const map = {};
-        for (const product of getAllPosProducts(this.pos)) {
+        const allProducts = getAllPosProducts(this.pos);
+
+        // ── Diagnostic: log the first product's keys so we can verify fields ──
+        if (allProducts.length > 0) {
+            const sample = allProducts[0];
+            const hasFields = {
+                barcode2: sample.barcode2 !== undefined,
+                barcode3: sample.barcode3 !== undefined,
+                custom_qty1: sample.custom_qty1 !== undefined,
+                custom_qty2: sample.custom_qty2 !== undefined,
+            };
+            console.log(
+                `[CustomBarcode] Sample product "${sample.display_name}" — custom fields present:`,
+                hasFields
+            );
+            if (!hasFields.barcode2) {
+                console.warn(
+                    "[CustomBarcode] ⚠️  barcode2/barcode3 are MISSING from POS product data. " +
+                    "Run: python odoo-bin -u custom_product_barcode  then restart the POS session."
+                );
+            }
+        }
+
+        for (const product of allProducts) {
             if (product.barcode2) {
                 map[product.barcode2] = {
                     product,
@@ -107,7 +130,8 @@ patch(ProductScreen.prototype, {
         }
 
         console.log(
-            `[CustomBarcode] Map built — ${Object.keys(map).length} custom barcode(s) indexed.`
+            `[CustomBarcode] Map built — ${Object.keys(map).length} custom barcode(s) indexed.`,
+            Object.keys(map).length > 0 ? Object.keys(map) : "(none — check fields are loaded)"
         );
         this.__customBarcodeMap = map;
         return map;
