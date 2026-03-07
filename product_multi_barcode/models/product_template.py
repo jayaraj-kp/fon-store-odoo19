@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
+import random
+import string
 
 
 class ProductTemplate(models.Model):
@@ -31,3 +33,27 @@ class ProductTemplate(models.Model):
             if self.search([('barcode_3', '=', rec.barcode_3), ('id', '!=', rec.id)], limit=1):
                 raise ValidationError(
                     _('Barcode 3 "%s" is already used by another product.') % rec.barcode_3)
+
+    def _generate_internal_ref(self, name='PRD'):
+        """Generate a unique internal reference."""
+        prefix = ''.join(c for c in (name or 'PRD').upper() if c.isalnum())[:4] or 'PRD'
+        for _ in range(200):
+            ref = prefix + ''.join(random.choices(string.digits, k=4))
+            if not self.sudo().search([('default_code', '=', ref)], limit=1):
+                return ref
+        return prefix + ''.join(random.choices(string.digits, k=6))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('default_code'):
+                vals['default_code'] = self._generate_internal_ref(vals.get('name', 'PRD'))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if 'default_code' in vals and not vals['default_code']:
+            for rec in self:
+                vals = dict(vals)
+                vals['default_code'] = self._generate_internal_ref(rec.name or 'PRD')
+                break
+        return super().write(vals)
