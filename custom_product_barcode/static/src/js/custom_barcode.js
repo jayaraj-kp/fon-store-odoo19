@@ -67,15 +67,40 @@ function getCurrentOrder(pos) {
     return pos.get_order?.() || pos.selectedOrder || pos.currentOrder || null;
 }
 
-function forcePriceOnLine(order, unitPrice) {
-    const line = order?.get_selected_orderline?.()
-              || order?.selected_orderline
-              || order?.get_orderlines?.()?.at(-1)
-              || order?.orderlines?.at?.(-1) || null;
-    if (!line) return;
-    if (typeof line.set_unit_price === 'function') { line.set_unit_price(unitPrice); return; }
-    if (typeof line.setUnitPrice   === 'function') { line.setUnitPrice(unitPrice);   return; }
-    if ('price_unit' in line) line.price_unit = unitPrice;
+function getLastLine(order) {
+    return order?.get_selected_orderline?.()
+        || order?.selected_orderline
+        || order?.get_orderlines?.()?.at(-1)
+        || order?.orderlines?.at?.(-1) || null;
+}
+
+// Set price using the same pattern that successfully sets qty in Odoo 19
+function setPriceOnLine(line, price) {
+    if (!line) { console.warn('[CustomBarcode] No line to set price on'); return false; }
+    console.log('[CustomBarcode] Line price methods:', 
+        ['set_unit_price','setUnitPrice','set_price','setPrice','update']
+        .filter(m => typeof line[m] === 'function'));
+    console.log('[CustomBarcode] Current price_unit:', line.price_unit, '| price:', line.price);
+    
+    // Method 1: set_unit_price (standard Odoo method, triggers recomputation)
+    if (typeof line.set_unit_price === 'function') {
+        line.set_unit_price(price);
+        console.log('[CustomBarcode] set_unit_price(' + price + ') → price_unit now:', line.price_unit);
+        return true;
+    }
+    // Method 2: update() reactive model method (Odoo 19)
+    if (typeof line.update === 'function') {
+        line.update({ price_unit: price });
+        console.log('[CustomBarcode] update({price_unit:' + price + '})');
+        return true;
+    }
+    // Method 3: direct assignment (last resort)
+    if ('price_unit' in line) {
+        line.price_unit = price;
+        console.log('[CustomBarcode] line.price_unit=' + price);
+        return true;
+    }
+    return false;
 }
 
 async function handleCustomBarcode(screen, rawBarcode) {
@@ -91,13 +116,19 @@ async function handleCustomBarcode(screen, rawBarcode) {
     }
 
     try {
+        // Step 1: Add line with qty (same working pattern as scanner)
         screen.pos.addLineToCurrentOrder({
             product_id: product,
             qty:        entry.qty,
-            price_unit: entry.price,
         });
-        await new Promise(r => setTimeout(r, 40));
-        forcePriceOnLine(getCurrentOrder(screen.pos), entry.price);
+
+        // Step 2: Wait for Owl reactive commit, then set price on the line
+        // (same pattern as set_quantity which works correctly)
+        await new Promise(r => setTimeout(r, 60));
+        const order = getCurrentOrder(screen.pos);
+        const line  = getLastLine(order);
+        setPriceOnLine(line, entry.price);
+
     } catch (err) {
         console.error('[CustomBarcode] Error adding product:', err);
         return false;
