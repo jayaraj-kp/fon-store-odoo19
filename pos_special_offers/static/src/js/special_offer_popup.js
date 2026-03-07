@@ -323,23 +323,62 @@ export class SpecialOfferPopup extends Component {
         return false;
     }
 
-    applyOffer(offer) {
+    getSelectedLine(order) {
+        try {
+            // Odoo 17/18/19 POS — various ways to get the selected/highlighted line
+            if (typeof order.get_selected_orderline === "function") return order.get_selected_orderline();
+            if (typeof order.getSelectedOrderline  === "function") return order.getSelectedOrderline();
+            if (order.selected_orderline)  return order.selected_orderline;
+            if (order.selectedOrderline)   return order.selectedOrderline;
+        } catch(e) {}
+        return null;
+    }
+
+    /**
+     * For FLAT DISCOUNT offers: apply to all matching lines (existing behaviour).
+     * For COUPON offers: apply only to the currently selected order line.
+     */
+    applyOffer(offer, couponMode = false) {
         this.state.errorMsg   = "";
         this.state.appliedMsg = "";
         const order = this.currentOrder;
         if (!order) { this.state.errorMsg = "No active order found."; return; }
-        const lines = this.getOrderLines(order);
-        if (!lines.length) { this.state.errorMsg = "Please add products to the order first."; return; }
-        let applied = 0;
-        for (const line of lines) {
-            if (this.lineMatchesOffer(line, offer)) {
-                if (this.applyDiscount(line, offer)) applied++;
+
+        if (couponMode) {
+            // ── Coupon: apply only to the selected line ───────────────────────
+            const line = this.getSelectedLine(order);
+            if (!line) {
+                this.state.errorMsg = "Please select a product line in the order first.";
+                return;
             }
-        }
-        if (applied > 0) {
-            this.state.appliedMsg = `✅ "${offer.name}" applied to ${applied} line(s)!`;
+            if (!this.lineMatchesOffer(line, offer)) {
+                const lines = this.getOrderLines(order);
+                if (!lines.length) {
+                    this.state.errorMsg = "Please add products to the order first.";
+                    return;
+                }
+                // Offer doesn't match the selected line — still apply (coupon applies regardless of product scope when used manually)
+            }
+            if (this.applyDiscount(line, offer)) {
+                this.state.appliedMsg = `✅ "${offer.name}" applied to selected product!`;
+            } else {
+                this.state.errorMsg = `Could not apply "${offer.name}" to the selected line.`;
+            }
         } else {
-            this.state.errorMsg = `"${offer.name}" matched no products in this order.`;
+            // ── Flat discount: apply to ALL matching lines (unchanged) ────────
+            const lines = this.getOrderLines(order);
+            if (!lines.length) { this.state.errorMsg = "Please add products to the order first."; return; }
+            let applied = 0;
+            for (const line of lines) {
+                if (this.lineMatchesOffer(line, offer)) {
+                    if (this.applyDiscount(line, offer)) applied++;
+                }
+            }
+            if (applied > 0) {
+                this.state.appliedMsg = `✅ "${offer.name}" applied to ${applied} line(s)!`;
+            } else {
+                this.state.errorMsg = `"${offer.name}" matched no products in this order.`;
+            }
         }
     }
 
@@ -380,8 +419,8 @@ export class SpecialOfferPopup extends Component {
             return;
         }
 
-        // Apply the discount (uses fixed subtract logic above)
-        this.applyOffer(matchedOffer);
+        // Apply the discount only to the selected line (coupon mode)
+        this.applyOffer(matchedOffer, true);
 
         // Mark generated coupon as used on the server
         if (matchedCoupon && this.state.appliedMsg) {
