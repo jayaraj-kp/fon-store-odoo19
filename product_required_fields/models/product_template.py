@@ -6,7 +6,7 @@ class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
     # Override fields to make them required at model level (handles UI asterisk)
-    default_code = fields.Char(required=True)
+    # default_code = fields.Char(required=True)
     # barcode = fields.Char(required=True)
     available_in_pos = fields.Boolean(required=True, default=True)
     is_storable = fields.Boolean(required=True, default=True)
