@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Inherit the standard product.template form view
+         Add Barcode 2 / Barcode 3 / Package Qty 1 / Package Qty 2 fields.
+
+         Layout goal (inside General Information tab, after standard Barcode):
+         ┌──────────────────────────────────────────────────────────────────┐
+         │  Barcode          [__________________________]                   │
+         │  ─ ─ ─ ─ ─ ─ ─ Package Barcodes ─ ─ ─ ─ ─ ─                   │
+         │  Package 1  ╔════════════════╗  Package 2  ╔═════════════════╗  │
+         │             ║ Barcode 2      ║             ║ Barcode 3       ║  │
+         │             ║ Package Qty 1  ║             ║ Package Qty 2   ║  │
+         │             ╚════════════════╝             ╚═════════════════╝  │
+         └──────────────────────────────────────────────────────────────────┘
+         ════════════════════════════════════════════════════════════════════ -->
+
+    <record id="product_template_form_view_barcode_inherit" model="ir.ui.view">
+        <field name="name">product.template.form.multi.barcode</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Insert our group directly after the standard "barcode" field -->
+            <xpath expr="//field[@name='barcode']" position="after">
+
+                <separator string="Package Barcodes &amp; Quantities"/>
+
+                <group string="Package 1  (e.g. 1 Dozen = 12 units)"
+                       name="package_barcode_group1"
+                       col="2">
+                    <field name="barcode2"
+                           string="Barcode 2"
+                           placeholder="Scan or type package barcode…"
+                           widget="char"/>
+                    <field name="custom_qty1"
+                           string="Package Qty 1"
+                           help="Quantity added when Barcode 2 is scanned (e.g. 12 for 1 dozen)."/>
+                </group>
+
+                <group string="Package 2  (e.g. 10 Dozen = 120 units)"
+                       name="package_barcode_group2"
+                       col="2">
+                    <field name="barcode3"
+                           string="Barcode 3"
+                           placeholder="Scan or type bulk-pack barcode…"
+                           widget="char"/>
+                    <field name="custom_qty2"
+                           string="Package Qty 2"
+                           help="Quantity added when Barcode 3 is scanned (e.g. 120 for 10 dozen)."/>
+                </group>
+
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
