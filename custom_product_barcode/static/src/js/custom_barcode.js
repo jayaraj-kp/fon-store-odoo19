@@ -1,19 +1,16 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v5 — case-insensitive barcode match)
- * ========================================================================
- *
- * FIX in v5: barcode comparison is now CASE-INSENSITIVE.
- * Map keys are stored in UPPERCASE; scanned barcodes are uppercased before
- * lookup.  This means "usb3mtr", "USB3MTR", "Usb3Mtr" all match the same
- * entry.
+ * custom_barcode.js  –  Odoo 19 CE  (v6)
+ * ========================================
+ * Fixes: Notification component crash — Odoo 19 uses this.env.services.notification
+ * instead of this.notification, and does NOT accept a 'duration' prop.
  */
 
 import { patch }         from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 
 // ── Module-level cache ────────────────────────────────────────────────────────
-let _customBarcodeMap = null;   // keys are UPPERCASE
+let _customBarcodeMap = null;
 let _fetchPromise     = null;
 
 // ── Fetch barcode map from Odoo controller ────────────────────────────────────
@@ -33,7 +30,7 @@ async function fetchCustomBarcodeMap() {
             const json = await response.json();
             const raw  = (json?.result ?? json)?.barcodes ?? {};
 
-            // ── Store all keys in UPPERCASE for case-insensitive matching ──
+            // Store keys as UPPERCASE for case-insensitive matching
             _customBarcodeMap = {};
             for (const [barcode, entry] of Object.entries(raw)) {
                 _customBarcodeMap[barcode.toUpperCase()] = entry;
@@ -67,6 +64,26 @@ function findProductById(pos, productId) {
     return null;
 }
 
+// ── Show a safe notification (handles Odoo 17/18/19 API differences) ─────────
+function showNotification(screen, message) {
+    try {
+        // Odoo 19: notification service via env
+        const svc = screen.env?.services?.notification;
+        if (svc) {
+            svc.add(message, { type: 'success' });
+            return;
+        }
+        // Odoo 17/18: this.notification
+        if (screen.notification) {
+            screen.notification.add(message, { type: 'success' });
+            return;
+        }
+    } catch (e) {
+        // Notification is cosmetic — never crash on it
+        console.warn('[CustomBarcode] Notification skipped:', e.message);
+    }
+}
+
 // ── Add product + qty (Odoo 17/18/19 fallbacks) ───────────────────────────────
 async function addProductWithQty(screen, product, qty) {
     const pos = screen.pos;
@@ -93,8 +110,6 @@ async function addProductWithQty(screen, product, qty) {
 patch(ProductScreen.prototype, {
 
     async _barcodeProductAction(code) {
-
-        // Normalise to plain string then UPPERCASE for case-insensitive match
         const raw = typeof code === 'string'
             ? code
             : (code?.code ?? code?.base_code ?? code?.value ?? '');
@@ -103,30 +118,29 @@ patch(ProductScreen.prototype, {
 
         if (barcodeUpper) {
             const map   = await fetchCustomBarcodeMap();
-            const entry = map[barcodeUpper];   // ← keys are already uppercase
+            const entry = map[barcodeUpper];
 
             if (entry) {
                 const product = findProductById(this.pos, entry.product_id);
 
                 if (product) {
-                    try { await addProductWithQty(this, product, entry.qty); }
-                    catch (err) {
+                    try {
+                        await addProductWithQty(this, product, entry.qty);
+                    } catch (err) {
                         console.error('[CustomBarcode] add error:', err);
                         return super._barcodeProductAction(code);
                     }
-                    try {
-                        this.notification?.add(
-                            `${entry.product_name}  ×  ${entry.qty}`,
-                            { type: 'success', duration: 2500 }
-                        );
-                    } catch (_) {}
+
+                    // Safe notification — will never crash POS even if API changes
+                    showNotification(this, `${entry.product_name}  ×  ${entry.qty}`);
+
                     this.numberBuffer?.reset?.();
                     return;   // handled — do NOT call super
                 } else {
                     console.warn(
-                        `[CustomBarcode] Barcode "${barcodeUpper}" matched map ` +
-                        `(product_id=${entry.product_id}) but product not found in POS. ` +
-                        `Check: is the product enabled for this POS config?`
+                        `[CustomBarcode] Barcode "${barcodeUpper}" matched ` +
+                        `(product_id=${entry.product_id}) but product not in POS. ` +
+                        `Enable it for this POS configuration.`
                     );
                 }
             }
@@ -139,4 +153,4 @@ patch(ProductScreen.prototype, {
 // Pre-warm cache on module load
 fetchCustomBarcodeMap().catch(() => {});
 
-console.log('[CustomBarcode] ✅ v5 loaded — case-insensitive server-side barcode map.');
+console.log('[CustomBarcode] ✅ v6 loaded.');
