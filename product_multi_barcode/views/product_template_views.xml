@@ -1,61 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ════════════════════════════════════════════════════════════════════
-         Inject the multi-barcode / package-qty block into the product
-         template form – placed inside the "Barcode" tab (General Info).
-         We also add a dedicated "Packaging Barcodes" group in General Info.
-         ════════════════════════════════════════════════════════════════════ -->
-
+    <!-- Add multi-barcode section to the product template form -->
     <record id="product_template_form_multi_barcode" model="ir.ui.view">
         <field name="name">product.template.form.multi.barcode</field>
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
 
-            <!-- ── 1.  Add fields to the existing "Barcode" tab ──────────── -->
-            <xpath expr="//page[@name='general_information']" position="inside">
-                <group string="Additional Barcodes &amp; Packaging" name="multi_barcode_group"
-                       col="4" colspan="4">
-
-                    <!-- ── Pack 2 ─────────────────────────────────────────── -->
-                    <group string="Pack 2" col="2">
-                        <field name="barcode_2"
-                               placeholder="Scan or type barcode"
-                               widget="barcode_handler"/>
-                        <field name="package_qty_2"
-                               placeholder="e.g. 12"/>
-                        <field name="package_name_2"
-                               placeholder="e.g. Dozen"/>
-                    </group>
-
-                    <!-- ── Pack 3 ─────────────────────────────────────────── -->
-                    <group string="Pack 3" col="2">
-                        <field name="barcode_3"
-                               placeholder="Scan or type barcode"
-                               widget="barcode_handler"/>
-                        <field name="package_qty_3"
-                               placeholder="e.g. 120"/>
-                        <field name="package_name_3"
-                               placeholder="e.g. Big Carton"/>
-                    </group>
-
-                </group>
-            </xpath>
-
-            <!-- ── 2.  Also mirror the fields inside the "Barcode" dedicated tab ── -->
-            <xpath expr="//page[@name='barcode_tab']" position="inside">
+            <!-- Insert after the existing barcode field in General Information -->
+            <xpath expr="//field[@name='barcode']" position="after">
                 <separator string="Additional Barcodes &amp; Packaging"/>
-                <group col="4" colspan="4">
-                    <group string="Pack 2" col="2">
-                        <field name="barcode_2"   widget="barcode_handler"/>
-                        <field name="package_qty_2"/>
-                        <field name="package_name_2"/>
+                <group col="2" colspan="2">
+                    <group string="Pack 2 (e.g. Dozen)">
+                        <field name="barcode_2" placeholder="Scan or type barcode"/>
+                        <field name="package_qty_2" placeholder="e.g. 12"/>
+                        <field name="package_name_2" placeholder="e.g. Dozen"/>
                     </group>
-                    <group string="Pack 3" col="2">
-                        <field name="barcode_3"   widget="barcode_handler"/>
-                        <field name="package_qty_3"/>
-                        <field name="package_name_3"/>
+                    <group string="Pack 3 (e.g. Big Carton)">
+                        <field name="barcode_3" placeholder="Scan or type barcode"/>
+                        <field name="package_qty_3" placeholder="e.g. 120"/>
+                        <field name="package_name_3" placeholder="e.g. Big Carton"/>
                     </group>
                 </group>
             </xpath>
@@ -63,37 +28,7 @@
         </field>
     </record>
 
-    <!-- ════════════════════════════════════════════════════════════════════
-         Inventory module product form (inherits stock's product view)
-         ════════════════════════════════════════════════════════════════════ -->
-
-    <record id="stock_product_template_form_multi_barcode" model="ir.ui.view">
-        <field name="name">stock.product.template.form.multi.barcode</field>
-        <field name="model">product.template</field>
-        <field name="inherit_id" ref="stock.product_template_form_view_procurement_button"/>
-        <field name="arch" type="xml">
-
-            <!-- inherit_id is the stock button view; we just need the fields
-                 registered – the actual display comes from the base view above -->
-            <xpath expr="//sheet" position="inside">
-                <!-- invisible placeholder so the fields are declared in this view too -->
-                <group invisible="1">
-                    <field name="barcode_2"/>
-                    <field name="package_qty_2"/>
-                    <field name="package_name_2"/>
-                    <field name="barcode_3"/>
-                    <field name="package_qty_3"/>
-                    <field name="package_name_3"/>
-                </group>
-            </xpath>
-
-        </field>
-    </record>
-
-    <!-- ════════════════════════════════════════════════════════════════════
-         Search view extension – find products by barcode_2 / barcode_3
-         ════════════════════════════════════════════════════════════════════ -->
-
+    <!-- Search view: find by barcode_2 or barcode_3 -->
     <record id="product_template_search_multi_barcode" model="ir.ui.view">
         <field name="name">product.template.search.multi.barcode</field>
         <field name="model">product.template</field>

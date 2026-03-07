@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    custom_pos_auto_invoice/auto_invoice.xml
+    No extra OWL templates needed — all logic is in JS.
+    This file is kept as a placeholder.
+-->
+<templates xml:space="preserve">
+</templates>
