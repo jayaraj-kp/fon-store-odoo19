@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="assets_pos_multi_barcode" inherit_id="point_of_sale.assets">
+        <xpath expr="." position="inside">
+            <script type="module"
+                    src="/product_multi_barcode/static/src/js/multi_barcode_pos.js"/>
+        </xpath>
+    </template>
+</odoo>

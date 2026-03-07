@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Extend the product variant form to show packaging info read-only -->
+    <record id="product_product_form_multi_barcode" model="ir.ui.view">
+        <field name="name">product.product.form.multi.barcode</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='barcode']" position="after">
+                <field name="barcode_2" readonly="1"
+                       optional="show"
+                       string="Barcode 2"/>
+                <field name="barcode_3" readonly="1"
+                       optional="show"
+                       string="Barcode 3"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
