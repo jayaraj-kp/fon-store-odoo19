@@ -1,14 +1,13 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v12)
+ * custom_barcode.js  –  Odoo 19 CE  (Final + Package Price)
  *
- * ROOT CAUSE FOUND:
- * Console showed "[SpecialOffer] ✅ Patched addLineToCurrentOrder"
- * → The Odoo 19 POS method to add a product is pos.addLineToCurrentOrder()
- *   NOT pos.addProductToCurrentOrder() or order.add_product()
+ * Scan Barcode 2 → adds Package Qty 1 at Package Price 1
+ * Scan Barcode 3 → adds Package Qty 2 at Package Price 2
  *
- * addLineToCurrentOrder(product, options) signature in Odoo 19:
- *   options.quantity sets the line quantity directly.
+ * Price logic (set on product form):
+ *   Package Price > 0 → use that fixed price for the whole package
+ *   Package Price = 0 → use unit price × qty (auto-calculated)
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -23,18 +22,19 @@ async function fetchCustomBarcodeMap() {
     _fetchPromise = (async () => {
         try {
             const resp = await fetch('/pos/custom_barcode_map', {
-                method: 'POST',
+                method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} }),
+                body:    JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} }),
             });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();
             const raw  = (json?.result ?? json)?.barcodes ?? {};
             _customBarcodeMap = {};
             for (const [k, v] of Object.entries(raw))
                 _customBarcodeMap[k.toUpperCase()] = v;
-            console.log('[CustomBarcode] ✅ Map loaded:', Object.keys(_customBarcodeMap));
+            console.log(`[CustomBarcode] ✅ ${Object.keys(_customBarcodeMap).length} package barcode(s) loaded.`);
         } catch (e) {
-            console.error('[CustomBarcode] ❌', e);
+            console.error('[CustomBarcode] Failed to load barcode map:', e);
             _customBarcodeMap = {};
         }
         return _customBarcodeMap;
@@ -65,42 +65,35 @@ function getCurrentOrder(pos) {
     return pos.get_order?.() || pos.selectedOrder || pos.currentOrder || null;
 }
 
-function getLastLine(order) {
-    return order?.get_selected_orderline?.()
-        || order?.selected_orderline
-        || order?.selectedOrderline
-        || order?.get_orderlines?.()?.at(-1)
-        || order?.orderlines?.at?.(-1)
-        || null;
-}
+// Set a custom price on the last added order line
+function setPriceOnLine(order, price) {
+    const line = order?.get_selected_orderline?.()
+              || order?.selected_orderline
+              || order?.get_orderlines?.()?.at(-1)
+              || order?.orderlines?.at?.(-1)
+              || null;
 
-async function addProductWithQty(pos, product, qty) {
-    // ── Method 1: Odoo 19 native — addLineToCurrentOrder ─────────────────────
-    if (typeof pos.addLineToCurrentOrder === 'function') {
-        pos.addLineToCurrentOrder({ product_id: product, qty: qty });
-        console.log('[CustomBarcode] ✅ Method 1: addLineToCurrentOrder(qty=' + qty + ')');
-        return true;
+    if (!line) return;
+
+    // Odoo 19: line.set_unit_price(price)
+    if (typeof line.set_unit_price === 'function') {
+        line.set_unit_price(price);
+        return;
     }
-
-    // ── Method 2: addLineToCurrentOrder with different arg shape ──────────────
-    // Some Odoo 19 builds accept (product, {quantity})
-    if (typeof pos.addLineToCurrentOrder === 'function') {
-        pos.addLineToCurrentOrder(product, { quantity: qty });
-        console.log('[CustomBarcode] ✅ Method 2: addLineToCurrentOrder(product, {quantity})');
-        return true;
+    if (typeof line.setUnitPrice === 'function') {
+        line.setUnitPrice(price);
+        return;
     }
-
-    // Log all pos methods for diagnosis
-    const posMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(pos))
-        .filter(m => /add|order|line|product/i.test(m));
-    console.warn('[CustomBarcode] addLineToCurrentOrder not found. pos methods:', posMethods);
-    return false;
+    // Direct property fallback
+    if ('price_unit' in line) line.price_unit = price;
+    else if ('unit_price' in line) line.unit_price = price;
 }
 
 patch(ProductScreen.prototype, {
 
     async _barcodeProductAction(code) {
-        const raw = typeof code === 'string' ? code
+        const raw = typeof code === 'string'
+            ? code
             : (code?.code ?? code?.base_code ?? code?.value ?? '');
         const barcodeUpper = raw.toUpperCase();
 
@@ -111,40 +104,41 @@ patch(ProductScreen.prototype, {
             if (entry) {
                 const product = findProductById(this.pos, entry.product_id);
                 if (!product) {
-                    console.warn('[CustomBarcode] product id=' + entry.product_id + ' not in POS');
+                    console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS — enable in POS config.`);
                     return super._barcodeProductAction(code);
                 }
 
-                const added = await addProductWithQty(this.pos, product, entry.qty);
+                try {
+                    // Add line with qty using Odoo 19 API
+                    this.pos.addLineToCurrentOrder({ product_id: product, qty: entry.qty });
 
-                if (added) {
-                    // Verify the line qty was set correctly
-                    await new Promise(r => setTimeout(r, 50));
+                    // Apply package price on the new line
+                    // entry.price is either custom_price or unit_price × qty from server
+                    await new Promise(r => setTimeout(r, 30));
                     const order = getCurrentOrder(this.pos);
-                    const line  = getLastLine(order);
-                    const actualQty = line?.qty ?? line?.quantity ?? '?';
-                    console.log('[CustomBarcode] Line qty after add:', actualQty, '(expected ' + entry.qty + ')');
 
-                    // If qty is still wrong, force it
-                    if (line && Number(actualQty) !== entry.qty) {
-                        console.warn('[CustomBarcode] qty mismatch — forcing...');
-                        if (typeof line.set_quantity === 'function') line.set_quantity(entry.qty);
-                        else if (typeof line.update === 'function') line.update({ qty: entry.qty });
-                        else if ('qty' in line) line.qty = entry.qty;
-                    }
+                    // Package price from server = price for qty units total
+                    // We store it as the unit_price on the line so POS shows: qty × price_unit = total
+                    // price_unit = total_package_price / qty
+                    const lineUnitPrice = entry.qty > 0 ? entry.price / entry.qty : entry.price;
+                    setPriceOnLine(order, lineUnitPrice);
 
-                    showNotification(this, `${entry.product_name}  ×  ${entry.qty}`);
-                    this.numberBuffer?.reset?.();
-                    return;
-                } else {
-                    // Fallback: let super handle it (adds with qty=1 at minimum)
+                } catch (err) {
+                    console.error('[CustomBarcode] Error:', err);
                     return super._barcodeProductAction(code);
                 }
+
+                // Format currency for notification
+                const symbol = this.pos.currency?.symbol ?? '';
+                showNotification(this, `${entry.product_name}  ×  ${entry.qty}  —  ${symbol}${entry.price.toFixed(2)}`);
+                this.numberBuffer?.reset?.();
+                return;
             }
         }
+
         return super._barcodeProductAction(code);
     },
 });
 
 fetchCustomBarcodeMap().catch(() => {});
-console.log('[CustomBarcode] ✅ v12 loaded.');
+console.log('[CustomBarcode] ✅ Loaded — package barcode scanning with custom price active.');
