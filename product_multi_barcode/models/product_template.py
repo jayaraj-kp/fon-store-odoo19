@@ -8,6 +8,13 @@ import string
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
+    # Override the required=True set by product_required_fields module
+    default_code = fields.Char(
+        string='Internal Reference',
+        required=False,
+        store=True,
+    )
+
     barcode_2 = fields.Char(string='Barcode 2', copy=False, index=True)
     package_qty_2 = fields.Float(string='Package Qty 2', default=0.0)
     package_name_2 = fields.Char(string='Pack 2 Label')
@@ -35,7 +42,6 @@ class ProductTemplate(models.Model):
                     _('Barcode 3 "%s" is already used by another product.') % rec.barcode_3)
 
     def _generate_internal_ref(self, name='PRD'):
-        """Generate a unique internal reference."""
         prefix = ''.join(c for c in (name or 'PRD').upper() if c.isalnum())[:4] or 'PRD'
         for _ in range(200):
             ref = prefix + ''.join(random.choices(string.digits, k=4))

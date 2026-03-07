@@ -5,7 +5,7 @@
     'category': 'Inventory',
     'summary': 'Add multiple barcodes and package quantities to products',
     'author': 'Custom Module',
-    'depends': ['product', 'stock', 'point_of_sale'],
+    'depends': ['product', 'stock', 'point_of_sale', 'product_required_fields'],
     'data': [
         'views/product_template_views.xml',
     ],
