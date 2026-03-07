@@ -1,10 +1,14 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v11)
+ * custom_barcode.js  –  Odoo 19 CE  (v12)
  *
- * CONFIRMED WORKING: order.add_product() adds the product (v9 proved this).
- * THIS VERSION: adds the product via order.add_product(), then logs every
- * property/method on the line so we can see EXACTLY how to set qty.
+ * ROOT CAUSE FOUND:
+ * Console showed "[SpecialOffer] ✅ Patched addLineToCurrentOrder"
+ * → The Odoo 19 POS method to add a product is pos.addLineToCurrentOrder()
+ *   NOT pos.addProductToCurrentOrder() or order.add_product()
+ *
+ * addLineToCurrentOrder(product, options) signature in Odoo 19:
+ *   options.quantity sets the line quantity directly.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -62,77 +66,35 @@ function getCurrentOrder(pos) {
 }
 
 function getLastLine(order) {
-    // Try every known way to get the last/selected line in Odoo 17/18/19
     return order?.get_selected_orderline?.()
         || order?.selected_orderline
         || order?.selectedOrderline
         || order?.get_orderlines?.()?.at(-1)
         || order?.orderlines?.at?.(-1)
-        || (Array.isArray(order?.orderlines) ? order.orderlines[order.orderlines.length - 1] : null)
         || null;
 }
 
-function setLineQty(line, qty) {
-    if (!line) { console.error('[CustomBarcode] ❌ No line found!'); return; }
-
-    // ── Deep-inspect the line object ─────────────────────────────────────────
-    const allMethods = [];
-    const allProps   = [];
-    let obj = line;
-    const seen = new Set();
-    while (obj && obj !== Object.prototype) {
-        for (const key of Object.getOwnPropertyNames(obj)) {
-            if (seen.has(key)) continue;
-            seen.add(key);
-            try {
-                const val = line[key];
-                if (typeof val === 'function') allMethods.push(key);
-                else allProps.push(key + '=' + JSON.stringify(val)?.slice(0,30));
-            } catch(e) {}
-        }
-        obj = Object.getPrototypeOf(obj);
+async function addProductWithQty(pos, product, qty) {
+    // ── Method 1: Odoo 19 native — addLineToCurrentOrder ─────────────────────
+    if (typeof pos.addLineToCurrentOrder === 'function') {
+        pos.addLineToCurrentOrder({ product_id: product, qty: qty });
+        console.log('[CustomBarcode] ✅ Method 1: addLineToCurrentOrder(qty=' + qty + ')');
+        return true;
     }
 
-    // Filter to qty-related names
-    const qtyMethods = allMethods.filter(m => /qty|quant|count|amount/i.test(m));
-    const qtyProps   = allProps.filter(p => /qty|quant|count/i.test(p));
-    console.log('[CustomBarcode] Line qty-methods:', qtyMethods);
-    console.log('[CustomBarcode] Line qty-props:', qtyProps);
-    console.log('[CustomBarcode] Line class:', line.constructor?.name);
-    console.log('[CustomBarcode] Current qty value:', line.qty ?? line.quantity ?? '(unknown)');
+    // ── Method 2: addLineToCurrentOrder with different arg shape ──────────────
+    // Some Odoo 19 builds accept (product, {quantity})
+    if (typeof pos.addLineToCurrentOrder === 'function') {
+        pos.addLineToCurrentOrder(product, { quantity: qty });
+        console.log('[CustomBarcode] ✅ Method 2: addLineToCurrentOrder(product, {quantity})');
+        return true;
+    }
 
-    // ── Try every possible method to set qty ─────────────────────────────────
-    if (typeof line.set_quantity === 'function') {
-        line.set_quantity(qty);
-        console.log('[CustomBarcode] ✅ set_quantity(' + qty + ') result:', line.qty ?? line.quantity);
-        return;
-    }
-    if (typeof line.setQuantity === 'function') {
-        line.setQuantity(qty);
-        console.log('[CustomBarcode] ✅ setQuantity(' + qty + ')');
-        return;
-    }
-    if (typeof line.set_qty === 'function') {
-        line.set_qty(qty);
-        console.log('[CustomBarcode] ✅ set_qty(' + qty + ')');
-        return;
-    }
-    if (typeof line.update === 'function') {
-        line.update({ qty });
-        console.log('[CustomBarcode] ✅ update({qty})');
-        return;
-    }
-    if ('qty' in line) {
-        line.qty = qty;
-        console.log('[CustomBarcode] ✅ line.qty=' + qty);
-        return;
-    }
-    if ('quantity' in line) {
-        line.quantity = qty;
-        console.log('[CustomBarcode] ✅ line.quantity=' + qty);
-        return;
-    }
-    console.error('[CustomBarcode] ❌ No method found. All methods:', allMethods.slice(0, 50));
+    // Log all pos methods for diagnosis
+    const posMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(pos))
+        .filter(m => /add|order|line|product/i.test(m));
+    console.warn('[CustomBarcode] addLineToCurrentOrder not found. pos methods:', posMethods);
+    return false;
 }
 
 patch(ProductScreen.prototype, {
@@ -153,37 +115,31 @@ patch(ProductScreen.prototype, {
                     return super._barcodeProductAction(code);
                 }
 
-                try {
+                const added = await addProductWithQty(this.pos, product, entry.qty);
+
+                if (added) {
+                    // Verify the line qty was set correctly
+                    await new Promise(r => setTimeout(r, 50));
                     const order = getCurrentOrder(this.pos);
-                    if (!order) throw new Error('No active order');
+                    const line  = getLastLine(order);
+                    const actualQty = line?.qty ?? line?.quantity ?? '?';
+                    console.log('[CustomBarcode] Line qty after add:', actualQty, '(expected ' + entry.qty + ')');
 
-                    // Log order class and add_product signature
-                    console.log('[CustomBarcode] Order class:', order.constructor?.name);
-                    console.log('[CustomBarcode] order.add_product exists:', typeof order.add_product);
-                    console.log('[CustomBarcode] order.addProduct exists:', typeof order.addProduct);
-
-                    // Add the product (confirmed working in v9)
-                    if (typeof order.add_product === 'function') {
-                        order.add_product(product, { quantity: entry.qty });
-                    } else if (typeof order.addProduct === 'function') {
-                        order.addProduct(product, { quantity: entry.qty });
-                    } else {
-                        throw new Error('No add_product method on order');
+                    // If qty is still wrong, force it
+                    if (line && Number(actualQty) !== entry.qty) {
+                        console.warn('[CustomBarcode] qty mismatch — forcing...');
+                        if (typeof line.set_quantity === 'function') line.set_quantity(entry.qty);
+                        else if (typeof line.update === 'function') line.update({ qty: entry.qty });
+                        else if ('qty' in line) line.qty = entry.qty;
                     }
 
-                    // Wait for reactivity then set qty
-                    await new Promise(r => setTimeout(r, 50));
-                    const line = getLastLine(order);
-                    setLineQty(line, entry.qty);
-
-                } catch (err) {
-                    console.error('[CustomBarcode] Error:', err);
+                    showNotification(this, `${entry.product_name}  ×  ${entry.qty}`);
+                    this.numberBuffer?.reset?.();
+                    return;
+                } else {
+                    // Fallback: let super handle it (adds with qty=1 at minimum)
                     return super._barcodeProductAction(code);
                 }
-
-                showNotification(this, `${entry.product_name}  ×  ${entry.qty}`);
-                this.numberBuffer?.reset?.();
-                return;
             }
         }
         return super._barcodeProductAction(code);
@@ -191,4 +147,4 @@ patch(ProductScreen.prototype, {
 });
 
 fetchCustomBarcodeMap().catch(() => {});
-console.log('[CustomBarcode] ✅ v11 loaded.');
+console.log('[CustomBarcode] ✅ v12 loaded.');
