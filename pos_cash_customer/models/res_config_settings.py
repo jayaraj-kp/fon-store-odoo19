@@ -13,37 +13,37 @@ class ResConfigSettings(models.TransientModel):
         help='The master CASH CUSTOMER partner. All new POS customers will be added as contacts under this partner. Leave empty to use the standard create customer form.',
     )
 
+    def create(self, vals_list):
+        """In Odoo 19, settings uses create() not write() — the transient record
+        is created fresh each time Save is clicked."""
+        _logger.info("=== POS CASH CUSTOMER: create() CALLED, vals_list=%s", vals_list)
+        records = super().create(vals_list)
+        for rec, vals in zip(records, vals_list if isinstance(vals_list, list) else [vals_list]):
+            raw = vals.get('pos_cash_customer_id')
+            _logger.info("=== create(): raw pos_cash_customer_id in vals = %s", raw)
+            if raw and isinstance(raw, int):
+                ICP = self.env['ir.config_parameter'].sudo()
+                ICP.set_param('pos_cash_customer.cash_customer_id', str(raw))
+                saved = ICP.get_param('pos_cash_customer.cash_customer_id')
+                _logger.info("=== create(): saved to ICP = %s", saved)
+        return records
+
     def write(self, vals):
-        """Intercept write() — this is called by web_save BEFORE execute/set_values.
-        In Odoo 19, the transient record is written first, then execute() is called.
-        We capture the partner_id here while the value is still in vals or on self.
-        """
         _logger.info("=== POS CASH CUSTOMER: write() CALLED, vals=%s", vals)
         result = super().write(vals)
-
-        # After super().write(), the value is now on self
-        partner_id = self.pos_cash_customer_id.id
-        _logger.info("=== write(): pos_cash_customer_id.id after super = %s", partner_id)
-
-        ICP = self.env['ir.config_parameter'].sudo()
-        if 'pos_cash_customer_id' in vals:
-            # vals contains the raw integer ID for Many2one fields
-            raw = vals.get('pos_cash_customer_id')
-            _logger.info("=== write(): raw value from vals = %s", raw)
-            # Many2one in vals can be an int or False
-            pid = raw if isinstance(raw, int) and raw else (partner_id or 0)
-            _logger.info("=== write(): saving pid=%s to ir.config_parameter", pid)
-            ICP.set_param('pos_cash_customer.cash_customer_id', str(pid) if pid else '0')
+        raw = vals.get('pos_cash_customer_id')
+        _logger.info("=== write(): raw pos_cash_customer_id in vals = %s", raw)
+        if raw and isinstance(raw, int):
+            ICP = self.env['ir.config_parameter'].sudo()
+            ICP.set_param('pos_cash_customer.cash_customer_id', str(raw))
             saved = ICP.get_param('pos_cash_customer.cash_customer_id')
-            _logger.info("=== write(): confirmed saved value = %s", saved)
-
+            _logger.info("=== write(): saved to ICP = %s", saved)
         return result
 
     def set_values(self):
         _logger.info("=== POS CASH CUSTOMER: set_values() CALLED ===")
         _logger.info("=== pos_cash_customer_id.id at set_values: %s", self.pos_cash_customer_id.id)
         super().set_values()
-        # set_values is a fallback — value may already be saved by write()
         partner_id = self.pos_cash_customer_id.id
         if partner_id:
             ICP = self.env['ir.config_parameter'].sudo()
@@ -52,22 +52,35 @@ class ResConfigSettings(models.TransientModel):
 
     @api.model
     def get_values(self):
-        _logger.info("=== POS CASH CUSTOMER: get_values() CALLED ===")
         res = super().get_values()
         ICP = self.env['ir.config_parameter'].sudo()
         param = ICP.get_param('pos_cash_customer.cash_customer_id', '0')
-        _logger.info("=== Raw param from ir.config_parameter: '%s'", param)
+        _logger.info("=== get_values(): raw param='%s'", param)
         try:
             partner_id = int(param) if param else 0
         except (ValueError, TypeError):
             partner_id = 0
-
         if partner_id:
             exists = self.env['res.partner'].sudo().browse(partner_id).exists()
-            _logger.info("=== Partner exists in DB: %s", bool(exists))
             if not exists:
                 partner_id = 0
-
         res['pos_cash_customer_id'] = partner_id if partner_id else False
-        _logger.info("=== Returning pos_cash_customer_id as: %s", res['pos_cash_customer_id'])
+        _logger.info("=== get_values(): returning partner_id=%s", res['pos_cash_customer_id'])
         return res
+
+    @api.model
+    def execute(self):
+        """Override execute to log what self contains at execution time."""
+        _logger.info("=== POS CASH CUSTOMER: execute() CALLED ===")
+        _logger.info("=== execute(): self.ids=%s", self.ids)
+        _logger.info("=== execute(): pos_cash_customer_id=%s", self.pos_cash_customer_id)
+        _logger.info("=== execute(): pos_cash_customer_id.id=%s", self.pos_cash_customer_id.id)
+        # Read directly from DB to see what was actually stored
+        if self.ids:
+            raw_db = self.env.cr.execute(
+                "SELECT pos_cash_customer_id FROM res_config_settings WHERE id = %s",
+                (self.ids[0],)
+            )
+            row = self.env.cr.fetchone()
+            _logger.info("=== execute(): RAW DB value for pos_cash_customer_id = %s", row)
+        return super().execute()
