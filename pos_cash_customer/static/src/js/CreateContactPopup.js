@@ -1,7 +1,6 @@
 /** @odoo-module **/
 
 import { Component, useState } from "@odoo/owl";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 
 export class CreateContactPopup extends Component {
@@ -10,14 +9,9 @@ export class CreateContactPopup extends Component {
         title: { type: String, optional: true },
         close: Function,
     };
-    static defaultProps = {
-        title: "Create Contact",
-    };
 
     setup() {
-        this.pos = usePos();
         this.orm = useService("orm");
-
         this.state = useState({
             contactType: "contact",
             name: "",
@@ -28,7 +22,6 @@ export class CreateContactPopup extends Component {
             city: "",
             zip: "",
             country: "",
-            gstin: "",
             notes: "",
             saving: false,
             error: "",
@@ -56,7 +49,7 @@ export class CreateContactPopup extends Component {
             const partner = await this._savePartner();
             this.props.close({ confirmed: true, payload: partner });
         } catch (e) {
-            this.state.error = "Error saving contact. Please try again.";
+            this.state.error = "Error saving. Please try again.";
             console.error("[pos_cash_customer]", e);
         } finally {
             this.state.saving = false;
@@ -75,10 +68,10 @@ export class CreateContactPopup extends Component {
             Object.assign(this.state, {
                 name: "", email: "", phone: "", street: "",
                 street2: "", city: "", zip: "", country: "",
-                gstin: "", notes: "", saving: false, error: "",
+                notes: "", saving: false, error: "",
             });
         } catch (e) {
-            this.state.error = "Error saving contact. Please try again.";
+            this.state.error = "Error saving. Please try again.";
             console.error("[pos_cash_customer]", e);
             this.state.saving = false;
         }
@@ -105,26 +98,8 @@ export class CreateContactPopup extends Component {
         const result = await this.orm.call(
             "res.partner", "create_from_pos_simplified", [vals]
         );
-
         if (result && result.id) {
-            // Load into POS cache using the correct Odoo 19 method
-            try {
-                const newPartners = await this.orm.read(
-                    "res.partner",
-                    [result.id],
-                    Object.keys(this.pos.models["res.partner"].fields || {})
-                );
-                if (newPartners && newPartners.length) {
-                    this.pos.models["res.partner"].insert(newPartners);
-                    return this.pos.models["res.partner"].find(
-                        (p) => p.id === result.id
-                    );
-                }
-            } catch (e) {
-                console.warn("[pos_cash_customer] Could not insert into POS cache:", e);
-            }
-            // Fallback: return minimal partner object
-            return { id: result.id, name: result.name };
+            return { id: result.id, name: result.name, phone: result.phone || "" };
         }
         return null;
     }
