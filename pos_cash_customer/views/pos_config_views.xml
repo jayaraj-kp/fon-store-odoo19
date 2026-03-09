@@ -1,17 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_pos_config_form_cash_customer" model="ir.ui.view">
-        <field name="name">pos.config.form.cash.customer</field>
-        <field name="model">pos.config</field>
-        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//field[@name='iface_customer_facing_display_via_proxy']" position="after">
-                <field name="default_cash_customer_id"
-                       string="Default Cash Customer"
-                       widget="many2one"
-                       options="{'no_create': True}"
-                       help="Pre-selected customer on every new POS order. Leave empty to use the auto-created CASH CUSTOMER."/>
-            </xpath>
-        </field>
-    </record>
+    <!-- No view inheritance needed - CASH CUSTOMER is created via data XML automatically -->
 </odoo>

@@ -1,20 +1,13 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api
+from odoo import models, api
 
 
 class PosConfig(models.Model):
     _inherit = 'pos.config'
 
-    default_cash_customer_id = fields.Many2one(
-        'res.partner',
-        string='Default Cash Customer',
-        help='This customer will be pre-selected on every new POS order.',
-        domain=[('customer_rank', '>', 0)],
-    )
-
     @api.model
     def _get_cash_customer(self):
-        """Return the default CASH CUSTOMER partner, creating if needed."""
+        """Return the default CASH CUSTOMER partner."""
         partner = self.env.ref(
             'pos_cash_customer.partner_cash_customer', raise_if_not_found=False
         )
@@ -25,7 +18,7 @@ class PosConfig(models.Model):
         return partner
 
     def get_pos_ui_pos_config(self, params):
-        """Extend config data sent to POS UI."""
+        """Extend config data sent to POS UI with cash customer id."""
         result = super().get_pos_ui_pos_config(params)
         cash_customer = self._get_cash_customer()
         if cash_customer:
