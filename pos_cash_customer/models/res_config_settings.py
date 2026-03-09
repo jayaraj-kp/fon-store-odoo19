@@ -12,22 +12,30 @@ class ResConfigSettings(models.TransientModel):
 
     def set_values(self):
         super().set_values()
-        # Use the partner's ID; if no partner selected, store empty string
+        ICP = self.env['ir.config_parameter'].sudo()
         partner_id = self.pos_cash_customer_id.id
-        self.env['ir.config_parameter'].sudo().set_param(
-            'pos_cash_customer.cash_customer_id',
-            str(partner_id) if partner_id else ''
-        )
+        if partner_id:
+            ICP.set_param('pos_cash_customer.cash_customer_id', str(partner_id))
+        else:
+            ICP.set_param('pos_cash_customer.cash_customer_id', '0')
 
     @api.model
     def get_values(self):
         res = super().get_values()
-        param = self.env['ir.config_parameter'].sudo().get_param(
-            'pos_cash_customer.cash_customer_id', ''
-        )
+        ICP = self.env['ir.config_parameter'].sudo()
+        param = ICP.get_param('pos_cash_customer.cash_customer_id', '0')
         try:
-            partner_id = int(param) if param else 0
+            partner_id = int(param)
         except (ValueError, TypeError):
             partner_id = 0
+
+        # Verify the partner actually exists before returning it
+        if partner_id:
+            exists = self.env['res.partner'].sudo().search(
+                [('id', '=', partner_id)], limit=1
+            )
+            if not exists:
+                partner_id = 0
+
         res['pos_cash_customer_id'] = partner_id if partner_id else False
         return res
