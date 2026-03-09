@@ -11,35 +11,32 @@ class ResConfigSettings(models.TransientModel):
         'res.partner',
         string='POS Cash Customer',
         help='The master CASH CUSTOMER partner. All new POS customers will be added as contacts under this partner. Leave empty to use the standard create customer form.',
+        store=True,   # ← CRITICAL: force Odoo to persist this field on the transient record
     )
 
-    @api.model_create_multi
-    def create(self, vals_list):
-        """In Odoo 19, settings creates a fresh transient record on every Save.
-        The field value is in vals_list — capture it here immediately."""
-        records = super().create(vals_list)
-        ICP = self.env['ir.config_parameter'].sudo()
-        for rec, vals in zip(records, vals_list):
-            raw = vals.get('pos_cash_customer_id')
-            _logger.info("=== create(): pos_cash_customer_id in vals = %s", raw)
-            if raw and isinstance(raw, int):
-                ICP.set_param('pos_cash_customer.cash_customer_id', str(raw))
-                _logger.info("=== create(): SAVED partner_id=%s to ICP", raw)
-            elif 'pos_cash_customer_id' in vals and not raw:
-                # Explicitly cleared by user
-                ICP.set_param('pos_cash_customer.cash_customer_id', '0')
-                _logger.info("=== create(): CLEARED partner_id in ICP")
-        return records
-
     def set_values(self):
-        """Fallback for any non-create path."""
+        _logger.info("=== set_values(): self.id=%s pos_cash_customer_id=%s", self.id, self.pos_cash_customer_id)
         super().set_values()
-        partner_id = self.pos_cash_customer_id.id
-        _logger.info("=== set_values(): partner_id=%s", partner_id)
-        if partner_id:
-            self.env['ir.config_parameter'].sudo().set_param(
-                'pos_cash_customer.cash_customer_id', str(partner_id)
+        # Re-read directly from DB in case ORM cache is stale
+        if self.id:
+            self.env.cr.execute(
+                "SELECT pos_cash_customer_id FROM res_config_settings WHERE id = %s",
+                (self.id,)
             )
+            row = self.env.cr.fetchone()
+            db_val = row[0] if row else None
+            _logger.info("=== set_values(): RAW DB value = %s", db_val)
+            partner_id = db_val or self.pos_cash_customer_id.id or 0
+        else:
+            partner_id = self.pos_cash_customer_id.id or 0
+
+        _logger.info("=== set_values(): saving partner_id=%s", partner_id)
+        self.env['ir.config_parameter'].sudo().set_param(
+            'pos_cash_customer.cash_customer_id',
+            str(partner_id) if partner_id else '0'
+        )
+        saved = self.env['ir.config_parameter'].sudo().get_param('pos_cash_customer.cash_customer_id')
+        _logger.info("=== set_values(): confirmed ICP value = %s", saved)
 
     @api.model
     def get_values(self):
