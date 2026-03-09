@@ -13,18 +13,42 @@ class ResConfigSettings(models.TransientModel):
         help='The master CASH CUSTOMER partner. All new POS customers will be added as contacts under this partner. Leave empty to use the standard create customer form.',
     )
 
+    def write(self, vals):
+        """Intercept write() — this is called by web_save BEFORE execute/set_values.
+        In Odoo 19, the transient record is written first, then execute() is called.
+        We capture the partner_id here while the value is still in vals or on self.
+        """
+        _logger.info("=== POS CASH CUSTOMER: write() CALLED, vals=%s", vals)
+        result = super().write(vals)
+
+        # After super().write(), the value is now on self
+        partner_id = self.pos_cash_customer_id.id
+        _logger.info("=== write(): pos_cash_customer_id.id after super = %s", partner_id)
+
+        ICP = self.env['ir.config_parameter'].sudo()
+        if 'pos_cash_customer_id' in vals:
+            # vals contains the raw integer ID for Many2one fields
+            raw = vals.get('pos_cash_customer_id')
+            _logger.info("=== write(): raw value from vals = %s", raw)
+            # Many2one in vals can be an int or False
+            pid = raw if isinstance(raw, int) and raw else (partner_id or 0)
+            _logger.info("=== write(): saving pid=%s to ir.config_parameter", pid)
+            ICP.set_param('pos_cash_customer.cash_customer_id', str(pid) if pid else '0')
+            saved = ICP.get_param('pos_cash_customer.cash_customer_id')
+            _logger.info("=== write(): confirmed saved value = %s", saved)
+
+        return result
+
     def set_values(self):
         _logger.info("=== POS CASH CUSTOMER: set_values() CALLED ===")
-        _logger.info("=== pos_cash_customer_id value: %s", self.pos_cash_customer_id)
-        _logger.info("=== pos_cash_customer_id.id: %s", self.pos_cash_customer_id.id)
+        _logger.info("=== pos_cash_customer_id.id at set_values: %s", self.pos_cash_customer_id.id)
         super().set_values()
-        ICP = self.env['ir.config_parameter'].sudo()
+        # set_values is a fallback — value may already be saved by write()
         partner_id = self.pos_cash_customer_id.id
-        _logger.info("=== Saving partner_id to ir.config_parameter: %s", partner_id)
-        ICP.set_param('pos_cash_customer.cash_customer_id', str(partner_id) if partner_id else '0')
-        # Read it back immediately to confirm it saved
-        saved = ICP.get_param('pos_cash_customer.cash_customer_id')
-        _logger.info("=== Value read back from ir.config_parameter: %s", saved)
+        if partner_id:
+            ICP = self.env['ir.config_parameter'].sudo()
+            ICP.set_param('pos_cash_customer.cash_customer_id', str(partner_id))
+            _logger.info("=== set_values(): saved partner_id=%s", partner_id)
 
     @api.model
     def get_values(self):
@@ -37,7 +61,6 @@ class ResConfigSettings(models.TransientModel):
             partner_id = int(param) if param else 0
         except (ValueError, TypeError):
             partner_id = 0
-        _logger.info("=== Parsed partner_id: %s", partner_id)
 
         if partner_id:
             exists = self.env['res.partner'].sudo().browse(partner_id).exists()
