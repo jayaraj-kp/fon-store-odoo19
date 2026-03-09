@@ -4,7 +4,7 @@ import { Component, useState, onMounted } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { patch } from "@web/core/utils/patch";
 
-// ─── 1. CreateContactPopup ───────────────────────────────────────────────────
+// ─── CreateContactPopup ──────────────────────────────────────────────────────
 
 class CreateContactPopup extends Component {
     static template = "pos_cash_customer.CreateContactPopup";
@@ -53,7 +53,10 @@ class CreateContactPopup extends Component {
     discard() { this.props.close({ confirmed: false, payload: null }); }
 
     async _save() {
-        const v = { name: this.state.name.trim(), customer_rank: 1, type: this.state.contactType };
+        const v = {
+            name: this.state.name.trim(), customer_rank: 1,
+            type: this.state.contactType || "contact"
+        };
         if (this.state.email)   v.email   = this.state.email.trim();
         if (this.state.phone)   v.phone   = this.state.phone.trim();
         if (this.state.street)  v.street  = this.state.street.trim();
@@ -66,13 +69,11 @@ class CreateContactPopup extends Component {
     }
 }
 
-// ─── 2. Global dialog helper ─────────────────────────────────────────────────
-// Store dialog service ref when any patched component mounts
-let _dialogService = null;
-let _posStore = null;
+// ─── Globals ─────────────────────────────────────────────────────────────────
+let _dialog = null;
+let _pos = null;
 
-// ─── 3. Patch CustomerList ────────────────────────────────────────────────────
-
+// ─── Patch CustomerList ───────────────────────────────────────────────────────
 function tryPatch() {
     let CL = null;
     try {
@@ -81,16 +82,15 @@ function tryPatch() {
         });
     } catch (e) {}
 
-    if (!CL) return false;
-    if (CL.__cash_patched__) return true;
+    if (!CL || CL.__cash_patched__) return !!CL;
     CL.__cash_patched__ = true;
 
     patch(CL.prototype, {
         setup() {
             super.setup(...arguments);
             this._cashDialog = useService("dialog");
-            _dialogService = this._cashDialog;
-            _posStore = this.pos;
+            _dialog = this._cashDialog;
+            _pos = this.pos;
 
             onMounted(() => {
                 try {
@@ -104,74 +104,43 @@ function tryPatch() {
             });
         },
 
-        async createCustomer() {
-            console.log("[pos_cash_customer] createCustomer() called ✅");
-            await _openCreatePopup(this);
+        // Patch the method the console trace shows: editPartner
+        editPartner(partner) {
+            // editPartner(null/undefined) = Create new
+            // editPartner(existingPartner) = Edit existing - let it through normally
+            if (partner) {
+                console.log("[pos_cash_customer] editPartner(existing) - letting through");
+                return super.editPartner(partner);
+            }
+            console.log("[pos_cash_customer] editPartner(null) = Create → opening popup ✅");
+            _openPopup(this);
         },
 
-        // Some Odoo 19 builds use this method name instead
-        async newCustomer() {
-            console.log("[pos_cash_customer] newCustomer() called ✅");
-            await _openCreatePopup(this);
+        // Also patch createCustomer in case it's used
+        async createCustomer() {
+            console.log("[pos_cash_customer] createCustomer() ✅");
+            await _openPopup(this);
         },
     });
 
-    console.log("[pos_cash_customer] ✅ CustomerList patched. Methods: createCustomer, newCustomer");
+    console.log("[pos_cash_customer] ✅ CustomerList patched (editPartner + createCustomer)");
     return true;
 }
 
-async function _openCreatePopup(ctx) {
-    const dialog = ctx._cashDialog || _dialogService;
-    if (!dialog) {
-        console.error("[pos_cash_customer] No dialog service available");
-        return;
-    }
+async function _openPopup(ctx) {
+    const dlg = ctx._cashDialog || _dialog;
+    if (!dlg) { console.error("[pos_cash_customer] no dialog service"); return; }
+
     const result = await new Promise((resolve) => {
-        dialog.add(CreateContactPopup, { close: resolve });
+        dlg.add(CreateContactPopup, { close: resolve });
     });
+
     if (result?.confirmed && result?.payload) {
-        const pos = ctx.pos || _posStore;
+        const pos = ctx.pos || _pos;
         pos?.get_order()?.set_partner(result.payload);
         ctx.props?.close?.();
     }
 }
-
-// ─── 4. Also intercept DOM click on Create button as fallback ────────────────
-
-function interceptCreateButton() {
-    document.addEventListener("click", async (e) => {
-        const btn = e.target.closest("button");
-        if (!btn) return;
-
-        // Check if it's the Create button inside the customer choose screen
-        const isCreateBtn = (
-            btn.classList.contains("button-create") ||
-            (btn.textContent.trim() === "Create" && btn.closest(".customer-list, .pos-customer-list, [class*='customer']"))
-        );
-
-        if (!isCreateBtn) return;
-        if (!_dialogService) return;
-
-        console.log("[pos_cash_customer] Create button intercepted via DOM ✅");
-        e.stopImmediatePropagation();
-        e.preventDefault();
-
-        const result = await new Promise((resolve) => {
-            _dialogService.add(CreateContactPopup, { close: resolve });
-        });
-
-        if (result?.confirmed && result?.payload && _posStore) {
-            _posStore.get_order()?.set_partner(result.payload);
-            // Close the customer list by clicking Discard
-            const discard = document.querySelector(".customer-list button.discard, button.btn-discard, [class*='customer'] button:last-child");
-            if (discard) discard.click();
-        }
-    }, true); // capture phase - runs before Odoo's handler
-}
-
-// ─── 5. Boot ──────────────────────────────────────────────────────────────────
-
-interceptCreateButton(); // Always intercept as safety net
 
 if (!tryPatch()) {
     [100, 500, 1500, 3000].forEach((d) => setTimeout(tryPatch, d));
