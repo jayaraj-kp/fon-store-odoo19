@@ -8,16 +8,33 @@ class ResPartner(models.Model):
     is_cash_customer = fields.Boolean(
         string='Is Cash Customer',
         default=False,
-        help='Mark this partner as the default POS Cash Customer.',
     )
 
     @api.model
+    def _cleanup_duplicate_cash_customers(self):
+        """Remove duplicate CASH CUSTOMER records, keeping only the xmlid one."""
+        try:
+            canonical = self.env.ref(
+                'pos_cash_customer.partner_cash_customer', raise_if_not_found=False
+            )
+            duplicates = self.search([
+                ('name', '=', 'CASH CUSTOMER'),
+                ('is_cash_customer', '=', True),
+            ])
+            if canonical:
+                duplicates = duplicates.filtered(lambda p: p.id != canonical.id)
+            elif duplicates:
+                # Keep the first one
+                duplicates = duplicates[1:]
+
+            if duplicates:
+                duplicates.write({'active': False})
+        except Exception as e:
+            pass  # Don't break installation
+
+    @api.model
     def create_from_pos_simplified(self, vals):
-        """
-        Called from POS UI simplified contact creation popup.
-        Creates a partner with the provided vals and returns the created partner data.
-        """
-        # Ensure customer rank
+        """Called from POS simplified contact creation popup."""
         vals.setdefault('customer_rank', 1)
         partner = self.create(vals)
         return {
@@ -27,6 +44,4 @@ class ResPartner(models.Model):
             'email': partner.email or '',
             'street': partner.street or '',
             'city': partner.city or '',
-            'country_id': [partner.country_id.id, partner.country_id.name] if partner.country_id else False,
-            'barcode': partner.barcode or '',
         }
