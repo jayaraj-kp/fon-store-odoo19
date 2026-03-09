@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="partner_cash_customer" model="res.partner">
+        <field name="name">CASH CUSTOMER</field>
+        <field name="customer_rank">1</field>
+        <field name="is_cash_customer">True</field>
+        <field name="active">True</field>
+    </record>
+</odoo>

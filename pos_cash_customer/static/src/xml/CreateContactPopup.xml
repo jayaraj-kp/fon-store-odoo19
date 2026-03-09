@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates>
+
+    <t t-name="pos_cash_customer.CreateContactPopup" owl="1">
+        <div class="create-contact-popup modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+
+                <!-- Header -->
+                <div class="modal-header create-contact-header">
+                    <h5 class="modal-title">
+                        <i class="fa fa-user-plus me-2"/>
+                        Create Contact
+                    </h5>
+                </div>
+
+                <!-- Body -->
+                <div class="modal-body create-contact-body">
+
+                    <!-- Contact Type Tabs -->
+                    <div class="contact-type-tabs mb-3">
+                        <t t-foreach="['contact','invoice','delivery','other']" t-as="ctype" t-key="ctype">
+                            <label class="contact-type-tab"
+                                   t-att-class="state.contactType === ctype ? 'active' : ''">
+                                <input type="radio"
+                                       name="contact_type"
+                                       t-att-value="ctype"
+                                       t-att-checked="state.contactType === ctype"
+                                       t-on-change="() => setContactType(ctype)"/>
+                                <t t-esc="getButtonLabel(ctype)"/>
+                            </label>
+                        </t>
+                    </div>
+
+                    <!-- Avatar + Name / Email / Phone -->
+                    <div class="contact-name-row d-flex align-items-start mb-3">
+                        <div class="contact-avatar me-3">
+                            <div class="avatar-placeholder">
+                                <i class="fa fa-user fa-2x"/>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <input class="form-control contact-name-input mb-2"
+                                   type="text"
+                                   placeholder="e.g. Brandon Freeman"
+                                   t-model="state.name"/>
+                            <div class="input-group mb-1">
+                                <span class="input-group-text"><i class="fa fa-envelope"/></span>
+                                <input class="form-control"
+                                       type="email"
+                                       placeholder="Email"
+                                       t-model="state.email"/>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-phone"/></span>
+                                <input class="form-control"
+                                       type="tel"
+                                       placeholder="Phone"
+                                       t-model="state.phone"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address + GSTIN / Tags -->
+                    <div class="row mb-3">
+                        <!-- Left: Address -->
+                        <div class="col-7">
+                            <label class="form-label fw-semibold">Address</label>
+                            <input class="form-control mb-1"
+                                   type="text"
+                                   placeholder="Street..."
+                                   t-model="state.street"/>
+                            <input class="form-control mb-1"
+                                   type="text"
+                                   placeholder="Street 2..."
+                                   t-model="state.street2"/>
+                            <div class="d-flex gap-1 mb-1">
+                                <input class="form-control"
+                                       type="text"
+                                       placeholder="City"
+                                       t-model="state.city"/>
+                                <input class="form-control"
+                                       type="text"
+                                       placeholder="ZIP"
+                                       style="max-width:90px"
+                                       t-model="state.zip"/>
+                                <input class="form-control"
+                                       type="text"
+                                       placeholder="State"
+                                       t-model="state.state_name"/>
+                            </div>
+                            <input class="form-control"
+                                   type="text"
+                                   placeholder="Country"
+                                   t-model="state.country"/>
+                        </div>
+
+                        <!-- Right: GSTIN + Tags -->
+                        <div class="col-5">
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold">
+                                    GSTIN
+                                    <span class="text-muted ms-1" style="font-size:11px">?</span>
+                                </label>
+                                <input class="form-control"
+                                       type="text"
+                                       placeholder="e.g. 29ABCDE1234F1Z5"
+                                       t-model="state.gstin"/>
+                            </div>
+                            <div>
+                                <label class="form-label fw-semibold">
+                                    Tags
+                                    <span class="text-muted ms-1" style="font-size:11px">?</span>
+                                </label>
+                                <input class="form-control"
+                                       type="text"
+                                       placeholder='e.g. "B2B", "VIP"'
+                                       t-model="state.tags"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold text-uppercase"
+                               style="font-size:11px;letter-spacing:.05em">Notes</label>
+                        <textarea class="form-control"
+                                  rows="3"
+                                  placeholder="Internal notes..."
+                                  t-model="state.notes"/>
+                    </div>
+
+                    <!-- Error message -->
+                    <t t-if="state.error">
+                        <div class="alert alert-danger py-1 mb-0">
+                            <t t-esc="state.error"/>
+                        </div>
+                    </t>
+
+                </div>
+
+                <!-- Footer Buttons -->
+                <div class="modal-footer create-contact-footer">
+                    <button class="btn btn-primary me-1"
+                            t-att-disabled="state.saving"
+                            t-on-click="saveAndClose">
+                        <t t-if="state.saving">
+                            <i class="fa fa-spinner fa-spin me-1"/>
+                        </t>
+                        Save &amp; Close
+                    </button>
+                    <button class="btn btn-secondary me-1"
+                            t-att-disabled="state.saving"
+                            t-on-click="saveAndNew">
+                        Save &amp; New
+                    </button>
+                    <button class="btn btn-outline-secondary"
+                            t-on-click="() => cancel()">
+                        Discard
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </t>
+
+</templates>

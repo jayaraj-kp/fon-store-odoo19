@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates>
+
+    <!--
+        Patch the CustomerList template to replace the "Create" button
+        with our custom createCustomer() method call.
+        The t-name must match exactly the original template name used in Odoo 19 CE.
+    -->
+    <t t-name="pos_cash_customer.CustomerListPatch" owl="1"
+       t-inherit="point_of_sale.CustomerList"
+       t-inherit-mode="extension">
+
+        <!-- Override the "New Customer" / "Create" button to use our popup -->
+        <xpath expr="//button[hasclass('button-create')]" position="replace">
+            <button class="button button-create btn btn-primary"
+                    t-on-click="createCustomer">
+                <i class="fa fa-plus me-1"/>
+                Create
+            </button>
+        </xpath>
+
+    </t>
+
+</templates>

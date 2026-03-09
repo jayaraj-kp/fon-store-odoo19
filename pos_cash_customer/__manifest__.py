@@ -1,27 +1,32 @@
+# -*- coding: utf-8 -*-
 {
-    'name': 'POS Cash Customer',
-    'version': '1.0.0',
+    'name': 'POS Cash Customer Default',
+    'version': '19.0.1.0.0',
     'category': 'Point of Sale',
-    'summary': 'Auto-assign new POS customers as contacts under a single CASH CUSTOMER partner',
+    'summary': 'Creates a default CASH CUSTOMER in POS and customizes the customer creation flow',
     'description': """
-        This module ensures all new customers created from POS are added
-        as contacts under a single 'CASH CUSTOMER' partner.
-        - First time: prompts to create the CASH CUSTOMER partner
-        - After that: opens Create Contact form directly under CASH CUSTOMER
+        This module:
+        1. Auto-creates a default "CASH CUSTOMER" contact on installation
+        2. Sets CASH CUSTOMER as the default customer in POS orders
+        3. When clicking "Create" in POS customer search, opens a simplified 
+           "Create Contact" wizard (like the sub-contact form) instead of full partner form
     """,
     'author': 'Custom',
     'depends': ['point_of_sale'],
     'data': [
-        'security/ir.model.access.csv',
-        'views/res_config_settings_views.xml',
+        'data/cash_customer_data.xml',
+        'views/pos_config_views.xml',
     ],
     'assets': {
         'point_of_sale._assets_pos': [
-            'pos_cash_customer/static/src/js/cash_customer_patch.js',
-            'pos_cash_customer/static/src/xml/cash_customer.xml',
+            'pos_cash_customer/static/src/js/CustomerListScreen.js',
+            'pos_cash_customer/static/src/js/CreateContactPopup.js',
+            'pos_cash_customer/static/src/xml/CustomerListScreen.xml',
+            'pos_cash_customer/static/src/xml/CreateContactPopup.xml',
+            'pos_cash_customer/static/src/css/pos_cash_customer.css',
         ],
     },
     'installable': True,
-    'application': False,
+    'auto_install': False,
     'license': 'LGPL-3',
 }

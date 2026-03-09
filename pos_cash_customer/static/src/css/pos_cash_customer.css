@@ -1,0 +1,122 @@
+/* ============================================================
+   POS Cash Customer - Custom Styles
+   ============================================================ */
+
+/* ---- Create Contact Popup ---- */
+.create-contact-popup {
+    min-width: 580px;
+    max-width: 680px;
+}
+
+.create-contact-header {
+    background-color: #f8f8f8;
+    border-bottom: 1px solid #dee2e6;
+    padding: 12px 20px;
+}
+
+.create-contact-header .modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.create-contact-body {
+    padding: 20px;
+}
+
+/* ---- Contact type radio tabs ---- */
+.contact-type-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.contact-type-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 14px;
+    border: 1px solid #ced4da;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #555;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.contact-type-tab input[type="radio"] {
+    accent-color: #7c3aed;
+}
+
+.contact-type-tab.active {
+    background-color: #7c3aed;
+    border-color: #7c3aed;
+    color: #fff;
+}
+
+.contact-type-tab:hover:not(.active) {
+    background-color: #f0ebff;
+    border-color: #7c3aed;
+    color: #7c3aed;
+}
+
+/* ---- Avatar placeholder ---- */
+.avatar-placeholder {
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #adb5bd;
+    flex-shrink: 0;
+}
+
+/* ---- Name input emphasis ---- */
+.contact-name-input {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.contact-name-input::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* ---- Footer ---- */
+.create-contact-footer {
+    background-color: #f8f8f8;
+    border-top: 1px solid #dee2e6;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: flex-start;
+    gap: 6px;
+}
+
+.create-contact-footer .btn-primary {
+    background-color: #7c3aed;
+    border-color: #7c3aed;
+}
+
+.create-contact-footer .btn-primary:hover {
+    background-color: #6d28d9;
+    border-color: #6d28d9;
+}
+
+/* ---- Cash Customer badge in customer list ---- */
+.cash-customer-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: #fef3c7;
+    color: #92400e;
+    margin-left: 6px;
+    vertical-align: middle;
+}
