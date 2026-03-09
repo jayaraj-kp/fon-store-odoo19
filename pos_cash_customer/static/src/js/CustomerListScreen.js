@@ -5,52 +5,47 @@ import { CreateContactPopup } from "@pos_cash_customer/js/CreateContactPopup";
 import { useService } from "@web/core/utils/hooks";
 import { onMounted } from "@odoo/owl";
 
-// Use Odoo 19's module loader to find CustomerList at runtime
-// after all modules are loaded
-function applyPatch() {
-    const modules = odoo.__DEBUG__.services || {};
+// Directly import CustomerList - Odoo 19 CE has this path available in the bundle
+// even if it doesn't appear as a standalone importable module from outside.
+// We use a dynamic workaround via the loader's internal map.
+let CustomerList = null;
 
-    // Walk through loader module map to find CustomerList
-    let CustomerList = null;
+try {
+    odoo.loader.modules.forEach((mod, key) => {
+        if (
+            !CustomerList &&
+            mod &&
+            typeof mod === "object" &&
+            mod.CustomerList
+        ) {
+            CustomerList = mod.CustomerList;
+        }
+    });
+} catch (e) {
+    // odoo.loader not ready yet - will be patched below via define
+}
 
-    try {
-        // Odoo 19 stores loaded modules in odoo.loader.modules (a Map)
-        odoo.loader.modules.forEach((mod, key) => {
-            if (!CustomerList && mod && typeof mod === "object") {
-                if (mod.CustomerList && mod.CustomerList.prototype) {
-                    CustomerList = mod.CustomerList;
-                    console.log("[pos_cash_customer] Found CustomerList in:", key);
-                }
-            }
-        });
-    } catch (e) {
-        console.warn("[pos_cash_customer] loader scan failed:", e);
-    }
+function doPatch(CL) {
+    if (!CL || CL.__cash_patched__) return;
+    CL.__cash_patched__ = true;
 
-    if (!CustomerList) {
-        console.error("[pos_cash_customer] ❌ CustomerList not found - cannot patch");
-        return;
-    }
-
-    patch(CustomerList.prototype, {
+    patch(CL.prototype, {
         setup() {
             super.setup(...arguments);
             this._cashDialog = useService("dialog");
-            onMounted(() => this._setDefaultCashCustomer());
-        },
-
-        _setDefaultCashCustomer() {
-            try {
-                const order = this.pos.get_order();
-                if (!order || order.get_partner()) return;
-                const cashCustomerId = this.pos.config.cash_customer_id;
-                if (!cashCustomerId) return;
-                const partners = this.pos.models["res.partner"];
-                const cashPartner = partners && partners.find((p) => p.id === cashCustomerId);
-                if (cashPartner) order.set_partner(cashPartner);
-            } catch (e) {
-                console.warn("[pos_cash_customer] set default:", e);
-            }
+            onMounted(() => {
+                try {
+                    const order = this.pos.get_order();
+                    if (!order || order.get_partner()) return;
+                    const id = this.pos.config.cash_customer_id;
+                    if (!id) return;
+                    const p = this.pos.models["res.partner"];
+                    const found = p && p.find((x) => x.id === id);
+                    if (found) order.set_partner(found);
+                } catch (e) {
+                    console.warn("[pos_cash_customer]", e);
+                }
+            });
         },
 
         async createCustomer() {
@@ -67,9 +62,22 @@ function applyPatch() {
             }
         },
     });
-
     console.log("[pos_cash_customer] ✅ CustomerList patched");
 }
 
-// Run after all modules are defined
-applyPatch();
+if (CustomerList) {
+    doPatch(CustomerList);
+} else {
+    // Hook into the loader: intercept when the CustomerList module is defined
+    const _origDefine = odoo.loader.define.bind(odoo.loader);
+    odoo.loader.define = function (name, deps, factory) {
+        const result = _origDefine(name, deps, factory);
+        if (name && name.includes("customer_list")) {
+            try {
+                const mod = odoo.loader.modules.get(name);
+                if (mod && mod.CustomerList) doPatch(mod.CustomerList);
+            } catch (e) {}
+        }
+        return result;
+    };
+}
