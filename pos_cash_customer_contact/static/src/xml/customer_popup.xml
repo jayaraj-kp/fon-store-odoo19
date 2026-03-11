@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-<t t-name="pos_supermarket_customer.CustomerPopup">
+<t t-name="pos_cash_customer_contact.CustomerPopup">
 
 <div class="popup popup-customer">
 
