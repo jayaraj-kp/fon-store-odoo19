@@ -6,6 +6,8 @@ import { useService } from "@web/core/utils/hooks";
 import { patch } from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 
+const CASH_CUSTOMER_NAME = "CASH CUSTOMER"; // Must match exactly in Contacts
+
 export class PhoneCustomerBar extends Component {
     static template = "pos_cash_customer_contact.PhoneCustomerBar";
     static props = {};
@@ -54,31 +56,57 @@ export class PhoneCustomerBar extends Component {
         this.pos.getOrder().setPartner(false);
     }
 
+    /**
+     * Find the "CASH CUSTOMER" parent partner ID from backend.
+     * If it doesn't exist yet, create it automatically.
+     */
+    async _getCashCustomerParentId() {
+        const results = await this.orm.searchRead(
+            "res.partner",
+            [["name", "=", CASH_CUSTOMER_NAME], ["is_company", "=", true]],
+            ["id"],
+            { limit: 1 }
+        );
+
+        if (results.length) {
+            return results[0].id;
+        }
+
+        // Auto-create the CASH CUSTOMER parent if it doesn't exist
+        const newId = await this.orm.create("res.partner", [{
+            name: CASH_CUSTOMER_NAME,
+            is_company: true,
+            customer_rank: 1,
+        }]);
+        return Array.isArray(newId) ? newId[0] : newId;
+    }
+
     async onCreateCustomer() {
         if (!this.state.phone || this.state.creating) return;
         this.state.creating = true;
 
         try {
-            // Step 1: Create partner in backend
-            // orm.create() in Odoo 17 returns a plain integer ID
+            // Step 1: Get or create the CASH CUSTOMER parent
+            const parentId = await this._getCashCustomerParentId();
+
+            // Step 2: Create the new contact as a child of CASH CUSTOMER
             const rawId = await this.orm.create("res.partner", [{
                 name: this.state.phone,
                 phone: this.state.phone,
+                parent_id: parentId,
                 customer_rank: 1,
             }]);
-            // Normalise — guard against future versions returning an array
             const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
 
-            // Step 2: Pull the new record into the POS model cache via searchRead
-            // This is the safest API in Odoo 17 — no ID-format validation issues
+            // Step 3: Pull new partner into POS model cache
             await this.pos.data.searchRead(
                 "res.partner",
                 [["id", "=", partnerId]],
-                [],   // empty = use POS default fields
+                [],
                 { load: false }
             );
 
-            // Step 3: Locate the now-cached partner and assign to current order
+            // Step 4: Assign to current order
             const newPartner = this.pos.models["res.partner"].find(
                 (p) => p.id === partnerId
             );
@@ -88,11 +116,11 @@ export class PhoneCustomerBar extends Component {
                 this.state.found = true;
                 this.state.customerName = newPartner.name;
                 this.notification.add(
-                    `Customer created: ${newPartner.name}`,
+                    `Customer created under ${CASH_CUSTOMER_NAME}`,
                     { type: "success", sticky: false }
                 );
             } else {
-                throw new Error("Partner not found in cache after searchRead");
+                throw new Error("Partner not found in cache after load");
             }
 
         } catch (err) {
