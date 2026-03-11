@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add is_cash_customer field to partner form -->
+    <record id="view_partner_form_cash_customer" model="ir.ui.view">
+        <field name="name">res.partner.form.cash.customer</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="is_cash_customer" widget="boolean_toggle"
+                    attrs="{'invisible': [('is_cash_customer', '=', False)]}"/>
+                <field name="is_pos_walk_in" widget="boolean_toggle" invisible="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Filter in partner list to see walk-in customers -->
+    <record id="view_partner_list_cash_customer_filter" model="ir.ui.view">
+        <field name="name">res.partner.list.cash.customer.filter</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='customer']" position="after">
+                <filter string="POS Walk-in Customers" name="pos_walk_in"
+                    domain="[('is_pos_walk_in', '=', True)]"/>
+                <filter string="Cash Customer Master" name="cash_customer_master"
+                    domain="[('is_cash_customer', '=', True)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

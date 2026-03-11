@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Master CASH CUSTOMER partner created on module install -->
+        <record id="cash_customer_partner" model="res.partner">
+            <field name="name">CASH CUSTOMER</field>
+            <field name="is_cash_customer" eval="True"/>
+            <field name="customer_rank">1</field>
+            <field name="company_type">person</field>
+            <field name="active" eval="True"/>
+            <field name="comment">Master partner for all POS walk-in / cash customers. Individual customer contacts are stored under this record.</field>
+        </record>
+    </data>
+</odoo>
