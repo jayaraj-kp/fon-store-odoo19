@@ -29,7 +29,6 @@ export class PhoneCustomerBar extends Component {
         this.state.customerName = "";
 
         if (!phone) {
-            // Use false (not null) to safely unset partner in Odoo 17
             this.pos.getOrder().setPartner(false);
             return;
         }
@@ -43,7 +42,6 @@ export class PhoneCustomerBar extends Component {
             this.state.found = true;
             this.state.customerName = partner.name;
         } else {
-            // Unset any previously assigned partner
             this.pos.getOrder().setPartner(false);
         }
     }
@@ -61,17 +59,18 @@ export class PhoneCustomerBar extends Component {
         this.state.creating = true;
 
         try {
-            // Create partner in the backend
-            const [partnerId] = await this.orm.create("res.partner", [{
-                name: this.state.phone,   // default name = phone, cashier can rename later
+            // Step 1: Create the partner in the backend
+            const partnerId = await this.orm.create("res.partner", [{
+                name: this.state.phone,
                 phone: this.state.phone,
                 customer_rank: 1,
             }]);
 
-            // Reload partners into the POS model cache
-            await this.pos.models["res.partner"].load([partnerId]);
+            // Step 2: Load the new partner record into the POS data cache
+            // this.pos.data.read() is the correct Odoo 17 API
+            await this.pos.data.read("res.partner", [partnerId]);
 
-            // Find the freshly created partner and assign to order
+            // Step 3: Now it's in the model — find and assign it
             const newPartner = this.pos.models["res.partner"].find(
                 (p) => p.id === partnerId
             );
@@ -84,11 +83,14 @@ export class PhoneCustomerBar extends Component {
                     `Customer created: ${newPartner.name}`,
                     { type: "success", sticky: false }
                 );
+            } else {
+                throw new Error("Partner not found after load");
             }
+
         } catch (err) {
             console.error("Failed to create customer:", err);
             this.notification.add(
-                "Could not create customer. Check your connection.",
+                "Could not create customer: " + (err.message || err),
                 { type: "danger", sticky: false }
             );
         } finally {
