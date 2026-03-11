@@ -1,6 +1,6 @@
 {
     "name": "POS Cash Customer Contacts",
-    "version": "19.0",
+    "version": "19.0.7.0.0",
     "depends": ["point_of_sale"],
     "assets": {
         "point_of_sale.assets": [
