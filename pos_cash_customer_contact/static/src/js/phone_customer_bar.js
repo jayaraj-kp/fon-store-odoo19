@@ -73,7 +73,7 @@ export class PhoneCustomerBar extends Component {
         }
     }
 
-    onSelectSuggestion(partner) {
+    onSelectSuggestion(ev, partner) {
         this.pos.getOrder().setPartner(partner);
         this.state.query = partner.phone || partner.mobile || partner.name;
         this.state.selectedName = partner.name;

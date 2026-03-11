@@ -26,7 +26,7 @@
                         t-as="partner"
                         t-key="partner.id"
                         class="pcb-dropdown-item"
-                        t-on-mousedown="() => onSelectSuggestion(partner)"
+                        t-on-mousedown="(ev) => this.onSelectSuggestion(ev, partner)"
                     >
                         <span class="pcb-item-name"><t t-esc="partner.name"/></span>
                         <span class="pcb-item-phone">
