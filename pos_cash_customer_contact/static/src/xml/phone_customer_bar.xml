@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- ── Phone Customer Bar component template ── -->
+    <t t-name="pos_cash_customer_contact.PhoneCustomerBar">
+        <div class="phone-customer-bar">
+            <span class="pcb-icon">📞</span>
+
+            <div class="pcb-input-wrap">
+                <input
+                    type="tel"
+                    class="pcb-input"
+                    placeholder="Type phone number to find customer…"
+                    t-att-value="state.phone"
+                    t-on-input="onPhoneInput"
+                    autocomplete="off"
+                />
+                <button
+                    t-if="state.phone"
+                    class="pcb-clear"
+                    t-on-click="onClear"
+                >✕</button>
+            </div>
+
+            <span t-if="state.found" class="pcb-status pcb-found">
+                ✅ <t t-esc="state.customerName"/>
+            </span>
+            <span t-elif="state.phone" class="pcb-status pcb-notfound">
+                No customer found
+            </span>
+        </div>
+    </t>
+
+    <!-- ── Inject bar at top of the left (order) pane in ProductScreen ── -->
+    <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('leftpane')]" position="inside">
+            <PhoneCustomerBar/>
+        </xpath>
+    </t>
+
+</templates>
