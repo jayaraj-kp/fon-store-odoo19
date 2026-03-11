@@ -4,7 +4,7 @@
     "depends": ["point_of_sale"],
     "assets": {
         "point_of_sale.assets": [
-            "pos_cash_customer_contacts/static/src/js/pos_cash_customer.js",
+            "pos_cash_customer_contact/static/src/js/pos_cash_customer.js",
         ],
     },
     "installable": True,
