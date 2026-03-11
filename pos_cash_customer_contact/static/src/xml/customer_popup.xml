@@ -11,15 +11,16 @@
 
     <div class="popup-body">
 
-        <input t-ref="phone" placeholder="Phone Number"/>
-
-        <input t-ref="name" placeholder="Customer Name"/>
+        <input
+            t-ref="phone"
+            placeholder="Phone Number"
+            t-on-input="onPhoneInput"
+        />
 
         <input
-    t-ref="phone"
-    placeholder="Phone Number"
-    t-on-input="onPhoneInput"
-/>
+            t-ref="name"
+            placeholder="Customer Name"
+        />
 
     </div>
 

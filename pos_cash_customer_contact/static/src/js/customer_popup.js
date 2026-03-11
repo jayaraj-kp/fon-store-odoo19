@@ -1,11 +1,8 @@
 /** @odoo-module **/
-/** @odoo-module **/
-
-console.log("POS Supermarket Customer Module Loaded");
 
 import { Component } from "@odoo/owl";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
+import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 
 export class CustomerPopup extends Component {
 
@@ -20,7 +17,7 @@ export class CustomerPopup extends Component {
         const name = this.refs.name.value;
 
         if (!phone) {
-            alert("Phone required");
+            alert("Phone number required");
             return;
         }
 
@@ -29,11 +26,9 @@ export class CustomerPopup extends Component {
         );
 
         if (existing) {
-
             this.pos.get_order().set_partner(existing);
             this.props.close();
             return;
-
         }
 
         const cashCustomer = this.pos.models["res.partner"].find(
@@ -59,4 +54,6 @@ export class CustomerPopup extends Component {
 
 }
 
-CustomerPopup.template = "pos_supermarket_customer.CustomerPopup";
+CustomerPopup.template = "pos_cash_customer_contact.CustomerPopup";
+
+console.log("✅ POS Cash Customer Popup Loaded");

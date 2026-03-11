@@ -21,3 +21,5 @@ patch(ProductScreen.prototype, {
     }
 
 });
+
+console.log("✅ POS Payment Patch Loaded");

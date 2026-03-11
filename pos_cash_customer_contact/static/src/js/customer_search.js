@@ -18,9 +18,7 @@ patch(CustomerPopup.prototype, {
         );
 
         if (partner) {
-
             this.refs.name.value = partner.name;
-
         }
 
     }
