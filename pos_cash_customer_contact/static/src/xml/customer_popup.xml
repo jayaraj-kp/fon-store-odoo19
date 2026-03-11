@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="pos_supermarket_customer.CustomerPopup">
+
+<div class="popup popup-customer">
+
+    <div class="popup-title">
+        Customer Details
+    </div>
+
+    <div class="popup-body">
+
+        <input t-ref="phone" placeholder="Phone Number"/>
+
+        <input t-ref="name" placeholder="Customer Name"/>
+
+        <input
+    t-ref="phone"
+    placeholder="Phone Number"
+    t-on-input="onPhoneInput"
+/>
+
+    </div>
+
+    <div class="popup-footer">
+
+        <button class="button confirm" t-on-click="saveCustomer">
+            Continue
+        </button>
+
+        <button class="button cancel" t-on-click="props.close">
+            Skip
+        </button>
+
+    </div>
+
+</div>
+
+</t>
+
+</templates>
