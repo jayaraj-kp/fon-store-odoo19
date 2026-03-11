@@ -3,7 +3,7 @@
     "version": "1.0",
     "depends": ["point_of_sale"],
     "assets": {
-        "point_of_sale.assets": [
+        "point_of_sale._assets_pos": [
             "pos_supermarket_customer/static/src/js/*.js",
             "pos_supermarket_customer/static/src/xml/*.xml",
         ],
