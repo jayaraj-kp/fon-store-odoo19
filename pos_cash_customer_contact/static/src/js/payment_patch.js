@@ -8,13 +8,9 @@ console.log("✅ POS Payment Patch Loaded");
 
 patch(PaymentScreen.prototype, {
 
-    async setup() {
-        super.setup(...arguments);
-    },
-
     async validateOrder(isForceValidate) {
 
-        const order = this.pos.get_order();
+        const order = this.pos.getOrder();
 
         if (!order.get_partner()) {
 
