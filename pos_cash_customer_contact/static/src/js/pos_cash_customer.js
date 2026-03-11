@@ -5,34 +5,29 @@ import { CustomerListScreen } from "@point_of_sale/app/screens/customer_list/cus
 
 patch(CustomerListScreen.prototype, {
 
-    async createPartner() {
+    async showCreateCustomer() {
 
-        const cashCustomer = this.pos.db.get_partner_by_name("CASH CUSTOMER");
-
-        let parent_id = false;
-
-        if (cashCustomer) {
-            parent_id = cashCustomer.id;
-        }
-
-        const { confirmed, payload } = await this.popup.add(
-            this.pos.components.EditPartnerPopup,
-            {
-                partner: {
-                    parent_id: parent_id,
-                },
-            }
+        const cashCustomer = this.pos.models["res.partner"].find(
+            (p) => p.name === "CASH CUSTOMER"
         );
+
+        let parent_id = cashCustomer ? cashCustomer.id : false;
+
+        const partner = {
+            parent_id: parent_id,
+        };
+
+        const { confirmed, payload } = await this.editPartner(partner);
 
         if (confirmed) {
 
             payload.parent_id = parent_id;
 
-            const partner = await this.pos.data.create("res.partner", [payload]);
+            const newPartner = await this.pos.data.create("res.partner", [payload]);
 
             await this.pos.data.loadPartners();
 
-            this.props.resolve(partner);
+            this.props.resolve(newPartner);
         }
     }
 
