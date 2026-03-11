@@ -16,7 +16,7 @@ patch(PaymentScreen.prototype, {
 
             console.log("⚠️ No customer → opening popup");
 
-            const { confirmed } = await this.popup.add(CustomerPopup, {
+            const { confirmed } = await this.env.services.popup.add(CustomerPopup, {
                 title: "Customer Required",
             });
 
