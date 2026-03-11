@@ -1,4 +1,7 @@
 /** @odoo-module **/
+/** @odoo-module **/
+
+console.log("POS Supermarket Customer Module Loaded");
 
 import { Component } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
