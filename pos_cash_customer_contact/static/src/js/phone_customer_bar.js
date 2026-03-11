@@ -59,18 +59,26 @@ export class PhoneCustomerBar extends Component {
         this.state.creating = true;
 
         try {
-            // Step 1: Create the partner in the backend
-            const partnerId = await this.orm.create("res.partner", [{
+            // Step 1: Create partner in backend
+            // orm.create() in Odoo 17 returns a plain integer ID
+            const rawId = await this.orm.create("res.partner", [{
                 name: this.state.phone,
                 phone: this.state.phone,
                 customer_rank: 1,
             }]);
+            // Normalise — guard against future versions returning an array
+            const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
 
-            // Step 2: Load the new partner record into the POS data cache
-            // this.pos.data.read() is the correct Odoo 17 API
-            await this.pos.data.read("res.partner", [partnerId]);
+            // Step 2: Pull the new record into the POS model cache via searchRead
+            // This is the safest API in Odoo 17 — no ID-format validation issues
+            await this.pos.data.searchRead(
+                "res.partner",
+                [["id", "=", partnerId]],
+                [],   // empty = use POS default fields
+                { load: false }
+            );
 
-            // Step 3: Now it's in the model — find and assign it
+            // Step 3: Locate the now-cached partner and assign to current order
             const newPartner = this.pos.models["res.partner"].find(
                 (p) => p.id === partnerId
             );
@@ -84,7 +92,7 @@ export class PhoneCustomerBar extends Component {
                     { type: "success", sticky: false }
                 );
             } else {
-                throw new Error("Partner not found after load");
+                throw new Error("Partner not found in cache after searchRead");
             }
 
         } catch (err) {
