@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<templates>
-    <!--
-        Patch CustomerList to override the create button.
-        In Odoo 19 the component template is named after the JS component class.
-        We patch the JS prototype directly so NO XML template patch is needed here.
-        This file is intentionally left with no overrides to avoid template-not-found errors.
-    -->
-</templates>

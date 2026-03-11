@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <!-- No view inheritance needed - CASH CUSTOMER is created via data XML automatically -->
-</odoo>
