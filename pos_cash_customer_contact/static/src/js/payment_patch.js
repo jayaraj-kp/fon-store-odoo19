@@ -12,7 +12,7 @@ patch(PaymentScreen.prototype, {
 
         const order = this.pos.getOrder();
 
-        if (!order.get_partner()) {
+        if (!order.getPartner()) {
 
             console.log("⚠️ No customer → opening popup");
 
