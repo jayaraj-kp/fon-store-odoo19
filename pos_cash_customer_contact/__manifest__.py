@@ -1,10 +1,11 @@
 {
-    "name": "POS Cash Customer Contacts",
-    "version": "19.0.7.0.0",
+    "name": "POS Quick Cash Customer",
+    "version": "1.0",
     "depends": ["point_of_sale"],
     "assets": {
         "point_of_sale.assets": [
-            "pos_cash_customer_contact/static/src/js/pos_cash_customer.js",
+            "pos_quick_cash_customer/static/src/js/*.js",
+            "pos_quick_cash_customer/static/src/xml/*.xml",
         ],
     },
     "installable": True,

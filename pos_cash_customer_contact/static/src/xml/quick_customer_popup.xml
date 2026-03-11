@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="pos_quick_cash_customer.QuickCustomerPopup">
+
+<div class="popup popup-customer">
+
+    <div class="popup-title">
+        Quick Customer
+    </div>
+
+    <div class="popup-body">
+
+        <input t-ref="name" placeholder="Customer Name"/>
+
+        <input t-ref="phone" placeholder="Phone"/>
+
+        <input t-ref="email" placeholder="Email"/>
+
+    </div>
+
+    <div class="popup-footer">
+
+        <button t-on-click="saveCustomer" class="button confirm">
+            Save
+        </button>
+
+        <button t-on-click="props.close" class="button cancel">
+            Cancel
+        </button>
+
+    </div>
+
+</div>
+
+</t>
+
+</templates>
