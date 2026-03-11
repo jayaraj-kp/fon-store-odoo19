@@ -75,3 +75,30 @@
     color: #94a3b8;
     font-weight: 400;
 }
+
+/* ── Create Customer button ── */
+.pcb-create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    background: #6366f1;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.pcb-create-btn:hover:not(:disabled) {
+    background: #4f46e5;
+}
+
+.pcb-create-btn:disabled {
+    background: #a5b4fc;
+    cursor: not-allowed;
+}

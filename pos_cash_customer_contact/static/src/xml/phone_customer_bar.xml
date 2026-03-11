@@ -22,12 +22,23 @@
                 >✕</button>
             </div>
 
+            <!-- Customer found -->
             <span t-if="state.found" class="pcb-status pcb-found">
                 ✅ <t t-esc="state.customerName"/>
             </span>
-            <span t-elif="state.phone" class="pcb-status pcb-notfound">
-                No customer found
-            </span>
+
+            <!-- Phone typed but no match → show Create button -->
+            <t t-elif="state.phone">
+                <span class="pcb-status pcb-notfound">Not found</span>
+                <button
+                    class="pcb-create-btn"
+                    t-on-click="onCreateCustomer"
+                    t-att-disabled="state.creating"
+                >
+                    <t t-if="state.creating">Creating…</t>
+                    <t t-else="">+ Create Customer</t>
+                </button>
+            </t>
         </div>
     </t>
 
