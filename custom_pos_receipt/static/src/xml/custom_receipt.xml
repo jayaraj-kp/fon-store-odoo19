@@ -8,25 +8,58 @@
 
     <xpath expr="//img[@class='pos-receipt-logo']" position="replace">
         <div class="receipt-header-row">
+
+            <!-- LEFT: Logo -->
             <div class="receipt-logo-cell">
                 <img t-att-src="logoUrl" alt="Logo" class="receipt-company-logo"/>
             </div>
+
+            <!-- RIGHT: Warehouse details (falls back to company if not set) -->
             <div class="receipt-company-cell">
-                <t t-set="co" t-value="order.company"/>
-                <t t-set="nameLines" t-value="order.getCompanyNameLines()"/>
-                <div class="company-name">
-                    <t t-esc="nameLines[0]"/>
-                    <t t-if="nameLines.length > 1">
-                        <br/><t t-esc="nameLines.slice(1).join(' ')"/>
+                <t t-set="wh" t-value="order.getWarehouseInfo()"/>
+
+                <t t-if="wh and wh.name">
+                    <!-- ── WAREHOUSE MODE ── -->
+                    <div class="company-name">
+                        <t t-esc="wh.name"/>
+                    </div>
+                    <t t-if="wh.street">
+                        <div><t t-esc="wh.street"/></div>
                     </t>
-                </div>
-                <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
-                <t t-if="co.city">
-                    <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
+                    <t t-if="wh.city">
+                        <div>
+                            <t t-esc="wh.city"/>
+                            <t t-if="wh.state">, <t t-esc="wh.state"/></t>
+                            <t t-if="wh.zip"> - <t t-esc="wh.zip"/></t>
+                        </div>
+                    </t>
+                    <t t-if="wh.vat">
+                        <div>GSTIN: <t t-esc="wh.vat"/></div>
+                    </t>
+                    <t t-if="wh.phone">
+                        <div>Tel: <t t-esc="wh.phone"/></div>
+                    </t>
                 </t>
-                <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
-                <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
+
+                <t t-else="">
+                    <!-- ── FALLBACK: Company details ── -->
+                    <t t-set="co" t-value="order.company"/>
+                    <t t-set="nameLines" t-value="order.getCompanyNameLines()"/>
+                    <div class="company-name">
+                        <t t-esc="nameLines[0]"/>
+                        <t t-if="nameLines.length > 1">
+                            <br/><t t-esc="nameLines.slice(1).join(' ')"/>
+                        </t>
+                    </div>
+                    <t t-if="co.street"><div><t t-esc="co.street"/></div></t>
+                    <t t-if="co.city">
+                        <div><t t-esc="co.city"/><t t-if="co.zip">, <t t-esc="co.zip"/></t></div>
+                    </t>
+                    <t t-if="co.vat"><div>GSTIN: <t t-esc="co.vat"/></div></t>
+                    <t t-if="co.phone"><div>Tel: <t t-esc="co.phone"/></div></t>
+                </t>
             </div>
+
         </div>
     </xpath>
 
@@ -161,7 +194,7 @@
             </div>
         </t>
 
-        <!-- GST BREAKDOWN TABLE — disabled (t-if="false" to re-enable, change to t-if="true") -->
+        <!-- GST BREAKDOWN TABLE — disabled (change t-if="false" to t-if="true" to enable) -->
         <t t-if="false">
             <t t-set="gstLines" t-value="order.getGstBreakdown()"/>
             <t t-if="gstLines.length > 0">

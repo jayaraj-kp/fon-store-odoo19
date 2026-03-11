@@ -85,6 +85,42 @@ patch(PosOrder.prototype, {
         return [name];
     },
 
+    /* ================= WAREHOUSE / SHOP INFO ================= */
+    /*
+     * Returns address details from the warehouse linked to this POS config.
+     * In Odoo 19 CE, POS config has warehouse_id; the warehouse's partner_id
+     * holds the address, phone, and GSTIN (vat) for that location.
+     *
+     * Falls back gracefully — if any field is missing, returns empty string
+     * so the receipt template can skip it with t-if.
+     *
+     * How to populate in Odoo:
+     *   Inventory → Configuration → Warehouses → open your warehouse
+     *   → the partner record with the same name holds street/city/zip/phone/vat
+     */
+    getWarehouseInfo() {
+        // Try all possible paths Odoo 19 exposes the warehouse on
+        const wh =
+            this.config?.warehouse_id ||
+            this.session?.config?.warehouse_id ||
+            null;
+
+        if (!wh) return null;
+
+        // Warehouse partner_id carries address + GSTIN
+        const p = wh.partner_id || null;
+
+        return {
+            name:   wh.name   || '',
+            street: p?.street || '',
+            city:   p?.city   || '',
+            zip:    p?.zip    || '',
+            state:  p?.state_id?.name || '',
+            vat:    p?.vat    || '',
+            phone:  p?.phone  || p?.mobile || '',
+        };
+    },
+
     /* ================= GST BREAKDOWN ================= */
     getGstBreakdown() {
         const grouped = {};
