@@ -1,25 +1,35 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
-import { CustomerPopup } from "./customer_popup";
+import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
+import { CustomerPopup } from "@pos_cash_customer_contact/js/customer_popup";
 
-patch(ProductScreen.prototype, {
+console.log("✅ POS Payment Patch Loaded");
 
-    async _onClickPay() {
+patch(PaymentScreen.prototype, {
+
+    async setup() {
+        super.setup(...arguments);
+    },
+
+    async validateOrder(isForceValidate) {
 
         const order = this.pos.get_order();
 
         if (!order.get_partner()) {
 
-            await this.popup.add(CustomerPopup);
+            console.log("⚠️ No customer → opening popup");
 
+            const { confirmed } = await this.popup.add(CustomerPopup, {
+                title: "Customer Required",
+            });
+
+            if (!confirmed) {
+                return;
+            }
         }
 
-        return super._onClickPay(...arguments);
-
+        return super.validateOrder(...arguments);
     }
 
 });
-
-console.log("✅ POS Payment Patch Loaded");
