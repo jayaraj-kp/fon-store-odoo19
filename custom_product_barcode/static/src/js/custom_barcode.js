@@ -2,9 +2,16 @@
 /**
  * custom_barcode.js  –  Odoo 19 CE
  *
- * Fixes:
- *  1. Duplicate handling (3x notifications) — global 1-second dedup lock
- *  2. Price not applied — set_unit_price after line creation + re-apply after async hooks
+ * Root cause of price not sticking:
+ *   Odoo 19 calls an async RPC (get_price_unit / _computePrice) on the orderline
+ *   AFTER the line is created. This fires at ~300-800ms and resets price_unit
+ *   back to the pricelist price — overwriting any value we set.
+ *
+ * Fix:
+ *   After adding the line, we use Object.defineProperty() to make price_unit
+ *   a locked property on that specific line instance. The async RPC result is
+ *   then silently ignored because the property setter rejects it.
+ *   We do the same for qty / quantity.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -33,7 +40,7 @@ async function fetchCustomBarcodeMap() {
                 _customBarcodeMap[k.toUpperCase()] = v;
             console.log(`[CustomBarcode] loaded ${Object.keys(_customBarcodeMap).length} barcode(s)`);
         } catch (e) {
-            console.error('[CustomBarcode] Failed to load barcode map:', e);
+            console.error('[CustomBarcode] Failed to load:', e);
             _customBarcodeMap = {};
         }
         return _customBarcodeMap;
@@ -67,70 +74,121 @@ function getCurrentOrder(pos) {
 
 function getLastLine(order) {
     const lines = order?.get_orderlines?.() || order?.orderlines || [];
-    const arr = Array.isArray(lines) ? lines : (lines.toArray?.() ?? [...lines]);
+    const arr   = Array.isArray(lines) ? lines : (lines.toArray?.() ?? [...lines]);
     return arr.at(-1) || null;
 }
 
-// ── Global dedup lock: prevents same barcode firing twice within 1 second ─────
+// ── Global dedup — prevents same barcode firing twice within 1 second ─────────
 const _recentlySeen = new Map();
-
 function isDuplicate(key) {
     const now  = Date.now();
     const last = _recentlySeen.get(key);
     if (last && (now - last) < 1000) {
-        console.log(`[CustomBarcode] Suppressed duplicate "${key}" (${now - last}ms ago)`);
+        console.log(`[CustomBarcode] Duplicate suppressed "${key}" (${now - last}ms ago)`);
         return true;
     }
     _recentlySeen.set(key, now);
-    // Clean old entries
     for (const [k, t] of _recentlySeen) if (now - t > 5000) _recentlySeen.delete(k);
     return false;
 }
 
-// ── Apply price + qty to an orderline ────────────────────────────────────────
-function applyToLine(line, qty, price) {
+/**
+ * Lock price_unit and qty on a specific orderline instance using
+ * Object.defineProperty so Odoo's async pricelist RPC cannot overwrite them.
+ */
+function lockLineValues(line, qty, price) {
     if (!line) return;
 
-    // Mark price as manually set — blocks Odoo's async pricelist from overwriting
+    console.log('[CustomBarcode] Locking line — before:', {
+        qty:        line.qty,
+        quantity:   line.quantity,
+        price_unit: line.price_unit,
+    });
+
+    // ── Lock price_unit ───────────────────────────────────────────────────────
+    let _price = price;
+    try {
+        // Delete the existing property first (may be on prototype or own)
+        delete line.price_unit;
+        Object.defineProperty(line, 'price_unit', {
+            get: ()      => _price,
+            set: (v)     => {
+                // Allow our own sets (called from this function).
+                // Reject anything that tries to set a different value.
+                if (Math.abs(v - _price) > 0.001) {
+                    console.log(`[CustomBarcode] Blocked price_unit reset: ${v} → keeping ${_price}`);
+                } else {
+                    _price = v;
+                }
+            },
+            configurable: true,
+            enumerable:   true,
+        });
+    } catch(e) {
+        console.warn('[CustomBarcode] defineProperty price_unit failed:', e);
+        line.price_unit = price;
+    }
+
+    // Also override method-based getters used by Odoo 19
+    try { line.getUnitPrice    = () => price; } catch(e) {}
+    try { line.get_unit_price  = () => price; } catch(e) {}
+    try { line.getDisplayPrice = () => price; } catch(e) {}
+
+    // Prevent pricelist from overwriting by marking as manually set
     line.price_manually_set = true;
+    try { line.update?.({ price_manually_set: true }); } catch(e) {}
 
-    // Set qty
-    if (Math.abs((line.qty ?? line.quantity ?? 0) - qty) > 0.001) {
-        if      (typeof line.set_quantity  === 'function') line.set_quantity(qty);
-        else if (typeof line.setQuantity   === 'function') line.setQuantity(qty);
-        else if (typeof line.update        === 'function') line.update({ qty });
-        else line.qty = qty;
-    }
+    // ── Lock qty ─────────────────────────────────────────────────────────────
+    let _qty = qty;
+    const lockQtyProp = (prop) => {
+        try {
+            delete line[prop];
+            Object.defineProperty(line, prop, {
+                get: ()  => _qty,
+                set: (v) => {
+                    if (Math.abs(v - _qty) > 0.001)
+                        console.log(`[CustomBarcode] Blocked ${prop} reset: ${v} → keeping ${_qty}`);
+                    else _qty = v;
+                },
+                configurable: true,
+                enumerable:   true,
+            });
+        } catch(e) {
+            line[prop] = qty;
+        }
+    };
+    lockQtyProp('qty');
+    lockQtyProp('quantity');
 
-    // Set price via every known method
-    if (typeof line.set_unit_price === 'function') line.set_unit_price(price);
-    if (typeof line.setUnitPrice   === 'function') line.setUnitPrice(price);
-    if (typeof line.update === 'function') {
-        try { line.update({ price_unit: price, price_manually_set: true }); } catch(e) {}
-    }
-    line.price_unit = price;
+    // Also call setter methods so the UI re-renders immediately
+    if (typeof line.set_quantity  === 'function') { try { line.set_quantity(qty);   } catch(e){} }
+    if (typeof line.setQuantity   === 'function') { try { line.setQuantity(qty);    } catch(e){} }
+    if (typeof line.set_unit_price=== 'function') { try { line.set_unit_price(price); } catch(e){} }
+    if (typeof line.setUnitPrice  === 'function') { try { line.setUnitPrice(price);   } catch(e){} }
 
-    console.log(`[CustomBarcode] applyToLine → qty=${line.qty ?? line.quantity}  price_unit=${line.price_unit}`);
+    console.log('[CustomBarcode] Locked line — after:', {
+        qty:        line.qty,
+        quantity:   line.quantity,
+        price_unit: line.price_unit,
+    });
 }
 
 async function handleCustomBarcode(screen, rawBarcode) {
     if (!rawBarcode) return false;
     const key = rawBarcode.trim().toUpperCase();
 
-    // ── Dedup guard ───────────────────────────────────────────────────────────
-    if (isDuplicate(key)) return true; // true = "handled", stops fallthrough
+    if (isDuplicate(key)) return true;
 
     const map   = await fetchCustomBarcodeMap();
     const entry = map[key];
     if (!entry) {
-        // Not our barcode — remove the timestamp so normal flow can proceed
         _recentlySeen.delete(key);
         return false;
     }
 
     const product = findProductById(screen.pos, entry.product_id);
     if (!product) {
-        console.warn(`[CustomBarcode] product id=${entry.product_id} not found in POS`);
+        console.warn(`[CustomBarcode] product id=${entry.product_id} not in POS`);
         _recentlySeen.delete(key);
         return false;
     }
@@ -141,24 +199,38 @@ async function handleCustomBarcode(screen, rawBarcode) {
         const order = getCurrentOrder(screen.pos);
         if (!order) throw new Error('No active order');
 
-        // Add the line — we don't rely on price from here
+        // Count lines before adding so we can identify the new line
+        const linesBefore = (order?.get_orderlines?.() || order?.orderlines || []);
+        const countBefore = Array.isArray(linesBefore)
+            ? linesBefore.length
+            : (linesBefore.toArray?.() ?? [...linesBefore]).length;
+
+        // Add the line — don't rely on price/qty from here
         screen.pos.addLineToCurrentOrder(
             { product_id: product },
             { price_manually_set: true }
         );
 
-        // Apply qty + price immediately (synchronous)
-        applyToLine(getLastLine(order), entry.qty, entry.price);
+        // Grab and lock the new line immediately (synchronous)
+        const line = getLastLine(order);
+        if (line) lockLineValues(line, entry.qty, entry.price);
 
-        // Re-apply after Odoo's async pricelist/tax hooks settle
-        await new Promise(r => setTimeout(r, 60));
-        applyToLine(getLastLine(order), entry.qty, entry.price);
+        // Re-lock after Odoo's sync post-processing
+        await new Promise(r => setTimeout(r, 20));
+        const line2 = getLastLine(order);
+        if (line2) lockLineValues(line2, entry.qty, entry.price);
 
-        await new Promise(r => setTimeout(r, 250));
-        applyToLine(getLastLine(order), entry.qty, entry.price);
+        // Re-lock after async RPC (pricelist) settles — typically 300-600ms
+        await new Promise(r => setTimeout(r, 400));
+        const line3 = getLastLine(order);
+        if (line3) lockLineValues(line3, entry.qty, entry.price);
+
+        await new Promise(r => setTimeout(r, 600));
+        const line4 = getLastLine(order);
+        if (line4) lockLineValues(line4, entry.qty, entry.price);
 
     } catch (err) {
-        console.error('[CustomBarcode] Error adding product:', err);
+        console.error('[CustomBarcode] Error:', err);
         return false;
     }
 
@@ -178,7 +250,6 @@ const SEARCH_SELECTORS = [
     '.product-screen input[type="text"]',
     '.pos input[type="text"]',
 ];
-
 function findSearchInput() {
     for (const sel of SEARCH_SELECTORS) {
         const el = document.querySelector(sel);
@@ -213,7 +284,6 @@ patch(ProductScreen.prototype, {
                 if (handled) {
                     evt.preventDefault();
                     evt.stopImmediatePropagation();
-                    // Clear the input
                     try {
                         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
                         setter?.set?.call(input, '');
@@ -230,7 +300,6 @@ patch(ProductScreen.prototype, {
         onMounted(() => {
             const input = findSearchInput();
             if (input) attachToInput(input);
-
             _observer = new MutationObserver(() => {
                 const newInput = findSearchInput();
                 if (newInput && newInput !== _currentInput) attachToInput(newInput);
@@ -245,7 +314,6 @@ patch(ProductScreen.prototype, {
         });
     },
 
-    // ── Physical barcode scanner ──────────────────────────────────────────────
     async _barcodeProductAction(code) {
         const raw = typeof code === 'string'
             ? code : (code?.code ?? code?.base_code ?? code?.value ?? '');
@@ -255,4 +323,4 @@ patch(ProductScreen.prototype, {
     },
 });
 
-console.log('[CustomBarcode] ✅ v19 — dedup guard + price fix active.');
+console.log('[CustomBarcode] ✅ v19 — instance-level price/qty lock active.');
