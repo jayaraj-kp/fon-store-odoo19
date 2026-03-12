@@ -1,4 +1,4 @@
-/* ── Phone Customer Bar ── */
+/* ══ Phone Customer Bar ══════════════════════════════════════ */
 .phone-customer-bar {
     order: -1;
     display: flex;
@@ -12,18 +12,9 @@
     position: relative;
     z-index: 100;
 }
+.pcb-icon { font-size: 18px; flex-shrink: 0; }
 
-.pcb-icon {
-    font-size: 18px;
-    line-height: 1;
-    flex-shrink: 0;
-}
-
-.pcb-input-wrap {
-    position: relative;
-    flex: 1;
-    max-width: 280px;
-}
+.pcb-input-wrap { position: relative; flex: 1; max-width: 280px; }
 
 .pcb-input {
     width: 100%;
@@ -34,105 +25,93 @@
     font-size: 13px;
     outline: none;
     background: #fff;
-    transition: border-color 0.15s;
 }
-
-.pcb-input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
-}
+.pcb-input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.15); }
 
 .pcb-clear {
-    position: absolute;
-    right: 6px;
-    top: 50%;
+    position: absolute; right: 6px; top: 50%;
     transform: translateY(-50%);
-    border: none;
-    background: none;
-    color: #94a3b8;
-    cursor: pointer;
-    font-size: 12px;
-    padding: 0;
-    line-height: 1;
-    z-index: 2;
+    border: none; background: none; color: #94a3b8;
+    cursor: pointer; font-size: 12px; padding: 0;
 }
-
 .pcb-clear:hover { color: #ef4444; }
 
-/* ── Dropdown ── */
+/* Dropdown */
 .pcb-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    background: #fff;
-    border: 1px solid #c7d2fe;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
-    z-index: 9999;
-    overflow: hidden;
-    max-height: 260px;
-    overflow-y: auto;
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #fff; border: 1px solid #c7d2fe;
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(99,102,241,.15);
+    z-index: 9999; overflow: hidden; max-height: 260px; overflow-y: auto;
 }
-
 .pcb-dropdown-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 9px 12px;
-    cursor: pointer;
-    border-bottom: 1px solid #f1f5f9;
-    transition: background 0.1s;
-    gap: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 12px; cursor: pointer;
+    border-bottom: 1px solid #f1f5f9; transition: background .1s;
 }
-
 .pcb-dropdown-item:last-child { border-bottom: none; }
-
 .pcb-dropdown-item:hover { background: #eef2ff; }
+.pcb-item-name { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcb-item-phone { font-size: 12px; color: #64748b; white-space: nowrap; flex-shrink: 0; }
 
-.pcb-item-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: #1e293b;
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.pcb-item-phone {
-    font-size: 12px;
-    color: #64748b;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-/* ── Status chips ── */
-.pcb-status {
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
+/* Status */
+.pcb-status { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .pcb-found { color: #16a34a; }
 .pcb-notfound { color: #94a3b8; font-weight: 400; }
 
-/* ── Create button ── */
+/* Create button */
 .pcb-create-btn {
-    display: inline-flex;
-    align-items: center;
-    padding: 5px 12px;
-    background: #6366f1;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
-    flex-shrink: 0;
+    padding: 5px 12px; background: #6366f1; color: #fff;
+    border: none; border-radius: 6px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+}
+.pcb-create-btn:hover { background: #4f46e5; }
+
+
+/* ══ Create Customer Dialog ══════════════════════════════════ */
+.ccd-form { display: flex; flex-direction: column; gap: 0; }
+
+.ccd-type-row {
+    display: flex; gap: 16px;
+    padding: 12px 0 16px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 16px;
+}
+.ccd-type-opt {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #64748b; cursor: pointer;
+}
+.ccd-type-active { color: #6366f1; font-weight: 600; }
+.ccd-radio-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid #6366f1; background: #6366f1;
+    display: inline-block; position: relative;
+}
+.ccd-radio-dot::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 6px; height: 6px; border-radius: 50%; background: #fff;
 }
 
-.pcb-create-btn:hover:not(:disabled) { background: #4f46e5; }
-.pcb-create-btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+.ccd-field {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 4px 0;
+}
+.ccd-icon-field { display: flex; align-items: center; gap: 10px; }
+.ccd-field-icon { font-size: 15px; color: #94a3b8; flex-shrink: 0; width: 20px; text-align: center; }
+
+.ccd-input {
+    width: 100%; border: none; outline: none;
+    font-size: 14px; padding: 10px 4px;
+    background: transparent; color: #1e293b;
+}
+.ccd-name { font-size: 20px; font-weight: 400; color: #94a3b8; }
+.ccd-name:focus { color: #1e293b; }
+.ccd-input::placeholder { color: #cbd5e1; }
+
+.ccd-error {
+    color: #ef4444; font-size: 12px;
+    margin: 8px 0 0; padding: 6px 10px;
+    background: #fef2f2; border-radius: 6px;
+}
+
+.ccd-btn-save { margin-right: 8px; }

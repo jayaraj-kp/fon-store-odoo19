@@ -1,6 +1,98 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
+    <!-- ══════════════════════════════════════════
+         Create Customer Dialog
+    ══════════════════════════════════════════ -->
+    <t t-name="pos_cash_customer_contact.CreateCustomerDialog">
+        <Dialog title="'Create Contact'" size="'md'">
+
+            <div class="ccd-form">
+
+                <!-- Contact type row (visual only, always Contact) -->
+                <div class="ccd-type-row">
+                    <label class="ccd-type-opt ccd-type-active">
+                        <span class="ccd-radio-dot"/> Contact
+                    </label>
+                </div>
+
+                <!-- Name (required) -->
+                <div class="ccd-field">
+                    <input
+                        type="text"
+                        class="ccd-input ccd-name"
+                        placeholder="e.g. Brandon Freeman"
+                        t-model="form.name"
+                        t-on-keydown="(ev) => ev.stopPropagation()"
+                        t-on-keyup="(ev) => ev.stopPropagation()"
+                    />
+                </div>
+
+                <!-- Email -->
+                <div class="ccd-field ccd-icon-field">
+                    <span class="ccd-field-icon">✉</span>
+                    <input
+                        type="email"
+                        class="ccd-input"
+                        placeholder="Email"
+                        t-model="form.email"
+                        t-on-keydown="(ev) => ev.stopPropagation()"
+                        t-on-keyup="(ev) => ev.stopPropagation()"
+                    />
+                </div>
+
+                <!-- Phone -->
+                <div class="ccd-field ccd-icon-field">
+                    <span class="ccd-field-icon">📞</span>
+                    <input
+                        type="tel"
+                        class="ccd-input"
+                        placeholder="Phone"
+                        t-model="form.phone"
+                        t-on-keydown="(ev) => ev.stopPropagation()"
+                        t-on-keyup="(ev) => ev.stopPropagation()"
+                    />
+                </div>
+
+                <!-- Mobile -->
+                <div class="ccd-field ccd-icon-field">
+                    <span class="ccd-field-icon">📱</span>
+                    <input
+                        type="tel"
+                        class="ccd-input"
+                        placeholder="Mobile"
+                        t-model="form.mobile"
+                        t-on-keydown="(ev) => ev.stopPropagation()"
+                        t-on-keyup="(ev) => ev.stopPropagation()"
+                    />
+                </div>
+
+                <!-- Error message -->
+                <p t-if="form.error" class="ccd-error">⚠ <t t-esc="form.error"/></p>
+            </div>
+
+            <!-- Footer buttons -->
+            <t t-set-slot="footer">
+                <button
+                    class="btn btn-primary ccd-btn-save"
+                    t-on-click="onSave"
+                    t-att-disabled="form.saving"
+                >
+                    <t t-if="form.saving">Saving…</t>
+                    <t t-else="">Save &amp; Close</t>
+                </button>
+                <button class="btn btn-secondary" t-on-click="onDiscard">
+                    Discard
+                </button>
+            </t>
+
+        </Dialog>
+    </t>
+
+
+    <!-- ══════════════════════════════════════════
+         Phone Customer Bar
+    ══════════════════════════════════════════ -->
     <t t-name="pos_cash_customer_contact.PhoneCustomerBar">
         <div class="phone-customer-bar">
             <span class="pcb-icon">📞</span>
@@ -15,11 +107,14 @@
                     t-on-input="onInput"
                     t-on-focus="onFocus"
                     t-on-blur="onBlur"
+                    t-on-keydown="(ev) => ev.stopPropagation()"
+                    t-on-keyup="(ev) => ev.stopPropagation()"
+                    t-on-keypress="(ev) => ev.stopPropagation()"
                     autocomplete="off"
                 />
                 <button t-if="state.query" class="pcb-clear" t-on-click="onClear">✕</button>
 
-                <!-- Dropdown suggestions -->
+                <!-- Autocomplete dropdown -->
                 <div t-if="state.showDropdown" class="pcb-dropdown">
                     <div
                         t-foreach="state.suggestions"
@@ -36,26 +131,25 @@
                 </div>
             </div>
 
-            <!-- Customer found / assigned -->
+            <!-- Found -->
             <span t-if="state.found" class="pcb-status pcb-found">
                 ✅ <t t-esc="state.selectedName"/>
             </span>
 
-            <!-- No match yet — show Create button -->
+            <!-- Not found → Create button -->
             <t t-elif="state.query and !state.showDropdown and state.query.length >= 3">
                 <span class="pcb-status pcb-notfound">Not found</span>
-                <button
-                    class="pcb-create-btn"
-                    t-on-click="onCreateCustomer"
-                    t-att-disabled="state.creating"
-                >
-                    <t t-if="state.creating">Creating…</t>
-                    <t t-else="">+ Create Customer</t>
+                <button class="pcb-create-btn" t-on-click="openCreateDialog">
+                    + Create Customer
                 </button>
             </t>
         </div>
     </t>
 
+
+    <!-- ══════════════════════════════════════════
+         Inject bar into ProductScreen
+    ══════════════════════════════════════════ -->
     <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('leftpane')]" position="inside">
             <PhoneCustomerBar/>
@@ -63,3 +157,71 @@
     </t>
 
 </templates>
+
+
+
+<!--<?xml version="1.0" encoding="UTF-8"?>-->
+<!--<templates xml:space="preserve">-->
+
+<!--    <t t-name="pos_cash_customer_contact.PhoneCustomerBar">-->
+<!--        <div class="phone-customer-bar">-->
+<!--            <span class="pcb-icon">📞</span>-->
+
+<!--            <div class="pcb-input-wrap">-->
+<!--                <input-->
+<!--                    t-ref="input"-->
+<!--                    type="text"-->
+<!--                    class="pcb-input"-->
+<!--                    placeholder="Search by name or phone…"-->
+<!--                    t-att-value="state.query"-->
+<!--                    t-on-input="onInput"-->
+<!--                    t-on-focus="onFocus"-->
+<!--                    t-on-blur="onBlur"-->
+<!--                    autocomplete="off"-->
+<!--                />-->
+<!--                <button t-if="state.query" class="pcb-clear" t-on-click="onClear">✕</button>-->
+
+<!--                &lt;!&ndash; Dropdown suggestions &ndash;&gt;-->
+<!--                <div t-if="state.showDropdown" class="pcb-dropdown">-->
+<!--                    <div-->
+<!--                        t-foreach="state.suggestions"-->
+<!--                        t-as="partner"-->
+<!--                        t-key="partner.id"-->
+<!--                        class="pcb-dropdown-item"-->
+<!--                        t-on-mousedown="(ev) => this.onSelectSuggestion(ev, partner)"-->
+<!--                    >-->
+<!--                        <span class="pcb-item-name"><t t-esc="partner.name"/></span>-->
+<!--                        <span class="pcb-item-phone">-->
+<!--                            <t t-esc="partner.phone || partner.mobile || ''"/>-->
+<!--                        </span>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            &lt;!&ndash; Customer found / assigned &ndash;&gt;-->
+<!--            <span t-if="state.found" class="pcb-status pcb-found">-->
+<!--                ✅ <t t-esc="state.selectedName"/>-->
+<!--            </span>-->
+
+<!--            &lt;!&ndash; No match yet — show Create button &ndash;&gt;-->
+<!--            <t t-elif="state.query and !state.showDropdown and state.query.length >= 3">-->
+<!--                <span class="pcb-status pcb-notfound">Not found</span>-->
+<!--                <button-->
+<!--                    class="pcb-create-btn"-->
+<!--                    t-on-click="onCreateCustomer"-->
+<!--                    t-att-disabled="state.creating"-->
+<!--                >-->
+<!--                    <t t-if="state.creating">Creating…</t>-->
+<!--                    <t t-else="">+ Create Customer</t>-->
+<!--                </button>-->
+<!--            </t>-->
+<!--        </div>-->
+<!--    </t>-->
+
+<!--    <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">-->
+<!--        <xpath expr="//div[hasclass('leftpane')]" position="inside">-->
+<!--            <PhoneCustomerBar/>-->
+<!--        </xpath>-->
+<!--    </t>-->
+
+<!--</templates>-->
