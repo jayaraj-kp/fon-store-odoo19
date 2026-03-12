@@ -14,7 +14,6 @@
 
 import { patch }         from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
-import { onMounted, onWillUnmount } from "@odoo/owl";
 
 // ── Barcode map cache ─────────────────────────────────────────────────────────
 let _customBarcodeMap = null;
@@ -198,68 +197,55 @@ function findSearchInput() {
     return null;
 }
 
+// ── Global search input listener (MutationObserver — no Owl lifecycle) ──────
+// This avoids patching setup() which can break Owl component initialization.
+let _searchScreen    = null;   // reference to the active ProductScreen instance
+let _currentInput    = null;
+let _keyHandler      = null;
+
+function attachSearchListener(input, screen) {
+    if (!input || (input === _currentInput && screen === _searchScreen)) return;
+    if (_currentInput && _keyHandler) {
+        _currentInput.removeEventListener('keydown', _keyHandler, true);
+    }
+    _currentInput  = input;
+    _searchScreen  = screen;
+    _keyHandler = async (evt) => {
+        if (evt.key !== 'Enter') return;
+        const word = input.value?.trim();
+        if (!word) return;
+        console.log('[CustomBarcode] Search Enter pressed, value:', word);
+        const handled = await handleCustomBarcode(_searchScreen, word);
+        if (handled) {
+            evt.preventDefault();
+            evt.stopImmediatePropagation();
+            try {
+                const nativeSet = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype, 'value'
+                )?.set;
+                nativeSet?.call(input, '');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            } catch(e) { input.value = ''; }
+            try { _searchScreen?.updateSearch?.(''); } catch(e) {}
+            try { if (_searchScreen?.state?.searchWord !== undefined) _searchScreen.state.searchWord = ''; } catch(e) {}
+        }
+    };
+    input.addEventListener('keydown', _keyHandler, true);
+    console.log('[CustomBarcode] ✅ Attached keydown listener to search input');
+}
+
+// Start MutationObserver immediately — independent of any component lifecycle
+const _globalObserver = new MutationObserver(() => {
+    const newInput = findSearchInput();
+    if (newInput && newInput !== _currentInput && _searchScreen) {
+        console.log('[CustomBarcode] Input replaced — re-attaching');
+        attachSearchListener(newInput, _searchScreen);
+    }
+});
+_globalObserver.observe(document.body, { childList: true, subtree: true });
+
 // ── Patch ProductScreen ───────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
-
-    setup() {
-        super.setup();
-        fetchCustomBarcodeMap().catch(() => {});
-
-        let _currentInput = null;
-        let _keyHandler   = null;
-        let _observer     = null;
-
-        const attachToInput = (input) => {
-            if (!input || input === _currentInput) return;
-            if (_currentInput && _keyHandler) {
-                _currentInput.removeEventListener('keydown', _keyHandler, true);
-            }
-            _currentInput = input;
-            _keyHandler = async (evt) => {
-                if (evt.key !== 'Enter') return;
-                const word = input.value?.trim();
-                if (!word) return;
-
-                console.log('[CustomBarcode] Search Enter pressed, value:', word);
-                const handled = await handleCustomBarcode(this, word);
-                if (handled) {
-                    evt.preventDefault();
-                    evt.stopImmediatePropagation();
-                    try {
-                        const nativeSet = Object.getOwnPropertyDescriptor(
-                            window.HTMLInputElement.prototype, 'value'
-                        )?.set;
-                        nativeSet?.call(input, '');
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                    } catch(e) { input.value = ''; }
-                    try { this.updateSearch?.(''); } catch(e) {}
-                    try { if (this.state?.searchWord !== undefined) this.state.searchWord = ''; } catch(e) {}
-                }
-            };
-            input.addEventListener('keydown', _keyHandler, true);
-            console.log('[CustomBarcode] ✅ Attached keydown listener to search input');
-        };
-
-        onMounted(() => {
-            const input = findSearchInput();
-            if (input) attachToInput(input);
-
-            _observer = new MutationObserver(() => {
-                const newInput = findSearchInput();
-                if (newInput && newInput !== _currentInput) {
-                    attachToInput(newInput);
-                }
-            });
-            _observer.observe(document.body, { childList: true, subtree: true });
-        });
-
-        onWillUnmount(() => {
-            if (_currentInput && _keyHandler) {
-                _currentInput.removeEventListener('keydown', _keyHandler, true);
-            }
-            _observer?.disconnect();
-        });
-    },
 
     // ── Physical barcode scanner ──────────────────────────────────────────────
     async _barcodeProductAction(code) {
@@ -268,6 +254,15 @@ patch(ProductScreen.prototype, {
         if (raw && await handleCustomBarcode(this, raw)) return;
         return super._barcodeProductAction(code);
     },
+
+    // Capture the screen reference when the search bar updates
+    // so our global listener knows which screen to use
+    updateSearch(searchWord) {
+        _searchScreen = this;
+        const input = findSearchInput();
+        if (input) attachSearchListener(input, this);
+        return super.updateSearch(searchWord);
+    },
 });
 
-console.log('[CustomBarcode] ✅ v23 loaded — Max Combo Limit active.');
+console.log('[CustomBarcode] ✅ v24 loaded — Max Combo Limit active.');
