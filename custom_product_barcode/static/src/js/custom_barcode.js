@@ -1,7 +1,11 @@
 /** @odoo-module */
 /**
  * custom_barcode.js  –  Odoo 19 CE
- * Place at: custom_product_barcode/static/src/js/custom_barcode.js
+ *
+ * Approach: Read barcode2/barcode3 + custom_qty/price from the product object
+ * that POS already loaded (injected by pos_session.py). Build a local lookup
+ * map on setup. Intercept _barcodeProductAction for scanner and keydown for
+ * typed search. Use a single entry point with a hard dedup lock.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -10,227 +14,219 @@ import { onMounted, onWillUnmount } from "@odoo/owl";
 
 console.log('[CustomBarcode] ✅ Module loading...');
 
-// ── Barcode map cache ─────────────────────────────────────────────────────────
-let _customBarcodeMap = null;
-let _fetchPromise     = null;
+// ── Build barcode map from POS product data ───────────────────────────────────
+// Called once after POS is ready. Returns Map<BARCODE_UPPER → {product, qty, price}>
+function buildBarcodeMap(pos) {
+    const map = new Map();
+    try {
+        const model = pos.models?.['product.product'];
+        if (!model) { console.warn('[CustomBarcode] product.product model not found'); return map; }
 
-async function fetchCustomBarcodeMap() {
-    if (_customBarcodeMap !== null) return _customBarcodeMap;
-    if (_fetchPromise)              return _fetchPromise;
-    _fetchPromise = (async () => {
-        try {
-            const resp = await fetch('/pos/custom_barcode_map', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} }),
-            });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const json = await resp.json();
-            const raw  = (json?.result ?? json)?.barcodes ?? {};
-            _customBarcodeMap = {};
-            for (const [k, v] of Object.entries(raw))
-                _customBarcodeMap[k.toUpperCase()] = v;
-            console.log(`[CustomBarcode] ✅ ${Object.keys(_customBarcodeMap).length} barcode(s) loaded`, Object.keys(_customBarcodeMap));
-        } catch (e) {
-            console.error('[CustomBarcode] ❌ Failed to load barcode map:', e);
-            _customBarcodeMap = {};
+        // Collect all product records
+        let products = [];
+        if (typeof model.getAll === 'function') products = model.getAll();
+        else if (model.records) products = Object.values(model.records);
+        else if (typeof model.get === 'function') {
+            // iterate known ids — fallback
+            products = [];
         }
-        return _customBarcodeMap;
-    })();
-    return _fetchPromise;
+
+        for (const p of products) {
+            if (p.barcode2 && p.custom_qty1) {
+                const price = (p.custom_price1 > 0) ? p.custom_price1 : p.lst_price;
+                map.set(p.barcode2.toUpperCase(), { product: p, qty: p.custom_qty1, price });
+            }
+            if (p.barcode3 && p.custom_qty2) {
+                const price = (p.custom_price2 > 0) ? p.custom_price2 : p.lst_price;
+                map.set(p.barcode3.toUpperCase(), { product: p, qty: p.custom_qty2, price });
+            }
+        }
+        console.log(`[CustomBarcode] ✅ Built map with ${map.size} custom barcode(s):`, [...map.keys()]);
+    } catch(e) {
+        console.error('[CustomBarcode] buildBarcodeMap error:', e);
+    }
+    return map;
 }
 
-function findProductById(pos, id) {
-    try {
-        const m = pos.models?.['product.product'];
-        if (!m) return null;
-        if (typeof m.getBy === 'function') return m.getBy('id', id) || null;
-        if (typeof m.get   === 'function') return m.get(id) || null;
-        if (m.records) return m.records[id]
-            || Object.values(m.records).find(p => p.id === id) || null;
-    } catch(e) {}
-    return null;
-}
-
-function showNotification(screen, msg) {
-    try {
-        const svc = screen.env?.services?.notification;
-        if (svc) svc.add(msg, { type: 'success' });
-    } catch(e) {}
-}
-
-function getCurrentOrder(pos) {
-    return pos.get_order?.() || pos.selectedOrder || pos.currentOrder || null;
-}
-
-function getLastLine(order) {
-    const lines = order?.get_orderlines?.() || order?.orderlines || [];
-    const arr   = Array.isArray(lines) ? lines : (lines.toArray?.() ?? [...lines]);
-    return arr.at(-1) || null;
-}
-
-// ── Dedup guard ───────────────────────────────────────────────────────────────
-const _recentlySeen = new Map();
+// ── Dedup: one barcode handled max once per 1500ms ────────────────────────────
+const _seen = new Map();
 function isDuplicate(key) {
-    const now  = Date.now();
-    const last = _recentlySeen.get(key);
-    if (last && (now - last) < 1500) return true;
-    _recentlySeen.set(key, now);
-    for (const [k, t] of _recentlySeen) if (now - t > 5000) _recentlySeen.delete(k);
+    const now = Date.now();
+    if (_seen.has(key) && (now - _seen.get(key)) < 1500) return true;
+    _seen.set(key, now);
     return false;
 }
 
-// ── Force price + qty on a line ───────────────────────────────────────────────
-function applyToLine(line, qty, price) {
-    if (!line) return;
-    line.price_manually_set = true;
-
-    // Qty
-    if (typeof line.set_quantity  === 'function') try { line.set_quantity(qty);  } catch(e) {}
-    else if (typeof line.setQuantity === 'function') try { line.setQuantity(qty); } catch(e) {}
-    else { try { line.qty = qty;      } catch(e) {} }
-
-    // Price
-    if (typeof line.set_unit_price === 'function') try { line.set_unit_price(price); } catch(e) {}
-    else if (typeof line.setUnitPrice === 'function') try { line.setUnitPrice(price); } catch(e) {}
-
-    // Also direct assign + update() for reactive models
-    try { line.price_unit = price; } catch(e) {}
-    if (typeof line.update === 'function') {
-        try { line.update({ price_unit: price, price_manually_set: true }); } catch(e) {}
-    }
+// ── Get current order ─────────────────────────────────────────────────────────
+function getOrder(pos) {
+    return pos.get_order?.() || pos.selectedOrder || pos.currentOrder || null;
 }
 
-async function handleCustomBarcode(screen, rawBarcode) {
+// ── Get last orderline ────────────────────────────────────────────────────────
+function getLastLine(order) {
+    const lines = order?.get_orderlines?.() || order?.orderlines || [];
+    const arr = Array.isArray(lines) ? lines : [...lines];
+    return arr.at(-1) || null;
+}
+
+// ── Show notification ─────────────────────────────────────────────────────────
+function notify(screen, msg) {
+    try { screen.env.services.notification.add(msg, { type: 'success' }); } catch(e) {}
+}
+
+// ── Core handler ─────────────────────────────────────────────────────────────
+async function handleBarcode(screen, rawBarcode) {
     if (!rawBarcode) return false;
     const key = rawBarcode.trim().toUpperCase();
+    if (isDuplicate(key)) return true; // swallow duplicate silently
 
-    if (isDuplicate(key)) return true;
-
-    const map   = await fetchCustomBarcodeMap();
-    const entry = map[key];
+    const entry = screen._customBarcodeMap?.get(key);
     if (!entry) {
-        _recentlySeen.delete(key);
+        _seen.delete(key); // not our barcode, let Odoo handle it normally
         return false;
     }
 
-    const product = findProductById(screen.pos, entry.product_id);
-    if (!product) {
-        console.warn(`[CustomBarcode] ❌ product id=${entry.product_id} not in POS`);
-        _recentlySeen.delete(key);
-        return false;
-    }
-
-    console.log(`[CustomBarcode] Matched: ${entry.product_name}  qty=${entry.qty}  price=${entry.price}`);
+    console.log(`[CustomBarcode] Handling: ${entry.product.display_name}  qty=${entry.qty}  price=${entry.price}`);
 
     try {
-        const order = getCurrentOrder(screen.pos);
+        const order = getOrder(screen.pos);
         if (!order) throw new Error('No active order');
 
+        // Add line — use merge:false so we always get a fresh line we can control
         screen.pos.addLineToCurrentOrder(
-            { product_id: product },
-            { price_manually_set: true }
+            { product_id: entry.product },
+            { merge: false }
         );
 
-        // Apply immediately
-        applyToLine(getLastLine(order), entry.qty, entry.price);
+        // Immediately grab the new line and set values
+        const line = getLastLine(order);
+        if (!line) throw new Error('No line after addLineToCurrentOrder');
 
-        // Re-apply at intervals to beat async pricelist hooks
-        for (const ms of [30, 100, 300, 700, 1500]) {
-            await new Promise(r => setTimeout(r, ms));
-            const line = getLastLine(order);
-            if (!line) continue;
-            const curPrice = line.price_unit;
-            const curQty   = line.qty ?? line.quantity;
-            if (Math.abs(curPrice - entry.price) > 0.001 || Math.abs(curQty - entry.qty) > 0.001) {
-                console.log(`[CustomBarcode] Re-applying at ${ms}ms — price was ${curPrice}, qty was ${curQty}`);
-                applyToLine(line, entry.qty, entry.price);
-            }
+        // Set qty first
+        if      (typeof line.set_quantity  === 'function') line.set_quantity(entry.qty);
+        else if (typeof line.setQuantity   === 'function') line.setQuantity(entry.qty);
+        else    line.qty = entry.qty;
+
+        // Set price
+        if      (typeof line.set_unit_price === 'function') line.set_unit_price(entry.price);
+        else if (typeof line.setUnitPrice   === 'function') line.setUnitPrice(entry.price);
+        else    line.price_unit = entry.price;
+
+        // Mark as manually set so pricelist won't overwrite
+        line.price_manually_set = true;
+
+        console.log(`[CustomBarcode] Line set → qty=${line.qty ?? line.quantity}  price_unit=${line.price_unit}`);
+
+        // Safety re-apply after Odoo's async hooks (pricelist RPC etc.)
+        await new Promise(r => setTimeout(r, 80));
+        if (Math.abs((line.price_unit ?? 0) - entry.price) > 0.01) {
+            console.log(`[CustomBarcode] Price was reset to ${line.price_unit}, re-applying ${entry.price}`);
+            if (typeof line.set_unit_price === 'function') line.set_unit_price(entry.price);
+            else line.price_unit = entry.price;
+            line.price_manually_set = true;
+        }
+        if (Math.abs((line.qty ?? line.quantity ?? 0) - entry.qty) > 0.01) {
+            if (typeof line.set_quantity === 'function') line.set_quantity(entry.qty);
+            else line.qty = entry.qty;
         }
 
-    } catch (err) {
+        await new Promise(r => setTimeout(r, 300));
+        if (Math.abs((line.price_unit ?? 0) - entry.price) > 0.01) {
+            console.log(`[CustomBarcode] Price reset again at 380ms, forcing ${entry.price}`);
+            if (typeof line.set_unit_price === 'function') line.set_unit_price(entry.price);
+            else line.price_unit = entry.price;
+            line.price_manually_set = true;
+        }
+
+    } catch(err) {
         console.error('[CustomBarcode] Error:', err);
         return false;
     }
 
     const sym = screen.pos.currency?.symbol ?? '₹';
-    showNotification(screen,
-        `${entry.product_name} × ${entry.qty} @ ${sym}${entry.price.toFixed(2)} = ${sym}${(entry.qty * entry.price).toFixed(2)}`
+    notify(screen,
+        `${entry.product.display_name} × ${entry.qty} @ ${sym}${entry.price.toFixed(2)} = ${sym}${(entry.qty * entry.price).toFixed(2)}`
     );
     screen.numberBuffer?.reset?.();
     return true;
 }
 
 // ── Search input helpers ──────────────────────────────────────────────────────
-const SEARCH_SELECTORS = [
+const SELECTORS = [
     'input[placeholder*="earch"]',
     '.search-bar input',
     '.pos-search-bar input',
     '.product-screen input[type="text"]',
 ];
-function findSearchInput() {
-    for (const sel of SEARCH_SELECTORS) {
-        const el = document.querySelector(sel);
-        if (el) return el;
-    }
+function findInput() {
+    for (const s of SELECTORS) { const el = document.querySelector(s); if (el) return el; }
     return null;
 }
 
 // ── Patch ProductScreen ───────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
+
     setup() {
         super.setup();
-        fetchCustomBarcodeMap().catch(() => {});
 
-        let _currentInput = null;
-        let _keyHandler   = null;
-        let _observer     = null;
+        // Build map once POS data is available
+        this._customBarcodeMap = buildBarcodeMap(this.pos);
+        if (this._customBarcodeMap.size === 0) {
+            // Retry after a tick in case products load asynchronously
+            setTimeout(() => {
+                this._customBarcodeMap = buildBarcodeMap(this.pos);
+            }, 1000);
+        }
 
-        const attachToInput = (input) => {
-            if (!input || input === _currentInput) return;
-            if (_currentInput && _keyHandler)
-                _currentInput.removeEventListener('keydown', _keyHandler, true);
-            _currentInput = input;
-            _keyHandler = async (evt) => {
+        let _input    = null;
+        let _handler  = null;
+        let _observer = null;
+
+        const attach = (el) => {
+            if (!el || el === _input) return;
+            if (_input && _handler) _input.removeEventListener('keydown', _handler, true);
+            _input = el;
+            _handler = async (evt) => {
                 if (evt.key !== 'Enter') return;
-                const word = input.value?.trim();
-                if (!word) return;
-                const handled = await handleCustomBarcode(this, word);
+                const val = el.value?.trim();
+                if (!val) return;
+                const handled = await handleBarcode(this, val);
                 if (handled) {
                     evt.preventDefault();
                     evt.stopImmediatePropagation();
+                    // Clear input
                     try {
-                        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-                        setter?.set?.call(input, '');
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                    } catch(e) { input.value = ''; }
-                    try { this.updateSearch?.(''); } catch(e) {}
+                        const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+                        s?.set?.call(el, '');
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                    } catch(e) { el.value = ''; }
+                    try { this.updateSearch?.(''); }      catch(e) {}
                     try { if (this.state?.searchWord !== undefined) this.state.searchWord = ''; } catch(e) {}
                 }
             };
-            input.addEventListener('keydown', _keyHandler, true);
+            _input.addEventListener('keydown', _handler, true);
         };
 
         onMounted(() => {
-            attachToInput(findSearchInput());
+            attach(findInput());
             _observer = new MutationObserver(() => {
-                const n = findSearchInput();
-                if (n && n !== _currentInput) attachToInput(n);
+                const n = findInput();
+                if (n && n !== _input) attach(n);
             });
             _observer.observe(document.body, { childList: true, subtree: true });
         });
 
         onWillUnmount(() => {
-            if (_currentInput && _keyHandler)
-                _currentInput.removeEventListener('keydown', _keyHandler, true);
+            if (_input && _handler) _input.removeEventListener('keydown', _handler, true);
             _observer?.disconnect();
         });
     },
 
+    // Physical scanner
     async _barcodeProductAction(code) {
         const raw = typeof code === 'string'
             ? code : (code?.code ?? code?.base_code ?? code?.value ?? '');
-        if (raw && await handleCustomBarcode(this, raw)) return;
+        if (raw && await handleBarcode(this, raw)) return;
         return super._barcodeProductAction(code);
     },
 });
