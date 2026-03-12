@@ -22,10 +22,7 @@
                            string="Package Price 1"
                            widget="monetary"
                            options="{'currency_field': 'currency_id'}"
-                           help="Fixed selling price per unit for this package. Set 0 to use standard unit price."/>
-                    <field name="max_combo_qty1"
-                           string="Max Combo Limit 1"
-                           help="Maximum number of times Package 1 can be scanned/added in a single bill. Set 0 for unlimited."/>
+                           help="Fixed selling price for this package. Set 0 to calculate as unit price × qty."/>
                 </group>
 
                 <group string="Package 2  (e.g. 10 Dozen = 120 units)" name="package_barcode_group2" col="2">
@@ -40,10 +37,7 @@
                            string="Package Price 2"
                            widget="monetary"
                            options="{'currency_field': 'currency_id'}"
-                           help="Fixed selling price per unit for this package. Set 0 to use standard unit price."/>
-                    <field name="max_combo_qty2"
-                           string="Max Combo Limit 2"
-                           help="Maximum number of times Package 2 can be scanned/added in a single bill. Set 0 for unlimited."/>
+                           help="Fixed selling price for this package. Set 0 to calculate as unit price × qty."/>
                 </group>
 
             </xpath>
