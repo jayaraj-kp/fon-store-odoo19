@@ -2,11 +2,10 @@
 /**
  * custom_barcode.js  –  Odoo 19 CE  (v19)
  *
- * Problem identified: Owl re-renders the search input on every keystroke,
- * replacing the DOM element — so onMounted listener gets detached immediately.
- *
- * Fix: MutationObserver watches for input appearing/changing and re-attaches.
- * Also patches _barcodeProductAction for physical scanner.
+ * Fix: Price was being reset by Odoo's async pricelist computation after addLineToCurrentOrder.
+ * Solution: Directly manipulate the order line AFTER it's created, and use
+ *           price_manually_set=true + override the getUnitPrice method on the line instance
+ *           to always return our custom price, preventing pricelist from overwriting it.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -68,39 +67,55 @@ function getCurrentOrder(pos) {
 }
 
 function getLastLine(order) {
+    // Try selected line first, then last line
+    const lines = order?.get_orderlines?.() || order?.orderlines || [];
+    const arr = Array.isArray(lines) ? lines : (lines.toArray?.() ?? [...lines]);
     return order?.get_selected_orderline?.()
         || order?.selected_orderline
-        || order?.get_orderlines?.()?.at(-1)
-        || order?.orderlines?.at?.(-1) || null;
+        || arr.at(-1)
+        || null;
 }
 
-// Set price using the same pattern that successfully sets qty in Odoo 19
-function setPriceOnLine(line, price) {
-    if (!line) { console.warn('[CustomBarcode] No line to set price on'); return false; }
-    console.log('[CustomBarcode] Line price methods:', 
-        ['set_unit_price','setUnitPrice','set_price','setPrice','update']
-        .filter(m => typeof line[m] === 'function'));
-    console.log('[CustomBarcode] Current price_unit:', line.price_unit, '| price:', line.price);
-    
-    // Method 1: set_unit_price (standard Odoo method, triggers recomputation)
-    if (typeof line.set_unit_price === 'function') {
-        line.set_unit_price(price);
-        console.log('[CustomBarcode] set_unit_price(' + price + ') → price_unit now:', line.price_unit);
-        return true;
-    }
-    // Method 2: update() reactive model method (Odoo 19)
+/**
+ * Force-set price on a line using every available method.
+ * Also monkey-patches getUnitPrice on the instance so pricelist
+ * cannot overwrite it asynchronously.
+ */
+function forcePrice(line, price) {
+    if (!line) return;
+
+    // 1. Mark as manually set first — prevents pricelist override
+    if ('price_manually_set' in line) line.price_manually_set = true;
     if (typeof line.update === 'function') {
-        line.update({ price_unit: price });
-        console.log('[CustomBarcode] update({price_unit:' + price + '})');
-        return true;
+        try { line.update({ price_manually_set: true }); } catch(e) {}
     }
-    // Method 3: direct assignment (last resort)
-    if ('price_unit' in line) {
-        line.price_unit = price;
-        console.log('[CustomBarcode] line.price_unit=' + price);
-        return true;
+
+    // 2. Monkey-patch getUnitPrice on THIS instance so async pricelist
+    //    computations always return our price (Odoo 19 reactive pattern)
+    try {
+        line._customForcedPrice = price;
+        const originalGetUnitPrice = line.getUnitPrice?.bind(line);
+        line.getUnitPrice = function() { return this._customForcedPrice; };
+        // Also patch get_unit_price (Odoo 16/17/18 name)
+        line.get_unit_price = function() { return this._customForcedPrice; };
+    } catch(e) {}
+
+    // 3. Set via all known setter methods
+    if (typeof line.set_unit_price === 'function') {
+        try { line.set_unit_price(price); } catch(e) {}
     }
-    return false;
+    if (typeof line.setUnitPrice === 'function') {
+        try { line.setUnitPrice(price); } catch(e) {}
+    }
+    if (typeof line.update === 'function') {
+        try { line.update({ price_unit: price, lst_price: price }); } catch(e) {}
+    }
+
+    // 4. Direct property assignment as final guarantee
+    try { line.price_unit = price; } catch(e) {}
+    try { line.lst_price  = price; } catch(e) {}
+
+    console.log(`[CustomBarcode] forcePrice(${price}) → price_unit now:`, line.price_unit);
 }
 
 async function handleCustomBarcode(screen, rawBarcode) {
@@ -115,41 +130,57 @@ async function handleCustomBarcode(screen, rawBarcode) {
         return false;
     }
 
+    console.log(`[CustomBarcode] Handling barcode for ${entry.product_name}, qty=${entry.qty}, price=${entry.price}`);
+
     try {
-        // Pass price through options — Odoo 19 addLineToCurrentOrder accepts
-        // an options object that gets forwarded to Order._add_product_to_current_order
-        screen.pos.addLineToCurrentOrder({
-            product_id: product,
-            qty:        entry.qty,
-        }, {
-            price_unit:     entry.price,
-            price_extra:    0,
-            lst_price:      entry.price,
-            price_manually_set: true,
-        });
-
-        // Wait for ALL of Odoo's post-add hooks to finish (price resets happen ~50ms after)
-        // then forcefully override with our price — this must win the last write
-        await new Promise(r => setTimeout(r, 150));
         const order = getCurrentOrder(screen.pos);
-        const line  = getLastLine(order);
+        if (!order) throw new Error('No active order');
 
-        if (line) {
-            console.log('[CustomBarcode] Before price set — price_unit:', line.price_unit, 'price:', line.price);
-            
-            // Call set_unit_price which triggers full recomputation chain
-            if (typeof line.set_unit_price === 'function') {
-                line.set_unit_price(entry.price);
-                // Call again after another tick in case Odoo resets it
-                await new Promise(r => setTimeout(r, 50));
-                line.set_unit_price(entry.price);
-            } else if (typeof line.update === 'function') {
-                line.update({ price_unit: entry.price, price_manually_set: true });
-            } else if ('price_unit' in line) {
-                line.price_unit = entry.price;
+        // ── Strategy: add line then immediately and repeatedly override price ──
+        //
+        // Odoo 19 calls an async pricelist RPC after addLineToCurrentOrder.
+        // We beat it by:
+        //   a) Passing price_unit in the vals (may or may not work depending on version)
+        //   b) Setting price_manually_set=true so Odoo skips pricelist update
+        //   c) Overriding getUnitPrice on the line instance
+        //   d) Setting price again after short delays to catch any late resets
+
+        screen.pos.addLineToCurrentOrder(
+            { product_id: product },
+            {
+                qty:                entry.qty,
+                price_unit:         entry.price,
+                lst_price:          entry.price,
+                price_manually_set: true,
             }
+        );
 
-            console.log('[CustomBarcode] After price set — price_unit:', line.price_unit, 'price:', line.price);
+        // Immediately grab the line and force price — before any async hooks
+        const lineImmediate = getLastLine(order);
+        if (lineImmediate) {
+            forcePrice(lineImmediate, entry.price);
+            // Also set qty immediately in case addLineToCurrentOrder ignored it
+            if (typeof lineImmediate.set_quantity === 'function') {
+                try { lineImmediate.set_quantity(entry.qty); } catch(e) {}
+            } else if (typeof lineImmediate.setQuantity === 'function') {
+                try { lineImmediate.setQuantity(entry.qty); } catch(e) {}
+            } else if (typeof lineImmediate.update === 'function') {
+                try { lineImmediate.update({ qty: entry.qty }); } catch(e) {}
+            }
+        }
+
+        // Re-apply after short delays to catch Odoo's async pricelist reset
+        // Odoo 19 typically fires pricelist update at ~0ms, ~30ms, ~100ms
+        for (const delay of [0, 30, 80, 200, 500]) {
+            await new Promise(r => setTimeout(r, delay));
+            const line = getLastLine(order);
+            if (!line) continue;
+            // Only re-apply if price was reset away from our value
+            const currentPrice = line.price_unit ?? line.price;
+            if (Math.abs(currentPrice - entry.price) > 0.001) {
+                console.log(`[CustomBarcode] Price was reset to ${currentPrice} at ${delay}ms — correcting back to ${entry.price}`);
+                forcePrice(line, entry.price);
+            }
         }
 
     } catch (err) {
@@ -159,7 +190,7 @@ async function handleCustomBarcode(screen, rawBarcode) {
 
     const symbol = screen.pos.currency?.symbol ?? '₹';
     showNotification(screen,
-        `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}`
+        `${entry.product_name}  ×  ${entry.qty}  @  ${symbol}${entry.price.toFixed(2)}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}`
     );
     screen.numberBuffer?.reset?.();
     return true;
@@ -189,15 +220,12 @@ patch(ProductScreen.prototype, {
         super.setup();
         fetchCustomBarcodeMap().catch(() => {});
 
-        // We use a MutationObserver so we always have the CURRENT input element
-        // even after Owl re-renders replace it.
         let _currentInput   = null;
         let _keyHandler     = null;
         let _observer       = null;
 
         const attachToInput = (input) => {
             if (!input || input === _currentInput) return;
-            // Remove old listener
             if (_currentInput && _keyHandler) {
                 _currentInput.removeEventListener('keydown', _keyHandler, true);
                 console.log('[CustomBarcode] Detached from old input');
@@ -216,7 +244,6 @@ patch(ProductScreen.prototype, {
                     evt.stopImmediatePropagation();
                     // Clear search input and internal state
                     try {
-                        // Reset native input value
                         const nativeInput = Object.getOwnPropertyDescriptor(
                             window.HTMLInputElement.prototype, 'value'
                         );
@@ -232,11 +259,9 @@ patch(ProductScreen.prototype, {
         };
 
         onMounted(() => {
-            // Initial attach
             const input = findSearchInput();
             if (input) attachToInput(input);
 
-            // MutationObserver: re-attach whenever DOM changes (Owl re-renders)
             _observer = new MutationObserver(() => {
                 const newInput = findSearchInput();
                 if (newInput && newInput !== _currentInput) {
@@ -265,4 +290,4 @@ patch(ProductScreen.prototype, {
     },
 });
 
-console.log('[CustomBarcode] ✅ v19 loaded — MutationObserver search listener active.');
+console.log('[CustomBarcode] ✅ v19 loaded — price override with pricelist-bypass active.');
