@@ -2,11 +2,12 @@
 /**
  * custom_barcode.js  –  Odoo 19 CE  (v19)
  *
- * Problem identified: Owl re-renders the search input on every keystroke,
- * replacing the DOM element — so onMounted listener gets detached immediately.
- *
- * Fix: MutationObserver watches for input appearing/changing and re-attaches.
- * Also patches _barcodeProductAction for physical scanner.
+ * Features:
+ *  - Scan Barcode 2 / Barcode 3 → adds package qty at package price
+ *  - Max Combo Qty enforcement: if max_combo_qty > 0, the barcode is blocked
+ *    after it has been scanned that many times in the current bill.
+ *  - MutationObserver keeps the search-input listener alive across Owl re-renders.
+ *  - Patches _barcodeProductAction for physical scanner.
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -33,7 +34,10 @@ async function fetchCustomBarcodeMap() {
             _customBarcodeMap = {};
             for (const [k, v] of Object.entries(raw))
                 _customBarcodeMap[k.toUpperCase()] = v;
-            console.log(`[CustomBarcode] ✅ ${Object.keys(_customBarcodeMap).length} barcode(s) loaded:`, Object.keys(_customBarcodeMap));
+            console.log(
+                `[CustomBarcode] ✅ ${Object.keys(_customBarcodeMap).length} barcode(s) loaded:`,
+                Object.keys(_customBarcodeMap)
+            );
         } catch (e) {
             console.error('[CustomBarcode] Failed to load barcode map:', e);
             _customBarcodeMap = {};
@@ -43,6 +47,41 @@ async function fetchCustomBarcodeMap() {
     return _fetchPromise;
 }
 
+// ── Combo-scan counter (per bill, keyed by barcode uppercase) ─────────────────
+// Structure: { [orderId]: { [barcodeUpper]: scanCount } }
+const _comboCounts = {};
+
+function getOrderId(pos) {
+    const order = getCurrentOrder(pos);
+    if (!order) return null;
+    return order.uid || order.id || order.name || String(order);
+}
+
+function getComboCount(pos, barcodeUpper) {
+    const oid = getOrderId(pos);
+    if (!oid) return 0;
+    return (_comboCounts[oid]?.[barcodeUpper]) ?? 0;
+}
+
+function incrementComboCount(pos, barcodeUpper) {
+    const oid = getOrderId(pos);
+    if (!oid) return;
+    if (!_comboCounts[oid]) _comboCounts[oid] = {};
+    _comboCounts[oid][barcodeUpper] = ((_comboCounts[oid][barcodeUpper]) ?? 0) + 1;
+}
+
+/**
+ * Call this when an order is finalised / a new order starts so we don't
+ * accumulate memory forever.  Hook is added in setup() below.
+ */
+function resetComboCountForOrder(orderId) {
+    if (orderId && _comboCounts[orderId]) {
+        delete _comboCounts[orderId];
+        console.log(`[CustomBarcode] Combo counts cleared for order ${orderId}`);
+    }
+}
+
+// ── POS helpers ───────────────────────────────────────────────────────────────
 function findProductById(pos, id) {
     try {
         const m = pos.models?.['product.product'];
@@ -55,11 +94,11 @@ function findProductById(pos, id) {
     return null;
 }
 
-function showNotification(screen, msg) {
+function showNotification(screen, msg, type = 'success') {
     try {
         const svc = screen.env?.services?.notification;
-        if (svc) svc.add(msg, { type: 'success' });
-        else if (screen.notification) screen.notification.add(msg, { type: 'success' });
+        if (svc) svc.add(msg, { type });
+        else if (screen.notification) screen.notification.add(msg, { type });
     } catch(e) {}
 }
 
@@ -74,73 +113,61 @@ function getLastLine(order) {
         || order?.orderlines?.at?.(-1) || null;
 }
 
-// Set price using the same pattern that successfully sets qty in Odoo 19
-function setPriceOnLine(line, price) {
-    if (!line) { console.warn('[CustomBarcode] No line to set price on'); return false; }
-    console.log('[CustomBarcode] Line price methods:', 
-        ['set_unit_price','setUnitPrice','set_price','setPrice','update']
-        .filter(m => typeof line[m] === 'function'));
-    console.log('[CustomBarcode] Current price_unit:', line.price_unit, '| price:', line.price);
-    
-    // Method 1: set_unit_price (standard Odoo method, triggers recomputation)
-    if (typeof line.set_unit_price === 'function') {
-        line.set_unit_price(price);
-        console.log('[CustomBarcode] set_unit_price(' + price + ') → price_unit now:', line.price_unit);
-        return true;
-    }
-    // Method 2: update() reactive model method (Odoo 19)
-    if (typeof line.update === 'function') {
-        line.update({ price_unit: price });
-        console.log('[CustomBarcode] update({price_unit:' + price + '})');
-        return true;
-    }
-    // Method 3: direct assignment (last resort)
-    if ('price_unit' in line) {
-        line.price_unit = price;
-        console.log('[CustomBarcode] line.price_unit=' + price);
-        return true;
-    }
-    return false;
-}
-
+// ── Main handler ──────────────────────────────────────────────────────────────
 async function handleCustomBarcode(screen, rawBarcode) {
     if (!rawBarcode) return false;
-    const map   = await fetchCustomBarcodeMap();
-    const entry = map[rawBarcode.toUpperCase()];
+
+    const map         = await fetchCustomBarcodeMap();
+    const barcodeKey  = rawBarcode.toUpperCase();
+    const entry       = map[barcodeKey];
     if (!entry) return false;
 
+    // ── Combo limit check ────────────────────────────────────────────────────
+    const maxCombo = entry.max_combo_qty ?? 0;   // 0 = unlimited
+    if (maxCombo > 0) {
+        const scannedSoFar = getComboCount(screen.pos, barcodeKey);
+        if (scannedSoFar >= maxCombo) {
+            const symbol = screen.pos.currency?.symbol ?? '₹';
+            showNotification(
+                screen,
+                `⛔ "${entry.product_name}" package limit reached! ` +
+                `Maximum ${maxCombo} combo scan${maxCombo > 1 ? 's' : ''} per bill.`,
+                'danger'
+            );
+            console.warn(
+                `[CustomBarcode] Blocked: ${barcodeKey} — limit ${maxCombo}, already scanned ${scannedSoFar}`
+            );
+            return true;   // return true so normal barcode handling is also suppressed
+        }
+    }
+
+    // ── Find product ─────────────────────────────────────────────────────────
     const product = findProductById(screen.pos, entry.product_id);
     if (!product) {
         console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS.`);
         return false;
     }
 
+    // ── Add line ─────────────────────────────────────────────────────────────
     try {
-        // Pass price through options — Odoo 19 addLineToCurrentOrder accepts
-        // an options object that gets forwarded to Order._add_product_to_current_order
         screen.pos.addLineToCurrentOrder({
             product_id: product,
             qty:        entry.qty,
         }, {
-            price_unit:     entry.price,
-            price_extra:    0,
-            lst_price:      entry.price,
-            price_manually_set: true,
+            price_unit:          entry.price,
+            price_extra:         0,
+            lst_price:           entry.price,
+            price_manually_set:  true,
         });
 
-        // Wait for ALL of Odoo's post-add hooks to finish (price resets happen ~50ms after)
-        // then forcefully override with our price — this must win the last write
+        // Wait for Odoo's post-add hooks, then forcefully set our price
         await new Promise(r => setTimeout(r, 150));
         const order = getCurrentOrder(screen.pos);
         const line  = getLastLine(order);
 
         if (line) {
-            console.log('[CustomBarcode] Before price set — price_unit:', line.price_unit, 'price:', line.price);
-            
-            // Call set_unit_price which triggers full recomputation chain
             if (typeof line.set_unit_price === 'function') {
                 line.set_unit_price(entry.price);
-                // Call again after another tick in case Odoo resets it
                 await new Promise(r => setTimeout(r, 50));
                 line.set_unit_price(entry.price);
             } else if (typeof line.update === 'function') {
@@ -148,8 +175,6 @@ async function handleCustomBarcode(screen, rawBarcode) {
             } else if ('price_unit' in line) {
                 line.price_unit = entry.price;
             }
-
-            console.log('[CustomBarcode] After price set — price_unit:', line.price_unit, 'price:', line.price);
         }
 
     } catch (err) {
@@ -157,9 +182,16 @@ async function handleCustomBarcode(screen, rawBarcode) {
         return false;
     }
 
+    // ── Increment combo counter only after a successful add ───────────────────
+    incrementComboCount(screen.pos, barcodeKey);
+
+    const remaining = maxCombo > 0
+        ? ` (${maxCombo - getComboCount(screen.pos, barcodeKey)} left this bill)`
+        : '';
     const symbol = screen.pos.currency?.symbol ?? '₹';
-    showNotification(screen,
-        `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}`
+    showNotification(
+        screen,
+        `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}${remaining}`
     );
     screen.numberBuffer?.reset?.();
     return true;
@@ -189,15 +221,23 @@ patch(ProductScreen.prototype, {
         super.setup();
         fetchCustomBarcodeMap().catch(() => {});
 
-        // We use a MutationObserver so we always have the CURRENT input element
-        // even after Owl re-renders replace it.
-        let _currentInput   = null;
-        let _keyHandler     = null;
-        let _observer       = null;
+        let _currentInput = null;
+        let _keyHandler   = null;
+        let _observer     = null;
+        let _lastOrderId  = null;
+
+        // Watch for order changes so we can reset combo counts on new bills
+        const checkOrderChange = () => {
+            const oid = getOrderId(this.pos);
+            if (oid && oid !== _lastOrderId) {
+                // New order started — reset counts for the OLD order
+                if (_lastOrderId) resetComboCountForOrder(_lastOrderId);
+                _lastOrderId = oid;
+            }
+        };
 
         const attachToInput = (input) => {
             if (!input || input === _currentInput) return;
-            // Remove old listener
             if (_currentInput && _keyHandler) {
                 _currentInput.removeEventListener('keydown', _keyHandler, true);
                 console.log('[CustomBarcode] Detached from old input');
@@ -209,14 +249,14 @@ patch(ProductScreen.prototype, {
                 console.log('[CustomBarcode] Search Enter pressed, value:', JSON.stringify(word));
                 if (!word) return;
 
+                checkOrderChange();
                 const handled = await handleCustomBarcode(this, word);
                 console.log('[CustomBarcode] handleCustomBarcode result:', handled);
                 if (handled) {
                     evt.preventDefault();
                     evt.stopImmediatePropagation();
-                    // Clear search input and internal state
+                    // Clear search input
                     try {
-                        // Reset native input value
                         const nativeInput = Object.getOwnPropertyDescriptor(
                             window.HTMLInputElement.prototype, 'value'
                         );
@@ -232,12 +272,13 @@ patch(ProductScreen.prototype, {
         };
 
         onMounted(() => {
-            // Initial attach
+            _lastOrderId = getOrderId(this.pos);
             const input = findSearchInput();
             if (input) attachToInput(input);
 
-            // MutationObserver: re-attach whenever DOM changes (Owl re-renders)
+            // MutationObserver: re-attach whenever Owl re-renders replace the input
             _observer = new MutationObserver(() => {
+                checkOrderChange();
                 const newInput = findSearchInput();
                 if (newInput && newInput !== _currentInput) {
                     console.log('[CustomBarcode] Input element replaced — re-attaching listener');
@@ -265,4 +306,4 @@ patch(ProductScreen.prototype, {
     },
 });
 
-console.log('[CustomBarcode] ✅ v19 loaded — MutationObserver search listener active.');
+console.log('[CustomBarcode] ✅ v19 loaded — MutationObserver + Max Combo Qty enforcement active.');

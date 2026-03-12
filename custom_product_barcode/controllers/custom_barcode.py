@@ -8,11 +8,15 @@ class CustomBarcodeController(http.Controller):
     @http.route('/pos/custom_barcode_map', type='json', auth='user', methods=['POST'], csrf=False)
     def get_custom_barcode_map(self, **kwargs):
         """
-        Returns all custom package barcodes with qty and price.
+        Returns all custom package barcodes with qty, price and max_combo_qty.
 
         price logic:
           - If custom_price > 0  → use that fixed package price
           - If custom_price == 0 → use unit price × qty  (auto-calculated)
+
+        max_combo_qty logic:
+          - If max_combo_qty > 0 → block scan after that many times per bill
+          - If max_combo_qty == 0 → unlimited
         """
         templates = request.env['product.template'].sudo().search([
             '|', ('barcode2', '!=', False), ('barcode3', '!=', False),
@@ -29,29 +33,27 @@ class CustomBarcodeController(http.Controller):
             unit_price   = tmpl.list_price
 
             if tmpl.barcode2 and tmpl.custom_qty1:
-                # Use custom price if set, else unit_price × qty
-                # price = per-unit price for this package
-                # custom_price1 > 0 → use it as the per-unit package price
-                # custom_price1 = 0 → fall back to standard unit price
                 price = tmpl.custom_price1 if tmpl.custom_price1 > 0 else unit_price
                 result[tmpl.barcode2] = {
-                    'product_id':    product_id,
-                    'product_name':  product_name,
-                    'qty':           tmpl.custom_qty1,
-                    'price':         price,
-                    'unit_price':    unit_price,
-                    'custom_price':  tmpl.custom_price1 > 0,  # True = price was manually set
+                    'product_id':     product_id,
+                    'product_name':   product_name,
+                    'qty':            tmpl.custom_qty1,
+                    'price':          price,
+                    'unit_price':     unit_price,
+                    'custom_price':   tmpl.custom_price1 > 0,
+                    'max_combo_qty':  tmpl.max_combo_qty1,  # 0 = unlimited
                 }
 
             if tmpl.barcode3 and tmpl.custom_qty2:
                 price = tmpl.custom_price2 if tmpl.custom_price2 > 0 else unit_price
                 result[tmpl.barcode3] = {
-                    'product_id':    product_id,
-                    'product_name':  product_name,
-                    'qty':           tmpl.custom_qty2,
-                    'price':         price,
-                    'unit_price':    unit_price,
-                    'custom_price':  tmpl.custom_price2 > 0,
+                    'product_id':     product_id,
+                    'product_name':   product_name,
+                    'qty':            tmpl.custom_qty2,
+                    'price':          price,
+                    'unit_price':     unit_price,
+                    'custom_price':   tmpl.custom_price2 > 0,
+                    'max_combo_qty':  tmpl.max_combo_qty2,  # 0 = unlimited
                 }
 
         return {'barcodes': result}

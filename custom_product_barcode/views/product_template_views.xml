@@ -8,7 +8,7 @@
 
             <xpath expr="//field[@name='barcode']" position="after">
 
-                <separator string="Package Barcodes &amp; Quantities"/>
+                <separator string="Package Barcodes, Quantities &amp; Combo Limits"/>
 
                 <group string="Package 1  (e.g. 1 Dozen = 12 units)" name="package_barcode_group1" col="2">
                     <field name="barcode2"
@@ -23,6 +23,9 @@
                            widget="monetary"
                            options="{'currency_field': 'currency_id'}"
                            help="Fixed selling price for this package. Set 0 to calculate as unit price × qty."/>
+                    <field name="max_combo_qty1"
+                           string="Max Combo Qty 1"
+                           help="Maximum number of times Barcode 2 can be scanned per bill. Set 0 for unlimited."/>
                 </group>
 
                 <group string="Package 2  (e.g. 10 Dozen = 120 units)" name="package_barcode_group2" col="2">
@@ -38,6 +41,9 @@
                            widget="monetary"
                            options="{'currency_field': 'currency_id'}"
                            help="Fixed selling price for this package. Set 0 to calculate as unit price × qty."/>
+                    <field name="max_combo_qty2"
+                           string="Max Combo Qty 2"
+                           help="Maximum number of times Barcode 3 can be scanned per bill. Set 0 for unlimited."/>
                 </group>
 
             </xpath>

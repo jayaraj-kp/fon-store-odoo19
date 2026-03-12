@@ -19,6 +19,11 @@ class ProductTemplate(models.Model):
         string='Package Price 1', digits='Product Price', default=0.0,
         help='Selling price for this package. Leave 0 to use unit price × qty.',
     )
+    max_combo_qty1 = fields.Integer(
+        string='Max Combo Qty 1', default=0,
+        help='Maximum number of times Barcode 2 (Package 1) can be scanned per bill. '
+             'Set 0 for unlimited.',
+    )
 
     # ── Package 2 ──────────────────────────────────────────────────────────────
     barcode3 = fields.Char(
@@ -32,6 +37,11 @@ class ProductTemplate(models.Model):
     custom_price2 = fields.Float(
         string='Package Price 2', digits='Product Price', default=0.0,
         help='Selling price for this package. Leave 0 to use unit price × qty.',
+    )
+    max_combo_qty2 = fields.Integer(
+        string='Max Combo Qty 2', default=0,
+        help='Maximum number of times Barcode 3 (Package 2) can be scanned per bill. '
+             'Set 0 for unlimited.',
     )
 
     # ── SQL constraints ─────────────────────────────────────────────────────────

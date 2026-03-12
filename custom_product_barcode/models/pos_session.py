@@ -4,12 +4,16 @@ from odoo import models
 
 _logger = logging.getLogger(__name__)
 
-CUSTOM_FIELDS = ['barcode2', 'barcode3', 'custom_qty1', 'custom_qty2']
+CUSTOM_FIELDS = [
+    'barcode2', 'barcode3',
+    'custom_qty1', 'custom_qty2',
+    'max_combo_qty1', 'max_combo_qty2',
+]
 
 
 class PosSession(models.Model):
     """
-    Inject custom barcode/qty fields into the POS product payload.
+    Inject custom barcode/qty/max_combo fields into the POS product payload.
 
     Odoo renamed the loader method across versions:
       • Odoo 16/17  →  _loader_params_product_product()
@@ -49,4 +53,3 @@ class PosSession(models.Model):
         except Exception as e:
             _logger.warning('[CustomBarcode] _get_pos_ui_product_product patch failed: %s', e)
         return super()._get_pos_ui_product_product(params)
-
