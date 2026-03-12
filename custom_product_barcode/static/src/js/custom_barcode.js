@@ -158,8 +158,8 @@ async function handleCustomBarcode(screen, rawBarcode) {
             price_manually_set: true,
         });
 
-        const order = getCurrentOrder(screen.pos);
-        await applyPrice(order, entry.price);
+        const order1 = getCurrentOrder(screen.pos);
+        await applyPrice(order1, entry.price);
 
     } catch (err) {
         console.error('[CustomBarcode] Error adding product:', err);
@@ -167,9 +167,8 @@ async function handleCustomBarcode(screen, rawBarcode) {
     }
 
     // ── Success notification with remaining combos ─────────────────────────────
-    const order      = getCurrentOrder(screen.pos);
-    const used       = countComboOnOrder(order, entry);
-    const maxCombo   = entry.max_combo ?? 5;
+    const order2     = getCurrentOrder(screen.pos);
+    const used       = countComboOnOrder(order2, entry);
     const symbol     = screen.pos.currency?.symbol ?? '₹';
     const remaining  = maxCombo > 0 ? ` (${used}/${maxCombo} combos used)` : '';
 
@@ -271,4 +270,4 @@ patch(ProductScreen.prototype, {
     },
 });
 
-console.log('[CustomBarcode] ✅ v22 loaded — Max Combo Limit active.');
+console.log('[CustomBarcode] ✅ v23 loaded — Max Combo Limit active.');
