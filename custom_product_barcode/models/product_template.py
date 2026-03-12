@@ -6,7 +6,7 @@ from odoo.exceptions import ValidationError
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
-    # ── Package 1 ──────────────────────────────────────────────────────────────
+    # ── Package 1 ─────────────────────────────────────────────────────────────
     barcode2 = fields.Char(
         string='Barcode 2', copy=False, index=True,
         help='Scan this barcode in POS to add Package Qty 1 at Package Price 1.',
@@ -17,10 +17,16 @@ class ProductTemplate(models.Model):
     )
     custom_price1 = fields.Float(
         string='Package Price 1', digits='Product Price', default=0.0,
-        help='Selling price for this package. Leave 0 to use unit price × qty.',
+        help='Selling price for this package. Leave 0 to use unit price.',
+    )
+    max_combo_qty1 = fields.Integer(
+        string='Max Combo Limit 1',
+        default=5,
+        help='Maximum number of times Package 1 (Barcode 2) can be scanned in a '
+             'single POS bill. Set 0 for unlimited.',
     )
 
-    # ── Package 2 ──────────────────────────────────────────────────────────────
+    # ── Package 2 ─────────────────────────────────────────────────────────────
     barcode3 = fields.Char(
         string='Barcode 3', copy=False, index=True,
         help='Scan this barcode in POS to add Package Qty 2 at Package Price 2.',
@@ -31,10 +37,16 @@ class ProductTemplate(models.Model):
     )
     custom_price2 = fields.Float(
         string='Package Price 2', digits='Product Price', default=0.0,
-        help='Selling price for this package. Leave 0 to use unit price × qty.',
+        help='Selling price for this package. Leave 0 to use unit price.',
+    )
+    max_combo_qty2 = fields.Integer(
+        string='Max Combo Limit 2',
+        default=5,
+        help='Maximum number of times Package 2 (Barcode 3) can be scanned in a '
+             'single POS bill. Set 0 for unlimited.',
     )
 
-    # ── SQL constraints ─────────────────────────────────────────────────────────
+    # ── SQL constraints ────────────────────────────────────────────────────────
     _sql_constraints = [
         ('barcode2_unique', 'UNIQUE(barcode2)', 'Barcode 2 must be unique across all products.'),
         ('barcode3_unique', 'UNIQUE(barcode3)', 'Barcode 3 must be unique across all products.'),
