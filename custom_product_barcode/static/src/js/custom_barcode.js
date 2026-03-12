@@ -234,7 +234,7 @@ function attachSearchListener(input, screen) {
     console.log('[CustomBarcode] ✅ Attached keydown listener to search input');
 }
 
-// Start MutationObserver immediately — independent of any component lifecycle
+// Start MutationObserver — deferred until DOM is ready (document.body exists)
 const _globalObserver = new MutationObserver(() => {
     const newInput = findSearchInput();
     if (newInput && newInput !== _currentInput && _searchScreen) {
@@ -242,7 +242,20 @@ const _globalObserver = new MutationObserver(() => {
         attachSearchListener(newInput, _searchScreen);
     }
 });
-_globalObserver.observe(document.body, { childList: true, subtree: true });
+
+// document.body may not exist at module-load time; defer with DOMContentLoaded
+function startObserver() {
+    if (document.body) {
+        _globalObserver.observe(document.body, { childList: true, subtree: true });
+        console.log('[CustomBarcode] MutationObserver started');
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            _globalObserver.observe(document.body, { childList: true, subtree: true });
+            console.log('[CustomBarcode] MutationObserver started (deferred)');
+        });
+    }
+}
+startObserver();
 
 // ── Patch ProductScreen ───────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
@@ -265,4 +278,4 @@ patch(ProductScreen.prototype, {
     },
 });
 
-console.log('[CustomBarcode] ✅ v24 loaded — Max Combo Limit active.');
+console.log('[CustomBarcode] ✅ v25 loaded — Max Combo Limit active.');
