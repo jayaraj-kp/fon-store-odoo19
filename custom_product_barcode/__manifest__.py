@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Custom Multi-Barcode & Package Quantity',
-    'version': '19.0.25.0.0',
+    'version': '19.0.26.0.0',
     'summary': 'Scan package barcodes with auto quantity, price & max combo limit per bill',
     'description': """
 Custom Multi-Barcode & Package Quantity

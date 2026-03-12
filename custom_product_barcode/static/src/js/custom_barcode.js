@@ -1,15 +1,14 @@
 /** @odoo-module */
 /**
- * custom_barcode.js  –  Odoo 19 CE  (v22 — Max Combo Limit)
+ * custom_barcode.js  –  Odoo 19 CE  (v26)
  *
- * NEW: Max Combo Limit per bill.
- *   - Each package barcode has a max_combo field (default 5).
- *   - The JS counts how many times that barcode's product+qty already appears
- *     on the current order lines.
- *   - If the count >= max_combo, show a warning and BLOCK the scan.
- *   - max_combo = 0 means unlimited.
+ * MINIMAL PATCH APPROACH — only patches _barcodeProductAction.
+ * Manual search bar handled via a global document keydown listener
+ * (no setup(), no updateSearch(), no onMounted — zero lifecycle interference).
  *
- * Handles BOTH physical scanner and manual search bar typing.
+ * Features:
+ *  - Scan / type package barcode → adds correct qty + price
+ *  - Max Combo Limit per bill (blocks scanning beyond the limit)
  */
 
 import { patch }         from "@web/core/utils/patch";
@@ -61,7 +60,6 @@ function showNotification(screen, msg, type = 'success') {
     try {
         const svc = screen.env?.services?.notification;
         if (svc) svc.add(msg, { type });
-        else if (screen.notification) screen.notification.add(msg, { type });
     } catch(e) {}
 }
 
@@ -76,32 +74,23 @@ function getLastLine(order) {
         || order?.orderlines?.at?.(-1) || null;
 }
 
-// ── Count how many times this barcode's package has been added this bill ──────
 function countComboOnOrder(order, entry) {
     if (!order) return 0;
     let lines = [];
-    try {
-        lines = order.get_orderlines?.() || order.orderlines || [];
-    } catch(e) { return 0; }
-
+    try { lines = order.get_orderlines?.() || order.orderlines || []; } catch(e) { return 0; }
     let count = 0;
     for (const line of lines) {
-        const lineProductId = line.product?.id ?? line.product_id?.id ?? line.product_id;
-        const lineQty       = line.qty ?? line.quantity ?? 0;
-        // Count lines that match this barcode's product AND package qty
-        if (lineProductId === entry.product_id && lineQty === entry.qty) {
-            count++;
-        }
+        const pid = line.product?.id ?? line.product_id?.id ?? line.product_id;
+        const qty = line.qty ?? line.quantity ?? 0;
+        if (pid === entry.product_id && qty === entry.qty) count++;
     }
     return count;
 }
 
-// ── Set price on order line after Odoo's post-add hooks ──────────────────────
 async function applyPrice(order, price) {
     await new Promise(r => setTimeout(r, 150));
     const line = getLastLine(order);
     if (!line) return;
-
     if (typeof line.set_unit_price === 'function') {
         line.set_unit_price(price);
         await new Promise(r => setTimeout(r, 50));
@@ -113,7 +102,7 @@ async function applyPrice(order, price) {
     }
 }
 
-// ── Core handler ──────────────────────────────────────────────────────────────
+// ── Core handler (used by both scanner and search bar) ────────────────────────
 async function handleCustomBarcode(screen, rawBarcode) {
     if (!rawBarcode) return false;
     const map   = await fetchCustomBarcodeMap();
@@ -122,30 +111,25 @@ async function handleCustomBarcode(screen, rawBarcode) {
 
     const product = findProductById(screen.pos, entry.product_id);
     if (!product) {
-        console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS — enable in POS config.`);
+        console.warn(`[CustomBarcode] product_id=${entry.product_id} not in POS.`);
         return false;
     }
 
-    // ── Check max combo limit ─────────────────────────────────────────────────
-    const maxCombo = entry.max_combo ?? 5;   // default 5 if server didn't send it
+    // ── Combo limit check ─────────────────────────────────────────────────────
+    const maxCombo = entry.max_combo ?? 5;
     if (maxCombo > 0) {
-        const order      = getCurrentOrder(screen.pos);
-        const comboCount = countComboOnOrder(order, entry);
-        console.log(`[CustomBarcode] Combo count for ${rawBarcode}: ${comboCount} / ${maxCombo}`);
-
+        const comboCount = countComboOnOrder(getCurrentOrder(screen.pos), entry);
         if (comboCount >= maxCombo) {
-            // BLOCKED — show warning notification
-            showNotification(
-                screen,
-                `⚠️ Maximum combo limit reached! "${entry.product_name}" package can only be added ${maxCombo} time(s) per bill.`,
+            showNotification(screen,
+                `⚠️ Combo limit reached! "${entry.product_name}" max ${maxCombo}×/bill.`,
                 'danger'
             );
-            console.warn(`[CustomBarcode] BLOCKED — combo limit ${maxCombo} reached for ${rawBarcode}`);
-            return true;   // return true so we don't fall through to default POS handler
+            console.warn(`[CustomBarcode] BLOCKED — combo limit ${maxCombo} reached`);
+            return true;
         }
     }
 
-    // ── Add the line ──────────────────────────────────────────────────────────
+    // ── Add product ───────────────────────────────────────────────────────────
     try {
         screen.pos.addLineToCurrentOrder({
             product_id: product,
@@ -157,125 +141,77 @@ async function handleCustomBarcode(screen, rawBarcode) {
             price_manually_set: true,
         });
 
-        const order1 = getCurrentOrder(screen.pos);
-        await applyPrice(order1, entry.price);
-
+        await applyPrice(getCurrentOrder(screen.pos), entry.price);
     } catch (err) {
         console.error('[CustomBarcode] Error adding product:', err);
         return false;
     }
 
-    // ── Success notification with remaining combos ─────────────────────────────
-    const order2     = getCurrentOrder(screen.pos);
-    const used       = countComboOnOrder(order2, entry);
-    const symbol     = screen.pos.currency?.symbol ?? '₹';
-    const remaining  = maxCombo > 0 ? ` (${used}/${maxCombo} combos used)` : '';
-
-    showNotification(
-        screen,
-        `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}${remaining}`,
-        'success'
+    // ── Success notification ──────────────────────────────────────────────────
+    const used      = countComboOnOrder(getCurrentOrder(screen.pos), entry);
+    const symbol    = screen.pos.currency?.symbol ?? '₹';
+    const remaining = maxCombo > 0 ? ` (${used}/${maxCombo} combos used)` : '';
+    showNotification(screen,
+        `${entry.product_name}  ×  ${entry.qty}  =  ${symbol}${(entry.qty * entry.price).toFixed(2)}${remaining}`
     );
     screen.numberBuffer?.reset?.();
     return true;
 }
 
-// ── Search input selectors ─────────────────────────────────────────────────────
-const SEARCH_SELECTORS = [
-    'input[placeholder*="earch"]',
-    '.search-bar input',
-    '.pos-search-bar input',
-    '.product-screen input[type="text"]',
-    '.pos input[type="text"]',
-];
+// ── Track the active ProductScreen via a simple reference ─────────────────────
+// We store the instance each time _barcodeProductAction is called so the
+// global keydown handler can use it for manual search bar input.
+let _activeScreen = null;
 
-function findSearchInput() {
-    for (const sel of SEARCH_SELECTORS) {
-        const el = document.querySelector(sel);
-        if (el) return el;
+// ── Global keydown listener for manual search bar input ───────────────────────
+// Attached once at module load. Safe because it only fires on Enter
+// and only acts if the value matches a known barcode.
+document.addEventListener('keydown', async (evt) => {
+    if (evt.key !== 'Enter') return;
+    if (!_activeScreen) return;
+
+    const input = evt.target;
+    if (!input || input.tagName !== 'INPUT') return;
+
+    const word = input.value?.trim();
+    if (!word) return;
+
+    // Only intercept if it's a known custom barcode
+    const map = await fetchCustomBarcodeMap();
+    if (!map[word.toUpperCase()]) return;
+
+    console.log('[CustomBarcode] Search Enter intercepted, value:', word);
+    evt.preventDefault();
+    evt.stopImmediatePropagation();
+
+    const handled = await handleCustomBarcode(_activeScreen, word);
+    if (handled) {
+        // Clear the input
+        try {
+            const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value'
+            )?.set;
+            setter?.call(input, '');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch(e) { input.value = ''; }
+        try { _activeScreen.updateSearch?.(''); } catch(e) {}
+        try { if (_activeScreen.state?.searchWord !== undefined) _activeScreen.state.searchWord = ''; } catch(e) {}
     }
-    return null;
-}
+}, true);   // capture phase — runs before Odoo handlers
 
-// ── Global search input listener (MutationObserver — no Owl lifecycle) ──────
-// This avoids patching setup() which can break Owl component initialization.
-let _searchScreen    = null;   // reference to the active ProductScreen instance
-let _currentInput    = null;
-let _keyHandler      = null;
-
-function attachSearchListener(input, screen) {
-    if (!input || (input === _currentInput && screen === _searchScreen)) return;
-    if (_currentInput && _keyHandler) {
-        _currentInput.removeEventListener('keydown', _keyHandler, true);
-    }
-    _currentInput  = input;
-    _searchScreen  = screen;
-    _keyHandler = async (evt) => {
-        if (evt.key !== 'Enter') return;
-        const word = input.value?.trim();
-        if (!word) return;
-        console.log('[CustomBarcode] Search Enter pressed, value:', word);
-        const handled = await handleCustomBarcode(_searchScreen, word);
-        if (handled) {
-            evt.preventDefault();
-            evt.stopImmediatePropagation();
-            try {
-                const nativeSet = Object.getOwnPropertyDescriptor(
-                    window.HTMLInputElement.prototype, 'value'
-                )?.set;
-                nativeSet?.call(input, '');
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-            } catch(e) { input.value = ''; }
-            try { _searchScreen?.updateSearch?.(''); } catch(e) {}
-            try { if (_searchScreen?.state?.searchWord !== undefined) _searchScreen.state.searchWord = ''; } catch(e) {}
-        }
-    };
-    input.addEventListener('keydown', _keyHandler, true);
-    console.log('[CustomBarcode] ✅ Attached keydown listener to search input');
-}
-
-// Start MutationObserver — deferred until DOM is ready (document.body exists)
-const _globalObserver = new MutationObserver(() => {
-    const newInput = findSearchInput();
-    if (newInput && newInput !== _currentInput && _searchScreen) {
-        console.log('[CustomBarcode] Input replaced — re-attaching');
-        attachSearchListener(newInput, _searchScreen);
-    }
-});
-
-// document.body may not exist at module-load time; defer with DOMContentLoaded
-function startObserver() {
-    if (document.body) {
-        _globalObserver.observe(document.body, { childList: true, subtree: true });
-        console.log('[CustomBarcode] MutationObserver started');
-    } else {
-        document.addEventListener('DOMContentLoaded', () => {
-            _globalObserver.observe(document.body, { childList: true, subtree: true });
-            console.log('[CustomBarcode] MutationObserver started (deferred)');
-        });
-    }
-}
-startObserver();
-
-// ── Patch ProductScreen ───────────────────────────────────────────────────────
+// ── Patch ProductScreen — ONLY _barcodeProductAction ─────────────────────────
 patch(ProductScreen.prototype, {
-
-    // ── Physical barcode scanner ──────────────────────────────────────────────
     async _barcodeProductAction(code) {
+        // Keep a reference to the active screen for the global keydown handler
+        _activeScreen = this;
+
         const raw = typeof code === 'string'
             ? code : (code?.code ?? code?.base_code ?? code?.value ?? '');
         if (raw && await handleCustomBarcode(this, raw)) return;
         return super._barcodeProductAction(code);
     },
-
-    // Capture the screen reference when the search bar updates
-    // so our global listener knows which screen to use
-    updateSearch(searchWord) {
-        _searchScreen = this;
-        const input = findSearchInput();
-        if (input) attachSearchListener(input, this);
-        return super.updateSearch(searchWord);
-    },
 });
 
-console.log('[CustomBarcode] ✅ v25 loaded — Max Combo Limit active.');
+// Pre-warm the barcode cache
+fetchCustomBarcodeMap().catch(() => {});
+console.log('[CustomBarcode] ✅ v26 loaded — Max Combo Limit active.');
