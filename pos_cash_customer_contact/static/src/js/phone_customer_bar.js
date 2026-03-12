@@ -367,7 +367,7 @@ export class PhoneCustomerBar extends Component {
                 const rawId = await this.orm.create("res.partner", [{
                     name: formData.name,
                     phone: formData.phone || false,
-                    mobile: formData.mobile || false,
+//                    mobile: formData.mobile || false,
                     email: formData.email || false,
                     parent_id: parentId,
                     customer_rank: 1,
