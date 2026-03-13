@@ -24,10 +24,10 @@ class ProductTemplate(models.Model):
         ICP = self.env['ir.config_parameter'].sudo()
         prefix = (ICP.get_param('product_barcode_autogen.barcode_prefix') or 'BC').strip().upper()
         try:
-            length = int(ICP.get_param('product_barcode_autogen.barcode_length') or 12)
+            length = int(ICP.get_param('product_barcode_autogen.barcode_length') or 8)
             length = max(4, min(20, length))   # clamp between 4 and 20
         except (ValueError, TypeError):
-            length = 12
+            length = 8
 
         chars = string.ascii_uppercase + string.digits   # A-Z + 0-9
 
