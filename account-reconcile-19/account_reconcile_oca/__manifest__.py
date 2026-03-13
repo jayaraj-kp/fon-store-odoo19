@@ -11,7 +11,7 @@
     "maintainers": ["etobella"],
     "website": "https://github.com/OCA/account-reconcile",
     "depends": [
-        # "account_statement_base",
+        "account_statement_base",
         "account_reconcile_model_oca",
         "base_sparse_field",
     ],
