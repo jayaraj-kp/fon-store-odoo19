@@ -73,37 +73,83 @@
             .page { margin: 0 !important; padding: 0 !important; }
             table { border-collapse: collapse; }
             tr, td, th { border: none !important; }
+
+            /* ── Outer wrapper ── */
             .label-outer {
                 width: 50mm;
                 height: 30mm;
-                padding: 0mm;
-                margin: 0mm;
+                padding: 0;
+                margin: 0;
                 overflow: hidden;
             }
-            .bc-cell {
-                width: 50mm;
-                height: 30mm;
+
+            /* ── Product name row ── */
+            .lbl-name {
+                display: block;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 7.5pt;
+                font-weight: bold;
+                color: #000000;
                 text-align: center;
-                vertical-align: middle;
-                padding: 1mm 1mm 0mm 1mm;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                width: 48mm;
+                line-height: 1.1;
+                margin: 1mm auto 0.5mm auto;
             }
+
+            /* ── Barcode image ── */
             .bc-img {
                 display: block;
-                width: 48mm;
-                height: 21mm;
-                margin: 0mm auto 0.5mm auto;
+                width: 46mm;
+                height: 13mm;
+                margin: 0 auto;
             }
-            .bc-num {
-                display: block;
+
+            /* ── Barcode number + price row ── */
+            .lbl-footer {
+                display: table;
+                width: 48mm;
+                margin: 0.5mm auto 0 auto;
+                table-layout: fixed;
+            }
+            .lbl-footer-left {
+                display: table-cell;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 6pt;
+                font-weight: bold;
+                color: #000000;
+                text-align: left;
+                vertical-align: middle;
+                letter-spacing: 0.5pt;
+                width: 60%;
+            }
+            .lbl-footer-right {
+                display: table-cell;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 7pt;
                 font-weight: bold;
                 color: #000000;
-                text-align: center;
-                letter-spacing: 1pt;
+                text-align: right;
+                vertical-align: middle;
+                width: 40%;
+            }
+            .lbl-price-label {
+                font-size: 5pt;
+                font-weight: normal;
+                color: #555;
+                display: block;
                 line-height: 1;
-                margin: 0mm;
-                padding: 0mm;
+            }
+
+            /* ── No-barcode fallback ── */
+            .lbl-cell-center {
+                width: 50mm;
+                height: 30mm;
+                text-align: center;
+                vertical-align: middle;
+                padding: 1mm;
             }
             .bc-none {
                 font-family: Arial, sans-serif;
@@ -116,16 +162,43 @@
         <!-- 50x30mm label — one per PDF page -->
         <table class="label-outer" cellspacing="0" cellpadding="0">
             <tr>
-                <td class="bc-cell">
+                <td>
                     <t t-if="product.barcode">
+                        <!-- Product name -->
+                        <span class="lbl-name"><t t-esc="product.name"/></span>
+
+                        <!-- Barcode image -->
                         <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
                         <t t-if="bc_src">
                             <img t-att-src="bc_src" class="bc-img" alt="barcode"/>
                         </t>
-                        <span class="bc-num"><t t-esc="product.barcode"/></span>
+
+                        <!-- Footer: barcode number (left) + price (right) -->
+                        <div class="lbl-footer">
+                            <span class="lbl-footer-left"><t t-esc="product.barcode"/></span>
+                            <span class="lbl-footer-right">
+                                <span class="lbl-price-label">MRP</span>
+                                &#8377;<t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
+                            </span>
+                        </div>
                     </t>
                     <t t-else="">
-                        <span class="bc-none">No barcode</span>
+                        <!-- No barcode — still show name + price centred -->
+                        <table cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td class="lbl-cell-center">
+                                    <span class="lbl-name"><t t-esc="product.name"/></span>
+                                    <span class="bc-none">No barcode</span>
+                                    <div class="lbl-footer" style="margin-top:1mm;">
+                                        <span class="lbl-footer-left"/>
+                                        <span class="lbl-footer-right">
+                                            <span class="lbl-price-label">MRP</span>
+                                            &#8377;<t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
                     </t>
                 </td>
             </tr>
