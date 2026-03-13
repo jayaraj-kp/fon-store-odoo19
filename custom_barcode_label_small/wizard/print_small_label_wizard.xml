@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_print_small_label_wizard_form" model="ir.ui.view">
+        <field name="name">custom_barcode_label_small.print_wizard.form</field>
+        <field name="model">custom_barcode_label_small.print_wizard</field>
+        <field name="arch" type="xml">
+            <form string="Print Small Barcode Labels (27x12mm)">
+                <sheet>
+                    <group>
+                        <group string="Print Settings">
+                            <field name="label_qty"
+                                   string="Copies per Label"
+                                   help="Number of label copies to print for each selected product"
+                                   required="1"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        <i class="fa fa-info-circle me-1"/>
+                        This will print <strong>small 27×12mm</strong> barcode labels.<br/>
+                        Click <strong>Open Print Dialog</strong> to preview and print.
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_open_print_dialog"
+                            string="🖨️  Open Print Dialog"
+                            type="object"
+                            class="btn-primary"/>
+                    <button string="Cancel"
+                            class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action binding: product.product -->
+    <record id="action_small_label_wizard_product" model="ir.actions.act_window">
+        <field name="name">Custom Small Label (27x12mm)</field>
+        <field name="res_model">custom_barcode_label_small.print_wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id"
+               search="[('model','=','product.product')]"
+               model="ir.model"/>
+        <field name="binding_type">action</field>
+    </record>
+
+    <!-- Action binding: product.template -->
+    <record id="action_small_label_wizard_tmpl" model="ir.actions.act_window">
+        <field name="name">Custom Small Label (27x12mm)</field>
+        <field name="res_model">custom_barcode_label_small.print_wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id"
+               search="[('model','=','product.template')]"
+               model="ir.model"/>
+        <field name="binding_type">action</field>
+    </record>
+
+</odoo>
