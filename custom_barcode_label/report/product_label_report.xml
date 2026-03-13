@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- ═══════════════════════════════════════════════════════════════
+         PAPER FORMAT — 50mm wide × 30mm tall
+         Portrait orientation with page_width=50, page_height=30.
+         DPI=203 matches most thermal label printers (8 dots/mm).
+
+         PRINTER SETUP (do this once in your OS / label printer driver):
+           • Label size : 50 mm × 30 mm
+           • Orientation: Portrait
+           • Margins    : 0 on all sides
+           • DPI        : 203  (or 300 if your printer supports it)
+    ═══════════════════════════════════════════════════════════════ -->
     <record id="paperformat_custom_label" model="report.paperformat">
         <field name="name">Custom Label 50x30mm</field>
         <field name="default">False</field>
@@ -14,9 +25,10 @@
         <field name="margin_right">0</field>
         <field name="header_line">False</field>
         <field name="header_spacing">0</field>
-        <field name="dpi">96</field>
+        <field name="dpi">203</field>
     </record>
 
+    <!-- ── Report actions ─────────────────────────────────────────── -->
     <record id="action_report_custom_label" model="ir.actions.report">
         <field name="name">Custom Product Label</field>
         <field name="model">product.product</field>
@@ -35,14 +47,13 @@
         <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>
     </record>
 
+    <!-- ── Document loop templates ────────────────────────────────── -->
     <template id="report_custom_label_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
                 <t t-set="qty" t-value="label_qty.get(product.id, 1) if label_qty.get(product.id, 0) else 1"/>
                 <t t-foreach="range(int(qty))" t-as="copy_index">
-                    <div style="page-break-after: always;">
-                        <t t-call="custom_barcode_label.report_custom_label_content"/>
-                    </div>
+                    <t t-call="custom_barcode_label.report_custom_label_content"/>
                 </t>
             </t>
         </t>
@@ -53,20 +64,33 @@
             <t t-foreach="docs" t-as="product">
                 <t t-set="qty" t-value="label_qty.get(product.id, 1) if label_qty.get(product.id, 0) else 1"/>
                 <t t-foreach="range(int(qty))" t-as="copy_index">
-                    <div style="page-break-after: always;">
-                        <t t-call="custom_barcode_label.report_custom_label_content"/>
-                    </div>
+                    <t t-call="custom_barcode_label.report_custom_label_content"/>
                 </t>
             </t>
         </t>
     </template>
 
+    <!-- ══════════════════════════════════════════════════════════════
+         LABEL CONTENT — 50mm × 30mm
+         Layout (top to bottom):
+           0.8mm  top padding
+           4.5mm  product name  (bold, 2 lines max, 6.5pt)
+           0.3mm  gap
+          14.0mm  barcode image
+           0.3mm  gap
+           3.0mm  barcode number (6pt monospace)
+           0.3mm  gap
+           4.5mm  price (7.5pt bold)
+           0.8mm  bottom padding
+         ─────────────────
+          28.5mm  ≈ 30mm ✓
+    ══════════════════════════════════════════════════════════════ -->
     <template id="report_custom_label_content">
         <style type="text/css">
             @page {
+                size: 50mm 30mm;
                 margin: 0mm;
                 padding: 0mm;
-                size: 50mm 30mm portrait;
             }
             html, body {
                 margin: 0mm !important;
@@ -75,87 +99,112 @@
                 height: 30mm;
             }
             .page { margin: 0 !important; padding: 0 !important; }
-            table { border-collapse: collapse; }
-            tr, td, th { border: none !important; }
+
+            /* ── Outer wrapper: exactly one label ── */
+            .lbl {
+                display: block;
+                width: 50mm;
+                height: 30mm;
+                overflow: hidden;
+                padding: 0.8mm 1mm 0.8mm 1mm;
+                box-sizing: border-box;
+            }
+
+            /* ── Product name (up to 2 lines) ── */
+            .lbl-name {
+                display: block;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 6.5pt;
+                font-weight: bold;
+                color: #000000;
+                text-align: center;
+                line-height: 1.2;
+                height: 4.5mm;
+                overflow: hidden;
+                word-break: break-word;
+                margin-bottom: 0.3mm;
+            }
+
+            /* ── Barcode image ── */
+            .lbl-img {
+                display: block;
+                width: 48mm;
+                height: 14mm;
+                margin: 0 auto;
+                margin-bottom: 0.3mm;
+            }
+
+            /* ── Barcode number ── */
+            .lbl-code {
+                display: block;
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 6pt;
+                font-weight: bold;
+                color: #000000;
+                text-align: center;
+                letter-spacing: 0.5pt;
+                line-height: 1;
+                height: 3mm;
+                overflow: hidden;
+                margin-bottom: 0.3mm;
+            }
+
+            /* ── Price ── */
+            .lbl-price {
+                display: block;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 7.5pt;
+                font-weight: bold;
+                color: #000000;
+                text-align: center;
+                line-height: 1;
+                height: 4.5mm;
+                overflow: hidden;
+            }
+
+            /* ── No barcode fallback ── */
+            .lbl-nobc {
+                display: block;
+                font-family: Arial, sans-serif;
+                font-size: 6pt;
+                color: #888888;
+                font-style: italic;
+                text-align: center;
+                height: 14mm;
+                line-height: 14mm;
+            }
         </style>
 
-        <!--
-            50x30mm label layout (all table-based — works in wkhtmltopdf):
+        <div class="lbl">
 
-            ROW 1 (5mm)  : Product name — centred, bold
-            ROW 2 (17mm) : Barcode image
-            ROW 3 (5mm)  : Barcode number (left) | MRP price (right)
-        -->
-        <table width="189" height="113" border="0" cellspacing="0" cellpadding="0"
-               style="width:189px;height:113px;table-layout:fixed;border-collapse:collapse;
-                      font-family:Arial,Helvetica,sans-serif;background:#fff;">
+            <!-- 1. Product Name -->
+            <span class="lbl-name"><t t-esc="product.name"/></span>
 
-            <t t-if="product.barcode">
-                <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
-
-                <!-- ROW 1: Product name -->
-                <tr height="19">
-                    <td colspan="2" width="189" height="19" align="center" valign="middle"
-                        style="width:189px;height:19px;padding:1px 3px 0 3px;
-                               font-size:8pt;font-weight:bold;color:#000;
-                               overflow:hidden;">
-                        <t t-esc="product.name"/>
-                    </td>
-                </tr>
-
-                <!-- ROW 2: Barcode image -->
-                <tr height="75">
-                    <td colspan="2" width="189" height="75" align="center" valign="middle"
-                        style="width:189px;height:75px;padding:1px 2px;">
-                        <t t-if="bc_src">
-                            <img t-att-src="bc_src" width="181" height="70"
-                                 style="display:block;width:181px;height:70px;margin:0 auto;"
-                                 alt="barcode"/>
-                        </t>
-                        <t t-else="">
-                            <span style="font-size:7pt;color:#aaa;font-style:italic;">No barcode image</span>
-                        </t>
-                    </td>
-                </tr>
-
-                <!-- ROW 3: Barcode number (left) + MRP price (right) -->
-                <tr height="19">
-                    <td width="113" height="19" align="left" valign="middle"
-                        style="width:113px;height:19px;padding:0 0 1px 3px;
-                               font-size:6.5pt;font-weight:bold;color:#000;
-                               letter-spacing:0.5pt;overflow:hidden;">
-                        <t t-esc="product.barcode"/>
-                    </td>
-                    <td width="76" height="19" align="right" valign="middle"
-                        style="width:76px;height:19px;padding:0 3px 1px 0;
-                               font-size:7.5pt;font-weight:bold;color:#000;">
-                        MRP Rs.<t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
-                    </td>
-                </tr>
+            <!-- 2. Barcode image + number
+                 BLANK BARCODE FIX:
+                 We resolve bc_src first (empty string if no barcode or
+                 generation failed), then show the image ONLY if bc_src
+                 is truthy. This prevents a blank/broken image box.
+            -->
+            <t t-set="bc_src" t-value="get_barcode(product.barcode) if product.barcode else ''"/>
+            <t t-if="bc_src">
+                <img t-att-src="bc_src" class="lbl-img" alt="barcode"/>
+                <span class="lbl-code"><t t-esc="product.barcode"/></span>
             </t>
-
             <t t-else="">
-                <!-- No barcode fallback: name + price only -->
-                <tr height="57">
-                    <td colspan="2" width="189" height="57" align="center" valign="middle"
-                        style="width:189px;height:57px;padding:2px;
-                               font-size:8pt;font-weight:bold;color:#000;">
-                        <t t-esc="product.name"/>
-                        <br/>
-                        <span style="font-size:7pt;color:#aaa;font-style:italic;">No barcode</span>
-                    </td>
-                </tr>
-                <tr height="19">
-                    <td width="113" height="19"/>
-                    <td width="76" height="19" align="right" valign="middle"
-                        style="width:76px;height:19px;padding:0 3px 1px 0;
-                               font-size:7.5pt;font-weight:bold;color:#000;">
-                        MRP Rs.<t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
-                    </td>
-                </tr>
+                <span class="lbl-nobc">No barcode</span>
             </t>
 
-        </table>
+            <!-- 3. Price -->
+            <span class="lbl-price">
+                <t t-if="product.currency_id">
+                    <t t-esc="product.currency_id.symbol"/>&#160;
+                </t>
+                <t t-esc="'%.2f' % (product.list_price or 0.0)"/>
+            </span>
+
+        </div>
+
     </template>
 
 </odoo>
