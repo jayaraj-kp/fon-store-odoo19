@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_small_label_wizard_user,custom_barcode_label_small.print_wizard user,model_custom_barcode_label_small_print_wizard,,1,1,1,1
