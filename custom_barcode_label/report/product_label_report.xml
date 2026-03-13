@@ -2,11 +2,11 @@
 <odoo>
 
     <record id="paperformat_custom_label" model="report.paperformat">
-        <field name="name">Custom Label 90x30mm</field>
+        <field name="name">Custom Label 50x30mm</field>
         <field name="default">False</field>
         <field name="format">custom</field>
         <field name="page_height">30</field>
-        <field name="page_width">90</field>
+        <field name="page_width">50</field>
         <field name="orientation">Landscape</field>
         <field name="margin_top">0</field>
         <field name="margin_bottom">0</field>
@@ -59,50 +59,73 @@
 
     <template id="report_custom_label_content">
         <style type="text/css">
-            @page { margin:0; padding:0; size:90mm 30mm landscape; }
-            html,body { margin:0 !important; padding:0 !important; }
-            .page { margin:0 !important; padding:0 !important; }
-            table { border-collapse:collapse !important; }
-            tr,td,th {
-                border:none !important;
-                border-top:none !important;
-                border-bottom:none !important;
-                border-left:none !important;
-                border-right:none !important;
+            @page {
+                margin: 0;
+                padding: 0;
+                size: 50mm 30mm;
+            }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 50mm;
+                height: 30mm;
+            }
+            .page {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            table { border-collapse: collapse !important; }
+            tr, td, th {
+                border: none !important;
+            }
+            .label-wrap {
+                width: 50mm;
+                height: 30mm;
+                overflow: hidden;
+                background: #fff;
+                display: block;
+                padding: 1mm;
+                box-sizing: border-box;
+            }
+            .bc-img {
+                width: 48mm;
+                height: 22mm;
+                display: block;
+                margin: 0 auto 0.5mm auto;
+            }
+            .bc-num {
+                display: block;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 7pt;
+                font-weight: bold;
+                color: #000;
+                text-align: center;
+                letter-spacing: 1px;
+                line-height: 1;
+                width: 48mm;
+                margin: 0 auto;
+            }
+            .bc-none {
+                font-family: Arial, sans-serif;
+                font-size: 7pt;
+                color: #999;
+                font-style: italic;
             }
         </style>
 
-        <!-- 90x30mm = 340x113px @ 96dpi -->
-        <div style="width:340px;height:113px;border:1px solid #000;background:#fff;
-                    overflow:hidden;padding:0;margin:0;box-sizing:border-box;">
-            <table width="340" height="113" border="0" cellspacing="0" cellpadding="0"
-                   style="width:340px;height:113px;border-collapse:collapse;border:none;
-                          background:#fff;table-layout:fixed;margin:0;padding:0;
-                          font-family:Arial,Helvetica,sans-serif;">
-                <tr height="113">
-                    <td width="340" height="113" align="center" valign="middle"
-                        style="width:340px;height:113px;border:none;padding:2px 4px;">
-                        <t t-if="product.barcode">
-                            <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
-                            <t t-if="bc_src">
-                                <!-- Barcode image: full width, leaves ~20px for number -->
-                                <img t-att-src="bc_src"
-                                     style="width:332px;height:88px;display:block;margin:0 auto 2px auto;"
-                                     alt="barcode"/>
-                            </t>
-                            <!-- Barcode number text -->
-                            <span style="display:block;font-size:8.5pt;font-weight:bold;
-                                         color:#000;text-align:center;
-                                         letter-spacing:1.5px;line-height:1;">
-                                <t t-esc="product.barcode"/>
-                            </span>
-                        </t>
-                        <t t-else="">
-                            <span style="font-size:8pt;color:#888;font-style:italic;">No barcode</span>
-                        </t>
-                    </td>
-                </tr>
-            </table>
+        <div class="label-wrap">
+            <t t-if="product.barcode">
+                <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
+                <t t-if="bc_src">
+                    <img t-att-src="bc_src" class="bc-img" alt="barcode"/>
+                </t>
+                <span class="bc-num">
+                    <t t-esc="product.barcode"/>
+                </span>
+            </t>
+            <t t-else="">
+                <span class="bc-none">No barcode</span>
+            </t>
         </div>
     </template>
 
