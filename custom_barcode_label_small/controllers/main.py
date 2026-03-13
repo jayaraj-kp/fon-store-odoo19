@@ -41,7 +41,7 @@ class SmallBarcodeLabelController(http.Controller):
             json.dumps(label_qty_map)
         )
 
-        report_name = 'custom_barcode_label_small.report_small_label_document'
+        report_name = 'custom_bc_small.report_small_label_document'
 
         try:
             pdf_content, _mime = request.env['ir.actions.report'].sudo()._render_qweb_pdf(

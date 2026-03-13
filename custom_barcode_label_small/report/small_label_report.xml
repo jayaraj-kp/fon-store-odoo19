@@ -30,8 +30,8 @@
         <field name="name">Custom Small Product Label (27x12mm)</field>
         <field name="model">product.product</field>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">custom_barcode_label_small.report_small_label_document</field>
-        <field name="report_file">custom_barcode_label_small.report_small_label_document</field>
+        <field name="report_name">custom_bc_small.report_small_label_document</field>
+        <field name="report_file">custom_bc_small.report_small_label_document</field>
         <field name="paperformat_id" ref="custom_barcode_label_small.paperformat_small_label"/>
     </record>
 
@@ -40,8 +40,8 @@
         <field name="name">Custom Small Product Label (27x12mm)</field>
         <field name="model">product.template</field>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">custom_barcode_label_small.report_small_label_tmpl_document</field>
-        <field name="report_file">custom_barcode_label_small.report_small_label_tmpl_document</field>
+        <field name="report_name">custom_bc_small.report_small_label_tmpl_document</field>
+        <field name="report_file">custom_bc_small.report_small_label_tmpl_document</field>
         <field name="paperformat_id" ref="custom_barcode_label_small.paperformat_small_label"/>
     </record>
 
