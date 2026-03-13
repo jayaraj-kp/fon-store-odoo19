@@ -10,7 +10,7 @@ _logger = logging.getLogger(__name__)
 
 
 class ReportSmallLabel(models.AbstractModel):
-    _name = 'report.custom_barcode_label_small.report_small_label_document'
+    _name = 'report.custom_bc_small.report_small_label_document'
     _description = 'Custom Small Product Label Report (27x12mm) — product.product'
 
     @api.model
@@ -108,9 +108,9 @@ class ReportSmallLabel(models.AbstractModel):
 
 
 class ReportSmallLabelTmpl(models.AbstractModel):
-    _name = 'report.custom_barcode_label_small.report_small_label_tmpl_document'
+    _name = 'report.custom_bc_small.report_small_label_tmpl_document'
     _description = 'Custom Small Product Label Report (27x12mm) — product.template'
-    _inherit = 'report.custom_barcode_label_small.report_small_label_document'
+    _inherit = 'report.custom_bc_small.report_small_label_document'
 
     @api.model
     def _get_report_values(self, docids, data=None):
