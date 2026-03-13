@@ -2,11 +2,11 @@
 <odoo>
 
     <record id="paperformat_custom_label" model="report.paperformat">
-        <field name="name">Custom Label 50x30mm</field>
+        <field name="name">Custom Label 90x30mm</field>
         <field name="default">False</field>
         <field name="format">custom</field>
         <field name="page_height">30</field>
-        <field name="page_width">50</field>
+        <field name="page_width">90</field>
         <field name="orientation">Landscape</field>
         <field name="margin_top">0</field>
         <field name="margin_bottom">0</field>
@@ -38,8 +38,8 @@
     <template id="report_custom_label_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
-                <t t-set="qty" t-value="label_qty.get(product.id, 1)"/>
-                <t t-foreach="range(qty)" t-as="copy_index">
+                <t t-set="qty" t-value="label_qty.get(product.id, 1) if label_qty.get(product.id, 0) else 1"/>
+                <t t-foreach="range(int(qty))" t-as="copy_index">
                     <t t-call="custom_barcode_label.report_custom_label_content"/>
                 </t>
             </t>
@@ -49,8 +49,8 @@
     <template id="report_custom_label_tmpl_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
-                <t t-set="qty" t-value="label_qty.get(product.id, 1)"/>
-                <t t-foreach="range(qty)" t-as="copy_index">
+                <t t-set="qty" t-value="label_qty.get(product.id, 1) if label_qty.get(product.id, 0) else 1"/>
+                <t t-foreach="range(int(qty))" t-as="copy_index">
                     <t t-call="custom_barcode_label.report_custom_label_content"/>
                 </t>
             </t>
@@ -60,77 +60,79 @@
     <template id="report_custom_label_content">
         <style type="text/css">
             @page {
-                margin: 0;
-                padding: 0;
+                margin: 0mm;
+                padding: 0mm;
                 size: 50mm 30mm;
             }
             html, body {
-                margin: 0 !important;
-                padding: 0 !important;
+                margin: 0mm !important;
+                padding: 0mm !important;
                 width: 50mm;
                 height: 30mm;
             }
-            .page {
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            table { border-collapse: collapse !important; }
-            tr, td, th {
-                border: none !important;
-            }
-            .label-wrap {
+            .page { margin: 0 !important; padding: 0 !important; }
+            table { border-collapse: collapse; }
+            tr, td, th { border: none !important; }
+            .label-outer {
                 width: 50mm;
                 height: 30mm;
+                padding: 0mm;
+                margin: 0mm;
                 overflow: hidden;
-                background: #fff;
-                display: block;
-                padding: 1mm;
-                box-sizing: border-box;
+            }
+            .bc-cell {
+                width: 50mm;
+                height: 30mm;
+                text-align: center;
+                vertical-align: middle;
+                padding: 1mm 1mm 0mm 1mm;
             }
             .bc-img {
-                width: 48mm;
-                height: 22mm;
                 display: block;
-                margin: 0 auto 0.5mm auto;
+                width: 48mm;
+                height: 21mm;
+                margin: 0mm auto 0.5mm auto;
             }
             .bc-num {
                 display: block;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 7pt;
                 font-weight: bold;
-                color: #000;
+                color: #000000;
                 text-align: center;
-                letter-spacing: 1px;
+                letter-spacing: 1pt;
                 line-height: 1;
-                width: 48mm;
-                margin: 0 auto;
+                margin: 0mm;
+                padding: 0mm;
             }
             .bc-none {
                 font-family: Arial, sans-serif;
                 font-size: 7pt;
-                color: #999;
+                color: #888;
                 font-style: italic;
             }
         </style>
 
-        <div class="label-wrap">
-            <t t-if="product.barcode">
-                <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
-                <t t-if="bc_src">
-                    <img t-att-src="bc_src" class="bc-img" alt="barcode"/>
-                </t>
-                <span class="bc-num">
-                    <t t-esc="product.barcode"/>
-                </span>
-            </t>
-            <t t-else="">
-                <span class="bc-none">No barcode</span>
-            </t>
-        </div>
+        <!-- 50x30mm label — one per PDF page -->
+        <table class="label-outer" cellspacing="0" cellpadding="0">
+            <tr>
+                <td class="bc-cell">
+                    <t t-if="product.barcode">
+                        <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
+                        <t t-if="bc_src">
+                            <img t-att-src="bc_src" class="bc-img" alt="barcode"/>
+                        </t>
+                        <span class="bc-num"><t t-esc="product.barcode"/></span>
+                    </t>
+                    <t t-else="">
+                        <span class="bc-none">No barcode</span>
+                    </t>
+                </td>
+            </tr>
+        </table>
     </template>
 
 </odoo>
-
 
 <!--<?xml version="1.0" encoding="utf-8"?>-->
 <!--<odoo>-->
