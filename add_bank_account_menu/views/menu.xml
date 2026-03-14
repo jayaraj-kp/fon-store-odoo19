@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Action to open bank journals -->
+        <record id="action_add_bank_account" model="ir.actions.act_window">
+            <field name="name">Add a Bank Account</field>
+            <field name="res_model">account.journal</field>
+            <field name="view_mode">form</field>
+            <field name="context">{'default_type': 'bank'}</field>
+        </record>
+
+        <!-- Parent menu: Configuration > Banks -->
+        <menuitem
+            id="menu_banks_section"
+            name="Banks"
+            parent="account.menu_finance_configuration"
+            sequence="5"/>
+
+        <!-- Add a Bank Account menu item -->
+        <menuitem
+            id="menu_add_bank_account"
+            name="Add a Bank Account"
+            parent="menu_banks_section"
+            action="action_add_bank_account"
+            sequence="1"/>
+
+        <!-- Reconciliation Models menu item -->
+        <menuitem
+            id="menu_reconciliation_models"
+            name="Reconciliation Models"
+            parent="menu_banks_section"
+            action="account.action_account_reconcile_model"
+            sequence="2"/>
+    </data>
+</odoo>

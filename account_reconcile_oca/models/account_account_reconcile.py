@@ -6,7 +6,7 @@ from odoo import api, fields, models
 
 class CharId(fields.Id):
     type = "string"
-    column_type = ("varchar", fields.pg_varchar())
+    column_type = ("varchar", "varchar")
 
 
 class AccountAccountReconcile(models.Model):

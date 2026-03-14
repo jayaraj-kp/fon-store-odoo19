@@ -22,7 +22,7 @@ class TestAccountReconciliationCommon(TestAccountReconciliationModelCommon):
         # generate_account_reconcile_model() to avoid side effects in tests
         cls.invoice_matching_models = cls.env["account.reconcile.model"].search(
             [
-                ("rule_type", "=", "invoice_matching"),
+                ("trigger", "=", "invoice_matching"),
                 ("auto_reconcile", "=", True),
                 ("company_id", "=", cls.company.id),
             ]
@@ -49,7 +49,7 @@ class TestAccountReconciliationCommon(TestAccountReconciliationModelCommon):
         cls.rule = cls.env["account.reconcile.model"].create(
             {
                 "name": "write-off model",
-                "rule_type": "writeoff_button",
+                "trigger": "writeoff_button",
                 "match_partner": True,
                 "match_partner_ids": [],
                 "line_ids": [
@@ -612,7 +612,7 @@ class TestReconciliationWidget(TestAccountReconciliationCommon):
         self.env["account.reconcile.model"].create(
             {
                 "name": "write-off model suggestion",
-                "rule_type": "writeoff_suggestion",
+                "trigger": "writeoff_suggestion",
                 "match_label": "contains",
                 "match_label_param": "DEMO WRITEOFF",
                 "auto_reconcile": True,

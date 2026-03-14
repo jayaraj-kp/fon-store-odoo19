@@ -9,7 +9,7 @@ from dateutil.relativedelta import relativedelta
 
 from odoo import Command, _, api, fields, models, tools
 from odoo.exceptions import UserError
-from odoo.fields import first
+
 from odoo.tools import LazyTranslate, float_compare, float_is_zero, groupby
 
 _lt = LazyTranslate(__name__, default_lang="en_US")
@@ -43,7 +43,7 @@ class AccountBankStatementLine(models.Model):
         store=False,
         default=False,
         prefetch=False,
-        domain=[("deprecated", "=", False)],
+        domain=[("account_type", "!=", "off_balance")],
     )
     manual_partner_id = fields.Many2one(
         "res.partner",
@@ -96,7 +96,7 @@ class AccountBankStatementLine(models.Model):
         default=False,
         prefetch=False,
         domain="""
-        [('rule_type', '=', 'writeoff_button'),
+        [('trigger', '=', 'manual'),
         '|',
         ('match_journal_ids', '=', False), ('match_journal_ids', '=', journal_id)]
         """,
@@ -664,7 +664,7 @@ class AccountBankStatementLine(models.Model):
                 .search(
                     [
                         (
-                            "rule_type",
+                            "trigger",
                             "in",
                             ["invoice_matching", "writeoff_suggestion"],
                         ),
@@ -988,12 +988,12 @@ class AccountBankStatementLine(models.Model):
             models = self.env["account.reconcile.model"].search(
                 [
                     (
-                        "rule_type",
+                        "trigger",
                         "in",
                         ["invoice_matching", "writeoff_suggestion"],
                     ),
                     ("company_id", "in", journal.company_id.ids),
-                    ("auto_reconcile", "=", True),
+                    ("trigger", "=", "auto_reconcile"),
                     "|",
                     ("match_journal_ids", "=", False),
                     ("match_journal_ids", "in", journal.id),
@@ -1245,7 +1245,7 @@ class AccountBankStatementLine(models.Model):
         elif self.currency_id == currency and not self.foreign_currency_id:
             liquidity_lines, _suspense_lines, _other_lines = self._seek_for_lines()
             real_rate = (
-                first(liquidity_lines).balance / first(liquidity_lines).amount_currency
+                liquidity_lines[:1].balance / liquidity_lines[:1].amount_currency
             )
             to_amount = self.company_id.currency_id.round(currency_amount * real_rate)
         else:
