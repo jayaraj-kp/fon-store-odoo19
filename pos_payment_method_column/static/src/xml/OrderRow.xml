@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Inherit the TicketScreen template to add the "Payment Method" header
+        to the orders table.
+    -->
+    <t t-name="point_of_sale.TicketScreen" t-inherit="point_of_sale.TicketScreen" t-inherit-mode="extension">
+        <!-- Add column header after the Status header -->
+        <xpath expr="//span[hasclass('col wide status')]" position="after">
+            <span class="col payment-method">Payment Method</span>
+        </xpath>
+    </t>
+
+    <!--
+        Inherit the OrderRow template to add the payment method value cell.
+    -->
+    <t t-name="point_of_sale.OrderRow" t-inherit="point_of_sale.OrderRow" t-inherit-mode="extension">
+        <!-- Add the value cell after the status badge cell -->
+        <xpath expr="//span[hasclass('col wide status')]" position="after">
+            <span class="col payment-method">
+                <t t-esc="paymentMethodNames"/>
+            </span>
+        </xpath>
+    </t>
+
+</templates>
