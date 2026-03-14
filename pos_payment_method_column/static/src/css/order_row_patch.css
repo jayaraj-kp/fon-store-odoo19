@@ -1,0 +1,10 @@
+/* POS Orders list - Payment Method column */
+.payment-method-col {
+    flex: 0 0 130px;
+    min-width: 110px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 4px;
+}

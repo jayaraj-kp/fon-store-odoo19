@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Odoo 19 CE uses the JS module path as the template key.
+        The ticket screen header lives inside:
+          point_of_sale/static/src/app/screens/ticket_screen/ticket_screen.xml
+        and its t-name is:
+          @point_of_sale/app/screens/ticket_screen/ticket_screen.xml
+
+        The order row template lives inside:
+          point_of_sale/static/src/app/screens/ticket_screen/order_row.xml
+        and its t-name is:
+          @point_of_sale/app/screens/ticket_screen/order_row.xml
+    -->
+
+    <!-- 1. Add column header to the TicketScreen orders table -->
+    <t t-name="@point_of_sale/app/screens/ticket_screen/ticket_screen.xml"
+       t-inherit="@point_of_sale/app/screens/ticket_screen/ticket_screen.xml"
+       t-inherit-mode="extension">
+        <!--
+            The header row has several <span class="col ..."> elements.
+            We insert our new header after the "status" span.
+        -->
+        <xpath expr="//span[hasclass('status')]" position="after">
+            <span class="col payment-method-col">Payment Method</span>
+        </xpath>
+    </t>
+
+    <!-- 2. Add payment method value to each OrderRow -->
+    <t t-name="@point_of_sale/app/screens/ticket_screen/order_row.xml"
+       t-inherit="@point_of_sale/app/screens/ticket_screen/order_row.xml"
+       t-inherit-mode="extension">
+        <xpath expr="//span[hasclass('status')]" position="after">
+            <span class="col payment-method-col">
+                <t t-esc="paymentMethodNames"/>
+            </span>
+        </xpath>
+    </t>
+
+</templates>
