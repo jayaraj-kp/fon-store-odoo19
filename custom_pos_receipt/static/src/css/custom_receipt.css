@@ -94,6 +94,12 @@
     margin-bottom: 3px;
     padding-bottom: 3px;
     border-bottom: 1px dashed #000;
+    gap: 4px;
+}
+.acc-invoice-row span:last-child {
+    margin-left: auto;
+    padding-left: 6px;
+    white-space: nowrap;
 }
 .acc-invoice-label { font-weight: bold; }
 .acc-invoice-number { font-weight: bold; letter-spacing: 0.3px; }
