@@ -8,9 +8,9 @@
     'data': [],
     'assets': {
         'point_of_sale._assets_pos': [
-            'pos_payment_method_column/static/src/js/order_row_patch.js',
-            'pos_payment_method_column/static/src/xml/order_row_patch.xml',
-            'pos_payment_method_column/static/src/css/order_row_patch.css',
+            'pos_payment_method_column/static/src/js/ticket_screen_patch.js',
+            'pos_payment_method_column/static/src/xml/ticket_screen_patch.xml',
+            'pos_payment_method_column/static/src/css/ticket_screen_patch.css',
         ],
     },
     'installable': True,
