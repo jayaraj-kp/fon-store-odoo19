@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Template name confirmed from source:
+          t-name="point_of_sale.TicketScreen"
+
+        We insert a new <td> for Payment Method right after the status badge <td>.
+        The status <td> is the one containing the t-set="status" and the badge div.
+
+        We also add a column header <th> in the same position.
+        The table has no <thead>, so we use the first <tr> content as reference.
+
+        Strategy:
+        - Add <th> header by targeting the last <td> in the header area (delete-column td)
+          using position="before"
+        - Add <td> value by targeting name="delete-column" td using position="before"
+    -->
+    <t t-name="point_of_sale.TicketScreen"
+       t-inherit="point_of_sale.TicketScreen"
+       t-inherit-mode="extension">
+
+        <!-- Insert Payment Method cell before the delete-column td in each row -->
+        <xpath expr="//td[@name='delete-column']" position="before">
+            <td class="align-middle pos-payment-method-col">
+                <t t-esc="getPaymentMethod(order)"/>
+            </td>
+        </xpath>
+
+    </t>
+
+</templates>
