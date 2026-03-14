@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Confirmed t-name from source: point_of_sale.Navbar
+        We inject the Invoices button right after the Orders button.
+        The Orders button has class "orders-button", so we target it.
+    -->
+    <t t-name="point_of_sale.Navbar"
+       t-inherit="point_of_sale.Navbar"
+       t-inherit-mode="extension">
+
+        <xpath expr="//button[hasclass('orders-button')]" position="after">
+            <button class="invoices-button btn btn-lg btn-light lh-lg"
+                    t-att-class="{'active': mainButton === 'invoices'}"
+                    t-on-click="() => this.onClickInvoices()">
+                <t t-if="!ui.isSmall">
+                    <span>Invoices</span>
+                </t>
+                <i t-else="" class="fa fa-fw fa-file-text-o"/>
+            </button>
+        </xpath>
+
+    </t>
+
+</templates>

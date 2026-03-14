@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="pos_invoice_list.InvoiceScreen">
+        <div class="invoice-screen screen h-100 d-flex flex-column bg-100">
+
+            <!-- Top bar / controls -->
+            <div class="invoice-screen-controls d-flex align-items-center gap-2 p-2 border-bottom bg-view">
+                <button class="btn btn-secondary btn-lg" t-on-click="onClickBack">
+                    <i class="fa fa-arrow-left me-1"/> Back
+                </button>
+                <h5 class="mb-0 ms-2 fw-bold">POS Invoices</h5>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fa fa-search"/></span>
+                        <input
+                            type="text"
+                            class="form-control"
+                            placeholder="Search invoice or customer..."
+                            t-on-input="onSearch"
+                            t-att-value="state.searchTerm"/>
+                    </div>
+                    <button class="btn btn-primary btn-lg" t-on-click="loadInvoices" title="Refresh">
+                        <i class="fa fa-refresh"/>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading state -->
+            <div t-if="state.loading" class="d-flex flex-grow-1 align-items-center justify-content-center">
+                <i class="fa fa-spin fa-circle-o-notch fa-3x text-muted"/>
+            </div>
+
+            <!-- Invoice table -->
+            <div t-elif="filteredInvoices.length > 0" class="invoice-list flex-grow-1 overflow-y-auto">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>Invoice No.</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="filteredInvoices" t-as="inv" t-key="inv.id"
+                            class="invoice-row">
+                            <td class="fw-bold align-middle">
+                                <t t-esc="inv.name"/>
+                            </td>
+                            <td class="align-middle">
+                                <t t-esc="inv.partner_id ? inv.partner_id[1] : '—'"/>
+                            </td>
+                            <td class="align-middle">
+                                <t t-esc="formatDate(inv.invoice_date)"/>
+                            </td>
+                            <td class="text-end fw-bold align-middle">
+                                <t t-esc="formatAmount(inv.amount_total)"/>
+                            </td>
+                            <td class="text-center align-middle">
+                                <t t-set="badge" t-value="getPaymentBadge(inv.payment_state)"/>
+                                <span t-attf-class="badge rounded fs-6 {{ badge.cls }}">
+                                    <t t-esc="badge.label"/>
+                                </span>
+                            </td>
+                            <td class="text-center align-middle">
+                                <button class="btn btn-sm btn-outline-primary"
+                                        t-on-click="() => this.onClickInvoice(inv)">
+                                    <i class="fa fa-external-link me-1"/>View &amp; Print
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty state -->
+            <div t-else="" class="d-flex flex-grow-1 flex-column align-items-center justify-content-center text-muted">
+                <i class="fa fa-file-text-o fa-4x mb-3"/>
+                <p class="fs-5">No invoices found</p>
+            </div>
+
+            <!-- Footer count -->
+            <div t-if="!state.loading" class="invoice-screen-footer border-top bg-view p-2 text-muted small text-end">
+                Showing <strong t-esc="filteredInvoices.length"/> invoice(s)
+            </div>
+
+        </div>
+    </t>
+
+</templates>

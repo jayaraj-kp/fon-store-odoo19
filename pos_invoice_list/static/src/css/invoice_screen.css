@@ -1,0 +1,30 @@
+/* Invoice Screen */
+.invoice-screen {
+    background: var(--background);
+}
+
+.invoice-screen .invoice-list thead th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 12px 16px;
+}
+
+.invoice-screen .invoice-list tbody td {
+    padding: 10px 16px;
+    vertical-align: middle;
+}
+
+.invoice-screen .invoice-row:hover {
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.invoice-screen .invoice-screen-controls {
+    min-height: 60px;
+}
+
+.invoice-screen .invoice-screen-footer {
+    min-height: 36px;
+}
