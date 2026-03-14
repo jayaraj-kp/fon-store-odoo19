@@ -109,7 +109,7 @@ export class AccountReconcileDataWidget extends Component {
 
 export const AccountReconcileDataWidgetField = {
     component: AccountReconcileDataWidget,
-    supportedTypes: [],
+    supportedTypes: ["serialized"],
 };
 registry
     .category("fields")
