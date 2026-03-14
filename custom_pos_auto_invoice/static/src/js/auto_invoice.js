@@ -1,67 +1,49 @@
 /** @odoo-module **/
 
 /**
- * custom_pos_auto_invoice/auto_invoice.js
+ * custom_pos_auto_invoice/static/src/js/auto_invoice.js
  *
- * Patches the POS PaymentScreen so that every time the operator
- * clicks "Validate" (regardless of payment method – Cash, Card, etc.)
- * the order is automatically flagged as to_invoice = true.
+ * WHY WE PATCH OrderPaymentValidation (not PaymentScreen):
+ * ─────────────────────────────────────────────────────────
+ * The one-click fast payment buttons on the product screen call:
+ *   ProductScreen.fastValidate(paymentMethod)
+ *     → pos_store.validateOrderFast(paymentMethod)
+ *       → new OrderPaymentValidation({ fastPaymentMethod })
+ *         → validation.validateOrder()
  *
- * This triggers Odoo's standard invoice-creation flow:
- *   1. The receipt is printed as usual.
- *   2. An accounting Invoice (INV/…) is created and linked to the order.
- *   3. If your custom_pos_receipt module is installed, the receipt
- *      already picks up the invoice number via order.account_move?.name.
+ * The normal Payment Screen also calls:
+ *   PaymentScreen.validateOrder()
+ *     → new OrderPaymentValidation({})
+ *       → validation.validateOrder()
  *
- * No UI changes are made — it's fully transparent to the cashier.
+ * Both paths go through OrderPaymentValidation.validateOrder().
+ * Patching it here fixes BOTH payment flows at once.
+ *
+ * IMPORTANT RULE (from reading the source):
+ * ──────────────────────────────────────────
+ * In isOrderValid(), if to_invoice = true but no partner is set,
+ * Odoo shows a "Please select the Customer" dialog and BLOCKS the order.
+ * So we only set to_invoice = true when a partner exists.
  */
 
-import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
-import { patch } from "@web/core/utils/patch";
+import OrderPaymentValidation from "@point_of_sale/app/utils/order_payment_validation";
 
-patch(PaymentScreen.prototype, {
+// Save reference to original validateOrder
+const _originalValidateOrder = OrderPaymentValidation.prototype.validateOrder;
 
-    // ------------------------------------------------------------------
-    // validateOrder — called when cashier presses the green Validate btn
-    // ------------------------------------------------------------------
-    async validateOrder(isForceValidate) {
+OrderPaymentValidation.prototype.validateOrder = async function (isForceValidate) {
+    const order = this.order;
 
-        const order = this.currentOrder;
+    if (order) {
+        const partner = order.getPartner ? order.getPartner() : order.partner_id;
 
-        if (order) {
-            // ① Always request invoice
-            order.to_invoice = true;
-
-            // ② If no customer is set, try to fall back to the POS
-            //    default partner (configured in POS Settings → Customers).
-            //    Without a partner Odoo cannot create a proper invoice.
-            if (!order.partner_id) {
-                const defaultPartner =
-                    this.pos.config.default_partner_id ||   // Odoo 17+
-                    this.pos.config.partner_id ||
-                    null;
-
-                if (defaultPartner) {
-                    order.set_partner(defaultPartner);
-                }
-                // If still no partner, Odoo will silently skip invoice
-                // creation (standard behaviour) — no crash.
-            }
-        }
-
-        // Delegate to the original PaymentScreen.validateOrder
-        return await super.validateOrder(isForceValidate);
-    },
-
-    // ------------------------------------------------------------------
-    // _handleFinalizedOrder — runs right after the server confirms the
-    //   order. We use it to ensure the UI "invoice" checkbox stays ON
-    //   in case anything reset it between our patch and Odoo's check.
-    // ------------------------------------------------------------------
-    async _handleFinalizedOrder(order) {
-        if (order) {
+        if (partner) {
+            // Customer is set — safe to request invoice
             order.to_invoice = true;
         }
-        return await super._handleFinalizedOrder(order);
-    },
-});
+        // No partner → leave to_invoice as-is (don't set true, avoids the
+        // "Please select the Customer" blocking dialog from isOrderValid)
+    }
+
+    return await _originalValidateOrder.call(this, isForceValidate);
+};
