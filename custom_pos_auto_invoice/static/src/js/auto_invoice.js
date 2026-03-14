@@ -47,3 +47,13 @@ OrderPaymentValidation.prototype.validateOrder = async function (isForceValidate
 
     return await _originalValidateOrder.call(this, isForceValidate);
 };
+
+/**
+ * Disable automatic invoice PDF download/print after payment.
+ * The invoice is still CREATED in the background (to_invoice = true),
+ * but the PDF will NOT be automatically downloaded or printed.
+ * Cashier can print it manually from the Invoices screen.
+ */
+OrderPaymentValidation.prototype.shouldDownloadInvoice = function () {
+    return false;
+};
