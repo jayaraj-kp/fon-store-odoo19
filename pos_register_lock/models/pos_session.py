@@ -59,9 +59,13 @@ class PosSession(models.Model):
             }
         }
 
+    def _loader_params_pos_session(self):
+        """Include register_locked in the fields loaded into the POS frontend."""
+        result = super()._loader_params_pos_session()
+        result['search_params']['fields'].append('register_locked')
+        return result
+
     def get_pos_ui_pos_session(self, config_id):
-        """Extend session data sent to POS frontend to include lock state."""
+        """Ensure register_locked is included in session data sent to frontend."""
         result = super().get_pos_ui_pos_session(config_id)
-        if isinstance(result, dict):
-            result['register_locked'] = self.register_locked
         return result
