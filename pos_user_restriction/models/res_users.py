@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api
+from odoo import models, fields
 
 
 class ResUsers(models.Model):
@@ -14,14 +14,27 @@ class ResUsers(models.Model):
         help=(
             "Assign specific Point of Sale terminals to this user. "
             "If set, the user will ONLY see and access the listed POS terminals. "
-            "Leave empty to allow access to all POS terminals (admin behaviour)."
+            "Leave empty to allow access to all POS terminals. "
+            "Note: POS Managers always see all terminals regardless of this setting."
         ),
     )
 
-    def get_allowed_pos_ids(self):
-        """Return list of allowed POS config IDs for the current user.
-        Returns False if no restriction is set (all POS accessible)."""
+    def _is_pos_restricted(self):
+        """Return True only if this user is a plain POS User (not Manager/Admin)
+        AND has specific allowed_pos_ids configured."""
         self.ensure_one()
-        if self.allowed_pos_ids:
-            return self.allowed_pos_ids.ids
-        return False
+        # Superuser → never restricted
+        if self._is_superuser():
+            return False
+        # POS Manager group → never restricted
+        pos_manager_group = self.env.ref(
+            'point_of_sale.group_pos_manager', raise_if_not_found=False
+        )
+        if pos_manager_group and pos_manager_group in self.groups_id:
+            return False
+        # base.group_system (Administrator) → never restricted
+        admin_group = self.env.ref('base.group_system', raise_if_not_found=False)
+        if admin_group and admin_group in self.groups_id:
+            return False
+        # Only restrict if allowed_pos_ids is explicitly set
+        return bool(self.allowed_pos_ids)
