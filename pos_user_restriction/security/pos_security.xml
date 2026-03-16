@@ -2,15 +2,14 @@
 <odoo>
 
     <!--
-        Record Rule: POS Config User Restriction
-        =========================================
-        Applied ONLY to the "POS User" group (cashiers).
-        POS Managers and Administrators are NOT in this group exclusively —
-        they have their own groups and are excluded from this rule.
-
-        Logic for POS Users:
-          - If a POS has NO allowed_user_ids set  → everyone can see it
-          - If a POS HAS allowed_user_ids set     → only those users see it
+        Record Rule for POS Users (cashiers only).
+        
+        Logic:
+          - POS has no allowed_user_ids at all  → visible to everyone  (OR left side)
+          - POS has allowed_user_ids set        → visible only if current user is in the list (OR right side)
+        
+        This rule is scoped to group_pos_user ONLY.
+        POS Managers get a separate unrestricted rule below.
     -->
     <record id="pos_config_rule_user_restriction" model="ir.rule">
         <field name="name">POS Config: Restrict to Allowed POS per User</field>
@@ -20,7 +19,6 @@
             ('allowed_user_ids', '=', False),
             ('allowed_user_ids', 'in', [user.id])
         ]</field>
-        <!-- Apply ONLY to POS User group (cashiers), NOT to POS Manager or Admin -->
         <field name="groups" eval="[(4, ref('point_of_sale.group_pos_user'))]"/>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="False"/>
@@ -29,8 +27,9 @@
     </record>
 
     <!--
-        Explicit global rule for POS Manager: no restriction, see everything.
-        This overrides the above for users who are POS Managers.
+        POS Manager: unrestricted access to all terminals.
+        Odoo applies record rules per group — a user in BOTH groups
+        gets the UNION (most permissive), so managers always see everything.
     -->
     <record id="pos_config_rule_manager_all_access" model="ir.rule">
         <field name="name">POS Config: POS Manager sees all terminals</field>
