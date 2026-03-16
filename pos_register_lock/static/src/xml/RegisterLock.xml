@@ -1,31 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
-    <!--
-        Patch POS Chrome to:
-        1. Add a "🔒 Lock Register" button in the top navbar area
-        2. Show full-screen lock overlay when registerLockState.locked = true
-    -->
+    <!-- Patch Navbar to add Lock Register in the burger dropdown menu -->
+    <t t-name="pos_register_lock.NavbarPatch"
+       t-inherit="point_of_sale.Navbar"
+       t-inherit-mode="extension">
+        <xpath expr="//DropdownItem[last()]" position="before">
+            <DropdownItem onSelected="() => this.lockRegister()">
+                🔒 Lock Register
+            </DropdownItem>
+        </xpath>
+    </t>
+
+    <!-- Patch Chrome to show full-screen lock overlay -->
     <t t-name="pos_register_lock.ChromePatch"
        t-inherit="point_of_sale.Chrome"
        t-inherit-mode="extension">
-
-        <!-- Add Lock button in the navbar next to the close/hamburger buttons -->
-        <xpath expr="//div[hasclass('pos-rightheader')]" position="inside">
-            <button
-                t-if="!registerLockState.locked"
-                class="btn btn-warning pos-lock-btn"
-                t-on-click="lockRegister"
-                title="Lock Register for manager review"
-                style="margin-left:8px; font-size:13px; padding:4px 10px;"
-            >
-                🔒 Lock
-            </button>
-        </xpath>
-
-        <!-- Full screen lock overlay -->
         <xpath expr="//div[hasclass('pos')]" position="inside">
-            <t t-if="registerLockState.locked">
+            <t t-if="registerLockState and registerLockState.locked">
                 <div style="
                     position:fixed; top:0; left:0; right:0; bottom:0;
                     background:rgba(15,15,15,0.97);
@@ -34,6 +26,7 @@
                     align-items:center; justify-content:center;
                     color:white; text-align:center;
                     font-family:sans-serif; user-select:none;
+                    pointer-events:all;
                 ">
                     <div style="font-size:90px; margin-bottom:20px;">🔒</div>
                     <div style="font-size:34px; font-weight:bold; color:#f0c040; margin-bottom:14px;">
@@ -51,7 +44,6 @@
                 </div>
             </t>
         </xpath>
-
     </t>
 
 </templates>
