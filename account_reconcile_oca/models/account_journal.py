@@ -29,7 +29,7 @@ class AccountJournal(models.Model):
     def get_rainbowman_message(self):
         self.ensure_one()
         if (
-            self._get_journal_dashboard_data_batched()[self.id]["number_to_reconcile"]
+            self._get_journal_dashboard_data_batched()[self.id].get("number_to_reconcile", 0)
             > 0
         ):
             return False
