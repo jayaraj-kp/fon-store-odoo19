@@ -1,31 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Add Allowed Users tab to POS Config form (reverse side) -->
-    <record id="view_pos_config_form_allowed_users" model="ir.ui.view">
-        <field name="name">pos.config.form.allowed.users</field>
-        <field name="model">pos.config</field>
-        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
-        <field name="arch" type="xml">
-            <!-- Append our new page at the end of the notebook -->
-            <xpath expr="//notebook" position="inside">
-                <page string="User Access" name="user_access">
-                    <group string="Allowed Users">
-                        <field name="allowed_user_ids"
-                               widget="many2many_tags"
-                               options="{'no_create': True}"
-                               string="Restrict access to these Users"
-                               help="Users listed here can access this POS terminal. This is the reverse view of 'Allowed POS' on the user form. POS Managers always have full access."/>
-                    </group>
-                    <div class="alert alert-warning" role="alert" style="margin-top: 8px;">
-                        <strong>Tip:</strong>
-                        You can manage POS access from either this page
-                        (per terminal) or from the User form (per user).
-                        Both views update the same restriction.
-                    </div>
-                </page>
-            </xpath>
-        </field>
-    </record>
-
+    <!--
+        No POS Config form inheritance needed.
+        The Many2many relation is fully managed from the User form
+        (Settings > Users > Allowed POS tab).
+        The reverse field allowed_user_ids on pos.config is still
+        available via the ORM / record rules, just not shown as a tab here
+        to avoid xpath compatibility issues across Odoo 19 CE editions.
+    -->
 </odoo>
