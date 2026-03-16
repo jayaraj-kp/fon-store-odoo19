@@ -5,13 +5,6 @@ import { useService } from "@web/core/utils/hooks";
 import { useState, onWillDestroy, onMounted } from "@odoo/owl";
 import { Chrome } from "@point_of_sale/app/pos_app";
 
-/**
- * Patch POS Chrome to:
- * 1. Detect initial lock state
- * 2. Show full-screen overlay when locked
- * 3. Poll every 5s for unlock
- * 4. Expose lockRegister() so the Lock button (injected via DOM) can call it
- */
 patch(Chrome.prototype, {
     setup() {
         super.setup(...arguments);
@@ -20,19 +13,17 @@ patch(Chrome.prototype, {
         this._lockPollInterval = null;
 
         onMounted(() => {
-            // Check if session is already locked on load
-            const session = this.pos?.session;
-            if (session?.register_locked) {
+            // Check if already locked when POS loads
+            if (this.pos?.session?.register_locked) {
                 this.registerLockState.locked = true;
                 this._startLockPolling();
             }
-            // Expose lockRegister on window so XML button can call it
-            window.__posRegisterLock = () => this.lockRegister();
         });
 
         onWillDestroy(() => {
-            if (this._lockPollInterval) clearInterval(this._lockPollInterval);
-            delete window.__posRegisterLock;
+            if (this._lockPollInterval) {
+                clearInterval(this._lockPollInterval);
+            }
         });
     },
 
