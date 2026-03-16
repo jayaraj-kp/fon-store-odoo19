@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Add lock fields and Unlock button to POS Session form -->
+    <!-- Add Unlock button and lock alert to POS Session form -->
     <record id="view_pos_session_form_lock" model="ir.ui.view">
         <field name="name">pos.session.form.register.lock</field>
         <field name="model">pos.session</field>
@@ -29,18 +29,6 @@
                     at <field name="locked_at" readonly="1" nolabel="1"/>.
                     Click <strong>Unlock Register</strong> above to allow the cashier to proceed.
                 </div>
-            </xpath>
-        </field>
-    </record>
-
-    <!-- Add lock indicator to POS Session list view -->
-    <record id="view_pos_session_list_lock" model="ir.ui.view">
-        <field name="name">pos.session.list.register.lock</field>
-        <field name="model">pos.session</field>
-        <field name="inherit_id" ref="point_of_sale.view_pos_session_list"/>
-        <field name="arch" type="xml">
-            <xpath expr="//list" position="inside">
-                <field name="register_locked" string="🔒 Locked" optional="show" widget="boolean"/>
             </xpath>
         </field>
     </record>
