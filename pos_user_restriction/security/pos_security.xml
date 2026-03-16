@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Record Rule: POS Config User Restriction
+        =========================================
+        For users who have allowed_pos_ids configured, this rule ensures
+        the ORM only returns those specific POS configs when queried.
+
+        Logic:
+          - If the current user has NO allowed_pos_ids set  → no restriction (sees all)
+          - If the current user HAS allowed_pos_ids set     → only sees those POS configs
+
+        POS Managers are excluded from this rule via group condition.
+    -->
+    <record id="pos_config_rule_user_restriction" model="ir.rule">
+        <field name="name">POS Config: Restrict to Allowed POS per User</field>
+        <field name="model_id" ref="point_of_sale.model_pos_config"/>
+        <field name="domain_force">[
+            '|',
+            ('allowed_user_ids', '=', False),
+            ('allowed_user_ids', 'in', [user.id])
+        ]</field>
+        <field name="groups" eval="[(4, ref('point_of_sale.group_pos_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+</odoo>

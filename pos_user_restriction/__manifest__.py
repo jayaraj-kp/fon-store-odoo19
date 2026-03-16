@@ -1,22 +1,27 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'POS User Restriction',
-    'version': '16.0.1.0.0',
+    'version': '19.0.1.0.0',
     'category': 'Point of Sale',
-    'summary': 'Restrict users to access only allowed POS configurations',
+    'summary': 'Restrict users to specific Point of Sale terminals',
     'description': """
-        This module adds an "Allowed POS" field to res.users.
-        When configured, a user can only see and open the POS
-        configurations that are explicitly allowed for them.
+POS User Restriction
+====================
+This module allows administrators to assign specific Point of Sale terminals
+to individual users. When a user has allowed POS terminals configured:
+- The user can only see their assigned POS terminals in the POS dashboard
+- The user can only open and operate their assigned terminals
+- Admins (without restriction) see all terminals as usual
     """,
     'author': 'Custom',
-    'depends': ['point_of_sale'],
+    'depends': ['point_of_sale', 'base_setup'],
     'data': [
         'security/ir.model.access.csv',
+        'security/pos_security.xml',
         'views/res_users_views.xml',
+        'views/pos_config_views.xml',
     ],
     'installable': True,
-    'application': False,
     'auto_install': False,
     'license': 'LGPL-3',
 }

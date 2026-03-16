@@ -1,56 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ============================================================
-         Inherit res.users form view → add "Allowed POS" tab
-    ============================================================ -->
+    <!-- Add Allowed POS tab to User form -->
     <record id="view_users_form_pos_restriction" model="ir.ui.view">
         <field name="name">res.users.form.pos.restriction</field>
         <field name="model">res.users</field>
         <field name="inherit_id" ref="base.view_users_form"/>
         <field name="arch" type="xml">
-
-            <!-- Insert a new page after the last existing page -->
-            <xpath expr="//notebook" position="inside">
-                <page string="Allowed POS" name="allowed_pos_page">
+            <notebook position="inside">
+                <page string="Allowed POS" name="allowed_pos">
                     <group>
-                        <group string="POS Access Restriction">
-                            <field name="allowed_pos_ids"
-                                   widget="many2many_tags"
-                                   options="{'no_create': True}"
-                                   nolabel="1"
-                                   colspan="2"
-                                   placeholder="Leave empty to allow all POS..."/>
-                        </group>
-                        <group string="Note">
-                            <div class="alert alert-info" role="alert" colspan="2">
-                                <strong>How it works:</strong><br/>
-                                • If <b>Allowed POS</b> is <b>empty</b>, the user can access <b>all</b> Point of Sale shops (no restriction).<br/>
-                                • If one or more POS are selected, the user will <b>only</b> see and open those specific POS configurations.<br/>
-                                • Administrator users always bypass this restriction.
-                            </div>
-                        </group>
+                        <field name="allowed_pos_ids"
+                               widget="many2many_tags"
+                               options="{'no_create': True}"
+                               string="Allowed Point of Sale Terminals"
+                               help="Select the POS terminals this user is allowed to access. Leave empty to allow access to ALL terminals (only applicable for POS Managers or Admins)."/>
                     </group>
+                    <div class="alert alert-info" role="alert" style="margin-top: 8px;">
+                        <strong>Note:</strong>
+                        If one or more POS terminals are selected, this user will
+                        <strong>only</strong> see and be able to open those terminals.
+                        POS Managers always have access to all terminals regardless of this setting.
+                    </div>
                 </page>
-            </xpath>
-
+            </notebook>
         </field>
     </record>
 
-    <!-- ============================================================
-         Inherit pos.config list/kanban view to show restricted badge
-         (optional visual indicator for admins)
-    ============================================================ -->
-    <record id="view_pos_config_list_pos_restriction" model="ir.ui.view">
-        <field name="name">pos.config.list.pos.restriction</field>
-        <field name="model">pos.config</field>
-        <field name="inherit_id" ref="point_of_sale.view_pos_config_form"/>
+    <!-- Also show in simple user list optional column -->
+    <record id="view_users_tree_pos_restriction" model="ir.ui.view">
+        <field name="name">res.users.tree.pos.restriction</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_user_list"/>
         <field name="arch" type="xml">
-            <!-- Add a smart button or info block if needed in future -->
-            <!-- Keeping this minimal – form inheritance placeholder -->
-            <xpath expr="//sheet" position="before">
-                <!-- No changes to POS config form needed for core feature -->
-            </xpath>
+            <list position="inside">
+                <field name="allowed_pos_ids" optional="show" widget="many2many_tags" string="Allowed POS"/>
+            </list>
         </field>
     </record>
 
