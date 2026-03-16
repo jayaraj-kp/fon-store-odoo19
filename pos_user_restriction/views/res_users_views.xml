@@ -27,16 +27,4 @@
         </field>
     </record>
 
-    <!-- Also show in simple user list optional column -->
-    <record id="view_users_tree_pos_restriction" model="ir.ui.view">
-        <field name="name">res.users.tree.pos.restriction</field>
-        <field name="model">res.users</field>
-        <field name="inherit_id" ref="base.view_user_list"/>
-        <field name="arch" type="xml">
-            <list position="inside">
-                <field name="allowed_pos_ids" optional="show" widget="many2many_tags" string="Allowed POS"/>
-            </list>
-        </field>
-    </record>
-
 </odoo>
