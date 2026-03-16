@@ -13,7 +13,7 @@
                     string="🔓 Unlock Register"
                     type="object"
                     class="btn-warning"
-                    attrs="{'invisible': [('register_locked', '=', False)]}"
+                    invisible="not register_locked"
                     groups="point_of_sale.group_pos_manager"
                     confirm="Are you sure you want to unlock this register? The cashier will be able to continue."
                 />
@@ -22,7 +22,7 @@
                 <div
                     class="alert alert-danger"
                     role="alert"
-                    attrs="{'invisible': [('register_locked', '=', False)]}"
+                    invisible="not register_locked"
                     style="margin: 8px 16px 0 16px; font-size: 15px;">
                     <strong>⚠️ Register is LOCKED</strong> —
                     Locked by <field name="locked_by_id" readonly="1" nolabel="1"/>
