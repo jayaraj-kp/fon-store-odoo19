@@ -6,37 +6,62 @@ import { useState, onWillDestroy, onMounted } from "@odoo/owl";
 import { Chrome } from "@point_of_sale/app/pos_app";
 import { Navbar } from "@point_of_sale/app/components/navbar/navbar";
 
-// Shared reactive lock state accessible by both Chrome and Navbar patches
-const sharedLockState = { locked: false };
-
 /**
- * Patch Chrome:
- * - Reads register_locked from session on every load (survives refresh)
- * - Shows full-screen overlay when locked
- * - Polls every 5s for manager unlock
+ * Each POS instance gets its OWN lock state keyed by session ID.
+ * This prevents one session's lock from bleeding into another.
  */
+const lockStateBySession = {};
+
+function getLockState(sessionId) {
+    if (!lockStateBySession[sessionId]) {
+        lockStateBySession[sessionId] = { locked: false };
+    }
+    return lockStateBySession[sessionId];
+}
+
 patch(Chrome.prototype, {
     setup() {
         super.setup(...arguments);
         this.orm = useService("orm");
-        this.registerLockState = useState(sharedLockState);
+        // registerLockState is initialized empty; filled in onMounted once we have session ID
+        this.registerLockState = useState({ locked: false });
         this._lockPollInterval = null;
 
-        onMounted(() => {
-            // Check lock state from backend session data (persists after refresh)
+        onMounted(async () => {
             const sessionId = this.pos?.session?.id;
-            if (sessionId) {
-                this.orm.read("pos.session", [sessionId], ["register_locked"]).then((result) => {
-                    if (result?.[0]?.register_locked) {
-                        this.registerLockState.locked = true;
-                        this._startLockPolling(sessionId);
-                    }
-                }).catch(() => {});
-            }
+            if (!sessionId) return;
+
+            // Sync state object with per-session store
+            const stored = getLockState(sessionId);
+            this.registerLockState.locked = stored.locked;
+
+            // Always check backend on load — survives refresh
+            try {
+                const result = await this.orm.read(
+                    "pos.session", [sessionId], ["register_locked"]
+                );
+                const isLocked = result?.[0]?.register_locked || false;
+                this.registerLockState.locked = isLocked;
+                stored.locked = isLocked;
+                if (isLocked) this._startLockPolling(sessionId);
+            } catch (_) {}
+
+            // Listen for lock events from Navbar patch
+            this._onLockEvent = (e) => {
+                if (e.detail?.sessionId === sessionId) {
+                    this.registerLockState.locked = true;
+                    stored.locked = true;
+                    this._startLockPolling(sessionId);
+                }
+            };
+            document.addEventListener("pos-register-locked", this._onLockEvent);
         });
 
         onWillDestroy(() => {
             if (this._lockPollInterval) clearInterval(this._lockPollInterval);
+            if (this._onLockEvent) {
+                document.removeEventListener("pos-register-locked", this._onLockEvent);
+            }
         });
     },
 
@@ -49,6 +74,7 @@ patch(Chrome.prototype, {
                 );
                 if (result?.[0]?.register_locked === false) {
                     this.registerLockState.locked = false;
+                    getLockState(sessionId).locked = false;
                     clearInterval(this._lockPollInterval);
                     this._lockPollInterval = null;
                 }
@@ -57,54 +83,41 @@ patch(Chrome.prototype, {
     },
 });
 
-/**
- * Patch Navbar:
- * - Adds lockRegister() method called from burger menu
- * - Blocks closeSession() when register is locked
- */
 patch(Navbar.prototype, {
     setup() {
         super.setup(...arguments);
         this.orm = useService("orm");
-        this.registerLockState = useState(sharedLockState);
     },
 
     async lockRegister() {
+        const sessionId = this.pos?.session?.id;
+        if (!sessionId) return;
         try {
-            await this.orm.call(
-                "pos.session", "action_lock_register", [[this.pos.session.id]]
-            );
-            this.registerLockState.locked = true;
-            // Kick off polling on Chrome instance
+            await this.orm.call("pos.session", "action_lock_register", [[sessionId]]);
+            getLockState(sessionId).locked = true;
             document.dispatchEvent(new CustomEvent("pos-register-locked", {
-                detail: { sessionId: this.pos.session.id }
+                detail: { sessionId }
             }));
         } catch (e) {
             console.error("[RegisterLock] Lock failed:", e);
         }
     },
 
-    // Override closeSession to block when locked
     closeSession() {
-        if (this.registerLockState.locked) {
-            alert("❌ Register is locked. Ask your manager to unlock it first.");
+        const sessionId = this.pos?.session?.id;
+        if (sessionId && getLockState(sessionId).locked) {
+            alert("❌ Register is locked.\nAsk your manager to unlock it from the Odoo backend first.");
             return;
         }
         return super.closeSession(...arguments);
     },
 
-    // Override closePos (Backend button) to block when locked
     closePos() {
-        if (this.registerLockState.locked) {
-            alert("❌ Register is locked. Ask your manager to unlock it first.");
+        const sessionId = this.pos?.session?.id;
+        if (sessionId && getLockState(sessionId).locked) {
+            alert("❌ Register is locked.\nAsk your manager to unlock it from the Odoo backend first.");
             return;
         }
         return super.closePos?.(...arguments);
     },
-});
-
-// Listen for lock event to start polling on Chrome
-document.addEventListener("pos-register-locked", (e) => {
-    // The Chrome patch's polling will be triggered via shared state
-    sharedLockState.locked = true;
 });
