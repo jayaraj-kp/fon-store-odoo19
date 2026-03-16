@@ -11,8 +11,35 @@ class PosConfig(models.Model):
         column1='pos_config_id',
         column2='user_id',
         string='Allowed Users',
-        help="Users who are allowed to access this POS terminal.",
+        help="Users allowed to access this POS terminal.",
     )
+
+    @api.model
+    def _search(self, domain, offset=0, limit=None, order=None, **kwargs):
+        """
+        Inject POS restriction into every search for non-admin users.
+        **kwargs absorbs Odoo 19's extra args like bypass_access without breaking.
+        """
+        user = self.env.user
+
+        if self._should_restrict(user):
+            allowed_ids = user.sudo().allowed_pos_ids.ids
+            restriction = [('id', 'in', allowed_ids)]
+            domain = restriction + list(domain) if domain else restriction
+
+        return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
+
+    @api.model
+    def _should_restrict(self, user):
+        """Return True if POS filtering should apply to this user."""
+        if user._is_superuser():
+            return False
+        if user.has_group('base.group_system'):
+            return False
+        if user.has_group('point_of_sale.group_pos_manager'):
+            return False
+        # Only restrict if the user actually has allowed_pos_ids configured
+        return bool(user.sudo().allowed_pos_ids)
 
     def open_ui(self):
         self._check_pos_access()
@@ -24,34 +51,11 @@ class PosConfig(models.Model):
 
     def _check_pos_access(self):
         user = self.env.user
-        if user._is_pos_restricted():
+        if self._should_restrict(user):
+            allowed_ids = user.sudo().allowed_pos_ids.ids
             for pos in self:
-                if pos not in user.allowed_pos_ids:
+                if pos.id not in allowed_ids:
                     raise exceptions.UserError(
                         _("You are not allowed to access '%s'.\n"
                           "Please contact your administrator.") % pos.name
                     )
-
-
-class ResUsers(models.Model):
-    _inherit = 'res.users'
-
-    def _is_pos_restricted(self):
-        """Return True only if this is a plain POS cashier with restrictions set."""
-        self.ensure_one()
-
-        # Superuser → never restricted
-        if self._is_superuser():
-            return False
-
-        # Check groups using has_group() — works in all Odoo versions
-        # POS Manager → never restricted
-        if self.has_group('point_of_sale.group_pos_manager'):
-            return False
-
-        # System Administrator → never restricted
-        if self.has_group('base.group_system'):
-            return False
-
-        # Only restrict if allowed_pos_ids is explicitly configured
-        return bool(self.sudo().allowed_pos_ids)
