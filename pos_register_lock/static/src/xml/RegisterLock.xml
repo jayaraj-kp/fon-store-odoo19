@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <!--
+        Inherit the ClosePosPopup template to:
+        1. Add a "Lock Register" button next to "Close Register"
+        2. Show a full-screen locked overlay when register is locked
+    -->
+    <t t-name="pos_register_lock.ClosePosPopupLockButton" t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
+
+        <!-- Add Lock Register button beside Close Register button -->
+        <xpath expr="//button[hasclass('close-button')]" position="before">
+            <button
+                t-if="!lockState.locked"
+                class="btn btn-lg btn-warning lock-register-btn"
+                t-on-click="lockRegister"
+                style="margin-right: 8px;"
+            >
+                🔒 Lock Register
+            </button>
+        </xpath>
+
+        <!-- Full overlay shown when register is locked -->
+        <xpath expr="//div[hasclass('popup')]" position="after">
+            <t t-if="lockState.locked">
+                <div class="pos-register-locked-overlay" style="
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(30, 30, 30, 0.97);
+                    z-index: 9999;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-family: sans-serif;
+                    text-align: center;
+                ">
+                    <div style="font-size: 80px; margin-bottom: 24px;">🔒</div>
+                    <div style="font-size: 32px; font-weight: bold; margin-bottom: 16px;">
+                        Register Locked
+                    </div>
+                    <div style="font-size: 18px; color: #ccc; max-width: 480px; line-height: 1.6;">
+                        This register has been locked for manager review.<br/>
+                        Please ask your <strong style="color: #f0c040;">manager</strong> to log into Odoo
+                        and unlock this session from the backend.
+                    </div>
+                    <div style="margin-top: 40px; font-size: 14px; color: #888;">
+                        Checking for unlock automatically every 5 seconds...
+                    </div>
+                </div>
+            </t>
+        </xpath>
+
+    </t>
+
+</templates>
