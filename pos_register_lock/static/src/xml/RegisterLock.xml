@@ -2,56 +2,63 @@
 <templates id="template" xml:space="preserve">
 
     <!--
-        Inherit the ClosePosPopup template to:
-        1. Add a "Lock Register" button next to "Close Register"
-        2. Show a full-screen locked overlay when register is locked
+        Patch POS Chrome to render the lock overlay when registerLockState.locked = true.
+        We append at the root level of Chrome so it covers everything.
     -->
-    <t t-name="pos_register_lock.ClosePosPopupLockButton" t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
-
-        <!-- Add Lock Register button beside Close Register button -->
-        <xpath expr="//button[hasclass('close-button')]" position="before">
-            <button
-                t-if="!lockState.locked"
-                class="btn btn-lg btn-warning lock-register-btn"
-                t-on-click="lockRegister"
-                style="margin-right: 8px;"
-            >
-                🔒 Lock Register
-            </button>
-        </xpath>
-
-        <!-- Full overlay shown when register is locked -->
-        <xpath expr="//div[hasclass('popup')]" position="after">
-            <t t-if="lockState.locked">
-                <div class="pos-register-locked-overlay" style="
+    <t t-name="pos_register_lock.ChromePatch"
+       t-inherit="point_of_sale.Chrome"
+       t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('pos')]" position="inside">
+            <t t-if="registerLockState.locked">
+                <div style="
                     position: fixed;
                     top: 0; left: 0; right: 0; bottom: 0;
-                    background: rgba(30, 30, 30, 0.97);
-                    z-index: 9999;
+                    background: rgba(15,15,15,0.97);
+                    z-index: 99999;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
                     color: white;
-                    font-family: sans-serif;
                     text-align: center;
+                    font-family: sans-serif;
+                    user-select: none;
+                    pointer-events: all;
                 ">
-                    <div style="font-size: 80px; margin-bottom: 24px;">🔒</div>
-                    <div style="font-size: 32px; font-weight: bold; margin-bottom: 16px;">
+                    <div style="font-size: 90px; margin-bottom: 20px;">🔒</div>
+                    <div style="font-size: 34px; font-weight: bold; color: #f0c040; margin-bottom: 14px;">
                         Register Locked
                     </div>
-                    <div style="font-size: 18px; color: #ccc; max-width: 480px; line-height: 1.6;">
-                        This register has been locked for manager review.<br/>
-                        Please ask your <strong style="color: #f0c040;">manager</strong> to log into Odoo
-                        and unlock this session from the backend.
+                    <div style="font-size: 17px; color: #ccc; max-width: 480px; line-height: 1.8;">
+                        This register is locked for manager review.<br/>
+                        Ask your <strong style="color:#f0c040;">manager</strong> to open Odoo backend,
+                        go to <strong>Point of Sale → Sessions</strong>,
+                        open this session and click <strong>🔓 Unlock Register</strong>.
                     </div>
-                    <div style="margin-top: 40px; font-size: 14px; color: #888;">
-                        Checking for unlock automatically every 5 seconds...
+                    <div style="margin-top: 32px; font-size: 13px; color: #555;">
+                        Checking for unlock every 5 seconds...
                     </div>
                 </div>
             </t>
         </xpath>
+    </t>
 
+    <!--
+        Patch the Close POS popup to add the Lock Register button.
+        In Odoo 19 the footer contains the close/discard buttons.
+    -->
+    <t t-name="pos_register_lock.ClosePosPopupPatch"
+       t-inherit="point_of_sale.ClosePosPopup"
+       t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('popup')]//div[hasclass('footer')]" position="inside">
+            <button
+                class="btn btn-lg btn-warning"
+                style="margin-right:8px; background:#e67e22; border-color:#e67e22; color:white;"
+                t-on-click="() => window.__posRegisterLock &amp;&amp; window.__posRegisterLock()"
+            >
+                🔒 Lock Register
+            </button>
+        </xpath>
     </t>
 
 </templates>
