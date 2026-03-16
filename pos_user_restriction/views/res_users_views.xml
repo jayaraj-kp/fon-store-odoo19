@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Inherit res.users form view → add "Allowed POS" tab
+    ============================================================ -->
+    <record id="view_users_form_pos_restriction" model="ir.ui.view">
+        <field name="name">res.users.form.pos.restriction</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Insert a new page after the last existing page -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Allowed POS" name="allowed_pos_page">
+                    <group>
+                        <group string="POS Access Restriction">
+                            <field name="allowed_pos_ids"
+                                   widget="many2many_tags"
+                                   options="{'no_create': True}"
+                                   nolabel="1"
+                                   colspan="2"
+                                   placeholder="Leave empty to allow all POS..."/>
+                        </group>
+                        <group string="Note">
+                            <div class="alert alert-info" role="alert" colspan="2">
+                                <strong>How it works:</strong><br/>
+                                • If <b>Allowed POS</b> is <b>empty</b>, the user can access <b>all</b> Point of Sale shops (no restriction).<br/>
+                                • If one or more POS are selected, the user will <b>only</b> see and open those specific POS configurations.<br/>
+                                • Administrator users always bypass this restriction.
+                            </div>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ============================================================
+         Inherit pos.config list/kanban view to show restricted badge
+         (optional visual indicator for admins)
+    ============================================================ -->
+    <record id="view_pos_config_list_pos_restriction" model="ir.ui.view">
+        <field name="name">pos.config.list.pos.restriction</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_config_form"/>
+        <field name="arch" type="xml">
+            <!-- Add a smart button or info block if needed in future -->
+            <!-- Keeping this minimal – form inheritance placeholder -->
+            <xpath expr="//sheet" position="before">
+                <!-- No changes to POS config form needed for core feature -->
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
