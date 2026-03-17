@@ -1,0 +1,23 @@
+<odoo>
+    <record id="view_bank_statement_line_tree_inherit_button" model="ir.ui.view">
+        <field name="name">bank.statement.line.tree.button</field>
+        <field name="model">account.bank.statement.line</field>
+
+        <!-- IMPORTANT: try this first -->
+        <field name="inherit_id" ref="account.view_bank_statement_line_tree"/>
+
+        <field name="arch" type="xml">
+
+            <!-- Add button near top -->
+            <xpath expr="//tree" position="before">
+                <header>
+                    <button name="%(account_reconcile_oca.action_bank_statement_line_create)d"
+                            string="Add Bank Transaction"
+                            type="action"
+                            class="btn-primary"/>
+                </header>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
