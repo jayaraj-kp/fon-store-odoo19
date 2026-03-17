@@ -3,18 +3,15 @@
         <field name="name">bank.statement.line.kanban.inherit</field>
         <field name="model">account.bank.statement.line</field>
 
-        <!-- IMPORTANT: use correct external ID -->
-        <field name="inherit_id" ref="base_accounting_kit.YOUR_KANBAN_VIEW_ID"/>
+        <!-- ✅ CORRECT ID -->
+        <field name="inherit_id" ref="base_accounting_kit.account_bank_statement_line_view_kanban"/>
 
         <field name="arch" type="xml">
-
-            <!-- Replace on_create -->
             <xpath expr="//kanban" position="attributes">
                 <attribute name="on_create">
                     account_reconcile_oca.action_bank_statement_line_create
                 </attribute>
             </xpath>
-
         </field>
     </record>
 </odoo>
