@@ -15,6 +15,7 @@
             'custom_pos_receipt/static/src/xml/custom_receipt.xml',
         ],
     },
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'auto_install': False,
     'license': 'LGPL-3',

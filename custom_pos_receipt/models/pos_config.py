@@ -1,13 +1,19 @@
 from odoo import fields, models
+from odoo import api, SUPERUSER_ID
+
+
+def post_init_hook(env):
+    """Ensure the two address columns exist even if the ORM upgrade was skipped."""
+    cr = env.cr
+    cr.execute("""
+        ALTER TABLE pos_config
+            ADD COLUMN IF NOT EXISTS pos_address_place   VARCHAR,
+            ADD COLUMN IF NOT EXISTS pos_address_city_pin VARCHAR;
+    """)
 
 
 class PosConfig(models.Model):
     _inherit = 'pos.config'
-
-    # ── Receipt Address Block ──────────────────────────────────────────────
-    # These fields appear on the POS Configuration form (new "Receipt Address"
-    # tab) and are printed on the receipt header instead of / before falling
-    # back to the warehouse or company address.
 
     pos_address_place = fields.Char(
         string='Place / Area',
