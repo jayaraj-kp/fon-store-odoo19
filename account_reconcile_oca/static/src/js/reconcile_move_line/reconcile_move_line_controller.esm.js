@@ -1,10 +1,15 @@
 import {ListController} from "@web/views/list/list_controller";
-
 export class ReconcileMoveLineController extends ListController {
     async openRecord(record) {
         var data = {};
-        data[this.props.parentField] = [record.resId, record.display_name];
-        this.props.parentRecord.update(data);
+        const displayName = record.data?.name || 
+                            record.data?.move_id?.display_name ||
+                            String(record.resId);
+        data[this.props.parentField] = {
+            id: record.resId,
+            display_name: displayName,
+        };
+        await this.props.parentRecord.update(data);
     }
     async clickAddAll() {
         await this.props.parentRecord.save();
@@ -17,7 +22,6 @@ export class ReconcileMoveLineController extends ListController {
         this.props.parentRecord.model.notify();
     }
 }
-
 ReconcileMoveLineController.template = `account_reconcile_oca.ReconcileMoveLineController`;
 ReconcileMoveLineController.props = {
     ...ListController.props,

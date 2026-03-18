@@ -98,7 +98,6 @@ export class ReconcileController extends KanbanController {
                 form_view_ref: this.props.context.view_ref,
             },
             display: {controlPanel: false},
-            mode: this.props.mode || "edit",
             resModel: this.props.resModel,
         };
     }
