@@ -7,7 +7,7 @@ import {router} from "@web/core/browser/router";
 import {useSetupAction} from "@web/search/action_hook";
 
 export class ReconcileController extends KanbanController {
-    async setup() {
+        setup() {
         super.setup();
         this.initialLoad = true;
         this.state = useState({
