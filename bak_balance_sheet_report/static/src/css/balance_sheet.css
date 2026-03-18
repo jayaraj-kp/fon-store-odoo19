@@ -1,0 +1,331 @@
+/* =============================================================
+   BAK Balance Sheet Inline Report — Stylesheet
+   ============================================================= */
+
+/* ── Variables ─────────────────────────────────────────────── */
+:root {
+    --bak-primary:    #4B4B6E;
+    --bak-primary-lt: #D9D9E8;
+    --bak-primary-md: #B8B8D0;
+    --bak-accent:     #7C7CA8;
+    --bak-bg:         #F5F5F8;
+    --bak-white:      #FFFFFF;
+    --bak-border:     #DDDDE8;
+    --bak-text:       #2C2C3E;
+    --bak-muted:      #7A7A8C;
+    --bak-negative:   #C0392B;
+    --bak-topbar-h:   52px;
+    --bak-filterbar-h: 52px;
+}
+
+/* ── Reset / base ───────────────────────────────────────────── */
+#bak_bs_app * { box-sizing: border-box; }
+#bak_bs_app {
+    font-family: 'Roboto', 'Noto', Arial, sans-serif;
+    font-size: 13px;
+    color: var(--bak-text);
+    background: var(--bak-bg);
+    min-height: 100vh;
+}
+
+/* ── Top bar ────────────────────────────────────────────────── */
+.bak-bs-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--bak-topbar-h);
+    background: var(--bak-primary);
+    color: #fff;
+    padding: 0 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
+
+.bak-bs-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.bak-bs-back {
+    color: rgba(255,255,255,.75);
+    text-decoration: none;
+    font-size: 12px;
+    transition: color .15s;
+}
+.bak-bs-back:hover { color: #fff; }
+
+.bak-bs-title {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+
+.bak-bs-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.bak-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 14px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: background .15s, color .15s;
+}
+.bak-btn-outline {
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.3);
+}
+.bak-btn-outline:hover {
+    background: rgba(255,255,255,.22);
+}
+.bak-btn-primary {
+    background: var(--bak-primary);
+    color: #fff;
+}
+.bak-btn-primary:hover {
+    background: var(--bak-accent);
+}
+.bak-btn.active {
+    background: #fff;
+    color: var(--bak-primary);
+}
+
+/* ── Select ─────────────────────────────────────────────────── */
+.bak-select {
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.3);
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    appearance: none;
+}
+.bak-select option { color: var(--bak-text); background: #fff; }
+
+/* ── Filter bar ─────────────────────────────────────────────── */
+.bak-bs-filterbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 20px;
+    background: var(--bak-white);
+    border-bottom: 1px solid var(--bak-border);
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+.bak-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.bak-filter-group label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--bak-muted);
+}
+
+.bak-input {
+    padding: 4px 8px;
+    border: 1px solid var(--bak-border);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--bak-text);
+    background: var(--bak-bg);
+    width: 140px;
+}
+.bak-input:focus {
+    outline: none;
+    border-color: var(--bak-accent);
+    box-shadow: 0 0 0 2px rgba(124,124,168,.2);
+}
+
+.bak-check-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 14px;
+}
+
+/* ── Body / wrapper ─────────────────────────────────────────── */
+.bak-bs-body {
+    padding: 24px 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.bak-report-wrap {
+    background: var(--bak-white);
+    border: 1px solid var(--bak-border);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.07);
+    width: 100%;
+    max-width: 960px;
+    min-height: 400px;
+    overflow: hidden;
+}
+
+/* ── Loading spinner ────────────────────────────────────────── */
+.bak-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 14px;
+    color: var(--bak-muted);
+}
+.bak-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--bak-primary-lt);
+    border-top-color: var(--bak-primary);
+    border-radius: 50%;
+    animation: bak-spin .7s linear infinite;
+}
+@keyframes bak-spin { to { transform: rotate(360deg); } }
+
+/* ── Report header ──────────────────────────────────────────── */
+.bak-rpt-header {
+    padding: 20px 24px 12px;
+    border-bottom: 1px solid var(--bak-border);
+}
+.bak-rpt-company {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--bak-primary);
+}
+.bak-rpt-period {
+    font-size: 11px;
+    color: var(--bak-muted);
+    margin-top: 2px;
+}
+
+/* ── Report table ───────────────────────────────────────────── */
+.bak-rpt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.bak-rpt-table thead tr th {
+    background: var(--bak-primary);
+    color: #fff;
+    padding: 9px 14px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+.bak-rpt-table thead tr th.num { text-align: right; }
+
+/* section header row */
+.bak-rpt-table .bak-row-section td {
+    background: var(--bak-primary-lt);
+    color: var(--bak-primary);
+    font-weight: 700;
+    font-size: 12px;
+    padding: 8px 14px;
+    letter-spacing: .3px;
+    cursor: pointer;
+    user-select: none;
+}
+.bak-row-section .bak-toggle {
+    display: inline-block;
+    margin-right: 6px;
+    transition: transform .2s;
+}
+.bak-row-section.collapsed .bak-toggle {
+    transform: rotate(-90deg);
+}
+
+/* subsection header */
+.bak-rpt-table .bak-row-subsection td {
+    background: #EDEDF5;
+    font-weight: 600;
+    padding: 6px 14px 6px 28px;
+    font-size: 11.5px;
+    color: var(--bak-primary);
+}
+
+/* account row */
+.bak-rpt-table .bak-row-account td {
+    padding: 5px 14px 5px 36px;
+    border-bottom: 1px solid #F0F0F5;
+}
+.bak-rpt-table .bak-row-account:hover td {
+    background: #F7F7FB;
+}
+
+/* subtotal row */
+.bak-rpt-table .bak-row-subtotal td {
+    font-weight: 600;
+    padding: 6px 14px 6px 28px;
+    border-top: 1px solid var(--bak-border);
+    background: #FAFAFD;
+}
+
+/* grand total row */
+.bak-rpt-table .bak-row-total td {
+    font-weight: 700;
+    padding: 8px 14px;
+    background: var(--bak-primary-md);
+    color: var(--bak-primary);
+    border-top: 2px solid var(--bak-accent);
+}
+
+/* final liabilities+equity row */
+.bak-rpt-table .bak-row-le-total td {
+    font-weight: 700;
+    padding: 10px 14px;
+    background: var(--bak-primary);
+    color: #fff;
+    border-top: 2px solid #333;
+}
+
+/* Numbers alignment */
+.bak-rpt-table td.num,
+.bak-rpt-table th.num { text-align: right; }
+.bak-rpt-table .negative { color: var(--bak-negative); }
+
+/* code column */
+.bak-rpt-table .col-code {
+    width: 80px;
+    font-size: 11px;
+    color: var(--bak-muted);
+}
+
+/* ── Unposted warning banner ────────────────────────────────── */
+.bak-warn-banner {
+    background: #FFF3CD;
+    color: #856404;
+    border: 1px solid #FFEAA7;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 12px;
+    margin: 12px 20px 0;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .bak-bs-filterbar { flex-direction: column; align-items: flex-start; }
+    .bak-bs-topbar-right { flex-wrap: wrap; }
+    .bak-report-wrap { border-radius: 0; border-left: none; border-right: none; }
+}
