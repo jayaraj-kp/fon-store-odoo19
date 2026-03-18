@@ -1,41 +1,38 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { PosOrder } from "@point_of_sale/app/models/pos_order";
+import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 
 /**
  * POS Allow Multiple Cash Payment
  *
- * Patches PosOrder.addPaymentLine to remove the restriction
+ * Patches PaymentScreen.addNewPaymentLine to remove the restriction
  * that prevents adding more than one cash-type payment method
  * in a single POS transaction.
  *
  * This allows split payments like: Cash ₹1000 + Card ₹1000
  * even when both payment methods are configured as Cash type.
  */
-patch(PosOrder.prototype, {
+patch(PaymentScreen.prototype, {
 
-    addPaymentLine(paymentMethod) {
-        // Check if the new payment method is cash type
-        const isCashType = paymentMethod.is_cash_count;
+    async addNewPaymentLine(paymentMethod) {
+        // Temporarily mark the payment method as non-cash
+        // to bypass the "already a cash payment line" check
+        const originalIsCash = paymentMethod.is_cash_count;
+        const currentOrder = this.currentOrder;
 
-        // Check if there's already a cash-type payment line
-        const existingCashLine = this.payment_ids.some(
+        const hasCashLine = currentOrder.payment_ids.some(
             (pl) => pl.payment_method_id && pl.payment_method_id.is_cash_count
         );
 
-        // If both are cash type, temporarily bypass the cash check
-        // by marking the new method as non-cash just for this call,
-        // then restoring it immediately after.
-        if (isCashType && existingCashLine) {
+        if (originalIsCash && hasCashLine) {
             paymentMethod.is_cash_count = false;
-            const result = super.addPaymentLine(paymentMethod);
-            paymentMethod.is_cash_count = isCashType;
+            const result = await super.addNewPaymentLine(paymentMethod);
+            paymentMethod.is_cash_count = originalIsCash;
             return result;
         }
 
-        // Default behavior for all other cases
-        return super.addPaymentLine(paymentMethod);
+        return await super.addNewPaymentLine(paymentMethod);
     },
 
 });
