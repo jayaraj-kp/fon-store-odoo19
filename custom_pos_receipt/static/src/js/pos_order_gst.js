@@ -38,36 +38,23 @@ patch(PosOrder.prototype, {
     },
 
     /* ================= CUSTOMER UNIQUE REF ================= */
-    /*
-     * Builds a shop-prefixed customer ID.
-     * Prefix = first 3 consonants of the POS config name (uppercased).
-     * Falls back to first 3 letters if not enough consonants.
-     * Examples:
-     *   "Chelari POS"  → CHL-00014
-     *   "Kondotty"     → KND-00014
-     *   "FON Store"    → FNS-00014
-     * If partner has an Internal Reference set, that is used as-is.
-     */
     getCustomerRef() {
         const id = this.partner_id?.id || 0;
         const padded = String(id).padStart(5, '0');
 
-        // Get POS config/shop name
         const shopName = (
             this.config?.name ||
             this.session?.config?.name ||
             this.pos?.config?.name ||
             ''
-        ).toUpperCase().replace(/[^A-Z]/g, ''); // letters only
+        ).toUpperCase().replace(/[^A-Z]/g, '');
 
         let prefix = '';
         if (shopName.length >= 3) {
-            // Extract first 3 consonants for a meaningful short code
             const consonants = shopName.replace(/[AEIOU]/g, '');
             if (consonants.length >= 3) {
                 prefix = consonants.substring(0, 3);
             } else {
-                // Not enough consonants — just take first 3 letters
                 prefix = shopName.substring(0, 3);
             }
         } else {
@@ -85,21 +72,39 @@ patch(PosOrder.prototype, {
         return [name];
     },
 
-    /* ================= WAREHOUSE / SHOP INFO ================= */
+    /* ================= POS ADDRESS (highest priority) ================= */
     /*
-     * Returns address details from the warehouse linked to this POS config.
-     * In Odoo 19 CE, POS config has warehouse_id; the warehouse's partner_id
-     * holds the address, phone, and GSTIN (vat) for that location.
+     * Reads the "Receipt Address" fields entered directly on the POS
+     * Configuration form (Point of Sale → Configuration → Settings → your POS
+     * → "Receipt Address" tab).
      *
-     * Falls back gracefully — if any field is missing, returns empty string
-     * so the receipt template can skip it with t-if.
+     * Returns an object with the same shape as getWarehouseInfo() so the
+     * receipt template can handle both with identical code.
+     * Returns null if none of the POS-level address fields are filled.
      *
-     * How to populate in Odoo:
-     *   Inventory → Configuration → Warehouses → open your warehouse
-     *   → the partner record with the same name holds street/city/zip/phone/vat
+     * Priority chain in the receipt template:
+     *   1. getPosAddress()      ← fields on pos.config  (NEW)
+     *   2. getWarehouseInfo()   ← warehouse partner
+     *   3. company fallback
      */
+    getPosAddress() {
+        const cfg =
+            this.config ||
+            this.session?.config ||
+            this.pos?.config ||
+            null;
+
+        if (!cfg) return null;
+        if (!cfg.pos_address_place && !cfg.pos_address_city_pin) return null;
+
+        return {
+            place:   cfg.pos_address_place   || '',
+            cityPin: cfg.pos_address_city_pin || '',
+        };
+    },
+
+    /* ================= WAREHOUSE / SHOP INFO ================= */
     getWarehouseInfo() {
-        // Try all possible paths Odoo 19 exposes the warehouse on
         const wh =
             this.config?.warehouse_id ||
             this.session?.config?.warehouse_id ||
@@ -107,7 +112,6 @@ patch(PosOrder.prototype, {
 
         if (!wh) return null;
 
-        // Warehouse partner_id carries address + GSTIN
         const p = wh.partner_id || null;
 
         return {
@@ -160,13 +164,11 @@ patch(PosOrder.prototype, {
     /* ================= LINE ITEMS FOR TABLE ================= */
     getReceiptLines() {
         return (this.lines || this.orderlines || []).map((line, index) => {
-            // Strip product codes like [FS1], [LC116]
             let name = (line.product_id?.display_name || line.full_product_name || '').replace(/^\[.*?\]\s*/, '').trim();
             const gstRate = (line.tax_ids || []).length > 0 ? ((line.tax_ids[0].amount) || 0) : 0;
             const qty      = line.qty || 0;
             const rate     = line.price_unit || 0;
             const discount = line.discount || 0;
-            // Original total before discount (rate × qty), rounded to 2dp
             const originalTotal = Math.round(rate * qty * 100) / 100;
             return {
                 sn:            index + 1,
@@ -176,7 +178,7 @@ patch(PosOrder.prototype, {
                 rate,
                 gst:           gstRate,
                 discount,
-                originalTotal, // used for discount label "X% off on ₹ Y"
+                originalTotal,
                 total:         line.price_subtotal_incl || 0,
                 note:          line.customerNote || '',
             };
@@ -188,12 +190,10 @@ patch(PosOrder.prototype, {
         return this.amount_total || 0;
     },
 
-    /* Round to nearest whole rupee */
     getRoundedGrandTotal() {
         return Math.round(this.getGrandTotal());
     },
 
-    /* Difference between rounded and actual (can be +/-) */
     getRoundOff() {
         const diff = Math.round((this.getRoundedGrandTotal() - this.getGrandTotal()) * 100) / 100;
         return diff === 0 ? 0 : diff;
