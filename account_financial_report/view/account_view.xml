@@ -6,7 +6,7 @@
         <field name="model">account.account</field>
         <field name="type">form</field>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='reconcile']" position="after">
+            <xpath expr="//field[@name='tag_ids']" position="after">
                 <field name="centralized" />
             </xpath>
         </field>
