@@ -2,8 +2,8 @@
 <odoo>
 
     <!-- ═══════════════════════════════════════════════════════════════════
-         Extend the POS Configuration form to add a "Receipt Address" tab.
-         Fields here are printed on the receipt header for this specific POS.
+         Extend the POS Configuration form to add "Receipt Address" fields.
+         Uses a safe xpath targeting the 'name' field which always exists.
          ═══════════════════════════════════════════════════════════════════ -->
     <record id="view_pos_config_form_receipt_address" model="ir.ui.view">
         <field name="name">pos.config.form.receipt.address</field>
@@ -11,23 +11,15 @@
         <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
         <field name="arch" type="xml">
 
-            <!-- Add our tab after the last existing tab -->
-            <xpath expr="//notebook" position="inside">
-                <page string="Receipt Address" name="receipt_address">
-                    <group string="POS Outlet Address Lines"
-                           col="2"
-                           colspan="2">
-                        <field name="pos_address_place"
-                               placeholder="e.g.  MELE CHELARI"/>
-                        <field name="pos_address_city_pin"
-                               placeholder="e.g.  MALAPPURAM, 673636"/>
-                    </group>
-                    <div class="alert alert-info" role="alert">
-                        <strong>How it works:</strong>
-                        These two lines replace the address lines on the receipt.
-                        Company name, GSTIN, and phone remain unchanged from the company record.
-                    </div>
-                </page>
+            <!-- Append our fields after the 'name' field at the top of the form -->
+            <xpath expr="//field[@name='name']" position="after">
+                <group string="Receipt Address (overrides company address on receipt)"
+                       col="2" colspan="2">
+                    <field name="pos_address_place"
+                           placeholder="e.g.  MELE CHELARI"/>
+                    <field name="pos_address_city_pin"
+                           placeholder="e.g.  MALAPPURAM, 673636"/>
+                </group>
             </xpath>
 
         </field>
