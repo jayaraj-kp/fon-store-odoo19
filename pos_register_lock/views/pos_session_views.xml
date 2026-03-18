@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Add Unlock button and lock alert to POS Session form -->
+    <!--
+        Extends the POS Session form:
+        - Shows a red alert banner when register is locked (with who locked it and when)
+        - Shows "Unlock Register" button for managers only
+        - Displays the excess/short amounts so the manager can review before unlocking
+    -->
     <record id="view_pos_session_form_lock" model="ir.ui.view">
         <field name="name">pos.session.form.register.lock</field>
         <field name="model">pos.session</field>
         <field name="inherit_id" ref="point_of_sale.view_pos_session_form"/>
         <field name="arch" type="xml">
+
+            <!-- Unlock button in header status bar -->
             <xpath expr="//header" position="inside">
                 <button
                     name="action_unlock_register"
@@ -15,21 +22,29 @@
                     class="btn-warning"
                     invisible="not register_locked"
                     groups="point_of_sale.group_pos_manager"
-                    confirm="Are you sure you want to unlock this register? The cashier will be able to continue."
+                    confirm="Have you reviewed the excess/short amounts? Click OK to unlock and allow the cashier to close."
                 />
             </xpath>
+
+            <!-- Alert banner before the sheet with lock details -->
             <xpath expr="//sheet" position="before">
                 <div
                     class="alert alert-danger"
                     role="alert"
                     invisible="not register_locked"
-                    style="margin: 8px 16px 0 16px; font-size: 15px;">
-                    <strong>⚠️ Register is LOCKED</strong> —
-                    Locked by <field name="locked_by_id" readonly="1" nolabel="1"/>
-                    at <field name="locked_at" readonly="1" nolabel="1"/>.
-                    Click <strong>Unlock Register</strong> above to allow the cashier to proceed.
+                    style="margin: 8px 16px 0 16px; font-size: 15px; line-height: 1.8;">
+                    <strong>⚠️ Register is LOCKED for manager review</strong><br/>
+                    Locked by: <field name="locked_by_id" readonly="1" nolabel="1"/>
+                    at <field name="locked_at" readonly="1" nolabel="1"/>.<br/>
+                    <span style="color:#6d1a1a;">
+                        Please review the <strong>Cash In/Out</strong> and payment totals below.
+                        Check the <strong>excess / short</strong> amounts for each payment method.
+                        Once satisfied, click <strong>🔓 Unlock Register</strong> above
+                        to allow the cashier to proceed with closing.
+                    </span>
                 </div>
             </xpath>
+
         </field>
     </record>
 

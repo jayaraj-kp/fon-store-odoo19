@@ -9,8 +9,8 @@ class PosSession(models.Model):
         string='Register Locked',
         default=False,
         copy=False,
-        help="When True, the cashier cannot sell or close. "
-             "A manager must unlock from the backend.",
+        help="When True, the cashier cannot change amounts or close. "
+             "A manager must unlock from the backend after reviewing excess/short.",
     )
     locked_by_id = fields.Many2one(
         'res.users',
@@ -25,7 +25,11 @@ class PosSession(models.Model):
     )
 
     def action_lock_register(self):
-        """Called from POS frontend via RPC to lock the register."""
+        """
+        Called from POS frontend when cashier clicks 'Close Register'.
+        Locks the session so the cashier cannot edit amounts or proceed to close.
+        Manager must review excess/short in backend and unlock.
+        """
         self.ensure_one()
         if self.state not in ('opened',):
             raise exceptions.UserError(_("Can only lock an open session."))
@@ -37,7 +41,11 @@ class PosSession(models.Model):
         return True
 
     def action_unlock_register(self):
-        """Called by manager from backend to unlock the register."""
+        """
+        Called by manager from backend to unlock the register
+        after reviewing excess/short amounts.
+        Once unlocked, the cashier can proceed to close normally.
+        """
         self.ensure_one()
         if not self.env.user.has_group('point_of_sale.group_pos_manager'):
             raise exceptions.UserError(
@@ -53,7 +61,10 @@ class PosSession(models.Model):
             'tag': 'display_notification',
             'params': {
                 'title': _('Register Unlocked'),
-                'message': _('The register has been unlocked. The cashier can now proceed.'),
+                'message': _(
+                    'The register has been unlocked after reviewing the amounts. '
+                    'The cashier can now proceed to close.'
+                ),
                 'type': 'success',
                 'sticky': False,
             }
@@ -63,9 +74,4 @@ class PosSession(models.Model):
         """Include register_locked in the fields loaded into the POS frontend."""
         result = super()._loader_params_pos_session()
         result['search_params']['fields'].append('register_locked')
-        return result
-
-    def get_pos_ui_pos_session(self, config_id):
-        """Ensure register_locked is included in session data sent to frontend."""
-        result = super().get_pos_ui_pos_session(config_id)
         return result
