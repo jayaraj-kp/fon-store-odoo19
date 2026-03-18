@@ -2,75 +2,10 @@
 <templates id="template" xml:space="preserve">
 
     <!--
-        Patch ClosePosPopup (Closing Register dialog):
-        When locked:
-          - Show a prominent "Locked for manager review" banner at the top
-          - Disable the "Close Register" button (replace with a locked indicator)
-          - Make all input fields read-only (pointer-events:none overlay)
-          - Show "Unlock" instructions for the cashier
-        When unlocked by manager:
-          - Banner disappears, inputs become editable, Close Register works normally
+        Patch Chrome to show a full-screen lock overlay when the register is locked.
+        Shown after cashier clicks Close Register (auto-lock).
+        Disappears automatically when manager unlocks from backend (polling every 5s).
     -->
-    <t t-name="pos_register_lock.ClosePosPopupPatch"
-       t-inherit="point_of_sale.ClosePosPopup"
-       t-inherit-mode="extension">
-
-        <!-- Insert lock banner just inside the popup body, before all content -->
-        <xpath expr="//div[hasclass('popup')]" position="inside">
-            <t t-if="closingLockState and closingLockState.locked">
-                <!-- Full overlay to block all inputs -->
-                <div style="
-                    position: absolute;
-                    top: 0; left: 0; right: 0; bottom: 0;
-                    z-index: 10;
-                    background: rgba(255,255,255,0.01);
-                    pointer-events: all;
-                    cursor: not-allowed;
-                "/>
-                <!-- Lock banner at top of popup -->
-                <div style="
-                    position: absolute;
-                    top: 0; left: 0; right: 0;
-                    z-index: 20;
-                    background: #b71c1c;
-                    color: white;
-                    padding: 10px 18px;
-                    font-size: 14px;
-                    font-weight: bold;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    box-shadow: 0 3px 8px rgba(0,0,0,0.25);
-                ">
-                    <span style="font-size: 22px;">🔒</span>
-                    <span>
-                        Register locked for manager review.
-                        Ask your manager to go to
-                        <em>Point of Sale → Sessions → Unlock Register</em>.
-                        This screen will update automatically.
-                    </span>
-                </div>
-            </t>
-        </xpath>
-
-        <!-- Replace the Close Register button with a locked state version when locked -->
-        <xpath expr="//button[contains(@class,'close-button') or contains(string(.), 'Close Register')]" position="after">
-            <t t-if="closingLockState and closingLockState.locked">
-                <button class="button" style="
-                    background: #888;
-                    color: white;
-                    cursor: not-allowed;
-                    opacity: 0.7;
-                    pointer-events: none;
-                " disabled="disabled">
-                    🔒 Waiting for Manager...
-                </button>
-            </t>
-        </xpath>
-
-    </t>
-
-    <!-- Chrome full-screen lock overlay (shown when navigating away from closing popup) -->
     <t t-name="pos_register_lock.ChromePatch"
        t-inherit="point_of_sale.Chrome"
        t-inherit-mode="extension">
@@ -86,25 +21,29 @@
                     font-family: sans-serif; user-select: none;
                     pointer-events: all;
                 ">
-                    <div style="font-size: 80px; margin-bottom: 16px;">🔒</div>
+                    <div style="font-size: 80px; margin-bottom: 16px;">&#128274;</div>
                     <div style="font-size: 30px; font-weight: bold; color: #f0c040; margin-bottom: 12px;">
-                        Register Locked for Review
+                        Register Locked for Manager Review
                     </div>
-                    <div style="font-size: 16px; color: #ddd; max-width: 500px; line-height: 1.9;">
-                        The closing amounts have been submitted for manager review.<br/>
-                        Your manager must check the <strong style="color:#f0c040;">excess / short</strong> amounts<br/>
-                        and click <strong style="color:#f0c040;">🔓 Unlock Register</strong> in the backend.
+                    <div style="font-size: 16px; color: #ddd; max-width: 520px; line-height: 1.9;">
+                        The closing amounts have been recorded and locked.<br/>
+                        Your manager must review the
+                        <strong style="color:#f0c040;">excess / short</strong> amounts<br/>
+                        and click <strong style="color:#f0c040;">&#128275; Unlock Register</strong> to allow closing.
                     </div>
                     <div style="
                         margin-top: 28px;
                         background: rgba(255,255,255,0.07);
                         border-radius: 10px;
-                        padding: 14px 28px;
+                        padding: 14px 30px;
                         font-size: 14px;
-                        color: #aaa;
-                        line-height: 1.7;
+                        color: #bbb;
+                        line-height: 1.8;
                     ">
-                        Manager path: <strong style="color:#ccc;">Point of Sale → Sessions → Open this session → Unlock Register</strong>
+                        Manager path:<br/>
+                        <strong style="color: #eee;">
+                            Point of Sale &#8594; Sessions &#8594; Open this session &#8594; Unlock Register
+                        </strong>
                     </div>
                     <div style="margin-top: 20px; font-size: 12px; color: #555;">
                         Checking for unlock every 5 seconds...
