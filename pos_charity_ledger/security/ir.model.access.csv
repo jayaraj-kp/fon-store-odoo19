@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pos_charity_account_manager,pos.charity.account manager,model_pos_charity_account,point_of_sale.group_pos_manager,1,1,1,1
+access_pos_charity_account_user,pos.charity.account user,model_pos_charity_account,point_of_sale.group_pos_user,1,0,0,0
+access_pos_charity_donation_manager,pos.charity.donation manager,model_pos_charity_donation,point_of_sale.group_pos_manager,1,1,1,1
+access_pos_charity_donation_user,pos.charity.donation user,model_pos_charity_donation,point_of_sale.group_pos_user,1,0,1,0

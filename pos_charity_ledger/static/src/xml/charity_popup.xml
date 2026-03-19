@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="pos_charity_ledger.CharityDonationPopup">
+        <div class="popup charity-popup">
+            <div class="charity-popup-header">
+                <span class="charity-heart-icon">❤</span>
+                <h3 class="popup-title" t-esc="props.title"/>
+            </div>
+
+            <div class="popup-body">
+                <p class="charity-change-info">
+                    Available Change:
+                    <strong>
+                        <t t-esc="currencySymbol"/><t t-esc="maxAmount.toFixed(2)"/>
+                    </strong>
+                </p>
+
+                <!-- Quick amount buttons -->
+                <div class="charity-quick-buttons">
+                    <button class="btn btn-charity-quick" t-on-click="() => setAmount(1)">
+                        <t t-esc="currencySymbol"/>1
+                    </button>
+                    <button class="btn btn-charity-quick" t-on-click="() => setAmount(2)">
+                        <t t-esc="currencySymbol"/>2
+                    </button>
+                    <button class="btn btn-charity-quick" t-on-click="() => setAmount(5)">
+                        <t t-esc="currencySymbol"/>5
+                    </button>
+                    <button class="btn btn-charity-quick btn-full-change" t-on-click="setFullChange">
+                        Full Change
+                    </button>
+                </div>
+
+                <!-- Amount input -->
+                <div class="charity-input-group">
+                    <span class="currency-symbol" t-esc="currencySymbol"/>
+                    <input
+                        type="number"
+                        class="charity-amount-input"
+                        t-att-value="state.inputAmount"
+                        t-on-input="onInputChange"
+                        placeholder="0.00"
+                        min="0"
+                        t-att-max="maxAmount"
+                        step="0.01"
+                        autofocus="autofocus"
+                    />
+                </div>
+
+                <!-- Error message -->
+                <div t-if="state.error" class="charity-error" t-esc="state.error"/>
+
+                <!-- Custom numpad -->
+                <div class="charity-numpad">
+                    <t t-foreach="['1','2','3','4','5','6','7','8','9','.','0','⌫']" t-as="key" t-key="key">
+                        <button
+                            class="charity-numpad-key"
+                            t-att-class="key === '⌫' ? 'charity-numpad-key backspace' : 'charity-numpad-key'"
+                            t-on-click="() => pressKey(key)">
+                            <t t-esc="key"/>
+                        </button>
+                    </t>
+                </div>
+            </div>
+
+            <div class="popup-footer">
+                <button class="btn btn-cancel" t-on-click="cancel">
+                    <t t-esc="props.cancelText"/>
+                </button>
+                <button class="btn btn-donate" t-on-click="confirm">
+                    ❤ <t t-esc="props.confirmText"/>
+                    <t t-if="state.inputAmount">
+                        <t t-esc="currencySymbol"/><t t-esc="parseFloat(state.inputAmount || 0).toFixed(2)"/>
+                    </t>
+                </button>
+            </div>
+        </div>
+    </t>
+
+</templates>
