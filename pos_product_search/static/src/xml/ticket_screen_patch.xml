@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!--
+        Extend the TicketScreen OWL template.
+        XPath targets the <ul> that holds the search-field autocomplete items
+        and appends a new <li> for "Product" after the existing ones.
+
+        t-on-click calls the same handler Odoo uses for the other fields;
+        we pass 'PRODUCT' as the fieldName key so the JS patch can handle it.
+    -->
+    <t t-inherit="point_of_sale.TicketScreen" t-inherit-mode="extension">
+        <xpath expr="//ul[hasclass('py-1')]" position="inside">
+            <li
+                t-if="inputRef.el and inputRef.el.value"
+                class="ps-5 py-1 text-start cursor-pointer"
+                t-on-click="() => this.onClickSearchField('PRODUCT')"
+            >
+                <span class="field">Product</span>
+                <span>: </span>
+                <span class="term text-primary fw-bolder" t-esc="state.searchInput"/>
+            </li>
+        </xpath>
+    </t>
+</templates>
