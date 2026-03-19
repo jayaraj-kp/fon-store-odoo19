@@ -24,11 +24,10 @@ patch(PaymentScreen.prototype, {
     },
 
     get changeAmount() {
-        const order = this.pos.get_order();
+        // Odoo 19: currentOrder.change is the computed change property
+        const order = this.currentOrder;
         if (!order) return 0;
-        const totalPaid = order.get_total_paid();
-        const totalDue = order.get_total_with_tax();
-        const change = totalPaid - totalDue;
+        const change = order.change || 0;
         return change > 0 ? parseFloat(change.toFixed(2)) : 0;
     },
 
@@ -40,13 +39,11 @@ patch(PaymentScreen.prototype, {
         if (!this.charityEnabled) return;
         const changeAmt = this.changeAmount;
         if (changeAmt <= 0) {
-            this.dialog.add(
-                (await import("@web/core/confirmation_dialog/confirmation_dialog")).AlertDialog,
-                {
-                    title: "No Change Available",
-                    body: "There is no change to donate. The customer has not overpaid.",
-                }
-            );
+            const { AlertDialog } = await import("@web/core/confirmation_dialog/confirmation_dialog");
+            this.dialog.add(AlertDialog, {
+                title: "No Change Available",
+                body: "There is no change to donate. The customer has not overpaid.",
+            });
             return;
         }
 
@@ -62,7 +59,7 @@ patch(PaymentScreen.prototype, {
     },
 
     _applyCharityDonation(amount) {
-        const order = this.pos.get_order();
+        const order = this.currentOrder;
         if (!order) return;
         order.charity_donation_amount = amount;
         order.charity_account_id = Array.isArray(this.pos.config.charity_account_id)
@@ -78,7 +75,7 @@ patch(PaymentScreen.prototype, {
     },
 
     removeCharityDonation() {
-        const order = this.pos.get_order();
+        const order = this.currentOrder;
         if (order) {
             order.charity_donation_amount = 0;
             order.charity_account_id = null;
@@ -88,7 +85,7 @@ patch(PaymentScreen.prototype, {
     },
 
     async validateOrder(isForceValidate) {
-        const order = this.pos.get_order();
+        const order = this.currentOrder;
         if (order && this.charityState.isDonating && this.charityState.donationAmount > 0) {
             order.charity_donation_amount = this.charityState.donationAmount;
             order.charity_account_id = Array.isArray(this.pos.config.charity_account_id)
