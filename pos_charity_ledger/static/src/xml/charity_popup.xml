@@ -1,80 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
-
     <t t-name="pos_charity_ledger.CharityDonationPopup">
-        <div class="popup charity-popup">
-            <div class="charity-popup-header">
-                <span class="charity-heart-icon">❤</span>
-                <h3 class="popup-title" t-esc="props.title"/>
-            </div>
-
-            <div class="popup-body">
-                <p class="charity-change-info">
-                    Available Change:
-                    <strong>
-                        <t t-esc="currencySymbol"/><t t-esc="maxAmount.toFixed(2)"/>
+        <Dialog title="props.title" size="'md'">
+            <div class="charity-popup-body">
+                <p class="text-center mb-3" style="font-size:15px;">
+                    Available Change: <strong style="color:#2ecc71;font-size:18px;">
+                        <t t-esc="symbol"/><t t-esc="maxAmount.toFixed(2)"/>
                     </strong>
                 </p>
-
-                <!-- Quick amount buttons -->
-                <div class="charity-quick-buttons">
-                    <button class="btn btn-charity-quick" t-on-click="() => this.setAmount(1)">
-                        <t t-esc="currencySymbol"/>1
-                    </button>
-                    <button class="btn btn-charity-quick" t-on-click="() => this.setAmount(2)">
-                        <t t-esc="currencySymbol"/>2
-                    </button>
-                    <button class="btn btn-charity-quick" t-on-click="() => this.setAmount(5)">
-                        <t t-esc="currencySymbol"/>5
-                    </button>
-                    <button class="btn btn-charity-quick btn-full-change" t-on-click="setFullChange">
-                        Full Change
-                    </button>
+                <div class="d-flex gap-2 mb-3">
+                    <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(1)"><t t-esc="symbol"/>1</button>
+                    <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(2)"><t t-esc="symbol"/>2</button>
+                    <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(5)"><t t-esc="symbol"/>5</button>
+                    <button class="btn btn-danger flex-fill" t-on-click="setFullChange">Full Change</button>
                 </div>
-
-                <!-- Amount input -->
-                <div class="charity-input-group">
-                    <span class="currency-symbol" t-esc="currencySymbol"/>
-                    <input
-                        type="number"
-                        class="charity-amount-input"
-                        t-att-value="state.inputAmount"
-                        t-on-input="onInputChange"
-                        placeholder="0.00"
-                        min="0"
-                        t-att-max="maxAmount"
-                        step="0.01"
-                        autofocus="autofocus"
-                    />
+                <div class="input-group mb-2">
+                    <span class="input-group-text" style="font-size:20px;"><t t-esc="symbol"/></span>
+                    <input type="number" class="form-control form-control-lg text-end"
+                        t-att-value="state.inputAmount" t-on-input="onInputChange"
+                        placeholder="0.00" min="0" t-att-max="maxAmount" step="0.01"/>
                 </div>
-
-                <!-- Error message -->
-                <div t-if="state.error" class="charity-error" t-esc="state.error"/>
-
-                <!-- Custom numpad -->
-                <div class="charity-numpad">
+                <div t-if="state.error" class="text-danger text-center mb-2" t-esc="state.error"/>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">
                     <t t-foreach="['1','2','3','4','5','6','7','8','9','.','0','⌫']" t-as="key" t-key="key">
-                        <button
-                            t-att-class="key === '⌫' ? 'charity-numpad-key backspace' : 'charity-numpad-key'"
-                            t-on-click="() => this.pressKey(key)">
+                        <button class="btn btn-light btn-lg" style="font-size:20px;font-weight:600;" t-on-click="() => this.pressKey(key)">
                             <t t-esc="key"/>
                         </button>
                     </t>
                 </div>
             </div>
-
-            <div class="popup-footer">
-                <button class="btn btn-cancel" t-on-click="cancel">
-                    Cancel
-                </button>
-                <button class="btn btn-donate" t-on-click="confirm">
-                    ❤ Donate
-                    <t t-if="state.inputAmount">
-                        <t t-esc="currencySymbol"/><t t-esc="parseFloat(state.inputAmount || 0).toFixed(2)"/>
-                    </t>
-                </button>
-            </div>
-        </div>
+            <t t-set-slot="footer">
+                <div class="d-flex gap-2 w-100">
+                    <button class="btn btn-secondary btn-lg flex-fill" t-on-click="cancel">Cancel</button>
+                    <button class="btn btn-danger btn-lg flex-fill" t-on-click="confirm">
+                        ❤ Donate <t t-if="displayAmount"><t t-esc="symbol"/><t t-esc="displayAmount"/></t>
+                    </button>
+                </div>
+            </t>
+        </Dialog>
     </t>
-
 </templates>

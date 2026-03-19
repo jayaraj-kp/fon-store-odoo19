@@ -3,6 +3,7 @@
 import { patch } from "@web/core/utils/patch";
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
+import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { CharityDonationPopup } from "@pos_charity_ledger/js/charity_popup";
 import { useState } from "@odoo/owl";
 
@@ -26,7 +27,11 @@ patch(PaymentScreen.prototype, {
     get changeAmount() {
         const order = this.currentOrder;
         if (!order) return 0;
-        const change = order.change || 0;
+        const totalDue = order.totalDue || 0;
+        const totalPaid = (order.payment_ids || []).reduce((sum, line) => {
+            return sum + (line.getAmount ? line.getAmount() : (line.amount || 0));
+        }, 0);
+        const change = totalPaid - totalDue;
         return change > 0 ? parseFloat(change.toFixed(2)) : 0;
     },
 
@@ -38,7 +43,6 @@ patch(PaymentScreen.prototype, {
         if (!this.charityEnabled) return;
         const changeAmt = this.changeAmount;
         if (changeAmt <= 0) {
-            const { AlertDialog } = await import("@web/core/confirmation_dialog/confirmation_dialog");
             this.dialog.add(AlertDialog, {
                 title: "No Change Available",
                 body: "There is no change to donate. Please ensure the customer has overpaid.",
