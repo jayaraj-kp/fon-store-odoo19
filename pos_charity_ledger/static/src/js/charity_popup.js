@@ -12,9 +12,17 @@ export class CharityDonationPopup extends Component {
         currencySymbol: { type: String, optional: true },
         getPayload: Function,
         close: Function,
+<<<<<<< HEAD
+=======
+    };
+    static defaultProps = {
+        title: "Donate to Charity",
+        currencySymbol: "₹",
+>>>>>>> b8cb2dc (custom)
     };
     static defaultProps = { title: "Donate to Charity", currencySymbol: "₹" };
 
+<<<<<<< HEAD
     setup() { this.state = useState({ inputAmount: "", error: "" }); }
 
     get maxAmount() { return this.props.changeAmount || 0; }
@@ -25,6 +33,29 @@ export class CharityDonationPopup extends Component {
         if (amount > this.maxAmount) { this.state.error = `Maximum is ${this.symbol}${this.maxAmount.toFixed(2)}`; return; }
         this.state.error = ""; this.state.inputAmount = String(amount);
     }
+=======
+    setup() {
+        this.state = useState({ inputAmount: "", error: "" });
+    }
+
+    get maxAmount() { return this.props.changeAmount || 0; }
+    get symbol() { return this.props.currencySymbol || "₹"; }
+
+    get displayAmount() {
+        const val = parseFloat(this.state.inputAmount);
+        return isNaN(val) ? "" : val.toFixed(2);
+    }
+
+    setAmount(amount) {
+        if (amount > this.maxAmount) {
+            this.state.error = `Maximum is ${this.symbol}${this.maxAmount.toFixed(2)}`;
+            return;
+        }
+        this.state.error = "";
+        this.state.inputAmount = String(amount);
+    }
+
+>>>>>>> b8cb2dc (custom)
     setFullChange() { this.setAmount(this.maxAmount); }
 
     confirm() {
@@ -34,7 +65,16 @@ export class CharityDonationPopup extends Component {
         this.props.getPayload({ confirmed: true, amount: val });
         this.props.close();
     }
+<<<<<<< HEAD
     cancel() { this.props.getPayload({ confirmed: false, amount: 0 }); this.props.close(); }
+=======
+
+    cancel() {
+        this.props.getPayload({ confirmed: false, amount: 0 });
+        this.props.close();
+    }
+
+>>>>>>> b8cb2dc (custom)
     onInputChange(ev) { this.state.inputAmount = ev.target.value; this.state.error = ""; }
 
     pressKey(key) {

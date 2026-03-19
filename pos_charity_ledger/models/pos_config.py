@@ -8,16 +8,25 @@ class PosConfig(models.Model):
     charity_enabled = fields.Boolean(
         string='Enable Charity Donations',
         default=False,
-        help='Show a Charity button on the POS payment screen to allow customers to donate change.',
     )
     charity_account_id = fields.Many2one(
         'pos.charity.account',
         string='Charity Account',
-        help='Select the charity ledger/account where donations will be recorded.',
         domain=[('active', '=', True)],
     )
     charity_button_label = fields.Char(
         string='Charity Button Label',
         default='Donate to Charity',
-        help='Label displayed on the charity button in POS payment screen.',
+    )
+    charity_gl_account_id = fields.Many2one(
+        'account.account',
+        string='Charity GL Account',
+        help='The accounting account where charity donations will be credited (e.g. Charity Payable). '
+             'The debit side will use the POS cash/payment journal account.',
+        domain=[('deprecated', '=', False)],
+    )
+    charity_journal_id = fields.Many2one(
+        'account.journal',
+        string='Charity Journal',
+        help='Journal to use for charity donation journal entries. Leave empty to use the POS sales journal.',
     )

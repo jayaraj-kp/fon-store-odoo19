@@ -19,7 +19,7 @@
                                 <div class="col-lg-8">
                                     <field name="charity_account_id"
                                            required="charity_enabled"
-                                           placeholder="Select charity account..."/>
+                                           placeholder="Select charity ledger account..."/>
                                 </div>
                             </div>
                             <div class="row mb-2">
@@ -28,6 +28,24 @@
                                 </div>
                                 <div class="col-lg-8">
                                     <field name="charity_button_label"/>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-lg-4 o_light_label">
+                                    <label string="GL Account (Credit)" for="charity_gl_account_id"/>
+                                </div>
+                                <div class="col-lg-8">
+                                    <field name="charity_gl_account_id"
+                                           placeholder="e.g. Charity Payable / Donations Received"/>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-lg-4 o_light_label">
+                                    <label string="Journal" for="charity_journal_id"/>
+                                </div>
+                                <div class="col-lg-8">
+                                    <field name="charity_journal_id"
+                                           placeholder="Leave empty to use POS Sales Journal"/>
                                 </div>
                             </div>
                         </div>

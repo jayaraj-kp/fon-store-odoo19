@@ -62,12 +62,18 @@ patch(PaymentScreen.prototype, {
     _applyCharityDonation(amount) {
         const order = this.currentOrder;
         if (!order) return;
-        order.charity_donation_amount = amount;
-        order.charity_account_id = Array.isArray(this.pos.config.charity_account_id)
+
+        // Store on order object - these will be serialized when order is sent to server
+        const accountId = Array.isArray(this.pos.config.charity_account_id)
             ? this.pos.config.charity_account_id[0]
             : this.pos.config.charity_account_id;
+
+        order.charity_donation_amount = amount;
+        order.charity_account_id = accountId;
+
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
+
         this.notification.add(
             `${this.currencySymbol}${amount.toFixed(2)} will be donated to charity. Thank you!`,
             { type: "success", sticky: false }
@@ -85,13 +91,19 @@ patch(PaymentScreen.prototype, {
     },
 
     async validateOrder(isForceValidate) {
+        // Ensure charity data is set on order before validation
         const order = this.currentOrder;
         if (order && this.charityState.isDonating && this.charityState.donationAmount > 0) {
-            order.charity_donation_amount = this.charityState.donationAmount;
-            order.charity_account_id = Array.isArray(this.pos.config.charity_account_id)
+            const accountId = Array.isArray(this.pos.config.charity_account_id)
                 ? this.pos.config.charity_account_id[0]
                 : this.pos.config.charity_account_id;
+            order.charity_donation_amount = this.charityState.donationAmount;
+            order.charity_account_id = accountId;
         }
-        return super.validateOrder(isForceValidate);
+        const result = await super.validateOrder(isForceValidate);
+        // Reset charity state after successful validation
+        this.charityState.donationAmount = 0;
+        this.charityState.isDonating = false;
+        return result;
     },
 });

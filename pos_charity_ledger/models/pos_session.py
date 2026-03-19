@@ -27,12 +27,13 @@ class PosSession(models.Model):
             session.charity_donation_count = len(donations)
 
     def _loader_params_pos_config(self):
-        """Load charity config into POS frontend."""
         result = super()._loader_params_pos_config()
         result['search_params']['fields'].extend([
             'charity_enabled',
             'charity_account_id',
             'charity_button_label',
+            'charity_gl_account_id',
+            'charity_journal_id',
         ])
         return result
 

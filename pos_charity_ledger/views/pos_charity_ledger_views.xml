@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <list string="Charity Accounts">
                 <field name="name"/>
-                <field name="description"/>
+                <field name="account_id"/>
                 <field name="total_donated" widget="monetary"/>
                 <field name="active"/>
             </list>
@@ -21,18 +21,22 @@
             <form string="Charity Account">
                 <sheet>
                     <div class="oe_title">
-                        <h1>
-                            <field name="name" placeholder="Charity Name"/>
-                        </h1>
+                        <h1><field name="name" placeholder="Charity Name"/></h1>
                     </div>
                     <group>
-                        <group>
+                        <group string="General">
                             <field name="description"/>
                             <field name="active"/>
-                        </group>
-                        <group>
-                            <field name="total_donated" widget="monetary"/>
                             <field name="currency_id" invisible="1"/>
+                            <field name="total_donated" widget="monetary"/>
+                        </group>
+                        <group string="Accounting">
+                            <field name="account_id"
+                                   options="{'no_create': True}"
+                                   placeholder="e.g. Charity Payable / Charity Income"/>
+                            <field name="journal_id"
+                                   options="{'no_create': True}"
+                                   placeholder="Leave empty to use POS cash journal"/>
                         </group>
                     </group>
                     <notebook>
@@ -45,6 +49,7 @@
                                     <field name="pos_order_id"/>
                                     <field name="cashier_id"/>
                                     <field name="amount" widget="monetary"/>
+                                    <field name="move_id"/>
                                     <field name="state" widget="badge"
                                            decoration-success="state == 'confirmed'"
                                            decoration-warning="state == 'draft'"
@@ -62,11 +67,6 @@
         <field name="name">Charity Accounts</field>
         <field name="res_model">pos.charity.account</field>
         <field name="view_mode">list,form</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                Create your first charity account
-            </p>
-        </field>
     </record>
 
     <!-- ==================== pos.charity.donation views ==================== -->
@@ -85,6 +85,7 @@
                 <field name="cashier_id"/>
                 <field name="amount" widget="monetary"/>
                 <field name="currency_id" column_invisible="1"/>
+                <field name="move_id"/>
                 <field name="state" widget="badge"
                        decoration-success="state == 'confirmed'"
                        decoration-warning="state == 'draft'"
@@ -100,12 +101,10 @@
             <form string="Charity Donation">
                 <header>
                     <button name="action_confirm" type="object" string="Confirm"
-                            class="btn-primary"
-                            invisible="state != 'draft'"/>
+                            class="btn-primary" invisible="state != 'draft'"/>
                     <button name="action_cancel" type="object" string="Cancel"
                             invisible="state == 'cancelled'"/>
-                    <field name="state" widget="statusbar"
-                           statusbar_visible="draft,confirmed"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed"/>
                 </header>
                 <sheet>
                     <group>
@@ -114,6 +113,7 @@
                             <field name="charity_account_id"/>
                             <field name="amount" widget="monetary"/>
                             <field name="currency_id" invisible="1"/>
+                            <field name="move_id"/>
                         </group>
                         <group>
                             <field name="date"/>
@@ -143,8 +143,6 @@
                 <separator/>
                 <filter name="group_charity" string="Group by Charity"
                         context="{'group_by': 'charity_account_id'}"/>
-                <filter name="group_session" string="Group by Session"
-                        context="{'group_by': 'pos_session_id'}"/>
                 <filter name="group_date" string="Group by Date"
                         context="{'group_by': 'date:day'}"/>
             </search>
@@ -156,9 +154,7 @@
         <field name="res_model">pos.charity.donation</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                No charity donations yet
-            </p>
+            <p class="o_view_nocontent_smiling_face">No charity donations yet</p>
             <p>Donations will appear here once customers donate from POS.</p>
         </field>
     </record>
@@ -168,13 +164,11 @@
               name="Charity"
               parent="point_of_sale.menu_point_of_sale"
               sequence="50"/>
-
     <menuitem id="menu_pos_charity_accounts"
               name="Charity Accounts"
               parent="menu_pos_charity_root"
               action="action_pos_charity_account"
               sequence="10"/>
-
     <menuitem id="menu_pos_charity_donations"
               name="Donations Ledger"
               parent="menu_pos_charity_root"
