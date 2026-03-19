@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <list string="Charity Accounts">
                 <field name="name"/>
-                <field name="account_id"/>
+                <field name="description"/>
                 <field name="total_donated" widget="monetary"/>
                 <field name="active"/>
             </list>
@@ -24,19 +24,13 @@
                         <h1><field name="name" placeholder="Charity Name"/></h1>
                     </div>
                     <group>
-                        <group string="General">
+                        <group>
                             <field name="description"/>
                             <field name="active"/>
-                            <field name="currency_id" invisible="1"/>
-                            <field name="total_donated" widget="monetary"/>
                         </group>
-                        <group string="Accounting">
-                            <field name="account_id"
-                                   options="{'no_create': True}"
-                                   placeholder="e.g. Charity Payable / Charity Income"/>
-                            <field name="journal_id"
-                                   options="{'no_create': True}"
-                                   placeholder="Leave empty to use POS cash journal"/>
+                        <group>
+                            <field name="total_donated" widget="monetary"/>
+                            <field name="currency_id" invisible="1"/>
                         </group>
                     </group>
                     <notebook>
@@ -49,7 +43,6 @@
                                     <field name="pos_order_id"/>
                                     <field name="cashier_id"/>
                                     <field name="amount" widget="monetary"/>
-                                    <field name="move_id"/>
                                     <field name="state" widget="badge"
                                            decoration-success="state == 'confirmed'"
                                            decoration-warning="state == 'draft'"
@@ -85,7 +78,6 @@
                 <field name="cashier_id"/>
                 <field name="amount" widget="monetary"/>
                 <field name="currency_id" column_invisible="1"/>
-                <field name="move_id"/>
                 <field name="state" widget="badge"
                        decoration-success="state == 'confirmed'"
                        decoration-warning="state == 'draft'"
@@ -113,7 +105,6 @@
                             <field name="charity_account_id"/>
                             <field name="amount" widget="monetary"/>
                             <field name="currency_id" invisible="1"/>
-                            <field name="move_id"/>
                         </group>
                         <group>
                             <field name="date"/>
@@ -143,6 +134,8 @@
                 <separator/>
                 <filter name="group_charity" string="Group by Charity"
                         context="{'group_by': 'charity_account_id'}"/>
+                <filter name="group_session" string="Group by Session"
+                        context="{'group_by': 'pos_session_id'}"/>
                 <filter name="group_date" string="Group by Date"
                         context="{'group_by': 'date:day'}"/>
             </search>
