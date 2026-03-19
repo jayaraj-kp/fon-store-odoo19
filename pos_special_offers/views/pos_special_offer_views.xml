@@ -225,21 +225,17 @@
 
           <!-- ── Exclude From Offer ── -->
           <group string="Exclude From Offer">
-            <group string="Exclude Products"
-                   help="These products will never receive the discount, even if they fall inside the scope above.">
+            <group>
               <field name="exclude_product_ids"
                 widget="many2many_tags"
                 string="Exclude Products"
-                options="{'no_create': True}"
-                nolabel="1"/>
+                options="{'no_create': True}"/>
             </group>
-            <group string="Exclude Categories"
-                   help="Products in these categories will never receive the discount, even if they fall inside the scope above.">
+            <group>
               <field name="exclude_category_ids"
                 widget="many2many_tags"
                 string="Exclude Categories"
-                options="{'no_create': True}"
-                nolabel="1"/>
+                options="{'no_create': True}"/>
             </group>
           </group>
 
@@ -282,6 +278,14 @@
     groups="point_of_sale.group_pos_manager"/>
 
 </odoo>
+
+
+
+
+
+
+
+
 
 
 
