@@ -5,12 +5,12 @@
         <field name="name">pos.charity.account.tree</field>
         <field name="model">pos.charity.account</field>
         <field name="arch" type="xml">
-            <tree string="Charity Accounts">
+            <list string="Charity Accounts">
                 <field name="name"/>
                 <field name="description"/>
                 <field name="total_donated" widget="monetary"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -38,7 +38,7 @@
                     <notebook>
                         <page string="Donations">
                             <field name="donation_ids" readonly="1">
-                                <tree>
+                                <list>
                                     <field name="name"/>
                                     <field name="date"/>
                                     <field name="pos_config_id"/>
@@ -49,7 +49,7 @@
                                            decoration-success="state == 'confirmed'"
                                            decoration-warning="state == 'draft'"
                                            decoration-danger="state == 'cancelled'"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>
@@ -61,7 +61,7 @@
     <record id="action_pos_charity_account" model="ir.actions.act_window">
         <field name="name">Charity Accounts</field>
         <field name="res_model">pos.charity.account</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create your first charity account
@@ -74,7 +74,7 @@
         <field name="name">pos.charity.donation.tree</field>
         <field name="model">pos.charity.donation</field>
         <field name="arch" type="xml">
-            <tree string="Charity Donations"
+            <list string="Charity Donations"
                   decoration-success="state == 'confirmed'"
                   decoration-muted="state == 'cancelled'">
                 <field name="name"/>
@@ -89,7 +89,7 @@
                        decoration-success="state == 'confirmed'"
                        decoration-warning="state == 'draft'"
                        decoration-danger="state == 'cancelled'"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -156,7 +156,7 @@
     <record id="action_pos_charity_donation" model="ir.actions.act_window">
         <field name="name">Charity Donations</field>
         <field name="res_model">pos.charity.donation</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No charity donations yet
