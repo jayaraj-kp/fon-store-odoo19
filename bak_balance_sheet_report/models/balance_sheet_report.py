@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
-from odoo.tools import date_utils
-from datetime import date, datetime
-import json
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class BalanceSheetInlineReport(models.TransientModel):
@@ -10,221 +10,253 @@ class BalanceSheetInlineReport(models.TransientModel):
     _description = 'Balance Sheet Inline Report'
 
     date_from = fields.Date(string='Start Date')
-    date_to = fields.Date(string='End Date', default=fields.Date.context_today)
+    date_to   = fields.Date(string='End Date', default=fields.Date.context_today)
     target_move = fields.Selection([
         ('posted', 'All Posted Entries'),
-        ('all', 'All Entries'),
+        ('all',    'All Entries'),
     ], string='Target Moves', default='posted')
     display_debit_credit = fields.Boolean(
-        string='Display Debit/Credit Columns', default=True
-    )
+        string='Display Debit/Credit Columns', default=True)
     company_id = fields.Many2one(
         'res.company', string='Company',
-        default=lambda self: self.env.company
-    )
+        default=lambda self: self.env.company)
     comparison_date_from = fields.Date(string='Comparison Start Date')
-    comparison_date_to = fields.Date(string='Comparison End Date')
-    enable_comparison = fields.Boolean(string='Enable Comparison', default=False)
+    comparison_date_to   = fields.Date(string='Comparison End Date')
+    enable_comparison    = fields.Boolean(string='Enable Comparison', default=False)
 
     # ------------------------------------------------------------------
-    # Action opener – called from menu
+    # Helper: detect how account_account is linked to companies
+    # Odoo 17+/19 uses company_ids (Many2many via a relation table)
+    # Older versions use company_id (Many2one column)
     # ------------------------------------------------------------------
-    def action_open_report(self):
-        """Open the balance sheet inline report view."""
-        wizard = self.create({})
+    def _account_company_clause(self):
+        """
+        Returns (join_sql, where_sql) fragments for filtering
+        account_account by the current company.
+        Auto-detects whether the DB uses company_id column or
+        the Many2many relation table.
+        """
+        cr = self.env.cr
+
+        # Check if company_id column exists on account_account
+        cr.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'account_account'
+              AND column_name = 'company_id'
+        """)
+        if cr.fetchone():
+            # Old style: direct column
+            return ('', 'AND aa.company_id = %s', [self.company_id.id])
+
+        # New style: find the Many2many relation table
+        # Common names: account_account_res_company_rel
+        #               account_account_company_rel
+        cr.execute("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_name IN (
+                'account_account_res_company_rel',
+                'account_account_company_rel',
+                'res_company_account_account_rel'
+            )
+            LIMIT 1
+        """)
+        rel = cr.fetchone()
+        if rel:
+            rel_table = rel[0]
+            # Find the column names in that relation table
+            cr.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = %s
+            """, [rel_table])
+            cols = [r[0] for r in cr.fetchall()]
+            # account col is the one that is NOT company
+            company_col = next((c for c in cols if 'company' in c), None)
+            account_col = next((c for c in cols if 'account' in c), None)
+            if company_col and account_col:
+                join_sql = f"""
+                    JOIN {rel_table} crel
+                      ON crel.{account_col} = aa.id
+                      AND crel.{company_col} = %s
+                """
+                return (join_sql, '', [self.company_id.id])
+
+        # Last resort: no company filter (show all accounts)
+        _logger.warning(
+            'bak_balance_sheet_report: could not determine company filter '
+            'for account_account. Showing all accounts.'
+        )
+        return ('', '', [])
+
+    # ------------------------------------------------------------------
+    # Core: compute balances from move lines via raw SQL
+    # ------------------------------------------------------------------
+    def _compute_account_balances(self, date_from=None, date_to=None):
+        """
+        Returns {account_id: {'debit': x, 'credit': x, 'balance': x}}
+        Uses raw SQL for cross-version compatibility and performance.
+        """
+        cr = self.env.cr
+
+        # account_move_line.company_id always exists as a regular column
+        params = [self.company_id.id]
+
+        state_clause = "AND am.state = 'posted'" if self.target_move == 'posted' else ''
+
+        date_from_clause = ''
+        if date_from:
+            date_from_clause = 'AND aml.date >= %s'
+            params.append(date_from)
+
+        date_to_clause = ''
+        if date_to:
+            date_to_clause = 'AND aml.date <= %s'
+            params.append(date_to)
+
+        cr.execute(f"""
+            SELECT
+                aml.account_id,
+                COALESCE(SUM(aml.debit),   0) AS debit,
+                COALESCE(SUM(aml.credit),  0) AS credit,
+                COALESCE(SUM(aml.balance), 0) AS balance
+            FROM account_move_line aml
+            JOIN account_move am ON am.id = aml.move_id
+            WHERE aml.company_id = %s
+              {state_clause}
+              {date_from_clause}
+              {date_to_clause}
+            GROUP BY aml.account_id
+        """, params)
+
         return {
-            'type': 'ir.actions.act_url',
-            'url': '/bak/balance_sheet?wizard_id=%d' % wizard.id,
-            'target': 'self',
+            row[0]: {
+                'debit':   float(row[1]),
+                'credit':  float(row[2]),
+                'balance': float(row[3]),
+            }
+            for row in cr.fetchall()
         }
 
     # ------------------------------------------------------------------
-    # Core data builder
+    # Core: load accounts and group into balance sheet sections
     # ------------------------------------------------------------------
-    def _get_account_move_lines_domain(self, date_from=None, date_to=None):
-        domain = [('company_id', '=', self.company_id.id)]
-        if self.target_move == 'posted':
-            domain += [('move_id.state', '=', 'posted')]
-        if date_from:
-            domain += [('date', '>=', date_from)]
-        if date_to:
-            domain += [('date', '<=', date_to)]
-        return domain
-
-    def _compute_account_balances(self, date_from=None, date_to=None):
-        """Return dict {account_id: {'debit': x, 'credit': x, 'balance': x}}"""
-        domain = self._get_account_move_lines_domain(date_from, date_to)
-        lines = self.env['account.move.line'].read_group(
-            domain,
-            ['account_id', 'debit', 'credit', 'balance'],
-            ['account_id'],
-        )
-        result = {}
-        for line in lines:
-            acc_id = line['account_id'][0]
-            result[acc_id] = {
-                'debit': line['debit'],
-                'credit': line['credit'],
-                'balance': line['balance'],
-            }
-        return result
-
     def _get_account_groups(self):
-        """
-        Returns grouped account data structured for balance sheet rendering.
-        Sections: ASSETS, LIABILITIES, EQUITY
-        """
-        AccountGroup = self.env['account.group']
-        Account = self.env['account.account']
-
-        date_to = self.date_to or fields.Date.today()
+        cr        = self.env.cr
+        date_to   = self.date_to or fields.Date.today()
         date_from = self.date_from
 
-        balances = self._compute_account_balances(date_from, date_to)
-
+        balances      = self._compute_account_balances(date_from, date_to)
         comp_balances = {}
         if self.enable_comparison and self.comparison_date_to:
             comp_balances = self._compute_account_balances(
-                self.comparison_date_from, self.comparison_date_to
-            )
+                self.comparison_date_from, self.comparison_date_to)
 
-        # Map Odoo account types to balance sheet sections
-        ASSET_TYPES = {
-            'asset_cash', 'asset_receivable', 'asset_current',
-            'asset_prepayments', 'asset_fixed', 'asset_non_current'
-        }
-        LIABILITY_TYPES = {
-            'liability_payable', 'liability_current',
-            'liability_non_current', 'liability_credit_card'
-        }
-        EQUITY_TYPES = {'equity', 'equity_unaffected'}
+        # Detect how accounts are linked to companies
+        join_sql, where_extra, company_params = self._account_company_clause()
 
-        def _section_of(acc):
-            t = acc.account_type
-            if t in ASSET_TYPES:
-                return 'assets'
-            if t in LIABILITY_TYPES:
-                return 'liabilities'
-            if t in EQUITY_TYPES:
-                return 'equity'
-            return None
+        cr.execute(f"""
+            SELECT aa.id, aa.code, aa.name, aa.account_type
+            FROM account_account aa
+            {join_sql}
+            WHERE (aa.deprecated IS NULL OR aa.deprecated = FALSE)
+              {where_extra}
+            ORDER BY aa.code
+        """, company_params)
 
-        def _subsection_of(acc):
-            t = acc.account_type
-            mapping = {
-                'asset_cash': 'Bank and Cash Accounts',
-                'asset_receivable': 'Receivables',
-                'asset_current': 'Current Assets',
-                'asset_prepayments': 'Prepayments',
-                'asset_fixed': 'Plus Fixed Assets',
-                'asset_non_current': 'Plus Non-current Assets',
-                'liability_payable': 'Payables',
-                'liability_current': 'Current Liabilities',
-                'liability_credit_card': 'Current Liabilities',
-                'liability_non_current': 'Plus Non-current Liabilities',
-                'equity_unaffected': 'Unallocated Earnings',
-                'equity': 'Retained Earnings',
-            }
-            return mapping.get(t, 'Other')
+        rows = cr.fetchall()
 
-        accounts = Account.search([
-            ('company_id', '=', self.company_id.id),
-            ('deprecated', '=', False),
-        ])
-
-        sections = {
-            'assets': {},
-            'liabilities': {},
-            'equity': {},
+        # account_type → (section, subsection label)
+        SECTION_MAP = {
+            'asset_cash':            ('assets',      'Bank and Cash Accounts'),
+            'asset_receivable':      ('assets',      'Receivables'),
+            'asset_current':         ('assets',      'Current Assets'),
+            'asset_prepayments':     ('assets',      'Prepayments'),
+            'asset_fixed':           ('assets',      'Plus Fixed Assets'),
+            'asset_non_current':     ('assets',      'Plus Non-current Assets'),
+            'liability_payable':     ('liabilities', 'Payables'),
+            'liability_current':     ('liabilities', 'Current Liabilities'),
+            'liability_credit_card': ('liabilities', 'Current Liabilities'),
+            'liability_non_current': ('liabilities', 'Plus Non-current Liabilities'),
+            'equity_unaffected':     ('equity',      'Unallocated Earnings'),
+            'equity':                ('equity',      'Retained Earnings'),
         }
 
-        for acc in accounts:
-            section = _section_of(acc)
-            if not section:
+        sections = {'assets': {}, 'liabilities': {}, 'equity': {}}
+
+        for acc_id, code, name, account_type in rows:
+            if account_type not in SECTION_MAP:
                 continue
-            subsection = _subsection_of(acc)
-            bal = balances.get(acc.id, {})
-            debit = bal.get('debit', 0.0)
-            credit = bal.get('credit', 0.0)
-            balance = bal.get('balance', 0.0)
+            section, subsection = SECTION_MAP[account_type]
 
-            comp_bal = comp_balances.get(acc.id, {})
+            bal      = balances.get(acc_id, {})
+            comp_bal = comp_balances.get(acc_id, {})
+            balance      = bal.get('balance', 0.0)
             comp_balance = comp_bal.get('balance', 0.0)
 
             if balance == 0.0 and comp_balance == 0.0:
                 continue
 
-            if subsection not in sections[section]:
-                sections[section][subsection] = []
-
-            sections[section][subsection].append({
-                'id': acc.id,
-                'code': acc.code,
-                'name': acc.name,
-                'debit': debit,
-                'credit': credit,
-                'balance': balance,
+            sections[section].setdefault(subsection, []).append({
+                'id':           acc_id,
+                'code':         code or '',
+                'name':         name,
+                'debit':        bal.get('debit', 0.0),
+                'credit':       bal.get('credit', 0.0),
+                'balance':      balance,
                 'comp_balance': comp_balance,
             })
 
         return sections
 
+    # ------------------------------------------------------------------
+    # Public: full report dict consumed by controller / JS
+    # ------------------------------------------------------------------
     def get_report_data(self):
-        """Main method called by controller – returns full report dict."""
         sections = self._get_account_groups()
 
-        def _sum(rows, key='balance'):
-            return sum(r[key] for r in rows)
-
-        def _build_section(section_data, totals_label_map):
-            """Build list of subsection dicts with totals."""
-            result = []
-            grand = 0.0
+        def _build(section_data):
+            result     = []
+            grand      = 0.0
             grand_comp = 0.0
-            for subsection_name, rows in section_data.items():
-                sub_total = _sum(rows)
-                sub_comp = _sum(rows, 'comp_balance')
-                grand += sub_total
+            for name, rows in section_data.items():
+                sub_total = sum(r['balance']      for r in rows)
+                sub_comp  = sum(r['comp_balance'] for r in rows)
+                grand      += sub_total
                 grand_comp += sub_comp
                 result.append({
-                    'name': subsection_name,
-                    'rows': rows,
-                    'subtotal': sub_total,
+                    'name':          name,
+                    'rows':          rows,
+                    'subtotal':      sub_total,
                     'comp_subtotal': sub_comp,
                 })
             return result, grand, grand_comp
 
-        assets_subs, total_assets, comp_total_assets = _build_section(
-            sections['assets'], {}
-        )
-        liab_subs, total_liab, comp_total_liab = _build_section(
-            sections['liabilities'], {}
-        )
-        equity_subs, total_equity, comp_total_equity = _build_section(
-            sections['equity'], {}
-        )
+        assets_subs, total_assets, comp_total_assets   = _build(sections['assets'])
+        liab_subs,   total_liab,   comp_total_liab     = _build(sections['liabilities'])
+        equity_subs, total_equity, comp_total_equity   = _build(sections['equity'])
 
         currency = self.company_id.currency_id
 
         return {
-            'date_to': str(self.date_to or fields.Date.today()),
-            'date_from': str(self.date_from) if self.date_from else None,
-            'target_move': self.target_move,
-            'display_debit_credit': self.display_debit_credit,
-            'enable_comparison': self.enable_comparison,
-            'comparison_date_to': str(self.comparison_date_to) if self.comparison_date_to else None,
-            'company_name': self.company_id.name,
-            'currency_symbol': currency.symbol,
-            'currency_position': currency.position,
-            'assets': assets_subs,
-            'total_assets': total_assets,
-            'comp_total_assets': comp_total_assets,
-            'liabilities': liab_subs,
-            'total_liabilities': total_liab,
-            'comp_total_liabilities': comp_total_liab,
-            'equity': equity_subs,
-            'total_equity': total_equity,
-            'comp_total_equity': comp_total_equity,
-            'total_liabilities_equity': total_liab + total_equity,
+            'date_to':                       str(self.date_to or fields.Date.today()),
+            'date_from':                     str(self.date_from) if self.date_from else None,
+            'target_move':                   self.target_move,
+            'display_debit_credit':          self.display_debit_credit,
+            'enable_comparison':             self.enable_comparison,
+            'comparison_date_to':            str(self.comparison_date_to) if self.comparison_date_to else None,
+            'company_name':                  self.company_id.name,
+            'currency_symbol':               currency.symbol,
+            'currency_position':             currency.position,
+            'assets':                        assets_subs,
+            'total_assets':                  total_assets,
+            'comp_total_assets':             comp_total_assets,
+            'liabilities':                   liab_subs,
+            'total_liabilities':             total_liab,
+            'comp_total_liabilities':        comp_total_liab,
+            'equity':                        equity_subs,
+            'total_equity':                  total_equity,
+            'comp_total_equity':             comp_total_equity,
+            'total_liabilities_equity':      total_liab + total_equity,
             'comp_total_liabilities_equity': comp_total_liab + comp_total_equity,
         }

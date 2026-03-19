@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'POS Product Search Filter',
-    'version': '19.0.1.0.0',
+    'version': '19.0.2.0.0',
     'category': 'Point of Sale',
     'summary': 'Add Product search filter to POS Orders screen',
-    'description': """
-        Adds a 'Product' option to the search autocomplete in the POS Orders (Ticket) screen,
-        allowing cashiers to find orders by product name.
-    """,
     'author': 'Custom',
     'depends': ['point_of_sale'],
     'assets': {
@@ -17,6 +13,5 @@
     },
     'installable': True,
     'auto_install': False,
-    'application': False,
     'license': 'LGPL-3',
 }
