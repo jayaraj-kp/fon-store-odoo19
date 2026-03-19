@@ -1,34 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Server Action that opens the inline report -->
-    <record id="action_bak_balance_sheet_open" model="ir.actions.server">
-        <field name="name">Balance Sheet (Inline)</field>
-        <field name="model_id" ref="model_bak_balance_sheet_report"/>
-        <field name="binding_model_id" ref="model_bak_balance_sheet_report"/>
-        <field name="state">code</field>
-        <field name="code">
-wizard = env['bak.balance.sheet.report'].create({})
-action = {
-    'type': 'ir.actions.act_url',
-    'url': '/bak/balance_sheet?wizard_id=%d' % wizard.id,
-    'target': 'self',
-}
-        </field>
-    </record>
-
     <!-- URL Action for direct menu access -->
     <record id="action_bak_balance_sheet_url" model="ir.actions.act_url">
-        <field name="name">Balance Sheet</field>
+        <field name="name">Balance Sheet (Inline)</field>
         <field name="url">/bak/balance_sheet</field>
         <field name="target">self</field>
     </record>
 
-    <!-- Menu entry under Accounting > Reporting -->
+    <!--
+        We create our own standalone submenu under account.menu_finance
+        (the root Accounting app menu — always present in Odoo CE).
+        This avoids any dependency on Enterprise or third-party menu IDs.
+    -->
+    <menuitem
+        id="menu_bak_reports_root"
+        name="Inline Reports"
+        parent="account.menu_finance"
+        sequence="100"
+    />
+
     <menuitem
         id="menu_bak_balance_sheet"
-        name="Balance Sheet (Inline)"
-        parent="account.account_reports_bs_menu"
+        name="Balance Sheet"
+        parent="menu_bak_reports_root"
         action="action_bak_balance_sheet_url"
         sequence="1"
     />
