@@ -24,7 +24,6 @@ patch(PaymentScreen.prototype, {
     },
 
     get changeAmount() {
-        // Odoo 19: currentOrder.change is the computed change property
         const order = this.currentOrder;
         if (!order) return 0;
         const change = order.change || 0;
@@ -42,17 +41,15 @@ patch(PaymentScreen.prototype, {
             const { AlertDialog } = await import("@web/core/confirmation_dialog/confirmation_dialog");
             this.dialog.add(AlertDialog, {
                 title: "No Change Available",
-                body: "There is no change to donate. The customer has not overpaid.",
+                body: "There is no change to donate. Please ensure the customer has overpaid.",
             });
             return;
         }
-
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
             title: this.charityButtonLabel,
             changeAmount: changeAmt,
             currencySymbol: this.currencySymbol,
         });
-
         if (result && result.confirmed && result.amount > 0) {
             this._applyCharityDonation(result.amount);
         }
@@ -67,7 +64,6 @@ patch(PaymentScreen.prototype, {
             : this.pos.config.charity_account_id;
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
-
         this.notification.add(
             `${this.currencySymbol}${amount.toFixed(2)} will be donated to charity. Thank you!`,
             { type: "success", sticky: false }

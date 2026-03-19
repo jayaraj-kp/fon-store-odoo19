@@ -7,12 +7,8 @@
                 <t t-if="!charityState.isDonating">
                     <button
                         class="btn btn-charity btn-lg w-100 lh-lg"
-                        t-on-click="openCharityPopup"
-                        t-att-disabled="changeAmount &lt;= 0">
+                        t-on-click="openCharityPopup">
                         <span>❤ <t t-esc="charityButtonLabel"/></span>
-                        <span t-if="changeAmount &gt; 0" class="charity-change-hint ms-2">
-                            (<t t-esc="currencySymbol"/><t t-esc="changeAmount.toFixed(2)"/> available)
-                        </span>
                     </button>
                 </t>
                 <t t-else="">
