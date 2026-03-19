@@ -143,17 +143,17 @@
         <!-- GRAND TOTAL SUMMARY -->
         <div class="custom-total-section">
             <div class="line">
-                <span>Taxable Amount</span>
+                <span>Total Amount</span>
                 <span><t t-esc="formatCurrency(order.getTotalTaxableAmount())"/></span>
             </div>
-            <div class="line">
-                <span>CGST</span>
-                <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>
-            </div>
-            <div class="line">
-                <span>SGST</span>
-                <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>
-            </div>
+<!--            <div class="line">-->
+<!--                <span>CGST</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getTotalCgst())"/></span>-->
+<!--            </div>-->
+<!--            <div class="line">-->
+<!--                <span>SGST</span>-->
+<!--                <span><t t-esc="formatCurrency(order.getTotalSgst())"/></span>-->
+<!--            </div>-->
             <div class="line total">
                 <span>Grand Total</span>
                 <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
