@@ -389,3 +389,45 @@ td{{padding:4px 8px;border-bottom:1px solid #eee}}
                 ('Content-Disposition', content_disposition(filename)),
             ]
         )
+
+    # ------------------------------------------------------------------
+    # DEBUG endpoint — remove after confirming schema
+    # Visit: /bak/balance_sheet/debug_schema
+    # ------------------------------------------------------------------
+    @http.route('/bak/balance_sheet/debug_schema', type='http', auth='user')
+    def debug_schema(self, **kwargs):
+        cr = request.env.cr
+
+        cr.execute("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'account_account'
+            ORDER BY ordinal_position
+        """)
+        aa_cols = cr.fetchall()
+
+        cr.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name ILIKE '%account%code%'
+               OR table_name ILIKE '%account_account%'
+            ORDER BY table_name
+        """)
+        tables = cr.fetchall()
+
+        cr.execute("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'account_move_line'
+              AND column_name IN ('balance', 'amount_currency', 'debit', 'credit', 'company_id')
+            ORDER BY column_name
+        """)
+        aml_cols = cr.fetchall()
+
+        html = '<h2>account_account columns</h2><pre>'
+        html += '\n'.join(f'{c[0]:40s} {c[1]}' for c in aa_cols)
+        html += '</pre><h2>Related tables</h2><pre>'
+        html += '\n'.join(t[0] for t in tables)
+        html += '</pre><h2>account_move_line key columns</h2><pre>'
+        html += '\n'.join(f'{c[0]:40s} {c[1]}' for c in aml_cols)
+        html += '</pre>'
+        return request.make_response(html, headers=[('Content-Type', 'text/html')])

@@ -25,91 +25,107 @@ class BalanceSheetInlineReport(models.TransientModel):
     enable_comparison    = fields.Boolean(string='Enable Comparison', default=False)
 
     # ------------------------------------------------------------------
-    # Helper: detect how account_account is linked to companies
-    # Odoo 17+/19 uses company_ids (Many2many via a relation table)
-    # Older versions use company_id (Many2one column)
+    # Helper: detect actual columns on account_account
+    # Odoo 19 removed 'code' from account_account — codes moved to
+    # a separate account.account.code model / account_account_code table
     # ------------------------------------------------------------------
-    def _account_company_clause(self):
-        """
-        Returns (join_sql, where_sql) fragments for filtering
-        account_account by the current company.
-        Auto-detects whether the DB uses company_id column or
-        the Many2many relation table.
-        """
+    def _get_account_table_columns(self):
+        """Return set of column names that actually exist on account_account."""
         cr = self.env.cr
-
-        # Check if company_id column exists on account_account
         cr.execute("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'account_account'
-              AND column_name = 'company_id'
+        """)
+        return {row[0] for row in cr.fetchall()}
+
+    def _get_code_join(self, columns):
+        """
+        Returns (extra_select, extra_join) to get the account code.
+        - Odoo <= 17:  'code' column exists directly on account_account
+        - Odoo 18/19:  codes are in account_account_code table,
+                       joined via account_account_id; we pick the
+                       most recent / active code entry.
+        """
+        if 'code' in columns:
+            return "aa.code AS code", ""
+
+        # Check if account_account_code table exists
+        cr = self.env.cr
+        cr.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'account_account_code'
         """)
         if cr.fetchone():
-            # Old style: direct column
-            return ('', 'AND aa.company_id = %s', [self.company_id.id])
+            return (
+                "COALESCE(aac.code, '') AS code",
+                """LEFT JOIN (
+                    SELECT DISTINCT ON (account_id) account_id, code
+                    FROM account_account_code
+                    ORDER BY account_id, date_stop DESC NULLS FIRST, id DESC
+                ) aac ON aac.account_id = aa.id"""
+            )
 
-        # New style: find the Many2many relation table
-        # Common names: account_account_res_company_rel
-        #               account_account_company_rel
+        # Fallback: no code available
+        return "'?' AS code", ""
+
+    # ------------------------------------------------------------------
+    # Helper: detect company filter method
+    # ------------------------------------------------------------------
+    def _account_company_filter(self):
+        """
+        Returns (join_sql, where_sql, params) to filter account_account
+        by current company. Auto-detects schema version.
+        """
+        cr = self.env.cr
+        columns = self._get_account_table_columns()
+
+        if 'company_id' in columns:
+            return '', 'AND aa.company_id = %s', [self.company_id.id]
+
+        # Many2many relation table
         cr.execute("""
-            SELECT table_name
-            FROM information_schema.tables
+            SELECT table_name FROM information_schema.tables
             WHERE table_name IN (
                 'account_account_res_company_rel',
                 'account_account_company_rel',
                 'res_company_account_account_rel'
-            )
-            LIMIT 1
+            ) LIMIT 1
         """)
         rel = cr.fetchone()
         if rel:
             rel_table = rel[0]
-            # Find the column names in that relation table
             cr.execute("""
                 SELECT column_name FROM information_schema.columns
                 WHERE table_name = %s
             """, [rel_table])
             cols = [r[0] for r in cr.fetchall()]
-            # account col is the one that is NOT company
             company_col = next((c for c in cols if 'company' in c), None)
             account_col = next((c for c in cols if 'account' in c), None)
             if company_col and account_col:
                 join_sql = f"""
                     JOIN {rel_table} crel
                       ON crel.{account_col} = aa.id
-                      AND crel.{company_col} = %s
-                """
-                return (join_sql, '', [self.company_id.id])
+                      AND crel.{company_col} = %s"""
+                return join_sql, '', [self.company_id.id]
 
-        # Last resort: no company filter (show all accounts)
-        _logger.warning(
-            'bak_balance_sheet_report: could not determine company filter '
-            'for account_account. Showing all accounts.'
-        )
-        return ('', '', [])
+        _logger.warning('bak_balance_sheet: cannot filter accounts by company, showing all.')
+        return '', '', []
 
     # ------------------------------------------------------------------
-    # Core: compute balances from move lines via raw SQL
+    # Core: compute balances from account_move_line
     # ------------------------------------------------------------------
     def _compute_account_balances(self, date_from=None, date_to=None):
-        """
-        Returns {account_id: {'debit': x, 'credit': x, 'balance': x}}
-        Uses raw SQL for cross-version compatibility and performance.
-        """
         cr = self.env.cr
-
-        # account_move_line.company_id always exists as a regular column
         params = [self.company_id.id]
 
-        state_clause = "AND am.state = 'posted'" if self.target_move == 'posted' else ''
-
+        state_clause    = "AND am.state = 'posted'" if self.target_move == 'posted' else ''
         date_from_clause = ''
+        date_to_clause   = ''
+
         if date_from:
             date_from_clause = 'AND aml.date >= %s'
             params.append(date_from)
-
-        date_to_clause = ''
         if date_to:
             date_to_clause = 'AND aml.date <= %s'
             params.append(date_to)
@@ -139,7 +155,7 @@ class BalanceSheetInlineReport(models.TransientModel):
         }
 
     # ------------------------------------------------------------------
-    # Core: load accounts and group into balance sheet sections
+    # Core: load accounts and group into sections
     # ------------------------------------------------------------------
     def _get_account_groups(self):
         cr        = self.env.cr
@@ -152,21 +168,57 @@ class BalanceSheetInlineReport(models.TransientModel):
             comp_balances = self._compute_account_balances(
                 self.comparison_date_from, self.comparison_date_to)
 
-        # Detect how accounts are linked to companies
-        join_sql, where_extra, company_params = self._account_company_clause()
+        # Detect available columns
+        columns = self._get_account_table_columns()
+        code_select, code_join = self._get_code_join(columns)
+        company_join, company_where, company_params = self._account_company_filter()
+
+        # Detect account_type column (could be 'account_type' or 'user_type_id')
+        if 'account_type' in columns:
+            type_select = 'aa.account_type'
+        elif 'user_type_id' in columns:
+            # Odoo < 16 used user_type_id -> join to account.account.type
+            type_select = 'aat.type AS account_type'
+        else:
+            type_select = "'' AS account_type"
+
+        # Detect name: 'name' is always present but may be jsonb in v19
+        # Use a safe cast
+        cr.execute("""
+            SELECT data_type FROM information_schema.columns
+            WHERE table_name = 'account_account' AND column_name = 'name'
+        """)
+        name_type = cr.fetchone()
+        if name_type and 'json' in (name_type[0] or '').lower():
+            # JSONB multilang field — extract current language
+            name_select = "COALESCE(aa.name->>'en_US', aa.name::text) AS name"
+        else:
+            name_select = "aa.name"
+
+        # deprecated column check
+        depr_col = 'aa.deprecated' if 'deprecated' in columns else 'FALSE'
+
+        user_type_join = ''
+        if 'user_type_id' in columns:
+            user_type_join = 'LEFT JOIN account_account_type aat ON aat.id = aa.user_type_id'
 
         cr.execute(f"""
-            SELECT aa.id, aa.code, aa.name, aa.account_type
+            SELECT
+                aa.id,
+                {code_select},
+                {name_select},
+                {type_select}
             FROM account_account aa
-            {join_sql}
-            WHERE (aa.deprecated IS NULL OR aa.deprecated = FALSE)
-              {where_extra}
-            ORDER BY aa.code
+            {code_join}
+            {company_join}
+            {user_type_join}
+            WHERE ({depr_col} IS NULL OR {depr_col} = FALSE)
+              {company_where}
+            ORDER BY {code_select}
         """, company_params)
 
         rows = cr.fetchall()
 
-        # account_type → (section, subsection label)
         SECTION_MAP = {
             'asset_cash':            ('assets',      'Bank and Cash Accounts'),
             'asset_receivable':      ('assets',      'Receivables'),
@@ -180,6 +232,14 @@ class BalanceSheetInlineReport(models.TransientModel):
             'liability_non_current': ('liabilities', 'Plus Non-current Liabilities'),
             'equity_unaffected':     ('equity',      'Unallocated Earnings'),
             'equity':                ('equity',      'Retained Earnings'),
+            # Legacy Odoo < 16 type names
+            'receivable':            ('assets',      'Receivables'),
+            'payable':               ('liabilities', 'Payables'),
+            'bank':                  ('assets',      'Bank and Cash Accounts'),
+            'cash':                  ('assets',      'Bank and Cash Accounts'),
+            'asset':                 ('assets',      'Current Assets'),
+            'equity':                ('equity',      'Retained Earnings'),
+            'liability':             ('liabilities', 'Current Liabilities'),
         }
 
         sections = {'assets': {}, 'liabilities': {}, 'equity': {}}
@@ -197,10 +257,14 @@ class BalanceSheetInlineReport(models.TransientModel):
             if balance == 0.0 and comp_balance == 0.0:
                 continue
 
+            # Handle jsonb name
+            if isinstance(name, dict):
+                name = name.get('en_US') or next(iter(name.values()), '')
+
             sections[section].setdefault(subsection, []).append({
                 'id':           acc_id,
                 'code':         code or '',
-                'name':         name,
+                'name':         name or '',
                 'debit':        bal.get('debit', 0.0),
                 'credit':       bal.get('credit', 0.0),
                 'balance':      balance,
@@ -210,7 +274,7 @@ class BalanceSheetInlineReport(models.TransientModel):
         return sections
 
     # ------------------------------------------------------------------
-    # Public: full report dict consumed by controller / JS
+    # Public: full report dict for controller / JS
     # ------------------------------------------------------------------
     def get_report_data(self):
         sections = self._get_account_groups()
