@@ -17,9 +17,7 @@
                                     <label string="Charity Account" for="charity_account_id"/>
                                 </div>
                                 <div class="col-lg-8">
-                                    <field name="charity_account_id"
-                                           required="charity_enabled"
-                                           placeholder="Select charity ledger account..."/>
+                                    <field name="charity_account_id" required="charity_enabled"/>
                                 </div>
                             </div>
                             <div class="row mb-2">
@@ -36,7 +34,7 @@
                                 </div>
                                 <div class="col-lg-8">
                                     <field name="charity_gl_account_id"
-                                           placeholder="e.g. Charity Payable / Donations Received"/>
+                                           placeholder="e.g. 201002 Charity"/>
                                 </div>
                             </div>
                             <div class="row mb-2">

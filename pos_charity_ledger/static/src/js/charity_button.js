@@ -6,14 +6,23 @@ import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { CharityDonationPopup } from "@pos_charity_ledger/js/charity_popup";
 import { useState } from "@odoo/owl";
+import { PosOrder } from "@point_of_sale/app/models/pos_order";
+
+patch(PosOrder.prototype, {
+    serializeForORM(opts = {}) {
+        const data = super.serializeForORM(opts);
+        if (this._charity_donation_amount && this._charity_donation_amount > 0) {
+            data.charity_donation_amount = this._charity_donation_amount;
+            data.charity_account_id = this._charity_account_id || false;
+        }
+        return data;
+    },
+});
 
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
-        this.charityState = useState({
-            donationAmount: 0,
-            isDonating: false,
-        });
+        this.charityState = useState({ donationAmount: 0, isDonating: false });
     },
 
     get charityEnabled() {
@@ -62,20 +71,15 @@ patch(PaymentScreen.prototype, {
     _applyCharityDonation(amount) {
         const order = this.currentOrder;
         if (!order) return;
-
-        // Store on order object - these will be serialized when order is sent to server
         const accountId = Array.isArray(this.pos.config.charity_account_id)
             ? this.pos.config.charity_account_id[0]
             : this.pos.config.charity_account_id;
-
-        order.charity_donation_amount = amount;
-        order.charity_account_id = accountId;
-
+        order._charity_donation_amount = amount;
+        order._charity_account_id = accountId;
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
-
         this.notification.add(
-            `${this.currencySymbol}${amount.toFixed(2)} will be donated to charity. Thank you!`,
+            this.currencySymbol + amount.toFixed(2) + " will be donated to charity. Thank you!",
             { type: "success", sticky: false }
         );
     },
@@ -83,25 +87,15 @@ patch(PaymentScreen.prototype, {
     removeCharityDonation() {
         const order = this.currentOrder;
         if (order) {
-            order.charity_donation_amount = 0;
-            order.charity_account_id = null;
+            order._charity_donation_amount = 0;
+            order._charity_account_id = null;
         }
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
     },
 
     async validateOrder(isForceValidate) {
-        // Ensure charity data is set on order before validation
-        const order = this.currentOrder;
-        if (order && this.charityState.isDonating && this.charityState.donationAmount > 0) {
-            const accountId = Array.isArray(this.pos.config.charity_account_id)
-                ? this.pos.config.charity_account_id[0]
-                : this.pos.config.charity_account_id;
-            order.charity_donation_amount = this.charityState.donationAmount;
-            order.charity_account_id = accountId;
-        }
         const result = await super.validateOrder(isForceValidate);
-        // Reset charity state after successful validation
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
         return result;
