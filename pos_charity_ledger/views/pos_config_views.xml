@@ -6,7 +6,8 @@
         <field name="model">pos.config</field>
         <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//page[@name='connected_devices']" position="after">
+            <!-- Append charity page as last tab in the notebook - works for all Odoo 19 CE versions -->
+            <xpath expr="//notebook" position="inside">
                 <page string="Charity" name="charity_settings">
                     <group>
                         <group string="Charity Donation Settings">
