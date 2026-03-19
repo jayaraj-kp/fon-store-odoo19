@@ -1,32 +1,26 @@
 /** @odoo-module **/
 
-import { AbstractAwaitablePopup } from "@point_of_sale/app/popup/abstract_awaitable_popup";
-import { useState } from "@odoo/owl";
+import { Component, useState } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
-import { registry } from "@web/core/registry";
 
 /**
  * CharityDonationPopup
- *
- * A popup shown when the cashier clicks the "Donate to Charity" button.
- * Lets the cashier enter an amount (up to the available change).
- *
- * Props:
- *  - title: string
- *  - changeAmount: number (max they can donate)
- *  - currency: currency object
+ * Used with makeAwaitable(this.dialog, CharityDonationPopup, props)
  */
-export class CharityDonationPopup extends AbstractAwaitablePopup {
+export class CharityDonationPopup extends Component {
     static template = "pos_charity_ledger.CharityDonationPopup";
+    static props = {
+        title: { type: String, optional: true },
+        changeAmount: { type: Number },
+        currencySymbol: { type: String, optional: true },
+        close: { type: Function },
+    };
     static defaultProps = {
-        confirmText: _t("Donate"),
-        cancelText: _t("Cancel"),
-        title: _t("Charity Donation"),
-        body: "",
+        title: _t("Donate to Charity"),
+        currencySymbol: "₹",
     };
 
     setup() {
-        super.setup();
         this.state = useState({
             inputAmount: "",
             error: "",
@@ -38,67 +32,50 @@ export class CharityDonationPopup extends AbstractAwaitablePopup {
     }
 
     get currencySymbol() {
-        return this.props.currency?.symbol || "₹";
+        return this.props.currencySymbol || "₹";
     }
 
-    /**
-     * Set a quick amount button value.
-     */
     setAmount(amount) {
         if (amount > this.maxAmount) {
-            this.state.error = `Maximum donation is ${this.currencySymbol}${this.maxAmount.toFixed(2)}`;
+            this.state.error = _t("Maximum donation is %s%s", this.currencySymbol, this.maxAmount.toFixed(2));
             return;
         }
         this.state.error = "";
-        this.state.inputAmount = amount.toString();
+        this.state.inputAmount = String(amount);
     }
 
-    /**
-     * Set full change as donation amount.
-     */
     setFullChange() {
         this.setAmount(this.maxAmount);
     }
 
-    /**
-     * Validate the entered amount.
-     */
     _validateAmount() {
         const val = parseFloat(this.state.inputAmount);
         if (isNaN(val) || val <= 0) {
-            this.state.error = "Please enter a valid amount greater than 0.";
+            this.state.error = _t("Please enter a valid amount greater than 0.");
             return false;
         }
         if (val > this.maxAmount) {
-            this.state.error = `Maximum donation is ${this.currencySymbol}${this.maxAmount.toFixed(2)}`;
+            this.state.error = _t("Maximum donation is %s%s", this.currencySymbol, this.maxAmount.toFixed(2));
             return false;
         }
         this.state.error = "";
         return true;
     }
 
-    getPayload() {
-        return {
-            amount: parseFloat(this.state.inputAmount),
-        };
-    }
-
-    async confirm() {
+    confirm() {
         if (!this._validateAmount()) return;
-        super.confirm();
+        this.props.close({ confirmed: true, amount: parseFloat(this.state.inputAmount) });
     }
 
-    /**
-     * Handle numpad/keyboard input.
-     */
+    cancel() {
+        this.props.close({ confirmed: false, amount: 0 });
+    }
+
     onInputChange(ev) {
         this.state.inputAmount = ev.target.value;
         this.state.error = "";
     }
 
-    /**
-     * Handle numpad digit press.
-     */
     pressKey(key) {
         if (key === "⌫") {
             this.state.inputAmount = this.state.inputAmount.slice(0, -1);
@@ -107,7 +84,6 @@ export class CharityDonationPopup extends AbstractAwaitablePopup {
                 this.state.inputAmount += this.state.inputAmount === "" ? "0." : ".";
             }
         } else {
-            // Prevent more than 2 decimal places
             const parts = this.state.inputAmount.split(".");
             if (parts[1] && parts[1].length >= 2) return;
             this.state.inputAmount += key;

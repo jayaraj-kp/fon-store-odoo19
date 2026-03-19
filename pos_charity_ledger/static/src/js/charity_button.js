@@ -1,15 +1,11 @@
 /** @odoo-module **/
 
-import { Component, useState } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { patch } from "@web/core/utils/patch";
+import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
+import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
+import { CharityDonationPopup } from "@pos_charity_ledger/js/charity_popup";
+import { useState } from "@odoo/owl";
 
-/**
- * Patch the PaymentScreen to add charity donation tracking.
- * The actual button is rendered via the XML template patch.
- */
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
@@ -19,82 +15,68 @@ patch(PaymentScreen.prototype, {
         });
     },
 
-    /**
-     * Returns whether the charity feature is enabled for this POS.
-     */
     get charityEnabled() {
         return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
     },
 
-    /**
-     * Label for the charity button from config.
-     */
     get charityButtonLabel() {
         return this.pos.config.charity_button_label || "Donate to Charity";
     },
 
-    /**
-     * The change amount available for donation.
-     */
     get changeAmount() {
         const order = this.pos.get_order();
         if (!order) return 0;
         const totalPaid = order.get_total_paid();
         const totalDue = order.get_total_with_tax();
         const change = totalPaid - totalDue;
-        return change > 0 ? change : 0;
+        return change > 0 ? parseFloat(change.toFixed(2)) : 0;
     },
 
-    /**
-     * Opens the charity popup.
-     */
+    get currencySymbol() {
+        return this.pos.currency?.symbol || "₹";
+    },
+
     async openCharityPopup() {
         if (!this.charityEnabled) return;
-
         const changeAmt = this.changeAmount;
         if (changeAmt <= 0) {
-            await this.popup.add("ErrorPopup", {
-                title: "No Change Available",
-                body: "There is no change to donate. The customer hasn't overpaid.",
-            });
+            this.dialog.add(
+                (await import("@web/core/confirmation_dialog/confirmation_dialog")).AlertDialog,
+                {
+                    title: "No Change Available",
+                    body: "There is no change to donate. The customer has not overpaid.",
+                }
+            );
             return;
         }
 
-        const { confirmed, payload } = await this.popup.add("CharityDonationPopup", {
+        const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
             title: this.charityButtonLabel,
             changeAmount: changeAmt,
-            currency: this.pos.currency,
+            currencySymbol: this.currencySymbol,
         });
 
-        if (confirmed && payload && payload.amount > 0) {
-            this._applyCharityDonation(payload.amount);
+        if (result && result.confirmed && result.amount > 0) {
+            this._applyCharityDonation(result.amount);
         }
     },
 
-    /**
-     * Apply the charity donation to the current order.
-     */
     _applyCharityDonation(amount) {
         const order = this.pos.get_order();
         if (!order) return;
-
-        // Store donation info on the order for backend processing
         order.charity_donation_amount = amount;
-        order.charity_account_id = this.pos.config.charity_account_id[0];
-
+        order.charity_account_id = Array.isArray(this.pos.config.charity_account_id)
+            ? this.pos.config.charity_account_id[0]
+            : this.pos.config.charity_account_id;
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
 
-        // Show confirmation
         this.notification.add(
-            `₹${amount.toFixed(2)} will be donated to charity. Thank you!`,
+            `${this.currencySymbol}${amount.toFixed(2)} will be donated to charity. Thank you!`,
             { type: "success", sticky: false }
         );
     },
 
-    /**
-     * Remove/cancel the charity donation.
-     */
     removeCharityDonation() {
         const order = this.pos.get_order();
         if (order) {
@@ -105,15 +87,13 @@ patch(PaymentScreen.prototype, {
         this.charityState.isDonating = false;
     },
 
-    /**
-     * Override validate to include charity data in order.
-     */
     async validateOrder(isForceValidate) {
         const order = this.pos.get_order();
-        // Attach charity donation data to order JSON before sending
         if (order && this.charityState.isDonating && this.charityState.donationAmount > 0) {
             order.charity_donation_amount = this.charityState.donationAmount;
-            order.charity_account_id = this.pos.config.charity_account_id?.[0];
+            order.charity_account_id = Array.isArray(this.pos.config.charity_account_id)
+                ? this.pos.config.charity_account_id[0]
+                : this.pos.config.charity_account_id;
         }
         return super.validateOrder(isForceValidate);
     },

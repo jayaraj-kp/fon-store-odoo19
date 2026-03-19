@@ -1,34 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
 
-    <!--
-        Patch the PaymentScreen template to add the Charity button
-        below the payment methods list.
-    -->
-    <t t-inherit="point_of_sale.PaymentScreen" t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('payment-buttons')]" position="after">
-            <div t-if="charityEnabled" class="charity-donation-section">
+    <t t-inherit="point_of_sale.PaymentScreenButtons" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('payment-buttons')]" position="inside">
+            <div t-if="charityEnabled" class="charity-donation-section d-flex flex-column gap-1 w-100 mt-1">
                 <t t-if="!charityState.isDonating">
-                    <!-- Show charity button when not yet donating -->
                     <button
-                        class="btn btn-charity"
+                        class="btn btn-charity btn-lg w-100 lh-lg"
                         t-on-click="openCharityPopup"
                         t-att-disabled="changeAmount &lt;= 0">
-                        <span class="charity-icon">❤</span>
-                        <span t-esc="charityButtonLabel"/>
-                        <span t-if="changeAmount &gt; 0" class="charity-change-hint">
-                            (Change: <t t-esc="pos.currency.symbol"/><t t-esc="changeAmount.toFixed(2)"/>)
+                        <span>❤ <t t-esc="charityButtonLabel"/></span>
+                        <span t-if="changeAmount &gt; 0" class="charity-change-hint ms-2">
+                            (<t t-esc="currencySymbol"/><t t-esc="changeAmount.toFixed(2)"/> available)
                         </span>
                     </button>
                 </t>
                 <t t-else="">
-                    <!-- Show donation badge when amount is set -->
-                    <div class="charity-active-donation">
-                        <span class="charity-icon">❤</span>
+                    <div class="charity-active-donation d-flex align-items-center justify-content-between w-100 px-3 py-2">
                         <span>
-                            Donating <strong><t t-esc="pos.currency.symbol"/><t t-esc="charityState.donationAmount.toFixed(2)"/></strong> to Charity
+                            ❤ Donating <strong><t t-esc="currencySymbol"/><t t-esc="charityState.donationAmount.toFixed(2)"/></strong> to Charity
                         </span>
-                        <button class="btn btn-charity-remove" t-on-click="removeCharityDonation">
+                        <button class="btn btn-sm btn-charity-remove" t-on-click="removeCharityDonation">
                             ✕ Remove
                         </button>
                     </div>
