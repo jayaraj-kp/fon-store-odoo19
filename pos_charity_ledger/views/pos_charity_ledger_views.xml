@@ -139,16 +139,14 @@
                 <field name="charity_account_id"/>
                 <field name="pos_config_id"/>
                 <filter name="confirmed" string="Confirmed" domain="[('state','=','confirmed')]"/>
-                <filter name="today" string="Today"
-                        domain="[('date','&gt;=', (context_today()).strftime('%Y-%m-%d 00:00:00'))]"/>
-                <group expand="0" string="Group By">
-                    <filter name="group_charity" string="Charity Account"
-                            context="{'group_by': 'charity_account_id'}"/>
-                    <filter name="group_session" string="POS Session"
-                            context="{'group_by': 'pos_session_id'}"/>
-                    <filter name="group_date" string="Date"
-                            context="{'group_by': 'date:day'}"/>
-                </group>
+                <filter name="draft" string="Draft" domain="[('state','=','draft')]"/>
+                <separator/>
+                <filter name="group_charity" string="Group by Charity"
+                        context="{'group_by': 'charity_account_id'}"/>
+                <filter name="group_session" string="Group by Session"
+                        context="{'group_by': 'pos_session_id'}"/>
+                <filter name="group_date" string="Group by Date"
+                        context="{'group_by': 'date:day'}"/>
             </search>
         </field>
     </record>
