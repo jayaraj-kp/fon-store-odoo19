@@ -1,40 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Extend POS Config form to add Charity settings tab -->
+    <!-- Extend POS Config form to add Charity settings -->
     <record id="view_pos_config_form_charity" model="ir.ui.view">
         <field name="name">pos.config.form.charity</field>
         <field name="model">pos.config</field>
         <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
         <field name="arch" type="xml">
-            <!-- Append charity page as last tab in the notebook - works for all Odoo 19 CE versions -->
-            <xpath expr="//notebook" position="inside">
-                <page string="Charity" name="charity_settings">
-                    <group>
-                        <group string="Charity Donation Settings">
-                            <field name="charity_enabled"/>
-                            <field name="charity_account_id"
-                                   attrs="{'required': [('charity_enabled', '=', True)],
-                                           'invisible': [('charity_enabled', '=', False)]}"/>
-                            <field name="charity_button_label"
-                                   attrs="{'invisible': [('charity_enabled', '=', False)]}"/>
-                        </group>
-                    </group>
-                </page>
-            </xpath>
-        </field>
-    </record>
-
-    <!-- POS Session form: show charity totals -->
-    <record id="view_pos_session_form_charity" model="ir.ui.view">
-        <field name="name">pos.session.form.charity</field>
-        <field name="model">pos.session</field>
-        <field name="inherit_id" ref="point_of_sale.view_pos_session_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//sheet" position="inside">
-                <group string="Charity Donations" attrs="{'invisible': [('charity_donation_count', '=', 0)]}">
-                    <field name="charity_donation_total" widget="monetary"/>
-                    <field name="charity_donation_count"/>
-                </group>
+            <!-- Target the last o_settings_container div and append after it -->
+            <xpath expr="//div[@id='restaurant_on_create']" position="after">
+                <div class="row mt16 o_settings_container"
+                     invisible="context.get('pos_config_create_mode', False)">
+                    <setting string="Charity Donations"
+                             help="Show a Charity button on the POS payment screen to let customers donate their change.">
+                        <field name="charity_enabled"/>
+                        <div class="content-group mt8" invisible="not charity_enabled">
+                            <div class="row mb-2">
+                                <div class="col-lg-4 o_light_label">
+                                    <label string="Charity Account" for="charity_account_id"/>
+                                </div>
+                                <div class="col-lg-8">
+                                    <field name="charity_account_id"
+                                           placeholder="Select charity account..."
+                                           options="{'no_create': False}"/>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-lg-4 o_light_label">
+                                    <label string="Button Label" for="charity_button_label"/>
+                                </div>
+                                <div class="col-lg-8">
+                                    <field name="charity_button_label"/>
+                                </div>
+                            </div>
+                        </div>
+                    </setting>
+                </div>
             </xpath>
         </field>
     </record>
