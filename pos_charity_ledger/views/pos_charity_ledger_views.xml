@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- ==================== pos.charity.account views ==================== -->
-    <record id="view_pos_charity_account_tree" model="ir.ui.view">
-        <field name="name">pos.charity.account.tree</field>
+    <record id="view_pos_charity_account_list" model="ir.ui.view">
+        <field name="name">pos.charity.account.list</field>
         <field name="model">pos.charity.account</field>
         <field name="arch" type="xml">
             <list string="Charity Accounts">
@@ -70,8 +70,8 @@
     </record>
 
     <!-- ==================== pos.charity.donation views ==================== -->
-    <record id="view_pos_charity_donation_tree" model="ir.ui.view">
-        <field name="name">pos.charity.donation.tree</field>
+    <record id="view_pos_charity_donation_list" model="ir.ui.view">
+        <field name="name">pos.charity.donation.list</field>
         <field name="model">pos.charity.donation</field>
         <field name="arch" type="xml">
             <list string="Charity Donations"
@@ -84,7 +84,7 @@
                 <field name="pos_order_id"/>
                 <field name="cashier_id"/>
                 <field name="amount" widget="monetary"/>
-                <field name="currency_id" invisible="1"/>
+                <field name="currency_id" column_invisible="1"/>
                 <field name="state" widget="badge"
                        decoration-success="state == 'confirmed'"
                        decoration-warning="state == 'draft'"
@@ -101,9 +101,9 @@
                 <header>
                     <button name="action_confirm" type="object" string="Confirm"
                             class="btn-primary"
-                            attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                            invisible="state != 'draft'"/>
                     <button name="action_cancel" type="object" string="Cancel"
-                            attrs="{'invisible': [('state', 'in', ['cancelled'])]}"/>
+                            invisible="state == 'cancelled'"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,confirmed"/>
                 </header>

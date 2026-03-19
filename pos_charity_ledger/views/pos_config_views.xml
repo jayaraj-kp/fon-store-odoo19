@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Extend POS Config form to add Charity settings -->
     <record id="view_pos_config_form_charity" model="ir.ui.view">
         <field name="name">pos.config.form.charity</field>
         <field name="model">pos.config</field>
         <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
         <field name="arch" type="xml">
-            <!-- Target the last o_settings_container div and append after it -->
             <xpath expr="//div[@id='restaurant_on_create']" position="after">
                 <div class="row mt16 o_settings_container"
                      invisible="context.get('pos_config_create_mode', False)">
@@ -20,8 +18,8 @@
                                 </div>
                                 <div class="col-lg-8">
                                     <field name="charity_account_id"
-                                           placeholder="Select charity account..."
-                                           options="{'no_create': False}"/>
+                                           required="charity_enabled"
+                                           placeholder="Select charity account..."/>
                                 </div>
                             </div>
                             <div class="row mb-2">
