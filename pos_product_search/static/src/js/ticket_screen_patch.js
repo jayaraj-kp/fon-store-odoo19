@@ -1,21 +1,10 @@
 /** @odoo-module **/
 
-/**
- * POS Product Search Filter — v8 (Odoo 19 CE)
- *
- * Completely new strategy: Instead of patching TicketScreen.prototype,
- * we directly patch the template registry to add our <li> to the
- * search dropdown, AND patch the search/filter method at the class level.
- *
- * Also adds a MutationObserver as the ultimate fallback — it watches
- * the entire document for the dropdown appearing and injects directly.
- */
-
 import { patch } from "@web/core/utils/patch";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
 import { _t } from "@web/core/l10n/translation";
 
-console.log("[POS Product Search v8] Module loading...");
+console.log("[POS Product Search v9] Module loading...");
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
@@ -39,12 +28,13 @@ function getOrderProductNames(order) {
         .toLowerCase();
 }
 
-// ─── MutationObserver: watches for the search dropdown appearing in DOM ───────
+// ─── Active component reference ───────────────────────────────────────────────
+let _activeTicketScreen = null;
 
-let _activeTicketScreen = null;   // reference set in setup()
+// ─── Dropdown injection ───────────────────────────────────────────────────────
 
-function handleDropdownMutation() {
-    // Find any visible <li> that has "Reference" or "Receipt" text — that's our dropdown
+function injectProductLi() {
+    // Find an existing search-field <li> (Reference / Receipt Number)
     const allLis = document.querySelectorAll("li");
     let anchorLi = null;
     for (const li of allLis) {
@@ -62,20 +52,14 @@ function handleDropdownMutation() {
     // Already injected?
     if (ul.querySelector("[data-pos-product-search]")) return;
 
-    // Get current search term from the input near this dropdown
-    const searchInput =
-        (_activeTicketScreen?.state?.searchInput) ||
-        document.querySelector(".ticket-screen input[type='text']")?.value ||
-        document.querySelector(".pos-topheader input")?.value ||
-        "";
+    const searchInput = (_activeTicketScreen?.state?.searchInput || "").trim();
+    if (!searchInput) return;
 
-    if (!searchInput.trim()) return;
-
-    console.log("[POS Product Search v8] Injecting Product li into:", ul.className, "term:", searchInput);
+    console.log("[POS Product Search v9] Injecting Product li, term:", searchInput);
 
     const li = document.createElement("li");
     li.setAttribute("data-pos-product-search", "1");
-    li.className = anchorLi.className;   // copy exact class from sibling
+    li.className = anchorLi.className;
     li.style.cursor = "pointer";
     li.innerHTML = `<span class="field">${_t("Product")}</span><span>: </span><span class="term text-primary fw-bolder">${searchInput}</span>`;
 
@@ -94,12 +78,24 @@ function handleDropdownMutation() {
     ul.appendChild(li);
 }
 
-// Start a MutationObserver on <body> to catch dropdown appearing
-const observer = new MutationObserver(() => {
-    try { handleDropdownMutation(); } catch (e) { /* silent */ }
-});
-observer.observe(document.body, { childList: true, subtree: true });
-console.log("[POS Product Search v8] MutationObserver started ✓");
+// ─── MutationObserver — started AFTER DOM is ready ───────────────────────────
+
+function startObserver() {
+    const target = document.body || document.documentElement;
+    const observer = new MutationObserver(() => {
+        try { injectProductLi(); } catch (_e) { /* silent */ }
+    });
+    observer.observe(target, { childList: true, subtree: true });
+    console.log("[POS Product Search v9] MutationObserver started on", target.tagName, "✓");
+}
+
+// Defer until DOM is available — works whether body exists yet or not
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startObserver);
+} else {
+    // DOM already ready (most likely case in Odoo's module loader)
+    startObserver();
+}
 
 // ─── Patch ────────────────────────────────────────────────────────────────────
 
@@ -107,13 +103,13 @@ patch(TicketScreen.prototype, {
     setup() {
         super.setup(...arguments);
         _activeTicketScreen = this;
-        console.log("[POS Product Search v8] TicketScreen setup() called ✓");
+        console.log("[POS Product Search v9] TicketScreen setup() ✓");
     },
 
     getSearchFields() {
         let fields = {};
         try { fields = super.getSearchFields() || {}; } catch (_e) {}
-        const result = {
+        return {
             ...fields,
             PRODUCT: {
                 displayName: _t("Product"),
@@ -121,8 +117,6 @@ patch(TicketScreen.prototype, {
                 repr: (order) => getOrderProductNames(order),
             },
         };
-        console.log("[POS Product Search v8] getSearchFields() →", Object.keys(result));
-        return result;
     },
 
     // Odoo 19
@@ -158,4 +152,4 @@ patch(TicketScreen.prototype, {
     },
 });
 
-console.log("[POS Product Search v8] Patch applied ✓");
+console.log("[POS Product Search v9] Patch applied ✓");
