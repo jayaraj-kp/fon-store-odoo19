@@ -1,15 +1,17 @@
 /** @odoo-module **/
 
 /**
- * POS Product Search Filter — v4 (Odoo 19 CE)
+ * POS Product Search Filter — v5 (Odoo 17/18/19 CE)
  *
- * Fix: TypeError: Cannot read properties of undefined (reading 'models')
+ * KEY INSIGHT: In Odoo 17+, TicketScreen's XML template already loops over
+ * getSearchFields() results automatically using t-foreach. This means the
+ * XML patch is NOT needed — and was actually causing the crash by trying
+ * to XPath-match a <ul class="py-1"> that no longer exists in Odoo 19.
  *
- * Root cause: In Odoo 19, TicketScreen's search mechanism changed.
- * The component uses `getSearchFields` which must return an object keyed
- * by field name. We patch that method to inject the PRODUCT field.
- *
- * Also fixed: onClickSearchField is the correct handler name in Odoo 19.
+ * All we need is this JS patch that:
+ * 1. Adds PRODUCT to getSearchFields() → appears in the dropdown automatically
+ * 2. Handles filtering in _doesOrderPassFilter() → Odoo 19 method
+ *    (with fallbacks for 17/18 method names)
  */
 
 import { patch } from "@web/core/utils/patch";
@@ -17,17 +19,22 @@ import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_sc
 import { _t } from "@web/core/l10n/translation";
 
 /**
- * Helper: collect all product names from an order's order lines.
- * Tries multiple field paths to be resilient across Odoo versions.
+ * Collect all product names from an order's lines as a lowercase string.
+ * Tries every known field path across Odoo versions.
  */
 function getOrderProductNames(order) {
-    const lines = order.lines || order.orderlines || [];
-    return lines
+    const lines =
+        (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
+        order.lines ||
+        order.orderlines ||
+        [];
+
+    return Array.from(lines)
         .map((line) => {
-            // Try the most common field names in order
             return (
-                line.product_name ||
+                (typeof line.get_full_product_name === "function" && line.get_full_product_name()) ||
                 line.full_product_name ||
+                line.product_name ||
                 (line.product_id && (line.product_id.display_name || line.product_id.name)) ||
                 (line.product && (line.product.display_name || line.product.name)) ||
                 ""
@@ -40,24 +47,21 @@ function getOrderProductNames(order) {
 
 patch(TicketScreen.prototype, {
     /**
-     * Odoo 19 uses getSearchFields() to build the dropdown list.
-     * We call super first (safely), then inject our PRODUCT entry.
+     * Odoo 17/18/19 — called to populate the search-field dropdown.
+     * The template iterates over Object.entries(getSearchFields()) automatically,
+     * so returning PRODUCT here is all that is needed for the UI.
      */
     getSearchFields() {
-        // Safely call the original method
         let fields = {};
         try {
             fields = super.getSearchFields() || {};
         } catch (_e) {
-            // If super doesn't define it, start from scratch
+            // super may not define it in some builds
         }
-
         return {
             ...fields,
             PRODUCT: {
                 displayName: _t("Product"),
-                // modelField is used by some versions for domain-based search;
-                // repr() is the fallback used for in-memory filtering.
                 modelField: "lines.product_id.display_name",
                 repr: (order) => getOrderProductNames(order),
             },
@@ -65,8 +69,7 @@ patch(TicketScreen.prototype, {
     },
 
     /**
-     * Odoo 19 calls getFilteredOrderList which internally calls
-     * _doesOrderPassFilter for each order. We intercept here.
+     * Odoo 19 primary filter method — called per order when searching.
      */
     _doesOrderPassFilter(order, { fieldName, searchTerm }) {
         if (fieldName === "PRODUCT") {
@@ -74,7 +77,6 @@ patch(TicketScreen.prototype, {
             if (!term) return true;
             return getOrderProductNames(order).includes(term);
         }
-        // Delegate to original for all other field types
         try {
             return super._doesOrderPassFilter(order, { fieldName, searchTerm });
         } catch (_e) {
@@ -83,7 +85,7 @@ patch(TicketScreen.prototype, {
     },
 
     /**
-     * Safety net: some Odoo 19 builds use filterOrderBySearch instead.
+     * Odoo 17/18 fallback filter method name.
      */
     filterOrderBySearch(order, searchDetails) {
         if (searchDetails && searchDetails.fieldName === "PRODUCT") {
@@ -99,7 +101,7 @@ patch(TicketScreen.prototype, {
     },
 
     /**
-     * Safety net: Odoo 16/17/18 used _searchOrder.
+     * Odoo 16/17 fallback filter method name.
      */
     _searchOrder(order, fieldValue) {
         if (fieldValue && fieldValue.fieldName === "PRODUCT") {
