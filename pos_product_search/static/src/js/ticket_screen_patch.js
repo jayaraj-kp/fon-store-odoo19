@@ -1,15 +1,23 @@
 /** @odoo-module **/
 
 /**
- * POS Product Search Filter — v7 (Odoo 19 CE)
- * - Adds diagnostic logging so we can see the exact DOM structure
- * - Tries ALL possible ul/list elements and logs what it finds
+ * POS Product Search Filter — v8 (Odoo 19 CE)
+ *
+ * Completely new strategy: Instead of patching TicketScreen.prototype,
+ * we directly patch the template registry to add our <li> to the
+ * search dropdown, AND patch the search/filter method at the class level.
+ *
+ * Also adds a MutationObserver as the ultimate fallback — it watches
+ * the entire document for the dropdown appearing and injects directly.
  */
 
 import { patch } from "@web/core/utils/patch";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
 import { _t } from "@web/core/l10n/translation";
-import { onMounted, onPatched } from "@odoo/owl";
+
+console.log("[POS Product Search v8] Module loading...");
+
+// ─── Helper ──────────────────────────────────────────────────────────────────
 
 function getOrderProductNames(order) {
     const lines =
@@ -31,138 +39,81 @@ function getOrderProductNames(order) {
         .toLowerCase();
 }
 
-/**
- * DIAGNOSTIC: logs the full inner HTML of the dropdown area
- * so we can identify the exact selector to use.
- */
-function diagnoseDom(rootEl) {
-    console.group("[POS Product Search] DOM Diagnostic");
-    console.log("Root el tag:", rootEl?.tagName, rootEl?.className);
+// ─── MutationObserver: watches for the search dropdown appearing in DOM ───────
 
-    // Log all <ul> elements found inside the component
-    const uls = rootEl?.querySelectorAll("ul") || [];
-    console.log(`Found ${uls.length} <ul> element(s):`);
-    uls.forEach((ul, i) => {
-        console.log(`  ul[${i}] class="${ul.className}" id="${ul.id}" children=${ul.children.length}`);
-        console.log(`  ul[${i}] outerHTML:`, ul.outerHTML.substring(0, 500));
-    });
+let _activeTicketScreen = null;   // reference set in setup()
 
-    // Log all <li> elements (to see existing search field items)
-    const lis = rootEl?.querySelectorAll("li") || [];
-    console.log(`Found ${lis.length} <li> element(s):`);
-    lis.forEach((li, i) => {
-        console.log(`  li[${i}] class="${li.className}" text="${li.textContent.trim().substring(0, 80)}"`);
-    });
-
-    // Also log elements with "search" in class or id
-    const searchEls = rootEl?.querySelectorAll("[class*='search'],[id*='search']") || [];
-    console.log(`Found ${searchEls.length} element(s) with 'search' in class/id:`);
-    searchEls.forEach((el, i) => {
-        console.log(`  [${i}] <${el.tagName.toLowerCase()}> class="${el.className}"`);
-    });
-
-    console.groupEnd();
-}
-
-function injectProductLi(component) {
-    const root = component.el || component.__owl__?.el;
-    if (!root) return;
-
-    const inputVal = (component.state?.searchInput || "").trim();
-
-    // Run diagnostic every time input has a value (throttle to avoid spam)
-    if (inputVal && !component._posSearchDiagDone) {
-        diagnoseDom(root);
-        component._posSearchDiagDone = true;
-    }
-    if (!inputVal) {
-        component._posSearchDiagDone = false;
-    }
-
-    // Try to find the dropdown container — check ALL possible selectors
-    const selectors = [
-        "ul.dropdown-menu",
-        "ul.o_search_dropdown",
-        "ul.list-unstyled",
-        "ul.py-1",
-        "ul.p-0",
-        "ul.m-0",
-        "[class*='dropdown'] ul",
-        "[class*='search'] ul",
-        ".search-bar ul",
-        ".o-search ul",
-        "ul",
-    ];
-
-    let ul = null;
-    for (const sel of selectors) {
-        const found = root.querySelector(sel);
-        if (found) {
-            console.log(`[POS Product Search] Found dropdown using selector: "${sel}"`);
-            ul = found;
+function handleDropdownMutation() {
+    // Find any visible <li> that has "Reference" or "Receipt" text — that's our dropdown
+    const allLis = document.querySelectorAll("li");
+    let anchorLi = null;
+    for (const li of allLis) {
+        const txt = li.textContent || "";
+        if (txt.includes("Receipt Number") || txt.includes("Reference:")) {
+            anchorLi = li;
             break;
         }
     }
+    if (!anchorLi) return;
 
-    if (!ul) {
-        // Last resort: find the <li> that contains "Reference:" and get its parent
-        const refLi = Array.from(root.querySelectorAll("li")).find(
-            (li) => li.textContent.includes("Reference") || li.textContent.includes("Receipt")
-        );
-        if (refLi) {
-            ul = refLi.parentElement;
-            console.log("[POS Product Search] Found dropdown via Reference li parent:", ul?.tagName, ul?.className);
-        }
-    }
+    const ul = anchorLi.parentElement;
+    if (!ul) return;
 
-    if (!ul) {
-        if (inputVal) console.warn("[POS Product Search] Could not find dropdown ul — check diagnostic above");
-        return;
-    }
+    // Already injected?
+    if (ul.querySelector("[data-pos-product-search]")) return;
 
-    // Remove stale injected item
-    ul.querySelector("[data-pos-product-search]")?.remove();
-    if (!inputVal) return;
+    // Get current search term from the input near this dropdown
+    const searchInput =
+        (_activeTicketScreen?.state?.searchInput) ||
+        document.querySelector(".ticket-screen input[type='text']")?.value ||
+        document.querySelector(".pos-topheader input")?.value ||
+        "";
+
+    if (!searchInput.trim()) return;
+
+    console.log("[POS Product Search v8] Injecting Product li into:", ul.className, "term:", searchInput);
 
     const li = document.createElement("li");
     li.setAttribute("data-pos-product-search", "1");
-    // Copy classes from a sibling <li> for consistent styling
-    const siblingLi = ul.querySelector("li:not([data-pos-product-search])");
-    li.className = siblingLi ? siblingLi.className : "ps-5 py-1 text-start cursor-pointer";
+    li.className = anchorLi.className;   // copy exact class from sibling
     li.style.cursor = "pointer";
-    li.innerHTML = `<span class="field">${_t("Product")}</span><span>: </span><span class="term text-primary fw-bolder">${inputVal}</span>`;
+    li.innerHTML = `<span class="field">${_t("Product")}</span><span>: </span><span class="term text-primary fw-bolder">${searchInput}</span>`;
 
     li.addEventListener("mousedown", (e) => {
-        // mousedown fires before blur which would close the dropdown
         e.preventDefault();
-        if (typeof component.onClickSearchField === "function") {
-            component.onClickSearchField("PRODUCT");
-        } else if (typeof component.setSearchField === "function") {
-            component.setSearchField("PRODUCT");
-        } else {
-            // Manual fallback: set state directly
-            if (component.state) {
-                component.state.selectedOrder = null;
-                component.state.filter = { fieldName: "PRODUCT", searchTerm: inputVal };
-            }
+        e.stopPropagation();
+        const comp = _activeTicketScreen;
+        if (!comp) return;
+        if (typeof comp.onClickSearchField === "function") {
+            comp.onClickSearchField("PRODUCT");
+        } else if (typeof comp.setSearchField === "function") {
+            comp.setSearchField("PRODUCT");
         }
     });
 
     ul.appendChild(li);
-    console.log("[POS Product Search] Product <li> injected into:", ul.tagName, ul.className);
 }
+
+// Start a MutationObserver on <body> to catch dropdown appearing
+const observer = new MutationObserver(() => {
+    try { handleDropdownMutation(); } catch (e) { /* silent */ }
+});
+observer.observe(document.body, { childList: true, subtree: true });
+console.log("[POS Product Search v8] MutationObserver started ✓");
+
+// ─── Patch ────────────────────────────────────────────────────────────────────
 
 patch(TicketScreen.prototype, {
     setup() {
         super.setup(...arguments);
-        onMounted(() => injectProductLi(this));
-        onPatched(() => injectProductLi(this));
+        _activeTicketScreen = this;
+        console.log("[POS Product Search v8] TicketScreen setup() called ✓");
     },
 
     getSearchFields() {
         let fields = {};
         try { fields = super.getSearchFields() || {}; } catch (_e) {}
-        return {
+        const result = {
             ...fields,
             PRODUCT: {
                 displayName: _t("Product"),
@@ -170,8 +121,11 @@ patch(TicketScreen.prototype, {
                 repr: (order) => getOrderProductNames(order),
             },
         };
+        console.log("[POS Product Search v8] getSearchFields() →", Object.keys(result));
+        return result;
     },
 
+    // Odoo 19
     _doesOrderPassFilter(order, { fieldName, searchTerm }) {
         if (fieldName === "PRODUCT") {
             const term = (searchTerm || "").toLowerCase().trim();
@@ -182,6 +136,7 @@ patch(TicketScreen.prototype, {
         catch (_e) { return true; }
     },
 
+    // Odoo 17/18 fallback
     filterOrderBySearch(order, searchDetails) {
         if (searchDetails?.fieldName === "PRODUCT") {
             const term = (searchDetails.searchTerm || "").toLowerCase().trim();
@@ -202,3 +157,5 @@ patch(TicketScreen.prototype, {
         catch (_e) { return true; }
     },
 });
+
+console.log("[POS Product Search v8] Patch applied ✓");
