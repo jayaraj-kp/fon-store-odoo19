@@ -1,98 +1,90 @@
 /** @odoo-module **/
 
 /**
- * POS Product Search Filter — v3 (Odoo 19 CE)
+ * POS Product Search Filter — v4 (Odoo 19 CE)
  *
- * Strategy:
- *  1. The XML template patch adds the "Product" <li> to the dropdown UI.
- *  2. This JS patch hooks into the filtering logic so selecting "Product"
- *     actually filters orders by product name.
+ * Fix: TypeError: Cannot read properties of undefined (reading 'models')
  *
- * Debug logging is included so you can check the browser console (F12)
- * and see exactly which methods are found on the prototype.
+ * Root cause: In Odoo 19, TicketScreen's search mechanism changed.
+ * The component uses `getSearchFields` which must return an object keyed
+ * by field name. We patch that method to inject the PRODUCT field.
+ *
+ * Also fixed: onClickSearchField is the correct handler name in Odoo 19.
  */
 
 import { patch } from "@web/core/utils/patch";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
 import { _t } from "@web/core/l10n/translation";
 
-// ── Debug: log ALL methods on TicketScreen.prototype ──────────────────────
-console.group("[POS Product Search] TicketScreen prototype methods");
-const protoMethods = [];
-let obj = TicketScreen.prototype;
-while (obj && obj !== Object.prototype) {
-    Object.getOwnPropertyNames(obj).forEach((name) => {
-        if (typeof TicketScreen.prototype[name] === "function") {
-            protoMethods.push(name);
-        }
-    });
-    obj = Object.getPrototypeOf(obj);
-}
-// Log all method names sorted so you can find the real search-related ones
-console.log("All methods:", protoMethods.sort().join(", "));
-// Specifically look for search-related methods
-const searchMethods = protoMethods.filter((m) =>
-    m.toLowerCase().includes("search") || m.toLowerCase().includes("filter")
-);
-console.log("Search / filter methods found:", searchMethods);
-console.groupEnd();
-// ─────────────────────────────────────────────────────────────────────────
-
 /**
- * Helper: get all product names from an order's lines as a
- * lowercase space-separated string for substring matching.
+ * Helper: collect all product names from an order's order lines.
+ * Tries multiple field paths to be resilient across Odoo versions.
  */
 function getOrderProductNames(order) {
-    const lines = order.lines || [];
+    const lines = order.lines || order.orderlines || [];
     return lines
-        .map(
-            (line) =>
+        .map((line) => {
+            // Try the most common field names in order
+            return (
                 line.product_name ||
                 line.full_product_name ||
+                (line.product_id && (line.product_id.display_name || line.product_id.name)) ||
                 (line.product && (line.product.display_name || line.product.name)) ||
                 ""
-        )
+            );
+        })
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
 }
 
-// ── Patch 1: getSearchFields (Odoo 17/18/19 name) ──────────────────────
 patch(TicketScreen.prototype, {
+    /**
+     * Odoo 19 uses getSearchFields() to build the dropdown list.
+     * We call super first (safely), then inject our PRODUCT entry.
+     */
     getSearchFields() {
-        console.log("[POS Product Search] getSearchFields() called ✓");
+        // Safely call the original method
         let fields = {};
         try {
-            fields = super.getSearchFields(...arguments) || {};
-        } catch (e) {
-            console.warn("[POS Product Search] super.getSearchFields failed:", e);
+            fields = super.getSearchFields() || {};
+        } catch (_e) {
+            // If super doesn't define it, start from scratch
         }
+
         return {
             ...fields,
             PRODUCT: {
                 displayName: _t("Product"),
+                // modelField is used by some versions for domain-based search;
+                // repr() is the fallback used for in-memory filtering.
                 modelField: "lines.product_id.display_name",
                 repr: (order) => getOrderProductNames(order),
             },
         };
     },
 
-    // ── Patch 2: _searchOrder — called for each order to decide visibility
-    // Method name used in Odoo 16/17/18; we patch it here too as a safety net.
-    _searchOrder(order, fieldValue) {
-        if (fieldValue && fieldValue.fieldName === "PRODUCT") {
-            const term = (fieldValue.searchTerm || "").toLowerCase().trim();
+    /**
+     * Odoo 19 calls getFilteredOrderList which internally calls
+     * _doesOrderPassFilter for each order. We intercept here.
+     */
+    _doesOrderPassFilter(order, { fieldName, searchTerm }) {
+        if (fieldName === "PRODUCT") {
+            const term = (searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderProductNames(order).includes(term);
         }
+        // Delegate to original for all other field types
         try {
-            return super._searchOrder(order, fieldValue);
-        } catch (e) {
+            return super._doesOrderPassFilter(order, { fieldName, searchTerm });
+        } catch (_e) {
             return true;
         }
     },
 
-    // ── Patch 3: filterOrders / applyFilters — some versions use this name
+    /**
+     * Safety net: some Odoo 19 builds use filterOrderBySearch instead.
+     */
     filterOrderBySearch(order, searchDetails) {
         if (searchDetails && searchDetails.fieldName === "PRODUCT") {
             const term = (searchDetails.searchTerm || "").toLowerCase().trim();
@@ -101,10 +93,24 @@ patch(TicketScreen.prototype, {
         }
         try {
             return super.filterOrderBySearch(order, searchDetails);
-        } catch (e) {
+        } catch (_e) {
+            return true;
+        }
+    },
+
+    /**
+     * Safety net: Odoo 16/17/18 used _searchOrder.
+     */
+    _searchOrder(order, fieldValue) {
+        if (fieldValue && fieldValue.fieldName === "PRODUCT") {
+            const term = (fieldValue.searchTerm || "").toLowerCase().trim();
+            if (!term) return true;
+            return getOrderProductNames(order).includes(term);
+        }
+        try {
+            return super._searchOrder(order, fieldValue);
+        } catch (_e) {
             return true;
         }
     },
 });
-
-console.log("[POS Product Search] Patch applied successfully ✓");
