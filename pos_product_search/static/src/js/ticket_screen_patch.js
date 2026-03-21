@@ -18,64 +18,25 @@ function getOrderProductNames(order) {
         .filter(Boolean).join(" ").toLowerCase();
 }
 
-let _activeTicketScreen = null;
-
-function injectProductLi() {
-    // Target the exact search dropdown — class confirmed from diagnostic
-    const ul = document.querySelector("ul.py-1.px-0.small");
-    if (!ul) return;
-
-    // Remove stale injected item (search term may have changed)
-    ul.querySelector("[data-pos-product-search]")?.remove();
-
-    const searchInput = (_activeTicketScreen?.state?.searchInput || "").trim();
-    if (!searchInput) return;
-
-    // Already has our item with same term? skip
-    const existing = ul.querySelector("[data-pos-product-search]");
-    if (existing) return;
-
-    const anchorLi = ul.querySelector("li");
-    const li = document.createElement("li");
-    li.setAttribute("data-pos-product-search", "1");
-    li.className = anchorLi ? anchorLi.className : "";
-    li.style.cursor = "pointer";
-    li.innerHTML = `<span class="field">${_t("Product")}</span><span>: </span><span class="term text-primary fw-bolder">${searchInput}</span>`;
-
-    li.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const comp = _activeTicketScreen;
-        if (!comp) return;
-        if (typeof comp.onClickSearchField === "function") {
-            comp.onClickSearchField("PRODUCT");
-        } else if (typeof comp.setSearchField === "function") {
-            comp.setSearchField("PRODUCT");
-        }
-    });
-
-    ul.appendChild(li);
-}
-
-function startObserver() {
-    const target = document.body || document.documentElement;
-    new MutationObserver(() => {
-        try { injectProductLi(); } catch (_e) {}
-    }).observe(target, { childList: true, subtree: true });
-}
-
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startObserver);
-} else {
-    startObserver();
-}
-
 patch(TicketScreen.prototype, {
-    setup() {
-        super.setup(...arguments);
-        _activeTicketScreen = this;
+    /**
+     * _getSearchFields() is what getSearchBarConfig() actually calls.
+     * This populates the SearchBar dropdown in Odoo 19.
+     */
+    _getSearchFields() {
+        let fields = {};
+        try { fields = super._getSearchFields() || {}; } catch (_e) {}
+        return {
+            ...fields,
+            PRODUCT: {
+                displayName: _t("Product"),
+                modelField: "lines.product_id.display_name",
+                repr: (order) => getOrderProductNames(order),
+            },
+        };
     },
 
+    // Keep getSearchFields patched too as safety net
     getSearchFields() {
         let fields = {};
         try { fields = super.getSearchFields() || {}; } catch (_e) {}
@@ -89,6 +50,10 @@ patch(TicketScreen.prototype, {
         };
     },
 
+    /**
+     * _doesOrderPassFilter is confirmed present in this instance.
+     * Called with (order, {fieldName, searchTerm}).
+     */
     _doesOrderPassFilter(order, { fieldName, searchTerm }) {
         if (fieldName === "PRODUCT") {
             const term = (searchTerm || "").toLowerCase().trim();
