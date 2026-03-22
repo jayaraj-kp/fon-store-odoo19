@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_pos_whatsapp_log" model="ir.sequence">
+            <field name="name">POS WhatsApp Log</field>
+            <field name="code">pos.whatsapp.log</field>
+            <field name="prefix">WA/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="pos_whatsapp_log_view_tree" model="ir.ui.view">
+        <field name="name">pos.whatsapp.log.view.tree</field>
+        <field name="model">pos.whatsapp.log</field>
+        <field name="arch" type="xml">
+            <tree string="WhatsApp Logs" decoration-danger="state=='failed'"
+                  decoration-success="state=='sent'">
+                <field name="create_date" string="Sent At"/>
+                <field name="pos_order_id"/>
+                <field name="partner_id"/>
+                <field name="phone"/>
+                <field name="provider"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'sent'"
+                       decoration-danger="state == 'failed'"
+                       decoration-info="state == 'manual'"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="pos_whatsapp_log_view_form" model="ir.ui.view">
+        <field name="name">pos.whatsapp.log.view.form</field>
+        <field name="model">pos.whatsapp.log</field>
+        <field name="arch" type="xml">
+            <form string="WhatsApp Log" create="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="pos_order_id"/>
+                            <field name="partner_id"/>
+                            <field name="phone"/>
+                            <field name="provider"/>
+                            <field name="state" widget="badge"
+                                   decoration-success="state == 'sent'"
+                                   decoration-danger="state == 'failed'"/>
+                            <field name="create_date" string="Sent At"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Message Sent">
+                            <field name="message" widget="text" readonly="1"
+                                   style="font-family: monospace;"/>
+                        </page>
+                        <page string="Error Details" attrs="{'invisible': [('state', '!=', 'failed')]}">
+                            <field name="error_message" widget="text" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_pos_whatsapp_log" model="ir.actions.act_window">
+        <field name="name">WhatsApp Receipt Logs</field>
+        <field name="res_model">pos.whatsapp.log</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- Menu Item under Point of Sale -->
+    <menuitem
+        id="menu_pos_whatsapp_log"
+        name="WhatsApp Logs"
+        parent="point_of_sale.menu_point_root"
+        action="action_pos_whatsapp_log"
+        sequence="99"
+        groups="point_of_sale.group_pos_manager"/>
+
+    <!-- Smart button on POS order form -->
+    <record id="pos_order_view_form_whatsapp_btn" model="ir.ui.view">
+        <field name="name">pos.order.form.whatsapp.btn</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button class="oe_stat_button" type="object"
+                        name="action_send_whatsapp_manual"
+                        icon="fa-whatsapp"
+                        attrs="{'invisible': [('state', 'not in', ['paid', 'done', 'invoiced'])]}">
+                    <field name="whatsapp_sent" widget="boolean_button"
+                           options='{"terminology": {"string_true": "WA Sent", "string_false": "Send WA", "hover": "Send WhatsApp Receipt"}}'/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

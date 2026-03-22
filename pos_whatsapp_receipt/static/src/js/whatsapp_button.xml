@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!-- Inject WhatsApp button into the POS Receipt Screen -->
+    <t t-name="pos_whatsapp_receipt.WhatsAppReceiptButton" owl="1">
+        <div class="whatsapp-receipt-section">
+            <button
+                class="btn btn-whatsapp"
+                t-att-class="{'btn-success': whatsappState.sent, 'btn-sending': whatsappState.sending}"
+                t-on-click="sendWhatsappReceipt"
+                t-att-disabled="whatsappState.sending || whatsappState.sent">
+
+                <i class="fa fa-whatsapp me-2"/>
+                <t t-if="whatsappState.sending">⏳ Sending...</t>
+                <t t-elif="whatsappState.sent">✅ Receipt Sent!</t>
+                <t t-else="">📲 Send WhatsApp Receipt</t>
+            </button>
+
+            <t t-if="whatsappState.error">
+                <div class="whatsapp-error text-danger mt-1">
+                    ⚠️ <t t-esc="whatsappState.error"/>
+                </div>
+            </t>
+
+            <t t-if="!_canSendWhatsapp()">
+                <div class="text-muted small mt-1">
+                    ℹ️ Add mobile number to customer to enable WhatsApp
+                </div>
+            </t>
+        </div>
+    </t>
+
+</templates>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_whatsapp" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.whatsapp</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="point_of_sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('app_settings_block')]" position="after">
+                <div class="app_settings_block" data-string="WhatsApp POS Receipt"
+                     string="WhatsApp POS Receipt" data-key="pos_whatsapp_receipt">
+
+                    <h2>WhatsApp Receipt Settings</h2>
+
+                    <!-- Auto-send toggle -->
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="pos_whatsapp_auto_send"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="pos_whatsapp_auto_send"/>
+                                <div class="text-muted">
+                                    Automatically send WhatsApp receipt to customer after each POS transaction
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Provider -->
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="pos_whatsapp_provider" string="WhatsApp API Provider"/>
+                                <field name="pos_whatsapp_provider" class="o_light_label"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Meta credentials -->
+                    <div class="row mt16 o_settings_container"
+                         attrs="{'invisible': [('pos_whatsapp_provider', '!=', 'meta')]}">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label string="Meta WhatsApp Business Cloud API" class="o_form_label fw-bold"/>
+                                <div class="mt8">
+                                    <label for="pos_whatsapp_meta_token" string="Access Token"/>
+                                    <field name="pos_whatsapp_meta_token" password="True"
+                                           placeholder="Bearer token from Meta Developer Console"/>
+                                </div>
+                                <div class="mt8">
+                                    <label for="pos_whatsapp_meta_phone_id" string="Phone Number ID"/>
+                                    <field name="pos_whatsapp_meta_phone_id"
+                                           placeholder="e.g. 123456789012345"/>
+                                </div>
+                                <div class="text-muted mt4">
+                                    Get these from
+                                    <a href="https://developers.facebook.com/apps/" target="_blank">
+                                        Meta Developer Portal → WhatsApp → API Setup
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Twilio credentials -->
+                    <div class="row mt16 o_settings_container"
+                         attrs="{'invisible': [('pos_whatsapp_provider', '!=', 'twilio')]}">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label string="Twilio WhatsApp API" class="o_form_label fw-bold"/>
+                                <div class="mt8">
+                                    <label for="pos_whatsapp_twilio_sid" string="Account SID"/>
+                                    <field name="pos_whatsapp_twilio_sid"
+                                           placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"/>
+                                </div>
+                                <div class="mt8">
+                                    <label for="pos_whatsapp_twilio_token" string="Auth Token"/>
+                                    <field name="pos_whatsapp_twilio_token" password="True"/>
+                                </div>
+                                <div class="mt8">
+                                    <label for="pos_whatsapp_twilio_from" string="From Number"/>
+                                    <field name="pos_whatsapp_twilio_from"
+                                           placeholder="whatsapp:+14155238886"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Message Template -->
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-10 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="pos_whatsapp_message_template" string="Receipt Message Template"/>
+                                <field name="pos_whatsapp_message_template" widget="text"
+                                       style="min-height: 200px; font-family: monospace; font-size: 12px;"/>
+                                <div class="text-muted mt4">
+                                    Placeholders: <code>{customer_name}</code> <code>{order_ref}</code>
+                                    <code>{date}</code> <code>{order_lines}</code>
+                                    <code>{currency}</code> <code>{total}</code> <code>{company_name}</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

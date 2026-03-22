@@ -1,0 +1,70 @@
+/* POS WhatsApp Receipt - Button Styles */
+
+.whatsapp-receipt-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 12px;
+    padding: 0 16px;
+}
+
+.btn-whatsapp {
+    background-color: #25D366 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 12px 24px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    width: 100%;
+    max-width: 320px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.4);
+}
+
+.btn-whatsapp:hover:not(:disabled) {
+    background-color: #1DA851 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.5);
+}
+
+.btn-whatsapp:active:not(:disabled) {
+    transform: translateY(0px);
+}
+
+.btn-whatsapp:disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+}
+
+.btn-whatsapp.btn-success {
+    background-color: #128C7E !important;
+    box-shadow: 0 2px 8px rgba(18, 140, 126, 0.4);
+}
+
+.btn-whatsapp.btn-sending {
+    background-color: #075E54 !important;
+    animation: wa-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes wa-pulse {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+.whatsapp-error {
+    font-size: 12px;
+    text-align: center;
+    max-width: 320px;
+}
+
+/* Icon in font-awesome (fa-whatsapp) color override */
+.btn-whatsapp .fa-whatsapp {
+    font-size: 18px;
+}
