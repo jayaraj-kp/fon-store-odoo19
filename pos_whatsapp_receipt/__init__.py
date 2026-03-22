@@ -1,1 +1,3 @@
-from . import models
+from . import res_config_settings
+from . import pos_order
+from . import pos_whatsapp_log

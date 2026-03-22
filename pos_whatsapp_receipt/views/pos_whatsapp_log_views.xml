@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Tree View -->
-    <record id="pos_whatsapp_log_view_tree" model="ir.ui.view">
-        <field name="name">pos.whatsapp.log.view.tree</field>
+    <!-- List View (was 'tree' in older Odoo, renamed to 'list' in Odoo 17+) -->
+    <record id="pos_whatsapp_log_view_list" model="ir.ui.view">
+        <field name="name">pos.whatsapp.log.view.list</field>
         <field name="model">pos.whatsapp.log</field>
         <field name="arch" type="xml">
-            <tree string="WhatsApp Logs"
+            <list string="WhatsApp Logs"
                   decoration-danger="state=='failed'"
                   decoration-success="state=='sent'">
                 <field name="create_date" string="Sent At"/>
@@ -17,7 +17,7 @@
                        decoration-success="state == 'sent'"
                        decoration-danger="state == 'failed'"
                        decoration-info="state == 'manual'"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -58,7 +58,7 @@
     <record id="action_pos_whatsapp_log" model="ir.actions.act_window">
         <field name="name">WhatsApp Receipt Logs</field>
         <field name="res_model">pos.whatsapp.log</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <!-- Menu Item under Point of Sale -->
@@ -85,7 +85,7 @@
                     <div class="o_stat_info">
                         <span class="o_stat_text">Send WhatsApp</span>
                         <span class="o_stat_text" invisible="not whatsapp_sent"
-                              style="color:green;">✓ Sent</span>
+                              style="color:green;">&#10003; Sent</span>
                     </div>
                 </button>
             </xpath>
