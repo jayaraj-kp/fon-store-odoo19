@@ -4,10 +4,9 @@ import { patch } from "@web/core/utils/patch";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
 import { _t } from "@web/core/l10n/translation";
 
+// ─── Product names ────────────────────────────────────────────────────────────
 function getOrderProductNames(order) {
-    const lines =
-        (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
-        order.lines || order.orderlines || [];
+    const lines = order?.getOrderlines?.() || order?.lines || [];
     return Array.from(lines)
         .map((line) =>
             (typeof line.get_full_product_name === "function" && line.get_full_product_name()) ||
@@ -18,6 +17,7 @@ function getOrderProductNames(order) {
         .filter(Boolean).join(" ").toLowerCase();
 }
 
+// ─── Payment methods ──────────────────────────────────────────────────────────
 function getOrderPaymentMethods(order) {
     const paymentLines =
         (typeof order.get_paymentlines === "function" && order.get_paymentlines()) ||
@@ -31,27 +31,60 @@ function getOrderPaymentMethods(order) {
         .filter(Boolean).join(" ").toLowerCase();
 }
 
+// ─── Date ─────────────────────────────────────────────────────────────────────
 function getOrderDate(order) {
-    // Try all known date fields and return a searchable string
-    const raw =
-        order.date_order ||
-        order.creation_date ||
-        order.date ||
-        "";
+    const raw = order.date_order || order.creation_date || order.date || "";
     if (!raw) return "";
     try {
-        // Return both the raw value and a formatted date string so
-        // user can search "2026", "03/19", "19/03/2026", etc.
         const d = new Date(raw);
         const pad = (n) => String(n).padStart(2, "0");
         const yyyy = d.getFullYear();
         const mm = pad(d.getMonth() + 1);
         const dd = pad(d.getDate());
-        // Include multiple formats for flexible matching
         return `${yyyy}-${mm}-${dd} ${dd}/${mm}/${yyyy} ${mm}/${dd}/${yyyy} ${raw}`.toLowerCase();
     } catch (_e) {
         return String(raw).toLowerCase();
     }
+}
+
+// ─── Customer phone/mobile ────────────────────────────────────────────────────
+// Confirmed: order.mobile holds the customer phone/mobile directly
+function getOrderMobile(order) {
+    return (
+        order.mobile ||
+        order.phone ||
+        order.partner_id?.mobile ||
+        order.partner_id?.phone ||
+        (typeof order.getPartner === "function" && order.getPartner()?.mobile) ||
+        (typeof order.getPartner === "function" && order.getPartner()?.phone) ||
+        ""
+    ).toString().toLowerCase();
+}
+
+// ─── Product category ─────────────────────────────────────────────────────────
+// Confirmed: line.product_id.categ_id is a ModelRecord with name accessible
+function getOrderCategories(order) {
+    const lines = order?.getOrderlines?.() || order?.lines || [];
+    const cats = new Set();
+    Array.from(lines).forEach((line) => {
+        const product = line.product_id || line.product;
+        if (!product) return;
+
+        // categ_id — internal product category (confirmed present as ModelRecord)
+        const categ = product.categ_id;
+        if (categ) {
+            const name = categ.name || categ.display_name || categ.complete_name;
+            if (name) cats.add(name.toLowerCase());
+        }
+
+        // pos_category_ids — POS-specific categories (array)
+        const posCategs = product.pos_category_ids || [];
+        Array.from(posCategs).forEach((pc) => {
+            const name = pc.name || pc.display_name;
+            if (name) cats.add(name.toLowerCase());
+        });
+    });
+    return [...cats].join(" ");
 }
 
 patch(TicketScreen.prototype, {
@@ -74,6 +107,16 @@ patch(TicketScreen.prototype, {
                 displayName: _t("Date"),
                 modelField: "date_order",
                 repr: (order) => getOrderDate(order),
+            },
+            MOBILE: {
+                displayName: _t("Phone / Mobile"),
+                modelField: "mobile",
+                repr: (order) => getOrderMobile(order),
+            },
+            CATEGORY: {
+                displayName: _t("Product Category"),
+                modelField: "lines.product_id.categ_id.name",
+                repr: (order) => getOrderCategories(order),
             },
         };
     },
@@ -98,64 +141,92 @@ patch(TicketScreen.prototype, {
                 modelField: "date_order",
                 repr: (order) => getOrderDate(order),
             },
+            MOBILE: {
+                displayName: _t("Phone / Mobile"),
+                modelField: "mobile",
+                repr: (order) => getOrderMobile(order),
+            },
+            CATEGORY: {
+                displayName: _t("Product Category"),
+                modelField: "lines.product_id.categ_id.name",
+                repr: (order) => getOrderCategories(order),
+            },
         };
     },
 
     _doesOrderPassFilter(order, { fieldName, searchTerm }) {
+        const term = (searchTerm || "").toLowerCase().trim();
         if (fieldName === "PRODUCT") {
-            const term = (searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderProductNames(order).includes(term);
         }
         if (fieldName === "PAYMENT_METHOD") {
-            const term = (searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderPaymentMethods(order).includes(term);
         }
         if (fieldName === "ORDER_DATE") {
-            const term = (searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderDate(order).includes(term);
+        }
+        if (fieldName === "MOBILE") {
+            if (!term) return true;
+            return getOrderMobile(order).includes(term);
+        }
+        if (fieldName === "CATEGORY") {
+            if (!term) return true;
+            return getOrderCategories(order).includes(term);
         }
         try { return super._doesOrderPassFilter(order, { fieldName, searchTerm }); }
         catch (_e) { return true; }
     },
 
     filterOrderBySearch(order, searchDetails) {
+        const term = (searchDetails?.searchTerm || "").toLowerCase().trim();
         if (searchDetails?.fieldName === "PRODUCT") {
-            const term = (searchDetails.searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderProductNames(order).includes(term);
         }
         if (searchDetails?.fieldName === "PAYMENT_METHOD") {
-            const term = (searchDetails.searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderPaymentMethods(order).includes(term);
         }
         if (searchDetails?.fieldName === "ORDER_DATE") {
-            const term = (searchDetails.searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderDate(order).includes(term);
+        }
+        if (searchDetails?.fieldName === "MOBILE") {
+            if (!term) return true;
+            return getOrderMobile(order).includes(term);
+        }
+        if (searchDetails?.fieldName === "CATEGORY") {
+            if (!term) return true;
+            return getOrderCategories(order).includes(term);
         }
         try { return super.filterOrderBySearch(order, searchDetails); }
         catch (_e) { return true; }
     },
 
     _searchOrder(order, fieldValue) {
+        const term = (fieldValue?.searchTerm || "").toLowerCase().trim();
         if (fieldValue?.fieldName === "PRODUCT") {
-            const term = (fieldValue.searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderProductNames(order).includes(term);
         }
         if (fieldValue?.fieldName === "PAYMENT_METHOD") {
-            const term = (fieldValue.searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderPaymentMethods(order).includes(term);
         }
         if (fieldValue?.fieldName === "ORDER_DATE") {
-            const term = (fieldValue.searchTerm || "").toLowerCase().trim();
             if (!term) return true;
             return getOrderDate(order).includes(term);
+        }
+        if (fieldValue?.fieldName === "MOBILE") {
+            if (!term) return true;
+            return getOrderMobile(order).includes(term);
+        }
+        if (fieldValue?.fieldName === "CATEGORY") {
+            if (!term) return true;
+            return getOrderCategories(order).includes(term);
         }
         try { return super._searchOrder(order, fieldValue); }
         catch (_e) { return true; }
