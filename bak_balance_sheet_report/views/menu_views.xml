@@ -8,24 +8,20 @@
         <field name="target">self</field>
     </record>
 
-    <!--
-        We create our own standalone submenu under account.menu_finance
-        (the root Accounting app menu — always present in Odoo CE).
-        This avoids any dependency on Enterprise or third-party menu IDs.
-    -->
-    <menuitem
-        id="menu_bak_reports_root"
-        name="Inline Reports"
-        parent="account.menu_finance"
-        sequence="100"
-    />
+    <!-- Under Accounting > Reporting -->
+<!--    <menuitem-->
+<!--        id="menu_bak_balance_sheet"-->
+<!--        name="Balance Sheet (BAK)"-->
+<!--        parent="account.menu_finance_reports"-->
+<!--        action="action_bak_balance_sheet_url"-->
+<!--        sequence="14"/>-->
 
+    <!-- Under OCA Reports -->
     <menuitem
-        id="menu_bak_balance_sheet"
-        name="Balance Sheet"
-        parent="menu_bak_reports_root"
+        id="menu_bak_balance_sheet_oca"
+        name="Balance Sheet (BAK)"
+        parent="account_financial_report.menu_oca_reports"
         action="action_bak_balance_sheet_url"
-        sequence="1"
-    />
+        sequence="14"/>
 
 </odoo>

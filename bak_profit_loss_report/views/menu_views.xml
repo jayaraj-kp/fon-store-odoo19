@@ -9,13 +9,13 @@
             <field name="target">self</field>
         </record>
 
-        <!-- Under Accounting > Reporting -->
-        <menuitem
-            id="menu_bak_profit_loss_report"
-            name="Profit &amp; Loss (BAK)"
-            parent="account.menu_finance_reports"
-            action="action_bak_profit_loss_report"
-            sequence="15"/>
+<!--        &lt;!&ndash; Under Accounting > Reporting &ndash;&gt;-->
+<!--        <menuitem-->
+<!--            id="menu_bak_profit_loss_report"-->
+<!--            name="Profit &amp; Loss (BAK)"-->
+<!--            parent="account.menu_finance_reports"-->
+<!--            action="action_bak_profit_loss_report"-->
+<!--            sequence="15"/>-->
 
         <!-- Under OCA Reports -->
         <menuitem
