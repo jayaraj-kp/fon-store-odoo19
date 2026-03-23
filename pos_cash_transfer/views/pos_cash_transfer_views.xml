@@ -6,7 +6,7 @@
         <field name="name">pos.cash.transfer.tree</field>
         <field name="model">pos.cash.transfer</field>
         <field name="arch" type="xml">
-            <tree string="POS Cash Transfers"
+            <list string="POS Cash Transfers"
                   decoration-success="state == 'done'"
                   decoration-muted="state == 'cancelled'"
                   decoration-info="state == 'draft'">
@@ -22,7 +22,7 @@
                        decoration-success="state == 'done'"
                        decoration-warning="state == 'draft'"
                        decoration-danger="state == 'cancelled'"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -116,7 +116,7 @@
     <record id="action_pos_cash_transfer" model="ir.actions.act_window">
         <field name="name">Cash Transfers</field>
         <field name="res_model">pos.cash.transfer</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No cash transfers yet!
