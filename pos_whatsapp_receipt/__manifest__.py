@@ -3,11 +3,6 @@
     'version': '19.0.1.0.0',
     'category': 'Point of Sale',
     'summary': 'Send POS receipts automatically via WhatsApp after transaction',
-    'description': """
-        Automatically sends POS receipts/bills to customers via WhatsApp
-        after a transaction is completed, using the customer's phone number.
-        Supports Twilio WhatsApp API and WhatsApp Business Cloud API (Meta).
-    """,
     'author': 'Custom',
     'depends': ['point_of_sale', 'base_setup'],
     'data': [

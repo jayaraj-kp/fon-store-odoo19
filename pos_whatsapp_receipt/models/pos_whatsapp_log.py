@@ -23,6 +23,3 @@ class PosWhatsappLog(models.Model):
         ('meta', 'Meta'),
     ], string='Provider Used')
     create_date = fields.Datetime(string='Sent At', readonly=True)
-
-    def name_get(self):
-        return [(rec.id, f"WA-{rec.pos_order_id.name or rec.id}") for rec in self]

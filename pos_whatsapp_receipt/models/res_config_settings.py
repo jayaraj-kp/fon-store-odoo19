@@ -1,10 +1,22 @@
 from odoo import api, fields, models
 
+DEFAULT_TEMPLATE = """Hello {customer_name}! 
+
+Thank you for shopping with us.
+
+*Receipt: {order_ref}*
+Date: {date}
+
+{order_lines}
+-----------------
+*Total: {currency} {total}*
+
+We appreciate your business!"""
+
 
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
-    # WhatsApp Provider Selection
     pos_whatsapp_provider = fields.Selection(
         selection=[
             ('twilio', 'Twilio WhatsApp API'),
@@ -14,16 +26,11 @@ class ResConfigSettings(models.TransientModel):
         config_parameter='pos_whatsapp_receipt.provider',
         default='meta',
     )
-
-    # Auto-send toggle
     pos_whatsapp_auto_send = fields.Boolean(
         string='Auto-send Receipt via WhatsApp',
         config_parameter='pos_whatsapp_receipt.auto_send',
         default=True,
-        help='Automatically send receipt to customer WhatsApp after POS transaction',
     )
-
-    # ── Meta (WhatsApp Business Cloud API) ──
     pos_whatsapp_meta_token = fields.Char(
         string='Meta API Access Token',
         config_parameter='pos_whatsapp_receipt.meta_token',
@@ -31,10 +38,7 @@ class ResConfigSettings(models.TransientModel):
     pos_whatsapp_meta_phone_id = fields.Char(
         string='Meta Phone Number ID',
         config_parameter='pos_whatsapp_receipt.meta_phone_id',
-        help='The Phone Number ID from your Meta WhatsApp Business account',
     )
-
-    # ── Twilio ──
     pos_whatsapp_twilio_sid = fields.Char(
         string='Twilio Account SID',
         config_parameter='pos_whatsapp_receipt.twilio_sid',
@@ -46,24 +50,25 @@ class ResConfigSettings(models.TransientModel):
     pos_whatsapp_twilio_from = fields.Char(
         string='Twilio WhatsApp From Number',
         config_parameter='pos_whatsapp_receipt.twilio_from',
-        help='Format: whatsapp:+14155238886',
     )
-
-    # ── Receipt Message Template ──
+    # Text field: manually handled via get_param/set_param
     pos_whatsapp_message_template = fields.Text(
         string='Receipt Message Template',
-        config_parameter='pos_whatsapp_receipt.message_template',
-        default="""Hello {customer_name}! 🛍️
-
-Thank you for shopping with us.
-
-🧾 *Receipt: {order_ref}*
-📅 Date: {date}
-
-{order_lines}
-─────────────────
-💰 *Total: {currency} {total}*
-
-We appreciate your business! See you again. 😊""",
-        help='Available placeholders: {customer_name}, {order_ref}, {date}, {order_lines}, {currency}, {total}, {company_name}',
     )
+
+    @api.model
+    def get_values(self):
+        res = super().get_values()
+        res['pos_whatsapp_message_template'] = (
+            self.env['ir.config_parameter'].sudo().get_param(
+                'pos_whatsapp_receipt.message_template', DEFAULT_TEMPLATE
+            )
+        )
+        return res
+
+    def set_values(self):
+        super().set_values()
+        self.env['ir.config_parameter'].sudo().set_param(
+            'pos_whatsapp_receipt.message_template',
+            self.pos_whatsapp_message_template or DEFAULT_TEMPLATE,
+        )

@@ -10,57 +10,42 @@
                 <app string="WhatsApp Receipt" name="pos_whatsapp_receipt"
                      groups="point_of_sale.group_pos_manager">
                     <block title="WhatsApp Receipt Settings">
-
                         <setting string="Auto-send WhatsApp Receipt"
                                  help="Automatically send WhatsApp receipt to customer after each POS transaction">
                             <field name="pos_whatsapp_auto_send"/>
                         </setting>
-
                         <setting string="WhatsApp API Provider">
                             <field name="pos_whatsapp_provider"/>
                         </setting>
-
-                        <!-- Meta credentials -->
                         <setting string="Meta Access Token"
                                  invisible="pos_whatsapp_provider != 'meta'"
-                                 help="Bearer token from Meta Developer Console - WhatsApp - API Setup">
+                                 help="Bearer token from Meta Developer Console">
                             <field name="pos_whatsapp_meta_token" password="True"
                                    placeholder="EAAxxxxxxxxxxxxxxx"/>
                         </setting>
-
                         <setting string="Meta Phone Number ID"
-                                 invisible="pos_whatsapp_provider != 'meta'"
-                                 help="Phone Number ID from Meta Developer Console">
+                                 invisible="pos_whatsapp_provider != 'meta'">
                             <field name="pos_whatsapp_meta_phone_id"
                                    placeholder="123456789012345"/>
                         </setting>
-
-                        <!-- Twilio credentials -->
                         <setting string="Twilio Account SID"
                                  invisible="pos_whatsapp_provider != 'twilio'">
                             <field name="pos_whatsapp_twilio_sid"
                                    placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"/>
                         </setting>
-
                         <setting string="Twilio Auth Token"
                                  invisible="pos_whatsapp_provider != 'twilio'">
                             <field name="pos_whatsapp_twilio_token" password="True"/>
                         </setting>
-
                         <setting string="Twilio From Number"
-                                 invisible="pos_whatsapp_provider != 'twilio'"
-                                 help="Format: whatsapp:+14155238886">
+                                 invisible="pos_whatsapp_provider != 'twilio'">
                             <field name="pos_whatsapp_twilio_from"
                                    placeholder="whatsapp:+14155238886"/>
                         </setting>
-
-                        <!-- Message Template -->
-                        <setting string="Receipt Message Template"
-                                 help="Placeholders: {customer_name} {order_ref} {date} {order_lines} {currency} {total} {company_name}">
+                        <setting string="Receipt Message Template">
                             <field name="pos_whatsapp_message_template" widget="text"
                                    style="min-height:180px;font-family:monospace;font-size:12px;width:100%;"/>
                         </setting>
-
                     </block>
                 </app>
             </xpath>
