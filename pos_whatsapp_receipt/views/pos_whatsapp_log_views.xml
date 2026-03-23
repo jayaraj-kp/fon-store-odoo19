@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- List View (was 'tree' in older Odoo, renamed to 'list' in Odoo 17+) -->
     <record id="pos_whatsapp_log_view_list" model="ir.ui.view">
         <field name="name">pos.whatsapp.log.view.list</field>
         <field name="model">pos.whatsapp.log</field>
@@ -20,8 +19,6 @@
             </list>
         </field>
     </record>
-
-    <!-- Form View -->
     <record id="pos_whatsapp_log_view_form" model="ir.ui.view">
         <field name="name">pos.whatsapp.log.view.form</field>
         <field name="model">pos.whatsapp.log</field>
@@ -43,7 +40,7 @@
                     <notebook>
                         <page string="Message Sent">
                             <field name="message" widget="text" readonly="1"
-                                   style="font-family: monospace;"/>
+                                   style="font-family:monospace;"/>
                         </page>
                         <page string="Error Details" invisible="state != 'failed'">
                             <field name="error_message" widget="text" readonly="1"/>
@@ -53,15 +50,11 @@
             </form>
         </field>
     </record>
-
-    <!-- Action -->
     <record id="action_pos_whatsapp_log" model="ir.actions.act_window">
         <field name="name">WhatsApp Receipt Logs</field>
         <field name="res_model">pos.whatsapp.log</field>
         <field name="view_mode">list,form</field>
     </record>
-
-    <!-- Menu Item under Point of Sale -->
     <menuitem
         id="menu_pos_whatsapp_log"
         name="WhatsApp Logs"
@@ -69,8 +62,6 @@
         action="action_pos_whatsapp_log"
         sequence="99"
         groups="point_of_sale.group_pos_manager"/>
-
-    <!-- Smart button on POS order backend form -->
     <record id="pos_order_view_form_whatsapp_btn" model="ir.ui.view">
         <field name="name">pos.order.form.whatsapp.btn</field>
         <field name="model">pos.order</field>
@@ -84,8 +75,6 @@
                         invisible="state not in ('paid', 'done', 'invoiced')">
                     <div class="o_stat_info">
                         <span class="o_stat_text">Send WhatsApp</span>
-                        <span class="o_stat_text" invisible="not whatsapp_sent"
-                              style="color:green;">&#10003; Sent</span>
                     </div>
                 </button>
             </xpath>

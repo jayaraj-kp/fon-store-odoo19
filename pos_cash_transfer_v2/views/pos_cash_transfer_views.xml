@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- List View -->
     <record id="view_pos_cash_transfer_list" model="ir.ui.view">
         <field name="name">pos.cash.transfer.list</field>
         <field name="model">pos.cash.transfer</field>
         <field name="arch" type="xml">
             <list string="POS Cash Transfers"
                   decoration-success="state == 'done'"
-                  decoration-muted="state == 'cancelled'"
-                  decoration-info="state == 'draft'">
+                  decoration-muted="state == 'cancelled'">
                 <field name="name"/>
                 <field name="transfer_date"/>
                 <field name="from_pos_id"/>
@@ -17,8 +15,7 @@
                 <field name="amount"/>
                 <field name="reason"/>
                 <field name="cashier_id"/>
-                <field name="state"
-                       widget="badge"
+                <field name="state" widget="badge"
                        decoration-success="state == 'done'"
                        decoration-warning="state == 'draft'"
                        decoration-danger="state == 'cancelled'"/>
@@ -26,28 +23,20 @@
         </field>
     </record>
 
-    <!-- Form View -->
     <record id="view_pos_cash_transfer_form" model="ir.ui.view">
         <field name="name">pos.cash.transfer.form</field>
         <field name="model">pos.cash.transfer</field>
         <field name="arch" type="xml">
             <form string="POS Cash Transfer">
                 <header>
-                    <button name="action_transfer"
-                            string="Process Transfer"
-                            type="object"
-                            class="btn-primary"
+                    <button name="action_transfer" string="Process Transfer"
+                            type="object" class="btn-primary"
                             invisible="state != 'draft'"/>
-                    <button name="action_cancel"
-                            string="Cancel"
-                            type="object"
-                            invisible="state != 'draft'"/>
-                    <button name="action_reset_draft"
-                            string="Reset to Draft"
-                            type="object"
-                            invisible="state != 'cancelled'"/>
-                    <field name="state"
-                           widget="statusbar"
+                    <button name="action_cancel" string="Cancel"
+                            type="object" invisible="state != 'draft'"/>
+                    <button name="action_reset_draft" string="Reset to Draft"
+                            type="object" invisible="state != 'cancelled'"/>
+                    <field name="state" widget="statusbar"
                            statusbar_visible="draft,done"/>
                 </header>
                 <sheet>
@@ -69,15 +58,13 @@
                         </group>
                     </group>
                     <group>
-                        <field name="reason"
-                               placeholder="Reason for cash transfer..."/>
+                        <field name="reason" placeholder="Reason for transfer..."/>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
 
-    <!-- Search View -->
     <record id="view_pos_cash_transfer_search" model="ir.ui.view">
         <field name="name">pos.cash.transfer.search</field>
         <field name="model">pos.cash.transfer</field>
@@ -87,37 +74,22 @@
                 <field name="from_pos_id"/>
                 <field name="to_pos_id"/>
                 <field name="cashier_id"/>
-                <filter string="Done" name="done"
-                        domain="[('state','=','done')]"/>
-                <filter string="Draft" name="draft"
-                        domain="[('state','=','draft')]"/>
-                <separator/>
+                <filter string="Done" name="done" domain="[('state','=','done')]"/>
+                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
                 <group expand="0" string="Group By">
-                    <filter string="From Counter" name="grp_from"
-                            context="{'group_by': 'from_pos_id'}"/>
-                    <filter string="To Counter" name="grp_to"
-                            context="{'group_by': 'to_pos_id'}"/>
-                    <filter string="Cashier" name="grp_cashier"
-                            context="{'group_by': 'cashier_id'}"/>
+                    <filter string="From Counter" name="grp_from" context="{'group_by': 'from_pos_id'}"/>
+                    <filter string="To Counter" name="grp_to" context="{'group_by': 'to_pos_id'}"/>
                 </group>
             </search>
         </field>
     </record>
 
-    <!-- Window Action -->
     <record id="action_pos_cash_transfer" model="ir.actions.act_window">
         <field name="name">Cash Transfers</field>
         <field name="res_model">pos.cash.transfer</field>
         <field name="view_mode">list,form</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                No cash transfers yet!
-            </p>
-            <p>Cash transfers between POS counters will appear here.</p>
-        </field>
     </record>
 
-    <!-- Menu -->
     <menuitem id="menu_pos_cash_transfer"
               name="Cash Transfers"
               parent="point_of_sale.menu_point_of_sale"
