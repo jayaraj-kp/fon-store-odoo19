@@ -23,7 +23,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'POS Product Search Filter',
-    'version': '19.0.6.0.0',
+    'version': '19.0.7.0.0',
     'category': 'Point of Sale',
     'summary': 'Add Product, Payment Method, Category, Mobile, Amount, Custom Filter to POS',
     'author': 'Custom',
@@ -33,7 +33,7 @@
     ],
     'assets': {
         'point_of_sale._assets_pos': [
-            'pos_product_search/static/src/xml/custom_filter_popup.xml',
+            # No XML file needed — Dialog template is inline in the JS
             'pos_product_search/static/src/js/ticket_screen_patch.js',
         ],
     },
