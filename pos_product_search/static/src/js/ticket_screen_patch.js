@@ -81,7 +81,7 @@ function getOrderCategories(order) {
     return [...cats].join(" ");
 }
 
-// ─── Bill amount (numeric exact match) ───────────────────────────────────────
+// ─── Bill amount ──────────────────────────────────────────────────────────────
 function getOrderAmountNum(order) {
     const amount =
         order.amount_total ??
@@ -130,7 +130,14 @@ function buildSearchFields(existingFields) {
         AMOUNT: {
             displayName: _t("Bill Amount"),
             modelField: "amount_total",
-            repr: (order) => String(getOrderAmountNum(order)),
+            // repr returns a UNIQUE string per exact amount
+            // We pad to 10 decimals so fuzzyLookup only matches exact numeric strings
+            // e.g. "900" repr is "900.0000000000" — fuzzy won't match "9800.0000000000"
+            repr: (order) => {
+                const num = getOrderAmountNum(order);
+                // Format: fixed 10 decimal places — makes fuzzy matching effectively exact
+                return num.toFixed(10);
+            },
         },
     };
 }
@@ -149,25 +156,22 @@ patch(TicketScreen.prototype, {
     },
 
     /**
-     * Override getFilteredOrderList to intercept AMOUNT searches BEFORE
-     * fuzzyLookup is called (which causes "900" to match "9800", "980" etc).
-     * For all other fields, call super normally.
+     * Override onSearch to handle AMOUNT specially.
+     * For AMOUNT: pad the searchTerm to 10 decimals so fuzzyLookup
+     * matches exactly (repr also uses 10 decimals).
+     * e.g. user types "900" → we search "900.0000000000"
+     *      repr of ₹900 order = "900.0000000000" → exact match ✓
+     *      repr of ₹9800 order = "9800.0000000000" → no match ✓
      */
-    getFilteredOrderList() {
-        const { fieldName, searchTerm } = this.state.search || {};
-
-        if (fieldName === "AMOUNT" && searchTerm) {
-            // Temporarily clear the search so super() returns all orders unfiltered
-            const savedSearch = this.state.search;
-            this.state.search = { fieldName: "AMOUNT", searchTerm: "" };
-            let orders = super.getFilteredOrderList();
-            this.state.search = savedSearch;
-
-            // Now apply exact numeric filter ourselves
-            return orders.filter((order) => amountMatchesOrder(order, searchTerm));
+    async onSearch(search) {
+        if (search?.fieldName === "AMOUNT" && search?.searchTerm) {
+            const num = parseFloat(search.searchTerm);
+            if (!isNaN(num)) {
+                // Replace searchTerm with zero-padded version to match repr format
+                search = { ...search, searchTerm: num.toFixed(10) };
+            }
         }
-
-        return super.getFilteredOrderList();
+        return super.onSearch(search);
     },
 
     _doesOrderPassFilter(order, { fieldName, searchTerm }) {
