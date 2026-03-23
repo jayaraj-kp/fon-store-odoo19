@@ -110,7 +110,8 @@ import {onWillStart, useChildSubEnv} from "@odoo/owl";
 import {Domain} from "@web/core/domain";
 import {DomainSelector} from "@web/core/domain_selector/domain_selector";
 import {patch} from "@web/core/utils/patch";
-import {treeFromDomain} from "@web/core/tree_editor/condition_tree";
+//import {treeFromDomain} from "@web/core/tree_editor/condition_tree";
+import {treeFromDomain} from "@web/core/tree_editor/tree_from_domain";
 import {useService} from "@web/core/utils/hooks";
 
 const ARCHIVED_DOMAIN = `[("active", "in", [True, False])]`;
