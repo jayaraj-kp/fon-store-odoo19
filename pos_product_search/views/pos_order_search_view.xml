@@ -7,23 +7,11 @@
         <field name="arch" type="xml">
             <xpath expr="//search" position="inside">
 
-                <!-- Product Name -->
-                <field name="lines"
-                       string="Product"
-                       filter_domain="[('lines.product_id.name', 'ilike', self)]"/>
-
-                <!-- Payment Method -->
-                <field name="payment_ids"
-                       string="Payment Method"
-                       filter_domain="[('payment_ids.payment_method_id.name', 'ilike', self)]"/>
-
-                <!-- Phone / Mobile — direct field on pos.order -->
+                <!-- Mobile / Phone — direct char field on pos.order -->
                 <field name="mobile" string="Phone / Mobile"/>
 
-                <!-- Bill Amount -->
-                <field name="amount_total"
-                       string="Bill Amount"
-                       filter_domain="[('amount_total','=',self)]"/>
+                <!-- Bill Amount — monetary field on pos.order -->
+                <field name="amount_total" string="Bill Amount"/>
 
                 <separator/>
 
