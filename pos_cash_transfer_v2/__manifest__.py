@@ -11,14 +11,6 @@
         'views/pos_cash_transfer_views.xml',
         'views/pos_config_views.xml',
     ],
-    'assets': {
-        'point_of_sale._assets_pos': [
-            'pos_cash_transfer/static/src/js/CashTransferButton.js',
-            'pos_cash_transfer/static/src/js/CashTransferPopup.js',
-            'pos_cash_transfer/static/src/xml/CashTransferPopup.xml',
-            'pos_cash_transfer/static/src/css/pos_cash_transfer.css',
-        ],
-    },
     'installable': True,
     'application': False,
     'license': 'LGPL-3',
