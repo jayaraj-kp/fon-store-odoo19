@@ -3,7 +3,7 @@
     <record id="view_pos_order_search_extended" model="ir.ui.view">
         <field name="name">pos.order.search.extended</field>
         <field name="model">pos.order</field>
-        <field name="inherit_id" ref="point_of_sale.view_pos_order_filter"/>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_search"/>
         <field name="arch" type="xml">
             <xpath expr="//search" position="inside">
 
@@ -17,26 +17,26 @@
                        string="Payment Method"
                        filter_domain="[('payment_ids.payment_method_id.name', 'ilike', self)]"/>
 
-                <!-- Customer Phone / Mobile -->
+                <!-- Phone / Mobile -->
                 <field name="partner_id"
                        string="Phone / Mobile"
-                       filter_domain="['|', ('partner_id.phone', 'ilike', self), ('partner_id.mobile', 'ilike', self)]"/>
+                       filter_domain="['|',('partner_id.phone','ilike',self),('partner_id.mobile','ilike',self)]"/>
 
                 <!-- Bill Amount -->
                 <field name="amount_total"
                        string="Bill Amount"
-                       filter_domain="[('amount_total', '=', self)]"/>
+                       filter_domain="[('amount_total','=',self)]"/>
 
                 <separator/>
 
                 <!-- Quick filters -->
                 <filter string="Cash Orders"
                         name="filter_cash"
-                        domain="[('payment_ids.payment_method_id.is_cash_count', '=', True)]"/>
+                        domain="[('payment_ids.payment_method_id.is_cash_count','=',True)]"/>
 
                 <filter string="Card Orders"
                         name="filter_card"
-                        domain="[('payment_ids.payment_method_id.is_cash_count', '=', False)]"/>
+                        domain="[('payment_ids.payment_method_id.is_cash_count','=',False)]"/>
 
                 <separator/>
 

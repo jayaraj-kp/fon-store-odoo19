@@ -29,7 +29,7 @@
     'author': 'Custom',
     'depends': ['point_of_sale'],
     'data': [
-        # 'views/pos_order_search_view.xml',  # Enable after finding correct inherit_id
+        'views/pos_order_search_view.xml',
     ],
     'assets': {
         'point_of_sale._assets_pos': [
