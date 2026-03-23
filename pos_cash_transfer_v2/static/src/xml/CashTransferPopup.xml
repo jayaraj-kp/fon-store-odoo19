@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Button shown in POS hamburger menu -->
+    <t t-name="pos_cash_transfer.CashTransferButton">
+        <div class="cash-transfer-menu-item" t-on-click="onClick">
+            <i class="fa fa-exchange fa-fw"/>
+            <span class="ms-2">Cash Transfer</span>
+        </div>
+    </t>
+
+    <!-- Cash Transfer Popup Dialog -->
+    <t t-name="pos_cash_transfer.CashTransferPopup">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content cash-transfer-modal">
+
+                <!-- Header -->
+                <div class="modal-header cash-transfer-header">
+                    <h5 class="modal-title">
+                        <i class="fa fa-exchange me-2"/>
+                        Cash Transfer Between Counters
+                    </h5>
+                </div>
+
+                <!-- Body -->
+                <div class="modal-body p-4">
+
+                    <t t-if="state.loading">
+                        <div class="text-center py-4">
+                            <i class="fa fa-spinner fa-spin fa-2x"/>
+                            <div class="mt-2">Loading open sessions...</div>
+                        </div>
+                    </t>
+
+                    <t t-elif="state.sessions.length === 0">
+                        <div class="alert alert-warning">
+                            <i class="fa fa-exclamation-triangle me-2"/>
+                            <strong>No other open counters found!</strong>
+                            <div class="mt-1">
+                                Please open another POS counter session first.
+                            </div>
+                        </div>
+                    </t>
+
+                    <t t-else="">
+
+                        <!-- Destination Counter -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fa fa-arrow-right text-success me-1"/>
+                                Transfer TO Counter
+                            </label>
+                            <select class="form-select"
+                                    t-on-change="onSessionChange">
+                                <t t-foreach="state.sessions"
+                                   t-as="session"
+                                   t-key="session.id">
+                                    <option t-att-value="session.id">
+                                        <t t-esc="session.pos_name"/> —
+                                        Cashier: <t t-esc="session.cashier"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+
+                        <!-- Amount -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fa fa-rupee me-1"/>
+                                Amount to Transfer (Rs.)
+                            </label>
+                            <input type="number"
+                                   class="form-control transfer-input"
+                                   placeholder="e.g. 5000"
+                                   t-att-value="state.amount"
+                                   t-on-input="onAmountChange"
+                                   min="1"/>
+                        </div>
+
+                        <!-- Reason -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fa fa-pencil me-1"/>
+                                Reason (Optional)
+                            </label>
+                            <input type="text"
+                                   class="form-control"
+                                   placeholder="e.g. Counter needs change"
+                                   t-att-value="state.reason"
+                                   t-on-input="onReasonChange"/>
+                        </div>
+
+                        <!-- Summary -->
+                        <t t-if="state.amount and parseFloat(state.amount) > 0 and selectedSession">
+                            <div class="transfer-summary">
+                                <i class="fa fa-check-circle me-2 text-success"/>
+                                <strong>Rs. <t t-esc="parseFloat(state.amount).toFixed(2)"/></strong>
+                                will be transferred to
+                                <strong><t t-esc="selectedSession.pos_name"/></strong>
+                            </div>
+                        </t>
+
+                        <!-- Error -->
+                        <t t-if="state.error">
+                            <div class="alert alert-danger mt-3 mb-0">
+                                <i class="fa fa-times-circle me-2"/>
+                                <t t-esc="state.error"/>
+                            </div>
+                        </t>
+
+                    </t>
+                </div>
+
+                <!-- Footer -->
+                <div class="modal-footer">
+                    <t t-if="!state.loading and state.sessions.length > 0">
+                        <button class="btn btn-success btn-lg fw-bold"
+                                t-on-click="onTransfer"
+                                t-att-disabled="state.processing">
+                            <t t-if="state.processing">
+                                <i class="fa fa-spinner fa-spin me-2"/>
+                                Processing...
+                            </t>
+                            <t t-else="">
+                                <i class="fa fa-exchange me-2"/>
+                                Transfer Now
+                            </t>
+                        </button>
+                    </t>
+                    <button class="btn btn-secondary btn-lg"
+                            t-on-click="onCancel"
+                            t-att-disabled="state.processing">
+                        Cancel
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </t>
+
+</templates>

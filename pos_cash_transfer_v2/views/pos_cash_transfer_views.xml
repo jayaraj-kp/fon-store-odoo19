@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Cash Transfer Tree View -->
-    <record id="view_pos_cash_transfer_tree" model="ir.ui.view">
-        <field name="name">pos.cash.transfer.tree</field>
+    <!-- List View -->
+    <record id="view_pos_cash_transfer_list" model="ir.ui.view">
+        <field name="name">pos.cash.transfer.list</field>
         <field name="model">pos.cash.transfer</field>
         <field name="arch" type="xml">
             <list string="POS Cash Transfers"
@@ -26,7 +26,7 @@
         </field>
     </record>
 
-    <!-- Cash Transfer Form View -->
+    <!-- Form View -->
     <record id="view_pos_cash_transfer_form" model="ir.ui.view">
         <field name="name">pos.cash.transfer.form</field>
         <field name="model">pos.cash.transfer</field>
@@ -52,16 +52,12 @@
                 </header>
                 <sheet>
                     <div class="oe_title">
-                        <h1>
-                            <field name="name" readonly="1"/>
-                        </h1>
+                        <h1><field name="name" readonly="1"/></h1>
                     </div>
                     <group>
                         <group string="Transfer Details">
-                            <field name="from_session_id"
-                                   domain="[('state','=','opened')]"/>
-                            <field name="to_session_id"
-                                   domain="[('state','=','opened')]"/>
+                            <field name="from_session_id"/>
+                            <field name="to_session_id"/>
                             <field name="amount"/>
                             <field name="transfer_date"/>
                         </group>
@@ -73,13 +69,10 @@
                         </group>
                     </group>
                     <group>
-                        <field name="reason" placeholder="Enter reason for transfer..."/>
+                        <field name="reason"
+                               placeholder="Reason for cash transfer..."/>
                     </group>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="message_ids"/>
-                </div>
             </form>
         </field>
     </record>
@@ -96,23 +89,23 @@
                 <field name="cashier_id"/>
                 <filter string="Done" name="done"
                         domain="[('state','=','done')]"/>
-                <filter string="Draft" name="draft"
-                        domain="[('state','=','draft')]"/>
                 <filter string="Today" name="today"
-                        domain="[('transfer_date','&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00'))]"/>
+                        domain="[('transfer_date','&gt;=',
+                        datetime.datetime.combine(datetime.date.today(),
+                        datetime.time.min).strftime('%Y-%m-%d %H:%M:%S'))]"/>
                 <group expand="0" string="Group By">
-                    <filter string="From Counter" name="from_pos"
+                    <filter string="From Counter" name="grp_from"
                             context="{'group_by': 'from_pos_id'}"/>
-                    <filter string="To Counter" name="to_pos"
+                    <filter string="To Counter" name="grp_to"
                             context="{'group_by': 'to_pos_id'}"/>
-                    <filter string="Date" name="date"
+                    <filter string="Date" name="grp_date"
                             context="{'group_by': 'transfer_date:day'}"/>
                 </group>
             </search>
         </field>
     </record>
 
-    <!-- Action -->
+    <!-- Window Action -->
     <record id="action_pos_cash_transfer" model="ir.actions.act_window">
         <field name="name">Cash Transfers</field>
         <field name="res_model">pos.cash.transfer</field>
@@ -125,7 +118,7 @@
         </field>
     </record>
 
-    <!-- Menu Items -->
+    <!-- Menu -->
     <menuitem id="menu_pos_cash_transfer"
               name="Cash Transfers"
               parent="point_of_sale.menu_point_of_sale"

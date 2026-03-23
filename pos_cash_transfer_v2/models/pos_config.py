@@ -7,10 +7,9 @@ class PosConfig(models.Model):
     allow_cash_transfer = fields.Boolean(
         string='Allow Cash Transfer Between Counters',
         default=True,
-        help='Allow cashiers to transfer cash to other POS sessions'
+        help='Allow cashiers to transfer cash to other open POS sessions',
     )
     cash_transfer_requires_manager = fields.Boolean(
-        string='Require Manager Approval for Transfer',
+        string='Require Manager Approval',
         default=False,
-        help='If enabled, only managers can approve cash transfers'
     )
