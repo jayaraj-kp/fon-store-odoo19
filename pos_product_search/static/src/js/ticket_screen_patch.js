@@ -4,7 +4,7 @@ import { patch } from "@web/core/utils/patch";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
 import { _t } from "@web/core/l10n/translation";
 
-// ─── Product names ────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function getOrderProductNames(order) {
     const lines = order?.getOrderlines?.() || order?.lines || [];
     return Array.from(lines)
@@ -13,11 +13,9 @@ function getOrderProductNames(order) {
             line.full_product_name || line.product_name ||
             (line.product_id && (line.product_id.display_name || line.product_id.name)) ||
             (line.product && (line.product.display_name || line.product.name)) || ""
-        )
-        .filter(Boolean).join(" ").toLowerCase();
+        ).filter(Boolean).join(" ").toLowerCase();
 }
 
-// ─── Payment methods ──────────────────────────────────────────────────────────
 function getOrderPaymentMethods(order) {
     const paymentLines =
         (typeof order.get_paymentlines === "function" && order.get_paymentlines()) ||
@@ -27,11 +25,9 @@ function getOrderPaymentMethods(order) {
             (line.payment_method_id && (line.payment_method_id.name || line.payment_method_id.display_name)) ||
             (line.payment_method && (line.payment_method.name || line.payment_method.display_name)) ||
             line.name || ""
-        )
-        .filter(Boolean).join(" ").toLowerCase();
+        ).filter(Boolean).join(" ").toLowerCase();
 }
 
-// ─── Date ─────────────────────────────────────────────────────────────────────
 function getOrderDate(order) {
     const raw = order.date_order || order.creation_date || order.date || "";
     if (!raw) return "";
@@ -42,25 +38,18 @@ function getOrderDate(order) {
         const mm = pad(d.getMonth() + 1);
         const dd = pad(d.getDate());
         return `${yyyy}-${mm}-${dd} ${dd}/${mm}/${yyyy} ${mm}/${dd}/${yyyy} ${raw}`.toLowerCase();
-    } catch (_e) {
-        return String(raw).toLowerCase();
-    }
+    } catch (_e) { return String(raw).toLowerCase(); }
 }
 
-// ─── Customer phone/mobile ────────────────────────────────────────────────────
 function getOrderMobile(order) {
     return (
-        order.mobile ||
-        order.phone ||
-        order.partner_id?.mobile ||
-        order.partner_id?.phone ||
+        order.mobile || order.phone ||
+        order.partner_id?.mobile || order.partner_id?.phone ||
         (typeof order.getPartner === "function" && order.getPartner()?.mobile) ||
-        (typeof order.getPartner === "function" && order.getPartner()?.phone) ||
-        ""
+        (typeof order.getPartner === "function" && order.getPartner()?.phone) || ""
     ).toString().toLowerCase();
 }
 
-// ─── Product category ─────────────────────────────────────────────────────────
 function getOrderCategories(order) {
     const lines = order?.getOrderlines?.() || order?.lines || [];
     const cats = new Set();
@@ -72,8 +61,7 @@ function getOrderCategories(order) {
             const name = categ.name || categ.display_name || categ.complete_name;
             if (name) cats.add(name.toLowerCase());
         }
-        const posCategs = product.pos_category_ids || [];
-        Array.from(posCategs).forEach((pc) => {
+        Array.from(product.pos_category_ids || []).forEach((pc) => {
             const name = pc.name || pc.display_name;
             if (name) cats.add(name.toLowerCase());
         });
@@ -81,7 +69,6 @@ function getOrderCategories(order) {
     return [...cats].join(" ");
 }
 
-// ─── Bill amount ──────────────────────────────────────────────────────────────
 function getOrderAmountNum(order) {
     const amount =
         order.amount_total ??
@@ -130,17 +117,13 @@ function buildSearchFields(existingFields) {
         AMOUNT: {
             displayName: _t("Bill Amount"),
             modelField: "amount_total",
-            // repr returns a UNIQUE string per exact amount
-            // We pad to 10 decimals so fuzzyLookup only matches exact numeric strings
-            // e.g. "900" repr is "900.0000000000" — fuzzy won't match "9800.0000000000"
-            repr: (order) => {
-                const num = getOrderAmountNum(order);
-                // Format: fixed 10 decimal places — makes fuzzy matching effectively exact
-                return num.toFixed(10);
-            },
+            repr: (order) => String(getOrderAmountNum(order)),
         },
     };
 }
+
+// ─── Custom fields that need exact (non-fuzzy) matching ───────────────────────
+const EXACT_FIELDS = new Set(["AMOUNT"]);
 
 patch(TicketScreen.prototype, {
     _getSearchFields() {
@@ -156,22 +139,73 @@ patch(TicketScreen.prototype, {
     },
 
     /**
-     * Override onSearch to handle AMOUNT specially.
-     * For AMOUNT: pad the searchTerm to 10 decimals so fuzzyLookup
-     * matches exactly (repr also uses 10 decimals).
-     * e.g. user types "900" → we search "900.0000000000"
-     *      repr of ₹900 order = "900.0000000000" → exact match ✓
-     *      repr of ₹9800 order = "9800.0000000000" → no match ✓
+     * Override getFilteredOrderList ONLY for AMOUNT.
+     * Key: do NOT mutate this.state — instead replicate the parent's
+     * order-gathering logic and apply our own filter on top.
      */
-    async onSearch(search) {
-        if (search?.fieldName === "AMOUNT" && search?.searchTerm) {
-            const num = parseFloat(search.searchTerm);
-            if (!isNaN(num)) {
-                // Replace searchTerm with zero-padded version to match repr format
-                search = { ...search, searchTerm: num.toFixed(10) };
-            }
+    getFilteredOrderList() {
+        const { fieldName, searchTerm } = this.state.search || {};
+
+        // For non-AMOUNT fields, use the normal path
+        if (!EXACT_FIELDS.has(fieldName) || !searchTerm) {
+            return super.getFilteredOrderList();
         }
-        return super.onSearch(search);
+
+        // ── Replicate parent's order gathering WITHOUT the fuzzyLookup step ──
+        const orderModel = this.pos.models["pos.order"];
+
+        // 1. Get base set of orders (same logic as parent)
+        let orders = this.state.filter === "SYNCED"
+            ? orderModel.filter((o) => o.finalized && o.uiState.displayed)
+            : orderModel.filter(this.activeOrderFilter);
+
+        // 2. Apply status filter (same as parent)
+        if (this.state.filter && !["ACTIVE_ORDERS", "SYNCED"].includes(this.state.filter)) {
+            orders = orders.filter((order) => {
+                const screen = order.getScreenData();
+                return this._getScreenToStatusMap()[screen.name] === this.state.filter;
+            });
+        }
+
+        // 3. Apply AMOUNT exact filter (replaces fuzzyLookup)
+        orders = orders.filter((order) => amountMatchesOrder(order, searchTerm));
+
+        // 4. Apply partner filter if present (same as parent)
+        if (this.state.search.partnerId && fieldName === "PARTNER") {
+            orders = orders.filter((order) => order.partner_id?.id === this.state.search.partnerId);
+        }
+
+        // 5. Apply preset filter if present (same as parent)
+        if (this.state.selectedPreset) {
+            orders = orders.filter((order) => order.preset_id?.id === this.state.selectedPreset.id);
+        }
+
+        // 6. Sort (same as parent)
+        const sortOrders = (orders, ascending = false) =>
+            orders.sort((a, b) => {
+                const dateA = a.date_order;
+                const dateB = b.date_order;
+                if (!dateA.equals(dateB)) return ascending ? dateA - dateB : dateB - dateA;
+                const nameA = parseInt(a.pos_reference?.replace(/\D/g, "")) || 0;
+                const nameB = parseInt(b.pos_reference?.replace(/\D/g, "")) || 0;
+                return ascending ? nameA - nameB : nameB - nameA;
+            });
+
+        // 7. Paginate (same as parent)
+        if (this.state.filter === "SYNCED") {
+            return sortOrders(orders).slice(
+                (this.state.page - 1) * this.state.nbrByPage,
+                this.state.page * this.state.nbrByPage
+            );
+        } else {
+            if (this.pos.screenState?.ticketSCreen) {
+                this.pos.screenState.ticketSCreen.totalCount = orders.length;
+            }
+            return sortOrders(orders, true).slice(
+                (this.state.page - 1) * this.state.nbrByPage,
+                this.state.page * this.state.nbrByPage
+            );
+        }
     },
 
     _doesOrderPassFilter(order, { fieldName, searchTerm }) {
