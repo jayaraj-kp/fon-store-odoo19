@@ -5,7 +5,7 @@
     'category': 'Accounting',
     'summary': 'Balance Sheet rendered as an inline browser page with PDF/XLSX export',
     'author': 'Custom',
-    'depends': ['base_accounting_kit'],
+    'depends': ['account'],
     'data': [
         'security/ir.model.access.csv',
         'views/menu_views.xml',
