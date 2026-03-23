@@ -17,10 +17,8 @@
                        string="Payment Method"
                        filter_domain="[('payment_ids.payment_method_id.name', 'ilike', self)]"/>
 
-                <!-- Phone / Mobile -->
-                <field name="partner_id"
-                       string="Phone / Mobile"
-                       filter_domain="['|',('partner_id.phone','ilike',self),('partner_id.mobile','ilike',self)]"/>
+                <!-- Phone / Mobile — direct field on pos.order -->
+                <field name="mobile" string="Phone / Mobile"/>
 
                 <!-- Bill Amount -->
                 <field name="amount_total"
@@ -29,7 +27,6 @@
 
                 <separator/>
 
-                <!-- Quick filters -->
                 <filter string="Cash Orders"
                         name="filter_cash"
                         domain="[('payment_ids.payment_method_id.is_cash_count','=',True)]"/>
@@ -40,7 +37,6 @@
 
                 <separator/>
 
-                <!-- Group By -->
                 <group expand="0" string="Group By">
                     <filter string="Customer"
                             name="groupby_partner"
