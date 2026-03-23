@@ -238,6 +238,7 @@ function buildSearchFields(existingFields) {
         MOBILE: { displayName: _t("Phone / Mobile"), modelField: "mobile", repr: (order) => getOrderMobile(order) },
         CATEGORY: { displayName: _t("Product Category"), modelField: "lines.product_id.categ_id.name", repr: (order) => getOrderCategories(order) },
         AMOUNT: { displayName: _t("Bill Amount"), modelField: "amount_total", repr: (order) => String(getOrderAmountNum(order)) },
+        CUSTOM_FILTER: { displayName: _t("Custom Filter..."), modelField: "", repr: () => "" },
     };
 }
 
@@ -276,16 +277,9 @@ patch(TicketScreen.prototype, {
         return buildSearchFields(fields);
     },
 
-    _getFilterOptions() {
-        let options;
-        try { options = super._getFilterOptions(); } catch (_e) { options = new Map(); }
-        if (!options) options = new Map();
-        options.set("CUSTOM_FILTER", { text: _t("Custom Filter...") });
-        return options;
-    },
-
-    async onFilterSelected(selectedFilter) {
-        if (selectedFilter === "CUSTOM_FILTER") {
+    // Intercept onSearch to open dialog when CUSTOM_FILTER is selected
+    async onSearch(search) {
+        if (search?.fieldName === "CUSTOM_FILTER") {
             const result = await new Promise((resolve) => {
                 this.dialog.add(CustomFilterDialog, {
                     confirm: (payload) => resolve(payload),
@@ -298,9 +292,22 @@ patch(TicketScreen.prototype, {
                 this.state.filter = "CUSTOM_FILTER";
                 this.pos.screenState.ticketSCreen.totalCount = 0;
                 this.pos.screenState.ticketSCreen.offsetByDomain = {};
+                // Clear search so dropdown closes
+                this.state.search = { fieldName: "CUSTOM_FILTER", searchTerm: "" };
             }
             return;
         }
+        return super.onSearch(search);
+    },
+
+    _getFilterOptions() {
+        let options;
+        try { options = super._getFilterOptions(); } catch (_e) { options = new Map(); }
+        if (!options) options = new Map();
+        return options;
+    },
+
+    async onFilterSelected(selectedFilter) {
         this._customFilter = null;
         return super.onFilterSelected(selectedFilter);
     },
