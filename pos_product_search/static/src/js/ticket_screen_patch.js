@@ -82,18 +82,25 @@ function getOrderCategories(order) {
 }
 
 // ─── Bill amount ──────────────────────────────────────────────────────────────
-// Confirmed fields from order prototype: amount_total, getRoundedGrandTotal()
-// User can search exact amount "980", partial "98", or with decimals "980.00"
-function getOrderAmount(order) {
+// Uses EXACT numeric comparison: "200" matches only ₹200 and ₹200.00
+// NOT ₹2000, ₹1200, ₹202 etc.
+function getOrderAmountNum(order) {
     const amount =
         order.amount_total ??
         (typeof order.getRoundedGrandTotal === "function" && order.getRoundedGrandTotal()) ??
         (typeof order.get_total_with_tax === "function" && order.get_total_with_tax()) ??
         0;
-    // Return multiple formats so user can search "980", "980.00", "980.5" etc.
-    const num = parseFloat(amount);
-    if (isNaN(num)) return "";
-    return `${num} ${num.toFixed(2)} ${Math.round(num)}`;
+    return parseFloat(amount) || 0;
+}
+
+function matchesAmount(order, searchTerm) {
+    const term = (searchTerm || "").trim();
+    if (!term) return true;
+    const searchNum = parseFloat(term);
+    if (isNaN(searchNum)) return false;
+    const orderAmount = getOrderAmountNum(order);
+    // Exact match: 200 matches 200.00 exactly
+    return Math.abs(orderAmount - searchNum) < 0.001;
 }
 
 // ─── Shared field definitions ─────────────────────────────────────────────────
@@ -128,27 +135,41 @@ function buildSearchFields(existingFields) {
         AMOUNT: {
             displayName: _t("Bill Amount"),
             modelField: "amount_total",
-            repr: (order) => getOrderAmount(order),
+            // repr returns the exact amount string for display in dropdown
+            repr: (order) => {
+                const num = getOrderAmountNum(order);
+                return `${num.toFixed(2)}`;
+            },
         },
     };
 }
 
 // ─── Filter logic ─────────────────────────────────────────────────────────────
-const CUSTOM_FIELDS = {
-    PRODUCT:         getOrderProductNames,
-    PAYMENT_METHOD:  getOrderPaymentMethods,
-    ORDER_DATE:      getOrderDate,
-    MOBILE:          getOrderMobile,
-    CATEGORY:        getOrderCategories,
-    AMOUNT:          getOrderAmount,
-};
-
 function matchesCustomField(order, fieldName, searchTerm) {
-    const fn = CUSTOM_FIELDS[fieldName];
-    if (!fn) return null; // not a custom field
-    const term = (searchTerm || "").trim().toLowerCase();
-    if (!term) return true;
-    return fn(order).includes(term);
+    if (!fieldName) return null;
+    const term = (searchTerm || "").trim();
+
+    switch (fieldName) {
+        case "PRODUCT":
+            if (!term) return true;
+            return getOrderProductNames(order).includes(term.toLowerCase());
+        case "PAYMENT_METHOD":
+            if (!term) return true;
+            return getOrderPaymentMethods(order).includes(term.toLowerCase());
+        case "ORDER_DATE":
+            if (!term) return true;
+            return getOrderDate(order).includes(term.toLowerCase());
+        case "MOBILE":
+            if (!term) return true;
+            return getOrderMobile(order).includes(term.toLowerCase());
+        case "CATEGORY":
+            if (!term) return true;
+            return getOrderCategories(order).includes(term.toLowerCase());
+        case "AMOUNT":
+            return matchesAmount(order, term);
+        default:
+            return null; // not a custom field — let super handle it
+    }
 }
 
 patch(TicketScreen.prototype, {
