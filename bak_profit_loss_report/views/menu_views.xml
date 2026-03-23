@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Action to open the P&L inline report via controller -->
+        <record id="action_bak_profit_loss_report" model="ir.actions.act_url">
+            <field name="name">Profit &amp; Loss</field>
+            <field name="url">/bak/profit_loss</field>
+            <field name="target">self</field>
+        </record>
+
+        <!-- Menu item under Accounting > Reporting -->
+        <menuitem
+            id="menu_bak_profit_loss_report"
+            name="Profit &amp; Loss (BAK)"
+            parent="base_accounting_kit.menu_accounting_reports"
+            action="action_bak_profit_loss_report"
+            sequence="15"/>
+
+    </data>
+</odoo>
