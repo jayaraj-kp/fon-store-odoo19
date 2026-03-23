@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="pos_product_search.CustomFilterPopup">
+        <Dialog title="'Custom Filter'" footer="false">
+            <div class="p-3" style="min-width: 380px;">
+
+                <!-- Header -->
+                <div class="mb-3 text-muted small">
+                    Match orders where:
+                </div>
+
+                <!-- Field selector -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Field</label>
+                    <select class="form-select"
+                            t-model="state.field"
+                            t-on-change="() => { state.operator = getOperators()[0].key; }">
+                        <t t-foreach="fields" t-as="f" t-key="f.key">
+                            <option t-att-value="f.key" t-esc="f.label"/>
+                        </t>
+                    </select>
+                </div>
+
+                <!-- Operator selector -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Condition</label>
+                    <select class="form-select" t-model="state.operator">
+                        <t t-foreach="getOperators()" t-as="op" t-key="op.key">
+                            <option t-att-value="op.key" t-esc="op.label"/>
+                        </t>
+                    </select>
+                </div>
+
+                <!-- Value input -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Value</label>
+                    <input class="form-control"
+                           type="text"
+                           t-model="state.value"
+                           placeholder="Enter value..."
+                           t-on-keyup="(e) => e.key === 'Enter' and confirm()"/>
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-secondary" t-on-click="cancel">
+                        Discard
+                    </button>
+                    <button class="btn btn-primary" t-on-click="confirm"
+                            t-att-disabled="!state.value">
+                        Apply Filter
+                    </button>
+                </div>
+
+            </div>
+        </Dialog>
+    </t>
+</templates>

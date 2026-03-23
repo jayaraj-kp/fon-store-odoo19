@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Extend the backend pos.order search view to add custom filter options:
+        - Filter by Product Name
+        - Filter by Payment Method
+        - Filter by Product Category
+        - Filter by Customer Phone/Mobile
+        - Filter by Bill Amount (exact)
+
+        These appear in the "Custom Filter" dropdown in the backend Orders list.
+    -->
+    <record id="view_pos_order_search_extended" model="ir.ui.view">
+        <field name="name">pos.order.search.extended</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_filter"/>
+        <field name="arch" type="xml">
+
+            <!-- Add searchable fields to the search bar -->
+            <xpath expr="//search" position="inside">
+
+                <!-- Product Name: searches order lines for product -->
+                <field name="lines"
+                       string="Product"
+                       filter_domain="[('lines.product_id.name', 'ilike', self)]"/>
+
+                <!-- Payment Method -->
+                <field name="payment_ids"
+                       string="Payment Method"
+                       filter_domain="[('payment_ids.payment_method_id.name', 'ilike', self)]"/>
+
+                <!-- Customer Phone / Mobile -->
+                <field name="partner_id"
+                       string="Phone / Mobile"
+                       filter_domain="['|', ('partner_id.phone', 'ilike', self), ('partner_id.mobile', 'ilike', self)]"/>
+
+                <!-- Bill Amount (exact) -->
+                <field name="amount_total"
+                       string="Bill Amount"
+                       filter_domain="[('amount_total', '=', self)]"/>
+
+                <!-- Predefined quick filters -->
+                <separator/>
+
+                <filter string="Cash Orders"
+                        name="filter_cash"
+                        domain="[('payment_ids.payment_method_id.is_cash_count', '=', True)]"/>
+
+                <filter string="Card Orders"
+                        name="filter_card"
+                        domain="[('payment_ids.payment_method_id.is_cash_count', '=', False)]"/>
+
+                <separator/>
+
+                <!-- Group by options -->
+                <group expand="0" string="Group By">
+                    <filter string="Payment Method"
+                            name="groupby_payment"
+                            context="{'group_by': 'payment_ids'}"/>
+                    <filter string="Product Category"
+                            name="groupby_category"
+                            context="{'group_by': 'lines.product_id.categ_id'}"/>
+                    <filter string="Customer"
+                            name="groupby_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Date"
+                            name="groupby_date"
+                            context="{'group_by': 'date_order:day'}"/>
+                </group>
+
+            </xpath>
+        </field>
+    </record>
+</odoo>
