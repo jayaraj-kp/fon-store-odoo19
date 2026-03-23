@@ -1,0 +1,7 @@
+<odoo>
+    <record id="account_reconcile_oca.action_bank_statement_line_reconcile" model="ir.actions.act_window">
+        <field name="context">{
+            'view_ref': 'account_reconcile_oca.bank_statement_line_form_reconcile_view'
+        }</field>
+    </record>
+</odoo>
