@@ -81,29 +81,24 @@ function getOrderCategories(order) {
     return [...cats].join(" ");
 }
 
-// ─── Bill amount ──────────────────────────────────────────────────────────────
-// Uses EXACT numeric comparison: "200" matches only ₹200 and ₹200.00
-// NOT ₹2000, ₹1200, ₹202 etc.
+// ─── Bill amount (numeric exact match) ───────────────────────────────────────
 function getOrderAmountNum(order) {
     const amount =
         order.amount_total ??
         (typeof order.getRoundedGrandTotal === "function" && order.getRoundedGrandTotal()) ??
-        (typeof order.get_total_with_tax === "function" && order.get_total_with_tax()) ??
         0;
     return parseFloat(amount) || 0;
 }
 
-function matchesAmount(order, searchTerm) {
+function amountMatchesOrder(order, searchTerm) {
     const term = (searchTerm || "").trim();
     if (!term) return true;
     const searchNum = parseFloat(term);
     if (isNaN(searchNum)) return false;
-    const orderAmount = getOrderAmountNum(order);
-    // Exact match: 200 matches 200.00 exactly
-    return Math.abs(orderAmount - searchNum) < 0.001;
+    return Math.abs(getOrderAmountNum(order) - searchNum) < 0.001;
 }
 
-// ─── Shared field definitions ─────────────────────────────────────────────────
+// ─── Field definitions ────────────────────────────────────────────────────────
 function buildSearchFields(existingFields) {
     return {
         ...existingFields,
@@ -135,41 +130,9 @@ function buildSearchFields(existingFields) {
         AMOUNT: {
             displayName: _t("Bill Amount"),
             modelField: "amount_total",
-            // repr returns the exact amount string for display in dropdown
-            repr: (order) => {
-                const num = getOrderAmountNum(order);
-                return `${num.toFixed(2)}`;
-            },
+            repr: (order) => String(getOrderAmountNum(order)),
         },
     };
-}
-
-// ─── Filter logic ─────────────────────────────────────────────────────────────
-function matchesCustomField(order, fieldName, searchTerm) {
-    if (!fieldName) return null;
-    const term = (searchTerm || "").trim();
-
-    switch (fieldName) {
-        case "PRODUCT":
-            if (!term) return true;
-            return getOrderProductNames(order).includes(term.toLowerCase());
-        case "PAYMENT_METHOD":
-            if (!term) return true;
-            return getOrderPaymentMethods(order).includes(term.toLowerCase());
-        case "ORDER_DATE":
-            if (!term) return true;
-            return getOrderDate(order).includes(term.toLowerCase());
-        case "MOBILE":
-            if (!term) return true;
-            return getOrderMobile(order).includes(term.toLowerCase());
-        case "CATEGORY":
-            if (!term) return true;
-            return getOrderCategories(order).includes(term.toLowerCase());
-        case "AMOUNT":
-            return matchesAmount(order, term);
-        default:
-            return null; // not a custom field — let super handle it
-    }
 }
 
 patch(TicketScreen.prototype, {
@@ -185,24 +148,39 @@ patch(TicketScreen.prototype, {
         return buildSearchFields(fields);
     },
 
+    /**
+     * Override getFilteredOrderList to intercept AMOUNT searches BEFORE
+     * fuzzyLookup is called (which causes "900" to match "9800", "980" etc).
+     * For all other fields, call super normally.
+     */
+    getFilteredOrderList() {
+        const { fieldName, searchTerm } = this.state.search || {};
+
+        if (fieldName === "AMOUNT" && searchTerm) {
+            // Temporarily clear the search so super() returns all orders unfiltered
+            const savedSearch = this.state.search;
+            this.state.search = { fieldName: "AMOUNT", searchTerm: "" };
+            let orders = super.getFilteredOrderList();
+            this.state.search = savedSearch;
+
+            // Now apply exact numeric filter ourselves
+            return orders.filter((order) => amountMatchesOrder(order, searchTerm));
+        }
+
+        return super.getFilteredOrderList();
+    },
+
     _doesOrderPassFilter(order, { fieldName, searchTerm }) {
-        const result = matchesCustomField(order, fieldName, searchTerm);
-        if (result !== null) return result;
+        if (fieldName === "AMOUNT") return amountMatchesOrder(order, searchTerm);
         try { return super._doesOrderPassFilter(order, { fieldName, searchTerm }); }
         catch (_e) { return true; }
     },
 
     filterOrderBySearch(order, searchDetails) {
-        const result = matchesCustomField(order, searchDetails?.fieldName, searchDetails?.searchTerm);
-        if (result !== null) return result;
+        if (searchDetails?.fieldName === "AMOUNT") {
+            return amountMatchesOrder(order, searchDetails.searchTerm);
+        }
         try { return super.filterOrderBySearch(order, searchDetails); }
-        catch (_e) { return true; }
-    },
-
-    _searchOrder(order, fieldValue) {
-        const result = matchesCustomField(order, fieldValue?.fieldName, fieldValue?.searchTerm);
-        if (result !== null) return result;
-        try { return super._searchOrder(order, fieldValue); }
         catch (_e) { return true; }
     },
 });

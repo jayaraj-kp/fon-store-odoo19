@@ -89,17 +89,16 @@
                 <field name="cashier_id"/>
                 <filter string="Done" name="done"
                         domain="[('state','=','done')]"/>
-                <filter string="Today" name="today"
-                        domain="[('transfer_date','&gt;=',
-                        datetime.datetime.combine(datetime.date.today(),
-                        datetime.time.min).strftime('%Y-%m-%d %H:%M:%S'))]"/>
+                <filter string="Draft" name="draft"
+                        domain="[('state','=','draft')]"/>
+                <separator/>
                 <group expand="0" string="Group By">
                     <filter string="From Counter" name="grp_from"
                             context="{'group_by': 'from_pos_id'}"/>
                     <filter string="To Counter" name="grp_to"
                             context="{'group_by': 'to_pos_id'}"/>
-                    <filter string="Date" name="grp_date"
-                            context="{'group_by': 'transfer_date:day'}"/>
+                    <filter string="Cashier" name="grp_cashier"
+                            context="{'group_by': 'cashier_id'}"/>
                 </group>
             </search>
         </field>
