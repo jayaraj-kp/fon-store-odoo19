@@ -167,7 +167,12 @@
         <span>Grand Total</span>
                     <span><t t-esc="formatCurrency(order.getGrandTotal())"/></span>
     </div>
-
+                <t t-if="order.getCharityDonation and order.getCharityDonation() > 0">
+        <div class="line" style="color:#c0392b; font-style:italic;">
+            <span>&#x2665; Charity Donation</span>
+            <span><t t-esc="formatCurrency(order.getCharityDonation())"/></span>
+        </div>
+    </t>
 </div>
             <!--        <div class="custom-total-section">-->
             <!--            <div class="line">-->
@@ -206,12 +211,6 @@
                 <span><t t-esc="formatCurrency(order.getTotalSaved())"/></span>
             </div>
         </t>
-            <t t-if="order.getCharityDonation and order.getCharityDonation() > 0">
-        <div class="line" style="color:#c0392b; font-style:italic;">
-            <span>&#x2665; Charity Donation</span>
-            <span><t t-esc="formatCurrency(order.getCharityDonation())"/></span>
-        </div>
-    </t>
 
             <!-- GST BREAKDOWN TABLE — disabled (change t-if="false" to t-if="true" to enable) -->
             <t t-if="false">
