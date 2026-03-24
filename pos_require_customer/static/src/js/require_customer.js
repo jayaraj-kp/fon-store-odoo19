@@ -1,16 +1,22 @@
 /** @odoo-module **/
 
 /**
- * POS Require Customer v6 — Odoo 19 CE
+ * POS Require Customer v7 — Odoo 19 CE
  *
- * Blocks ALL payment entry points on ProductScreen:
- *   - "Payment" button        → ProductScreen.pay()
- *   - "Cash KDTY" button      → ProductScreen.clickPaymentMethod()
- *   - "Card KDTY" button      → ProductScreen.clickPaymentMethod()
+ * The "Payment" button in Odoo 19 ProductScreen template calls:
+ *     actionToTrigger="() => pos.pay()"
+ * where `pos` is the PosStore SERVICE injected via useService("pos").
  *
- * Safety net on PaymentScreen (in case user reaches it another way):
- *   - Validate button         → PaymentScreen.validateOrder()
- *   - Fast validate           → PaymentScreen.validateOrderFast()
+ * We cannot import PosStore directly (broken path in Odoo 19).
+ * Solution: inside ProductScreen.setup(), we grab the live `pos` service
+ * instance and wrap its `pay` method at runtime — no import needed.
+ *
+ * Entry points covered:
+ *   ✅ "Payment" button       → pos.pay()            (runtime wrap in setup)
+ *   ✅ "Cash KDTY" button     → clickPaymentMethod()  (prototype patch)
+ *   ✅ "Card KDTY" button     → clickPaymentMethod()  (prototype patch)
+ *   ✅ Validate (safety net)  → validateOrder()       (PaymentScreen patch)
+ *   ✅ Fast validate          → validateOrderFast()   (PaymentScreen patch)
  */
 
 import { patch }      from "@web/core/utils/patch";
@@ -70,27 +76,35 @@ function showPopup(dialogService, body) {
 
 // ─────────────────────────────────────────────────────────
 //  1. Patch ProductScreen
-//     Covers:
-//       • "Payment" button        → pay()
-//       • "Cash KDTY" button      → clickPaymentMethod()
-//       • "Card KDTY" button      → clickPaymentMethod()
 // ─────────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
-    },
 
-    // ── "Payment" button ─────────────────────────────────
-    async pay() {
-        if (noCustomer(this.pos)) {
-            await showPopup(
-                this._rcDialog,
-                "Please select a customer before proceeding to payment."
-            );
-            return;
+        // ── Wrap pos.pay() at runtime ─────────────────────
+        // The Payment button calls `() => pos.pay()` where pos is
+        // the service instance. We wrap it once here so the check
+        // fires regardless of which template triggers it.
+        const pos = this.pos;
+        if (pos && typeof pos.pay === "function" && !pos.__rc_pay_patched__) {
+            const originalPay = pos.pay.bind(pos);
+            const dialog = this._rcDialog;
+
+            pos.pay = async function (...args) {
+                if (noCustomer(pos)) {
+                    await showPopup(
+                        dialog,
+                        "Please select a customer before proceeding to payment."
+                    );
+                    return;
+                }
+                return originalPay(...args);
+            };
+
+            // Mark so we only wrap once even if setup() is called again
+            pos.__rc_pay_patched__ = true;
         }
-        return super.pay(...arguments);
     },
 
     // ── "Cash KDTY" / "Card KDTY" shortcut buttons ───────
@@ -108,7 +122,7 @@ patch(ProductScreen.prototype, {
 
 // ─────────────────────────────────────────────────────────
 //  2. Patch PaymentScreen — safety net
-//     In case user somehow reaches PaymentScreen directly.
+//     Covers users who reach PaymentScreen by any other path.
 // ─────────────────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
