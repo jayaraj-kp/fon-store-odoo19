@@ -2,15 +2,27 @@
 <odoo>
 
     <!-- ═══════════════════════════════════════════════════════
-         Menu: Point of Sale → Reporting → Sales & Margin Analysis
+         Create our own "Analysis" menu directly under
+         the POS top-level menu (menu_point_of_sale).
+         We do NOT depend on menu_point_of_sale_report
+         which was removed/renamed in Odoo 19.
     ═══════════════════════════════════════════════════════ -->
 
+    <!-- Sub-menu container: Point of Sale > Sales Analysis -->
+    <menuitem
+        id="menu_pos_line_analysis_root"
+        name="Sales Analysis"
+        parent="point_of_sale.menu_point_of_sale"
+        sequence="25"
+        groups="point_of_sale.group_pos_user"/>
+
+    <!-- Leaf menu item that opens the action -->
     <menuitem
         id="menu_pos_order_line_report"
-        name="Sales &amp; Margin Analysis"
-        parent="point_of_sale.menu_point_of_sale_report"
+        name="Product &amp; Margin Report"
+        parent="menu_pos_line_analysis_root"
         action="action_pos_order_line_report"
-        sequence="15"
+        sequence="10"
         groups="point_of_sale.group_pos_user"/>
 
 </odoo>
