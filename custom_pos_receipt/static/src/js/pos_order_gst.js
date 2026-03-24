@@ -686,12 +686,20 @@ patch(PosOrder.prototype, {
     },
 
     /*
-     * getTotalTaxableAmount — shows the tax-inclusive subtotal BEFORE rounding.
+     * getTotalTaxableAmount — shows the original price BEFORE discount (and before rounding).
      * This is what appears as "Total Amount" on the receipt.
-     * Using amount_total (Odoo's tax-inclusive order total, pre-rounding).
+     * Sum of (price_unit × qty) for all lines, inclusive of tax rate.
+     * e.g. ₹200 item with 20% discount → Total Amount = ₹200
      */
     getTotalTaxableAmount() {
-        return this.amount_total || 0;
+        return (this.lines || this.orderlines || []).reduce((s, line) => {
+            const qty  = line.qty || 0;
+            const rate = line.price_unit || 0;
+            // price_unit is always the unit price before discount
+            // multiply by (1 + tax_rate/100) to get tax-inclusive original total
+            const taxRate = (line.tax_ids || []).reduce((t, tx) => t + (tx.amount || 0), 0);
+            return s + Math.round(rate * qty * (1 + taxRate / 100) * 100) / 100;
+        }, 0);
     },
 
     getTotalCgst() {
@@ -729,9 +737,10 @@ patch(PosOrder.prototype, {
     /* ================= TOTALS ================= */
 
     /*
-     * getRoundOff — difference between rounded and raw amount_total.
+     * getRoundOff — difference between rounded and raw amount_total (after discount).
      * Positive means rounding up, negative means rounding down.
      * e.g. amount_total = 400.20 → rounded = 400 → roundOff = -0.20
+     * e.g. amount_total = 180.00 → rounded = 180 → roundOff = 0 (hidden)
      */
     getRoundOff() {
         const raw     = this.amount_total || 0;
@@ -741,16 +750,17 @@ patch(PosOrder.prototype, {
     },
 
     /*
-     * getRoundedGrandTotal — amount_total rounded to nearest integer.
+     * getRoundedGrandTotal — amount_total (after discount) rounded to nearest integer.
      */
     getRoundedGrandTotal() {
         return Math.round(this.amount_total || 0);
     },
 
     /*
-     * getGrandTotal — returns the ROUNDED final payable amount.
+     * getGrandTotal — returns the ROUNDED final payable amount after discount.
      * This is what appears as "Grand Total" on the receipt.
-     * e.g. 400.20 → 400
+     * e.g. ₹200 with 20% discount → amount_total = 180 → Grand Total = ₹180
+     * e.g. ₹400.20 no discount    → amount_total = 400.20 → Grand Total = ₹400
      */
     getGrandTotal() {
         return this.getRoundedGrandTotal();
