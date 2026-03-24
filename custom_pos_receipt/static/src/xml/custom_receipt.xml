@@ -209,8 +209,8 @@
             <!-- CHARITY DONATION -->
             <t t-if="order.getCharityDonation and order.getCharityDonation() > 0">
             <div class="saved-line" style="color:#c0392b; border-color:#e74c3c;">
-                <span>&#x2665; Thanks ! You have donated Rs.</span>
-                <span style="color:#c0392b;"><t t-esc="formatCurrency(order.getCharityDonation())"/></span> for charity!
+                <span>&#x2665; "You have made a charitable donation of Rs." </span>
+                <span style="color:#c0392b;"><t t-esc="formatCurrency(order.getCharityDonation())"/></span>
             </div>
         </t>
 
