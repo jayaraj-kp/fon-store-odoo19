@@ -629,4 +629,9 @@ patch(PosOrder.prototype, {
         );
     },
 
+    /* ================= CHARITY DONATION ================= */
+    getCharityDonation() {
+        return this._charity_donation_amount || 0;
+    },
+
 });
