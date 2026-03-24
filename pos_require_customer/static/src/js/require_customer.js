@@ -1,28 +1,26 @@
 /** @odoo-module **/
 
 /**
- * POS Require Customer v5 — Odoo 19 CE
+ * POS Require Customer v6 — Odoo 19 CE
  *
- * Fix: In Odoo 19, PosStore moved from
- *   @point_of_sale/app/store/pos_store   ← WRONG (Odoo 17/18 path)
- * to
- *   @point_of_sale/app/store/pos_store   is actually split; the working
- *   import in Odoo 19 bundles is via the POS model registry.
+ * Blocks ALL payment entry points on ProductScreen:
+ *   - "Payment" button        → ProductScreen.pay()
+ *   - "Cash KDTY" button      → ProductScreen.clickPaymentMethod()
+ *   - "Card KDTY" button      → ProductScreen.clickPaymentMethod()
  *
- * Safest fix: remove the PosStore patch entirely and rely ONLY on the
- * ProductScreen + PaymentScreen patches which already cover every real
- * payment entry point. The PosStore.pay() patch was a belt-and-suspenders
- * addition but its broken import is what kills the whole module.
+ * Safety net on PaymentScreen (in case user reaches it another way):
+ *   - Validate button         → PaymentScreen.validateOrder()
+ *   - Fast validate           → PaymentScreen.validateOrderFast()
  */
 
-import { patch } from "@web/core/utils/patch";
+import { patch }      from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
-import { Component } from "@odoo/owl";
+import { Component }  from "@odoo/owl";
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 
 // ─────────────────────────────────────────────────────────
-//  Popup — pure OWL component, no POS inheritance needed
+//  Dialog component
 // ─────────────────────────────────────────────────────────
 export class CustomerRequiredDialog extends Component {
     static template = "pos_require_customer.CustomerRequiredDialog";
@@ -37,7 +35,7 @@ export class CustomerRequiredDialog extends Component {
 }
 
 // ─────────────────────────────────────────────────────────
-//  Helper — returns true when the current order has no customer
+//  Helper — true when current order has no customer set
 // ─────────────────────────────────────────────────────────
 function noCustomer(pos) {
     try {
@@ -59,7 +57,7 @@ function noCustomer(pos) {
     }
 }
 
-// Show the dialog and wait for the user to click OK
+// Show popup and wait for user to press OK
 function showPopup(dialogService, body) {
     return new Promise((resolve) => {
         dialogService.add(CustomerRequiredDialog, {
@@ -71,8 +69,11 @@ function showPopup(dialogService, body) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  1. Patch ProductScreen — Cash / Card shortcut buttons
-//     Bundle confirmed:  async clickPaymentMethod()
+//  1. Patch ProductScreen
+//     Covers:
+//       • "Payment" button        → pay()
+//       • "Cash KDTY" button      → clickPaymentMethod()
+//       • "Card KDTY" button      → clickPaymentMethod()
 // ─────────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
     setup() {
@@ -80,6 +81,19 @@ patch(ProductScreen.prototype, {
         this._rcDialog = useService("dialog");
     },
 
+    // ── "Payment" button ─────────────────────────────────
+    async pay() {
+        if (noCustomer(this.pos)) {
+            await showPopup(
+                this._rcDialog,
+                "Please select a customer before proceeding to payment."
+            );
+            return;
+        }
+        return super.pay(...arguments);
+    },
+
+    // ── "Cash KDTY" / "Card KDTY" shortcut buttons ───────
     async clickPaymentMethod(paymentMethod) {
         if (noCustomer(this.pos)) {
             await showPopup(
@@ -93,10 +107,8 @@ patch(ProductScreen.prototype, {
 });
 
 // ─────────────────────────────────────────────────────────
-//  2. Patch PaymentScreen — Validate + Fast-Validate buttons
-//     Covers users who navigate to PaymentScreen by any path.
-//     Bundle confirmed:  async validateOrder()
-//                        async validateOrderFast()
+//  2. Patch PaymentScreen — safety net
+//     In case user somehow reaches PaymentScreen directly.
 // ─────────────────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
