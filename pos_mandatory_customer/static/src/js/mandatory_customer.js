@@ -11,10 +11,10 @@ patch(PaymentScreen.prototype, {
      * Blocks payment if no customer (partner) is set on the current order.
      */
     async validateOrder(isForceValidate) {
-        const order = this.pos.get_order();
+        // Odoo 17+/19: currentOrder replaces get_order()
+        const order = this.pos.currentOrder;
 
-        if (!order.get_partner()) {
-            // Show danger notification — always available in POS env
+        if (!order || !order.partner_id) {
             this.notification.add(
                 _t("Please select a customer before processing the payment."),
                 {
@@ -35,9 +35,10 @@ patch(PaymentScreen.prototype, {
      * by intercepting the same validation path.
      */
     async _finalizeValidation() {
-        const order = this.pos.get_order();
+        // Odoo 17+/19: currentOrder replaces get_order()
+        const order = this.pos.currentOrder;
 
-        if (!order.get_partner()) {
+        if (!order || !order.partner_id) {
             this.notification.add(
                 _t("Please select a customer before processing the payment."),
                 {
