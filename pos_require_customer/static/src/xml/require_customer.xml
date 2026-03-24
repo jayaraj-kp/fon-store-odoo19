@@ -2,77 +2,74 @@
 <templates id="template" xml:space="preserve">
 
     <t t-name="pos_require_customer.CustomerRequiredDialog" owl="1">
-        <!-- Full-screen backdrop -->
+        <!--
+            Faux-viewport div so the modal has layout height in the iframe.
+            position:fixed is NOT used (breaks iframe sizing).
+        -->
         <div style="
-            position: fixed;
+            position: absolute;
             inset: 0;
             background: rgba(0,0,0,0.55);
             z-index: 99999;
             display: flex;
             align-items: center;
             justify-content: center;
+            min-height: 100vh;
         " t-on-click.self="confirm">
 
-            <!-- Dialog card -->
             <div style="
-                background: #fff;
+                background: #ffffff;
                 border-radius: 14px;
                 box-shadow: 0 16px 48px rgba(0,0,0,0.28);
                 width: 400px;
                 overflow: hidden;
                 font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
             ">
-                <!-- Red header -->
+                <!-- Header -->
                 <div style="
-                    background: linear-gradient(135deg,#e74c3c,#c0392b);
+                    background: linear-gradient(135deg, #e74c3c, #c0392b);
                     padding: 20px 24px;
                     display: flex;
                     align-items: center;
                     gap: 14px;
                 ">
-                    <span style="font-size:30px; line-height:1;">⚠️</span>
+                    <span style="font-size: 28px; line-height: 1;">&#9888;&#65039;</span>
                     <span style="
-                        color:#fff;
-                        font-size:20px;
-                        font-weight:700;
-                        letter-spacing:0.3px;
+                        color: #fff;
+                        font-size: 20px;
+                        font-weight: 700;
                     ">
                         <t t-esc="props.title or 'Customer Required'"/>
                     </span>
                 </div>
 
                 <!-- Body -->
-                <div style="padding:28px 28px 10px;">
+                <div style="padding: 28px 28px 10px; text-align: center;">
                     <p style="
-                        font-size:15px;
-                        color:#333;
-                        line-height:1.7;
-                        margin:0;
-                        text-align:center;
+                        font-size: 15px;
+                        color: #333;
+                        line-height: 1.7;
+                        margin: 0;
                     ">
                         <t t-esc="props.body or 'Please select a customer before proceeding.'"/>
                     </p>
                 </div>
 
                 <!-- Footer -->
-                <div style="
-                    padding:20px 28px 28px;
-                    display:flex;
-                    justify-content:center;
-                ">
+                <div style="padding: 20px 28px 28px; display: flex; justify-content: center;">
                     <button
                         t-on-click="confirm"
                         style="
-                            background:linear-gradient(135deg,#e74c3c,#c0392b);
-                            color:#fff;
-                            border:none;
-                            border-radius:8px;
-                            padding:13px 56px;
-                            font-size:16px;
-                            font-weight:700;
-                            cursor:pointer;
-                            box-shadow:0 4px 16px rgba(231,76,60,0.45);
-                            letter-spacing:0.4px;
+                            background: linear-gradient(135deg, #e74c3c, #c0392b);
+                            color: #fff;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 13px 56px;
+                            font-size: 16px;
+                            font-weight: 700;
+                            cursor: pointer;
+                            box-shadow: 0 4px 16px rgba(231,76,60,0.4);
+                            letter-spacing: 0.4px;
                         "
                     >
                         OK

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'POS Require Customer',
-    'version': '19.0.2.0.0',
+    'version': '19.0.3.0.0',
     'summary': 'Require customer selection before payment in POS',
     'category': 'Point of Sale',
     'author': 'Custom',
