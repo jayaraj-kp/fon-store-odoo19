@@ -6,24 +6,35 @@ import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product
 import { _t } from "@web/core/l10n/translation";
 
 /**
- * Robust partner check covering ALL formats Odoo 19 POS may use:
- *
- *   false / null / undefined   → no customer
- *   0                          → no customer
- *   7          (integer id)    → customer set
- *   [7, "Ali"] (Many2one arr)  → customer set  ← THIS was the bug
- *   { id: 7, name: "Ali" }    → customer set
+ * Odoo 19 POS facts (confirmed via console debug):
+ *  - Active order lives at pos.selectedOrder  (NOT pos.currentOrder)
+ *  - partner_id is a Proxy(ResPartner) ORM record when set
+ *  - When no customer: partner_id is false/null/undefined
+ *  - When customer set: partner_id.id is a positive integer
  */
 function hasCustomer(pos) {
-    const order = pos.currentOrder;
+    // Use selectedOrder — currentOrder is undefined in this build
+    const order = pos.selectedOrder || pos.currentOrder;
     if (!order) return false;
 
     const p = order.partner_id;
 
-    if (!p) return false;                           // false / null / undefined / 0
-    if (Array.isArray(p)) return p[0] > 0;         // [id, name] — Odoo Many2one tuple
-    if (typeof p === "object") return !!p.id;       // { id, name } object
-    return Number(p) > 0;                           // raw integer id
+    // No partner at all
+    if (!p) return false;
+
+    // Odoo 19 ORM Proxy(ResPartner) — access .id directly on the proxy
+    if (typeof p === "object") {
+        // Try .id first (ORM record proxy)
+        if (p.id !== undefined && p.id !== null && p.id !== false) {
+            return Number(p.id) > 0;
+        }
+        // Fallback: Many2one array [id, name]
+        if (Array.isArray(p)) return Number(p[0]) > 0;
+        return false;
+    }
+
+    // Raw integer id
+    return Number(p) > 0;
 }
 
 function showWarning(notification) {
