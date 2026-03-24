@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="pos_require_customer.CustomerRequiredPopup" owl="1">
+        <div class="popup customer-required-popup" style="
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            min-width: 340px;
+            max-width: 420px;
+            overflow: hidden;
+            font-family: 'Roboto', sans-serif;
+        ">
+            <!-- Header -->
+            <div style="
+                background: linear-gradient(135deg, #e74c3c, #c0392b);
+                color: white;
+                padding: 20px 24px 16px 24px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            ">
+                <span style="font-size: 28px; line-height: 1;">⚠️</span>
+                <h3 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.3px;">
+                    <t t-esc="props.title"/>
+                </h3>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 24px; text-align: center;">
+                <p style="
+                    font-size: 15px;
+                    color: #444;
+                    margin: 0 0 24px 0;
+                    line-height: 1.6;
+                ">
+                    <t t-esc="props.body"/>
+                </p>
+
+                <!-- OK Button -->
+                <button
+                    t-on-click="confirm"
+                    style="
+                        background: linear-gradient(135deg, #e74c3c, #c0392b);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 12px 48px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        letter-spacing: 0.5px;
+                        transition: opacity 0.2s;
+                        box-shadow: 0 3px 10px rgba(231,76,60,0.35);
+                    "
+                    onmouseover="this.style.opacity='0.88'"
+                    onmouseout="this.style.opacity='1'"
+                >
+                    OK
+                </button>
+            </div>
+        </div>
+    </t>
+
+</templates>
