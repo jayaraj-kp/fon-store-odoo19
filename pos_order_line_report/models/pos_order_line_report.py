@@ -4,38 +4,37 @@ from odoo import models, fields, api
 
 class PosOrderLineReport(models.Model):
     """
-    Extends pos.order.line to add computed margin fields
-    for use in the pivot/graph/list analysis report.
+    Extends pos.order.line to add computed margin fields.
+    All custom fields use the prefix 'rpt_' to avoid
+    any collision with existing Odoo 19 fields.
     """
     _inherit = 'pos.order.line'
 
-    # ── Margin fields ─────────────────────────────────────────────────────────
+    # ── Margin computed fields ────────────────────────────────────────────────
 
-    margin = fields.Float(
-        string='Margin',
-        compute='_compute_margin',
+    rpt_margin = fields.Float(
+        string='Gross Margin',
+        compute='_compute_rpt_margin',
         store=True,
         digits='Account',
-        help='Gross margin = Revenue (incl. tax) – Cost (standard price × qty)',
+        help='Revenue (incl. tax) minus Cost (standard price x qty)',
     )
 
-    margin_percent = fields.Float(
-        string='Margin (%)',
-        compute='_compute_margin',
+    rpt_margin_percent = fields.Float(
+        string='Margin %',
+        compute='_compute_rpt_margin',
         store=True,
         digits=(16, 2),
-        help='Margin as a percentage of revenue',
+        help='Gross margin as a percentage of revenue',
     )
 
-    cost_price_total = fields.Float(
+    rpt_cost_total = fields.Float(
         string='Total Cost',
-        compute='_compute_margin',
+        compute='_compute_rpt_margin',
         store=True,
         digits='Account',
-        help='standard_price × qty_ordered',
+        help='standard_price x qty',
     )
-
-    # ── Compute ───────────────────────────────────────────────────────────────
 
     @api.depends(
         'qty',
@@ -43,58 +42,53 @@ class PosOrderLineReport(models.Model):
         'product_id',
         'product_id.standard_price',
     )
-    def _compute_margin(self):
+    def _compute_rpt_margin(self):
         for line in self:
             cost = line.qty * (line.product_id.standard_price or 0.0)
             revenue = line.price_subtotal_incl or 0.0
             margin = revenue - cost
-
-            line.cost_price_total = cost
-            line.margin = margin
-            line.margin_percent = (
+            line.rpt_cost_total = cost
+            line.rpt_margin = margin
+            line.rpt_margin_percent = (
                 (margin / revenue * 100.0) if revenue else 0.0
             )
 
-    # ── Convenience related fields for grouping ───────────────────────────────
+    # ── Related fields for grouping (all prefixed rpt_) ───────────────────────
 
-    product_category_id = fields.Many2one(
+    rpt_product_category_id = fields.Many2one(
+        comodel_name='product.category',
         related='product_id.categ_id',
         string='Product Category',
         store=True,
         readonly=True,
     )
 
-    order_date = fields.Date(
+    rpt_order_date = fields.Datetime(
         related='order_id.date_order',
-        string='Order Date',
+        string='Sale Date',
         store=True,
         readonly=True,
     )
 
-    order_state = fields.Selection(
+    rpt_order_state = fields.Selection(
         related='order_id.state',
-        string='Order State',
+        string='Order Status',
         store=True,
         readonly=True,
     )
 
-    session_id = fields.Many2one(
-        related='order_id.session_id',
-        string='POS Session',
-        store=True,
-        readonly=True,
-    )
-
-    pricelist_id = fields.Many2one(
-        related='order_id.pricelist_id',
-        string='Pricelist',
-        store=True,
-        readonly=True,
-    )
-
-    customer_id = fields.Many2one(
+    rpt_customer_id = fields.Many2one(
+        comodel_name='res.partner',
         related='order_id.partner_id',
         string='Customer',
+        store=True,
+        readonly=True,
+    )
+
+    rpt_session_id = fields.Many2one(
+        comodel_name='pos.session',
+        related='order_id.session_id',
+        string='POS Session',
         store=True,
         readonly=True,
     )
