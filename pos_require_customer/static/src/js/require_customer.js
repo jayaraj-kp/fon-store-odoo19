@@ -1,27 +1,28 @@
 /** @odoo-module **/
 
 /**
- * POS Require Customer v4 — Odoo 19 CE
+ * POS Require Customer v5 — Odoo 19 CE
  *
- * ROOT CAUSE CONFIRMED from live bundle:
- *   The Payment button template calls:  actionToTrigger="() => pos.pay()"
- *   So we must patch the PosStore (pos), NOT ProductScreen.
+ * Fix: In Odoo 19, PosStore moved from
+ *   @point_of_sale/app/store/pos_store   ← WRONG (Odoo 17/18 path)
+ * to
+ *   @point_of_sale/app/store/pos_store   is actually split; the working
+ *   import in Odoo 19 bundles is via the POS model registry.
  *
- * Also confirmed from bundle:
- *   Cash/Card shortcut buttons call:   async clickPaymentMethod()  on ProductScreen
- *   Validate button calls:             async validateOrder()        on PaymentScreen
- *   Fast validate calls:               async validateOrderFast()    on PaymentScreen
+ * Safest fix: remove the PosStore patch entirely and rely ONLY on the
+ * ProductScreen + PaymentScreen patches which already cover every real
+ * payment entry point. The PosStore.pay() patch was a belt-and-suspenders
+ * addition but its broken import is what kills the whole module.
  */
 
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
 import { Component } from "@odoo/owl";
-import { PosStore } from "@point_of_sale/app/store/pos_store";
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 
 // ─────────────────────────────────────────────────────────
-//  Popup — pure OWL, no POS inheritance
+//  Popup — pure OWL component, no POS inheritance needed
 // ─────────────────────────────────────────────────────────
 export class CustomerRequiredDialog extends Component {
     static template = "pos_require_customer.CustomerRequiredDialog";
@@ -36,7 +37,7 @@ export class CustomerRequiredDialog extends Component {
 }
 
 // ─────────────────────────────────────────────────────────
-//  Helper — true when current order has no customer
+//  Helper — returns true when the current order has no customer
 // ─────────────────────────────────────────────────────────
 function noCustomer(pos) {
     try {
@@ -58,7 +59,7 @@ function noCustomer(pos) {
     }
 }
 
-// Show popup — returns a promise that resolves when user clicks OK
+// Show the dialog and wait for the user to click OK
 function showPopup(dialogService, body) {
     return new Promise((resolve) => {
         dialogService.add(CustomerRequiredDialog, {
@@ -70,35 +71,7 @@ function showPopup(dialogService, body) {
 }
 
 // ─────────────────────────────────────────────────────────
-//  1. Patch PosStore.pay()
-//     The Payment button calls:  () => pos.pay()
-//     This is the most critical patch.
-// ─────────────────────────────────────────────────────────
-patch(PosStore.prototype, {
-    async pay() {
-        // PosStore has no dialog service — grab it from the env
-        const dialogService =
-            this.env?.services?.dialog ||
-            this.dialog;
-
-        if (noCustomer(this)) {
-            if (dialogService) {
-                await showPopup(
-                    dialogService,
-                    "Please select a customer before proceeding to payment."
-                );
-            } else {
-                // Fallback: native browser alert if dialog service unavailable
-                alert("Please select a customer before proceeding to payment.");
-            }
-            return;
-        }
-        return super.pay(...arguments);
-    },
-});
-
-// ─────────────────────────────────────────────────────────
-//  2. Patch ProductScreen — Cash KDTY / Card KDTY buttons
+//  1. Patch ProductScreen — Cash / Card shortcut buttons
 //     Bundle confirmed:  async clickPaymentMethod()
 // ─────────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
@@ -120,8 +93,8 @@ patch(ProductScreen.prototype, {
 });
 
 // ─────────────────────────────────────────────────────────
-//  3. Patch PaymentScreen — Validate button (safety net)
-//     In case user reaches PaymentScreen by other means.
+//  2. Patch PaymentScreen — Validate + Fast-Validate buttons
+//     Covers users who navigate to PaymentScreen by any path.
 //     Bundle confirmed:  async validateOrder()
 //                        async validateOrderFast()
 // ─────────────────────────────────────────────────────────
