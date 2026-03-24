@@ -2,8 +2,8 @@
 <odoo>
 
     <!-- ═══════════════════════════════════════════════════════════════════
-         Extend the POS Configuration form to add "Receipt Address" fields.
-         Uses a safe xpath targeting the 'name' field which always exists.
+         Extend the POS Configuration form to add "Receipt Address" fields
+         and "Customer ID Prefix" field.
          ═══════════════════════════════════════════════════════════════════ -->
     <record id="view_pos_config_form_receipt_address" model="ir.ui.view">
         <field name="name">pos.config.form.receipt.address</field>
@@ -13,6 +13,7 @@
 
             <!-- Append our fields after the 'name' field at the top of the form -->
             <xpath expr="//field[@name='name']" position="after">
+
                 <group string="Receipt Address (overrides company address on receipt)"
                        col="2" colspan="2">
                     <field name="pos_address_street"
@@ -24,12 +25,52 @@
                     <field name="pos_address_phone"
                            placeholder="e.g.  +91 90000 00000"/>
                 </group>
+
+                <group string="Customer ID Settings" col="2" colspan="2">
+                    <field name="pos_customer_prefix"
+                           placeholder="e.g.  KDTY  or  CHLR  (leave blank to auto-derive)"/>
+                </group>
+
             </xpath>
 
         </field>
     </record>
 
 </odoo>
+
+
+<!--<?xml version="1.0" encoding="UTF-8"?>-->
+<!--<odoo>-->
+
+<!--    &lt;!&ndash; ═══════════════════════════════════════════════════════════════════-->
+<!--         Extend the POS Configuration form to add "Receipt Address" fields.-->
+<!--         Uses a safe xpath targeting the 'name' field which always exists.-->
+<!--         ═══════════════════════════════════════════════════════════════════ &ndash;&gt;-->
+<!--    <record id="view_pos_config_form_receipt_address" model="ir.ui.view">-->
+<!--        <field name="name">pos.config.form.receipt.address</field>-->
+<!--        <field name="model">pos.config</field>-->
+<!--        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>-->
+<!--        <field name="arch" type="xml">-->
+
+<!--            &lt;!&ndash; Append our fields after the 'name' field at the top of the form &ndash;&gt;-->
+<!--            <xpath expr="//field[@name='name']" position="after">-->
+<!--                <group string="Receipt Address (overrides company address on receipt)"-->
+<!--                       col="2" colspan="2">-->
+<!--                    <field name="pos_address_street"-->
+<!--                           placeholder="e.g.  123, Main Road, Near Bus Stand"/>-->
+<!--                    <field name="pos_address_place"-->
+<!--                           placeholder="e.g.  MELE CHELARI"/>-->
+<!--                    <field name="pos_address_city_pin"-->
+<!--                           placeholder="e.g.  MALAPPURAM, 673636"/>-->
+<!--                    <field name="pos_address_phone"-->
+<!--                           placeholder="e.g.  +91 90000 00000"/>-->
+<!--                </group>-->
+<!--            </xpath>-->
+
+<!--        </field>-->
+<!--    </record>-->
+
+<!--</odoo>-->
 
 
 <!--<?xml version="1.0" encoding="UTF-8"?>-->
