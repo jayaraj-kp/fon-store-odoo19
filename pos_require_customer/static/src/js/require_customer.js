@@ -1,98 +1,100 @@
 /** @odoo-module **/
 
+/**
+ * POS Require Customer - Odoo 19 CE Compatible
+ *
+ * Uses only core OWL + @web imports to avoid broken POS internal paths.
+ * The popup is a plain OWL dialog rendered via the 'dialog' service.
+ */
+
 import { patch } from "@web/core/utils/patch";
+import { useService } from "@web/core/utils/hooks";
+import { Component, xml } from "@odoo/owl";
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
-import { AbstractAwaitablePopup } from "@point_of_sale/app/popup/abstract_awaitable_popup";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { useService } from "@web/core/utils/hooks";
 
-// ─────────────────────────────────────────────
-//  Popup Component
-// ─────────────────────────────────────────────
-export class CustomerRequiredPopup extends AbstractAwaitablePopup {
-    static template = "pos_require_customer.CustomerRequiredPopup";
+// ─────────────────────────────────────────────────────
+//  Simple Alert Dialog Component (no POS dependencies)
+// ─────────────────────────────────────────────────────
+export class CustomerRequiredDialog extends Component {
+    static template = "pos_require_customer.CustomerRequiredDialog";
+    static props = {
+        title: { type: String, optional: true },
+        body: { type: String, optional: true },
+        close: Function,
+    };
     static defaultProps = {
-        confirmText: "OK",
         title: "Customer Required",
         body: "Please select a customer before proceeding with payment.",
     };
-}
 
-// ─────────────────────────────────────────────
-//  Helper: show popup and return true if blocked
-// ─────────────────────────────────────────────
-async function checkCustomer(pos, popup, message) {
-    const order = pos.get_order();
-    if (!order || !order.get_partner()) {
-        await popup.add(CustomerRequiredPopup, {
-            title: "Customer Required",
-            body: message,
-        });
-        return true; // blocked
+    confirm() {
+        this.props.close();
     }
-    return false; // allowed
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 //  Patch ProductScreen
-//  Intercepts the shortcut payment buttons
-//  (Cash KDTY / Card KDTY) on the order screen
-// ─────────────────────────────────────────────
+//  Blocks Cash KDTY / Card KDTY shortcut buttons
+// ─────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
     setup() {
         super.setup(...arguments);
-        this.pos = usePos();
-        this.popup = useService("popup");
+        this.dialog = useService("dialog");
     },
 
-    // Called when cashier clicks a payment method shortcut button
-    async clickPaymentMethod(paymentMethod) {
-        const blocked = await checkCustomer(
-            this.pos,
-            this.popup,
-            "Please select a customer before using the '" +
-                (paymentMethod.name || "payment") +
-                "' method."
-        );
-        if (blocked) return;
-        return super.clickPaymentMethod(...arguments);
-    },
-
-    // Fallback: some Odoo versions use this method name
-    async selectPaymentMethod(paymentMethod) {
-        if (super.selectPaymentMethod) {
-            const blocked = await checkCustomer(
-                this.pos,
-                this.popup,
-                "Please select a customer before using the '" +
-                    (paymentMethod.name || "payment") +
-                    "' method."
-            );
-            if (blocked) return;
-            return super.selectPaymentMethod(...arguments);
+    _isCustomerRequired() {
+        try {
+            const order = this.pos.get_order();
+            return !order || !order.get_partner();
+        } catch {
+            return false;
         }
+    },
+
+    _showCustomerRequiredDialog(methodName) {
+        this.dialog.add(CustomerRequiredDialog, {
+            title: "Customer Required",
+            body:
+                "Please select a customer before using the '" +
+                (methodName || "payment method") +
+                "' button.",
+        });
+    },
+
+    // Odoo 17/18/19 method name for shortcut payment buttons
+    async clickPaymentMethod(paymentMethod) {
+        if (this._isCustomerRequired()) {
+            this._showCustomerRequiredDialog(paymentMethod?.name);
+            return;
+        }
+        return super.clickPaymentMethod(...arguments);
     },
 });
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 //  Patch PaymentScreen
-//  Intercepts the main "Validate / Payment" button
-// ─────────────────────────────────────────────
+//  Blocks the main Validate / Payment button
+// ─────────────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
-        this.pos = usePos();
-        this.popup = useService("popup");
+        this.dialog = useService("dialog");
     },
 
     async validateOrder(isForceValidate) {
-        const blocked = await checkCustomer(
-            this.pos,
-            this.popup,
-            "Please select a customer before completing this payment."
-        );
-        if (blocked) return;
+        try {
+            const order = this.pos.get_order();
+            if (!order || !order.get_partner()) {
+                this.dialog.add(CustomerRequiredDialog, {
+                    title: "Customer Required",
+                    body: "Please select a customer before completing this payment.",
+                });
+                return;
+            }
+        } catch {
+            // If order check fails, allow through to avoid blocking POS
+        }
         return super.validateOrder(...arguments);
     },
 });

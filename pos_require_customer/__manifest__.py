@@ -4,9 +4,8 @@
     'version': '19.0.1.0.0',
     'summary': 'Require customer selection before payment in POS',
     'description': """
-        This module blocks POS payment (Payment button, Cash, Card)
-        if no customer is selected on the order. A popup notification
-        is shown to the cashier asking them to select a customer first.
+        Blocks POS payment (Payment button, Cash, Card shortcuts)
+        if no customer is selected. Shows a popup notification.
     """,
     'category': 'Point of Sale',
     'author': 'Custom',
