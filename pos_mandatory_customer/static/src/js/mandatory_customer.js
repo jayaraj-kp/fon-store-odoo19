@@ -5,49 +5,66 @@ import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 import { _t } from "@web/core/l10n/translation";
 
-// Helper: check if current order has a customer set
+/**
+ * Robust partner check for Odoo 19 POS.
+ * partner_id can be:
+ *   - false / null / undefined  → no customer
+ *   - a number (id)             → customer set
+ *   - an object { id, name }    → customer set
+ */
 function hasCustomer(pos) {
     const order = pos.currentOrder;
-    return order && order.partner_id;
+    if (!order) return false;
+    const p = order.partner_id;
+    if (!p) return false;
+    if (typeof p === "object") return !!p.id;  // { id: X, name: "..." }
+    return p > 0;                               // raw numeric id
 }
 
-// ── 1. Block quick Cash/Card buttons on the ORDER SCREEN ──────────────────────
+function showWarning(notification) {
+    notification.add(
+        _t("Please select a customer before processing the payment."),
+        { type: "danger", title: _t("Customer Required"), sticky: false }
+    );
+}
+
+// ── 1. Block on ORDER SCREEN quick-pay buttons ─────────────────────────────────
 patch(ProductScreen.prototype, {
 
-    // Called when user clicks Cash CHLR / Card CHLR directly on order screen
-    async clickPaymentMethod(paymentMethod) {
+    // Odoo 19: quick pay buttons call this method
+    async selectPaymentMethod(paymentMethod) {
         if (!hasCustomer(this.pos)) {
-            this.notification.add(
-                _t("Please select a customer before processing the payment."),
-                { type: "danger", title: _t("Customer Required"), sticky: false }
-            );
-            return; // Never enters payment screen
+            showWarning(this.notification);
+            return;
         }
-        await super.clickPaymentMethod(paymentMethod);
+        await super.selectPaymentMethod(...arguments);
     },
 
-    // Fallback: also guard the Payment button
+    // Some builds still use this name — patch both to be safe
+    async clickPaymentMethod(paymentMethod) {
+        if (!hasCustomer(this.pos)) {
+            showWarning(this.notification);
+            return;
+        }
+        await super.clickPaymentMethod(...arguments);
+    },
+
+    // Guard the main Payment button too
     async pay() {
         if (!hasCustomer(this.pos)) {
-            this.notification.add(
-                _t("Please select a customer before processing the payment."),
-                { type: "danger", title: _t("Customer Required"), sticky: false }
-            );
+            showWarning(this.notification);
             return;
         }
         await super.pay();
     },
 });
 
-// ── 2. Last-line defence on PAYMENT SCREEN Validate button ────────────────────
+// ── 2. Last-line defence on PAYMENT SCREEN Validate ───────────────────────────
 patch(PaymentScreen.prototype, {
 
     async validateOrder(isForceValidate) {
         if (!hasCustomer(this.pos)) {
-            this.notification.add(
-                _t("Please select a customer before processing the payment."),
-                { type: "danger", title: _t("Customer Required"), sticky: false }
-            );
+            showWarning(this.notification);
             return;
         }
         await super.validateOrder(isForceValidate);
@@ -55,10 +72,7 @@ patch(PaymentScreen.prototype, {
 
     async _finalizeValidation() {
         if (!hasCustomer(this.pos)) {
-            this.notification.add(
-                _t("Please select a customer before processing the payment."),
-                { type: "danger", title: _t("Customer Required"), sticky: false }
-            );
+            showWarning(this.notification);
             return;
         }
         await super._finalizeValidation();
