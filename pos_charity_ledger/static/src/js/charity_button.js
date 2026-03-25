@@ -34,38 +34,49 @@ function computeRoundOff(total) {
 }
 
 /**
+ * Scan an object for the first numeric value > 0 under any of the given keys.
+ */
+function pickFromObj(obj, keys) {
+    if (!obj || typeof obj !== "object") return 0;
+    for (const k of keys) {
+        if (typeof obj[k] === "number" && obj[k] > 0) return obj[k];
+    }
+    return 0;
+}
+
+const TOTAL_KEYS = [
+    "total_with_tax", "totalWithTax", "total_taxed", "taxed_total",
+    "grand_total", "amount_total", "price_with_tax", "subtotal",
+    "total",
+];
+
+/**
  * Get the order total for Odoo 19 CE.
  *
- * Odoo 19 stores computed prices in order._prices:
- *   order._prices.total        → subtotal without tax
- *   order._prices.total_with_tax  or  .taxed  or  .tax_amount + .total
- *
- * Older versions used method calls:
- *   order.get_total_with_tax()   (Odoo 16)
- *   order.getTotalWithTax()      (Odoo 17/18)
+ * Odoo 19 stores prices in order._prices = { original: {...}, unit: {...} }
+ * The grand total (inc. tax) lives at _prices.original.total_with_tax
+ * or similar — we probe every likely key inside each sub-object.
  */
 function getOrderTotal(order) {
-    // ── Odoo 19: _prices object ──────────────────────────────────────────────
+    // ── Odoo 19: _prices.original / _prices.unit ─────────────────────────────
     if (order._prices && typeof order._prices === "object") {
-        const p = order._prices;
-        // Try every key that likely holds the grand total
-        for (const k of [
-            "total_with_tax",
-            "totalWithTax",
-            "total_taxed",
-            "taxed_total",
-            "grand_total",
-            "amount_total",
-        ]) {
-            if (typeof p[k] === "number" && p[k] > 0) return p[k];
-        }
-        // tax_amount + total = total inc. tax
-        if (typeof p.tax_amount === "number" && typeof p.total === "number") {
-            const v = p.tax_amount + p.total;
+        // Try nested sub-objects first (original > unit > top-level)
+        for (const sub of ["original", "unit"]) {
+            const v = pickFromObj(order._prices[sub], TOTAL_KEYS);
             if (v > 0) return v;
         }
-        // plain total fallback
-        if (typeof p.total === "number" && p.total > 0) return p.total;
+        // Try top-level _prices keys
+        const v = pickFromObj(order._prices, TOTAL_KEYS);
+        if (v > 0) return v;
+
+        // tax_amount + total inside any sub-object
+        for (const sub of ["original", "unit"]) {
+            const p = order._prices[sub];
+            if (p && typeof p.tax_amount === "number" && typeof p.total === "number") {
+                const v2 = p.tax_amount + p.total;
+                if (v2 > 0) return v2;
+            }
+        }
     }
 
     // ── Odoo 16/17/18: method calls ──────────────────────────────────────────
@@ -78,10 +89,9 @@ function getOrderTotal(order) {
         } catch (_) {}
     }
 
-    // ── Direct property fallback ─────────────────────────────────────────────
-    for (const p of ["amount_total", "total_with_tax", "total"]) {
-        if (typeof order[p] === "number" && order[p] > 0) return order[p];
-    }
+    // ── Direct properties ────────────────────────────────────────────────────
+    const v2 = pickFromObj(order, TOTAL_KEYS);
+    if (v2 > 0) return v2;
 
     // ── Last resort: sum order lines ─────────────────────────────────────────
     const lines =
@@ -154,8 +164,9 @@ export class CharityOrderButton extends Component {
 
         const total = getOrderTotal(order);
 
-        // ── Diagnostic: log _prices so we can see the exact structure ────────
-        console.log("[CharityButton] order._prices:", JSON.parse(JSON.stringify(order._prices || {})));
+        // Diagnostic — expand in console to find the right key
+        console.log("[CharityButton] _prices.original:", JSON.parse(JSON.stringify(order._prices?.original || {})));
+        console.log("[CharityButton] _prices.unit:", JSON.parse(JSON.stringify(order._prices?.unit || {})));
         console.log("[CharityButton] resolved total:", total);
 
         if (total <= 0) {
