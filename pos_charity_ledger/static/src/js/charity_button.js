@@ -34,49 +34,61 @@ function computeRoundOff(total) {
 }
 
 /**
- * Scan an object for the first numeric value > 0 under any of the given keys.
+ * Sum baseLines array from Odoo 19's _prices structure.
+ * Each baseLine object contains per-line tax computation data.
+ * We try every plausible key for the tax-inclusive subtotal.
  */
-function pickFromObj(obj, keys) {
-    if (!obj || typeof obj !== "object") return 0;
-    for (const k of keys) {
-        if (typeof obj[k] === "number" && obj[k] > 0) return obj[k];
-    }
-    return 0;
+function sumBaseLines(baseLines) {
+    if (!Array.isArray(baseLines) || baseLines.length === 0) return 0;
+    return baseLines.reduce((sum, line) => {
+        // Try keys in order of likelihood for tax-inclusive total per line
+        const keys = [
+            "priceSubtotalIncl",
+            "price_subtotal_incl",
+            "priceIncludingTax",
+            "totalIncludingTax",
+            "subtotal_incl",
+            "amountTax",      // may be just tax
+            "priceSubtotal",  // excl. tax fallback
+            "price_subtotal",
+            "subtotal",
+            "total",
+            "amount",
+        ];
+        for (const k of keys) {
+            if (typeof line[k] === "number" && line[k] > 0) {
+                return sum + line[k];
+            }
+        }
+        // If line has rawLine or line ref, skip — not a total holder
+        return sum;
+    }, 0);
 }
-
-const TOTAL_KEYS = [
-    "total_with_tax", "totalWithTax", "total_taxed", "taxed_total",
-    "grand_total", "amount_total", "price_with_tax", "subtotal",
-    "total",
-];
 
 /**
  * Get the order total for Odoo 19 CE.
  *
- * Odoo 19 stores prices in order._prices = { original: {...}, unit: {...} }
- * The grand total (inc. tax) lives at _prices.original.total_with_tax
- * or similar — we probe every likely key inside each sub-object.
+ * Odoo 19 _prices structure:
+ *   order._prices = {
+ *     original: { taxDetails: {}, baseLines: [{...}, ...], baseLineByLineUuids: {} },
+ *     unit:     { taxDetails: {}, baseLines: [{...}, ...], baseLineByLineUuids: {} },
+ *   }
+ *
+ * The grand total lives as the sum of baseLines inside _prices.original.
  */
 function getOrderTotal(order) {
-    // ── Odoo 19: _prices.original / _prices.unit ─────────────────────────────
-    if (order._prices && typeof order._prices === "object") {
-        // Try nested sub-objects first (original > unit > top-level)
-        for (const sub of ["original", "unit"]) {
-            const v = pickFromObj(order._prices[sub], TOTAL_KEYS);
-            if (v > 0) return v;
-        }
-        // Try top-level _prices keys
-        const v = pickFromObj(order._prices, TOTAL_KEYS);
+    // ── Odoo 19: sum _prices.original.baseLines ──────────────────────────────
+    const original = order._prices?.original;
+    if (original?.baseLines) {
+        const v = sumBaseLines(original.baseLines);
         if (v > 0) return v;
+    }
 
-        // tax_amount + total inside any sub-object
-        for (const sub of ["original", "unit"]) {
-            const p = order._prices[sub];
-            if (p && typeof p.tax_amount === "number" && typeof p.total === "number") {
-                const v2 = p.tax_amount + p.total;
-                if (v2 > 0) return v2;
-            }
-        }
+    // ── Odoo 19 fallback: _prices.unit.baseLines ─────────────────────────────
+    const unit = order._prices?.unit;
+    if (unit?.baseLines) {
+        const v = sumBaseLines(unit.baseLines);
+        if (v > 0) return v;
     }
 
     // ── Odoo 16/17/18: method calls ──────────────────────────────────────────
@@ -89,11 +101,12 @@ function getOrderTotal(order) {
         } catch (_) {}
     }
 
-    // ── Direct properties ────────────────────────────────────────────────────
-    const v2 = pickFromObj(order, TOTAL_KEYS);
-    if (v2 > 0) return v2;
+    // ── Direct property fallback ─────────────────────────────────────────────
+    for (const p of ["amount_total", "total_with_tax", "total"]) {
+        if (typeof order[p] === "number" && order[p] > 0) return order[p];
+    }
 
-    // ── Last resort: sum order lines ─────────────────────────────────────────
+    // ── Last resort: sum order lines directly ────────────────────────────────
     const lines =
         (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
         order.lines ||
@@ -164,9 +177,9 @@ export class CharityOrderButton extends Component {
 
         const total = getOrderTotal(order);
 
-        // Diagnostic — expand in console to find the right key
-        console.log("[CharityButton] _prices.original:", JSON.parse(JSON.stringify(order._prices?.original || {})));
-        console.log("[CharityButton] _prices.unit:", JSON.parse(JSON.stringify(order._prices?.unit || {})));
+        // Diagnostic: expand baseLines[0] in console to confirm key names
+        const bl = order._prices?.original?.baseLines || [];
+        console.log("[CharityButton] baseLines[0]:", bl[0] ? JSON.parse(JSON.stringify(bl[0])) : "empty");
         console.log("[CharityButton] resolved total:", total);
 
         if (total <= 0) {
