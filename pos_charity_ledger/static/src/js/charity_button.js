@@ -9,7 +9,6 @@ import { useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 import { Component } from "@odoo/owl";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
 
 // ── Extend POS Order serialization ──────────────────────────────────────────
 patch(PosOrder.prototype, {
@@ -40,7 +39,8 @@ export class CharityOrderButton extends Component {
     static props = {};
 
     setup() {
-        this.pos = usePos();
+        // In Odoo 19, access the POS store directly via this.env.pos
+        this.pos = this.env.pos;
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.charityState = useState({ donationAmount: 0, isDonating: false });
