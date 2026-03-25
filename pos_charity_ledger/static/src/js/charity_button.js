@@ -39,8 +39,8 @@ export class CharityOrderButton extends Component {
     static props = {};
 
     setup() {
-        // In Odoo 19, access the POS store directly via this.env.pos
-        this.pos = this.env.pos;
+        // Access the POS store via the registered "pos_store" service
+        this.pos = useService("pos_store");
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.charityState = useState({ donationAmount: 0, isDonating: false });
