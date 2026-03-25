@@ -7,7 +7,7 @@ class PosCashTransferController(http.Controller):
     @http.route('/pos/cash_transfer/get_sessions',
                 type='json', auth='user', methods=['POST'])
     def get_open_sessions(self, current_session_id):
-        sessions = request.env['pos.session'].search([
+        sessions = request.env['pos.session'].sudo().search([
             ('state', '=', 'opened'),
             ('id', '!=', current_session_id),
         ])
@@ -22,5 +22,5 @@ class PosCashTransferController(http.Controller):
                 type='json', auth='user', methods=['POST'])
     def process_transfer(self, from_session_id, to_session_id,
                          amount, reason=''):
-        return request.env['pos.cash.transfer'].create_transfer_from_pos(
+        return request.env['pos.cash.transfer'].sudo().create_transfer_from_pos(
             from_session_id, to_session_id, amount, reason)

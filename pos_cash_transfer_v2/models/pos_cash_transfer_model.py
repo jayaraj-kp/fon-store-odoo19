@@ -6,7 +6,6 @@ class PosCashTransfer(models.Model):
     _name = 'pos.cash.transfer'
     _description = 'POS Cash Transfer Between Sessions'
     _order = 'create_date desc'
-    # No mail.thread - keep it simple
 
     name = fields.Char(
         string='Reference',
@@ -108,10 +107,21 @@ class PosCashTransfer(models.Model):
         }
 
     def _do_transfer(self):
-        """Core transfer logic — also called from JSON RPC"""
+        """
+        Core transfer logic.
+        Uses cash.box.out / cash.box.in wizards — compatible with
+        Odoo 19 Community Edition without full Accounting module.
+        """
         from_session = self.from_session_id
         to_session = self.to_session_id
 
+        # Verify both sessions are still open
+        if from_session.state != 'opened':
+            raise UserError(_('Source POS session is no longer open!'))
+        if to_session.state != 'opened':
+            raise UserError(_('Destination POS session is no longer open!'))
+
+        # Verify cash payment methods exist on both sides
         from_cash = from_session.config_id.payment_method_ids.filtered(
             lambda m: m.is_cash_count)[:1]
         to_cash = to_session.config_id.payment_method_ids.filtered(
@@ -119,35 +129,41 @@ class PosCashTransfer(models.Model):
 
         if not from_cash:
             raise UserError(
-                _('No cash payment method on source POS: %s') % from_session.config_id.name)
+                _('No cash payment method configured on source POS: %s')
+                % from_session.config_id.name)
         if not to_cash:
             raise UserError(
-                _('No cash payment method on destination POS: %s') % to_session.config_id.name)
+                _('No cash payment method configured on destination POS: %s')
+                % to_session.config_id.name)
 
-        out_note = 'Cash Transfer OUT → %s [%s]' % (
-            to_session.config_id.name, self.name)
-        in_note = 'Cash Transfer IN ← %s [%s]' % (
-            from_session.config_id.name, self.name)
-        if self.reason:
-            out_note += ' | ' + self.reason
-            in_note += ' | ' + self.reason
+        note_out = 'Cash Transfer OUT → %s [%s]%s' % (
+            to_session.config_id.name,
+            self.name,
+            (' | ' + self.reason) if self.reason else '',
+        )
+        note_in = 'Cash Transfer IN ← %s [%s]%s' % (
+            from_session.config_id.name,
+            self.name,
+            (' | ' + self.reason) if self.reason else '',
+        )
 
-        self.env['account.bank.statement.line'].sudo().create([
-            {
-                'journal_id': from_cash.journal_id.id,
-                'amount': -self.amount,
-                'narration': out_note,
-                'date': fields.Date.today(),
-                'pos_session_id': from_session.id,
-            },
-            {
-                'journal_id': to_cash.journal_id.id,
-                'amount': self.amount,
-                'narration': in_note,
-                'date': fields.Date.today(),
-                'pos_session_id': to_session.id,
-            },
-        ])
+        # Take cash OUT of source session
+        self.env['cash.box.out'].sudo().with_context(
+            active_model='pos.session',
+            active_ids=from_session.ids,
+        ).create({
+            'name': note_out,
+            'amount': self.amount,
+        }).run()
+
+        # Put cash IN to destination session
+        self.env['cash.box.in'].sudo().with_context(
+            active_model='pos.session',
+            active_ids=to_session.ids,
+        ).create({
+            'name': note_in,
+            'amount': self.amount,
+        }).run()
 
         self.write({
             'state': 'done',
@@ -166,10 +182,10 @@ class PosCashTransfer(models.Model):
     @api.model
     def create_transfer_from_pos(self, from_session_id, to_session_id,
                                   amount, reason=''):
-        """Called from POS JS via ORM to process a cash transfer"""
+        """Called from POS JS via ORM to process a cash transfer."""
         try:
-            from_session = self.env['pos.session'].browse(from_session_id)
-            to_session = self.env['pos.session'].browse(to_session_id)
+            from_session = self.env['pos.session'].sudo().browse(from_session_id)
+            to_session = self.env['pos.session'].sudo().browse(to_session_id)
 
             if not from_session.exists():
                 return {'success': False, 'error': 'Source session not found!'}
@@ -182,7 +198,7 @@ class PosCashTransfer(models.Model):
             if float(amount) <= 0:
                 return {'success': False, 'error': 'Amount must be greater than 0!'}
 
-            transfer = self.create({
+            transfer = self.sudo().create({
                 'from_session_id': from_session_id,
                 'to_session_id': to_session_id,
                 'amount': float(amount),
@@ -211,8 +227,12 @@ class PosSession(models.Model):
 
     @api.model
     def get_open_sessions_for_transfer(self, current_session_id):
-        """Return all other open POS sessions — called from POS JS"""
-        sessions = self.search([
+        """
+        Return all other open POS sessions.
+        Called from POS JS via orm.call — uses sudo() so that
+        employee-level POS users (PIN login) can also call this.
+        """
+        sessions = self.sudo().search([
             ('state', '=', 'opened'),
             ('id', '!=', current_session_id),
         ])

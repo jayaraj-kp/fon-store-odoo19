@@ -9,30 +9,18 @@ patch(Navbar.prototype, {
     setup() {
         super.setup(...arguments);
         this.orm = useService("orm");
+        this.notification = useService("notification");
         this.cashTransferState = useState({ sessions: [] });
 
         onMounted(async () => {
-            try {
-                const sessionId = this.pos?.session?.id;
-                if (!sessionId) return;
-                const sessions = await this.orm.call(
-                    "pos.session",
-                    "get_open_sessions_for_transfer",
-                    [sessionId]
-                );
-                this.cashTransferState.sessions = sessions || [];
-            } catch (e) {
-                console.error("[CashTransfer] Failed to load sessions:", e);
-            }
+            await this._loadOpenSessions();
         });
     },
 
-    async openCashTransferDialog() {
-        const sessionId = this.pos?.session?.id;
-        if (!sessionId) return;
-
-        // Refresh open sessions
+    async _loadOpenSessions() {
         try {
+            const sessionId = this.pos?.session?.id;
+            if (!sessionId) return;
             const sessions = await this.orm.call(
                 "pos.session",
                 "get_open_sessions_for_transfer",
@@ -40,40 +28,48 @@ patch(Navbar.prototype, {
             );
             this.cashTransferState.sessions = sessions || [];
         } catch (e) {
-            this.env.services.notification.add(
-                "Could not load open sessions!",
-                { type: "danger" }
-            );
+            console.error("[CashTransfer] Failed to load sessions:", e);
+        }
+    },
+
+    async openCashTransferDialog() {
+        const sessionId = this.pos?.session?.id;
+        if (!sessionId) {
+            this.notification.add("Session not found!", { type: "danger" });
             return;
         }
 
+        // Refresh open sessions each time the dialog opens
+        await this._loadOpenSessions();
+
         if (!this.cashTransferState.sessions.length) {
-            this.env.services.notification.add(
+            this.notification.add(
                 "No other open POS counters found! Please open another counter first.",
                 { type: "warning", sticky: false }
             );
             return;
         }
 
-        // Build simple prompt
+        // ── Step 1: Select destination counter ───────────────────────────
         const sessionOptions = this.cashTransferState.sessions
-            .map((s, i) => `${i + 1}. ${s.pos_name}`)
+            .map((s, i) => `${i + 1}. ${s.pos_name} (Cashier: ${s.cashier})`)
             .join("\n");
 
         const choiceStr = prompt(
-            `Cash Transfer\n\nSelect destination counter:\n${sessionOptions}\n\nEnter number (1-${this.cashTransferState.sessions.length}):`
+            `💸 Cash Transfer\n\nSelect destination counter:\n${sessionOptions}\n\nEnter number (1–${this.cashTransferState.sessions.length}):`
         );
         if (!choiceStr) return;
 
-        const choiceIdx = parseInt(choiceStr) - 1;
+        const choiceIdx = parseInt(choiceStr, 10) - 1;
         if (isNaN(choiceIdx) || choiceIdx < 0 ||
             choiceIdx >= this.cashTransferState.sessions.length) {
-            alert("Invalid selection!");
+            alert("Invalid selection! Please enter a valid number.");
             return;
         }
 
         const toSession = this.cashTransferState.sessions[choiceIdx];
 
+        // ── Step 2: Enter amount ──────────────────────────────────────────
         const amountStr = prompt(
             `Transfer to: ${toSession.pos_name}\n\nEnter amount (Rs.):`
         );
@@ -81,12 +77,20 @@ patch(Navbar.prototype, {
 
         const amount = parseFloat(amountStr);
         if (isNaN(amount) || amount <= 0) {
-            alert("Please enter a valid amount!");
+            alert("Please enter a valid amount greater than 0!");
             return;
         }
 
+        // ── Step 3: Optional reason ───────────────────────────────────────
         const reason = prompt("Reason (optional):") || "";
 
+        // ── Step 4: Confirm ───────────────────────────────────────────────
+        const confirmed = confirm(
+            `Confirm Transfer\n\nFrom: Current Counter\nTo: ${toSession.pos_name}\nAmount: Rs. ${amount.toFixed(2)}${reason ? "\nReason: " + reason : ""}\n\nProceed?`
+        );
+        if (!confirmed) return;
+
+        // ── Step 5: Execute transfer ──────────────────────────────────────
         try {
             const result = await this.orm.call(
                 "pos.cash.transfer",
@@ -100,20 +104,21 @@ patch(Navbar.prototype, {
                 }
             );
 
-            if (result.success) {
-                this.env.services.notification.add(
-                    `✅ Rs. ${amount.toFixed(2)} transferred to ${toSession.pos_name}! (${result.transfer_name})`,
+            if (result && result.success) {
+                this.notification.add(
+                    `✅ Rs. ${amount.toFixed(2)} transferred to ${toSession.pos_name}! (Ref: ${result.transfer_name})`,
                     { type: "success", sticky: false }
                 );
             } else {
-                this.env.services.notification.add(
-                    `❌ Transfer failed: ${result.error}`,
+                this.notification.add(
+                    `❌ Transfer failed: ${result ? result.error : "Unknown error"}`,
                     { type: "danger", sticky: false }
                 );
             }
         } catch (e) {
-            this.env.services.notification.add(
-                "Transfer error: " + (e.message || e),
+            console.error("[CashTransfer] Transfer error:", e);
+            this.notification.add(
+                "Transfer error: " + (e.message || String(e)),
                 { type: "danger", sticky: false }
             );
         }

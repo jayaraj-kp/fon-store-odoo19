@@ -16,6 +16,7 @@
             'pos_cash_transfer_v2/static/src/js/CashTransferButton.js',
             'pos_cash_transfer_v2/static/src/js/CashTransferPopup.js',
             'pos_cash_transfer_v2/static/src/xml/CashTransferPopup.xml',
+            'pos_cash_transfer_v2/static/src/css/pos_cash_transfer.css',
         ],
     },
     'installable': True,
