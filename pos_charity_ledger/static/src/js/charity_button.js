@@ -50,7 +50,6 @@ patch(ProductScreen.prototype, {
             title: this.charityButtonLabel,
             changeAmount: orderTotal > 0 ? orderTotal : 9999999,
             currencySymbol: this.currencySymbol,
-            freeAmount: true,   // signal popup: no upper-limit enforcement on display
         });
 
         if (result && result.confirmed && result.amount > 0) {
@@ -84,7 +83,6 @@ patch(ProductScreen.prototype, {
         this.charityState.isDonating = false;
     },
 });
-
 
 ///** @odoo-module **/
 //
