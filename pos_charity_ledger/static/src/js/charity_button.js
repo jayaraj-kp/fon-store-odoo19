@@ -34,40 +34,42 @@ function computeRoundOff(total) {
 }
 
 /**
- * Resolve the current POS order across Odoo versions.
- * Odoo 16/17:  pos.get_order()
- * Odoo 18/19:  pos.get_order() may be gone; use pos.selectedOrder
- */
-function getCurrentOrder(pos) {
-    try {
-        const o = pos.get_order?.();
-        if (o) return o;
-    } catch (_) {}
-    try {
-        const o = pos.getCurrentOrder?.();
-        if (o) return o;
-    } catch (_) {}
-    return pos.selectedOrder || null;
-}
-
-/**
- * Get the order total across all Odoo POS versions.
+ * Get the order total for Odoo 19 CE.
  *
- * Odoo 16        → order.get_total_with_tax()
- * Odoo 17/18     → order.getTotalWithTax()
- * Odoo 19 new    → order.get_total_with_tax() or order.amount_total
- *                  or sum lines via line.get_price_with_tax / price_subtotal_incl
+ * Odoo 19 stores computed prices in order._prices:
+ *   order._prices.total        → subtotal without tax
+ *   order._prices.total_with_tax  or  .taxed  or  .tax_amount + .total
+ *
+ * Older versions used method calls:
+ *   order.get_total_with_tax()   (Odoo 16)
+ *   order.getTotalWithTax()      (Odoo 17/18)
  */
 function getOrderTotal(order) {
-    // Method-based (try every known name)
-    const methods = [
-        "get_total_with_tax",
-        "getTotalWithTax",
-        "getTotal",
-        "get_total",
-        "getTotalTaxed",
-    ];
-    for (const m of methods) {
+    // ── Odoo 19: _prices object ──────────────────────────────────────────────
+    if (order._prices && typeof order._prices === "object") {
+        const p = order._prices;
+        // Try every key that likely holds the grand total
+        for (const k of [
+            "total_with_tax",
+            "totalWithTax",
+            "total_taxed",
+            "taxed_total",
+            "grand_total",
+            "amount_total",
+        ]) {
+            if (typeof p[k] === "number" && p[k] > 0) return p[k];
+        }
+        // tax_amount + total = total inc. tax
+        if (typeof p.tax_amount === "number" && typeof p.total === "number") {
+            const v = p.tax_amount + p.total;
+            if (v > 0) return v;
+        }
+        // plain total fallback
+        if (typeof p.total === "number" && p.total > 0) return p.total;
+    }
+
+    // ── Odoo 16/17/18: method calls ──────────────────────────────────────────
+    for (const m of ["get_total_with_tax", "getTotalWithTax", "getTotal", "get_total"]) {
         try {
             if (typeof order[m] === "function") {
                 const v = order[m]();
@@ -76,19 +78,19 @@ function getOrderTotal(order) {
         } catch (_) {}
     }
 
-    // Property-based
+    // ── Direct property fallback ─────────────────────────────────────────────
     for (const p of ["amount_total", "total_with_tax", "total"]) {
         if (typeof order[p] === "number" && order[p] > 0) return order[p];
     }
 
-    // Last resort: sum order lines
+    // ── Last resort: sum order lines ─────────────────────────────────────────
     const lines =
         (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
         order.lines ||
         order.orderlines ||
         [];
     const arr = Array.isArray(lines) ? lines : [...lines];
-    const sum = arr.reduce((s, l) => {
+    return arr.reduce((s, l) => {
         const v =
             (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
             l.price_subtotal_incl ||
@@ -96,7 +98,12 @@ function getOrderTotal(order) {
             0;
         return s + (typeof v === "number" ? v : 0);
     }, 0);
-    return sum;
+}
+
+function getCurrentOrder(pos) {
+    try { const o = pos.get_order?.(); if (o) return o; } catch (_) {}
+    try { const o = pos.getCurrentOrder?.(); if (o) return o; } catch (_) {}
+    return pos.selectedOrder || null;
 }
 
 // ── Order Screen Charity Button Component ────────────────────────────────────
@@ -147,9 +154,9 @@ export class CharityOrderButton extends Component {
 
         const total = getOrderTotal(order);
 
-        // Debug log to console so we can see what's happening
-        console.log("[CharityButton] order:", order);
-        console.log("[CharityButton] total:", total);
+        // ── Diagnostic: log _prices so we can see the exact structure ────────
+        console.log("[CharityButton] order._prices:", JSON.parse(JSON.stringify(order._prices || {})));
+        console.log("[CharityButton] resolved total:", total);
 
         if (total <= 0) {
             this.notification.add("Please add products before donating.", { type: "warning" });
@@ -157,7 +164,6 @@ export class CharityOrderButton extends Component {
         }
 
         const roundOff = computeRoundOff(total);
-        // Allow donating up to 1 unit even if total is already a round number
         const maxDonate = roundOff > 0 ? roundOff : 1;
 
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
