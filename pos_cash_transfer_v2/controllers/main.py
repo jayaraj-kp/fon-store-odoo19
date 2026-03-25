@@ -7,6 +7,7 @@ class PosCashTransferController(http.Controller):
     @http.route('/pos/cash_transfer/get_sessions',
                 type='json', auth='user', methods=['POST'])
     def get_open_sessions(self, current_session_id):
+        # sudo() ensures POS employee users (PIN login) can fetch sessions
         sessions = request.env['pos.session'].sudo().search([
             ('state', '=', 'opened'),
             ('id', '!=', current_session_id),

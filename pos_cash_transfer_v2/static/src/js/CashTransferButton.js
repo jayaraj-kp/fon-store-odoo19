@@ -5,10 +5,31 @@ import { useService } from "@web/core/utils/hooks";
 import { Navbar } from "@point_of_sale/app/components/navbar/navbar";
 import { useState, onMounted } from "@odoo/owl";
 
+/**
+ * Helper: call a JSON-RPC route directly via fetch.
+ * This bypasses the ORM access-rights check that blocks POS employee users.
+ */
+async function jsonRpc(route, params = {}) {
+    const response = await fetch(route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            jsonrpc: "2.0",
+            method: "call",
+            id: Math.floor(Math.random() * 1000000),
+            params: params,
+        }),
+    });
+    const data = await response.json();
+    if (data.error) {
+        throw new Error(data.error.data?.message || data.error.message || "RPC Error");
+    }
+    return data.result;
+}
+
 patch(Navbar.prototype, {
     setup() {
         super.setup(...arguments);
-        this.orm = useService("orm");
         this.notification = useService("notification");
         this.cashTransferState = useState({ sessions: [] });
 
@@ -21,10 +42,10 @@ patch(Navbar.prototype, {
         try {
             const sessionId = this.pos?.session?.id;
             if (!sessionId) return;
-            const sessions = await this.orm.call(
-                "pos.session",
-                "get_open_sessions_for_transfer",
-                [sessionId]
+
+            const sessions = await jsonRpc(
+                "/pos/cash_transfer/get_sessions",
+                { current_session_id: sessionId }
             );
             this.cashTransferState.sessions = sessions || [];
         } catch (e) {
@@ -39,7 +60,7 @@ patch(Navbar.prototype, {
             return;
         }
 
-        // Refresh open sessions each time the dialog opens
+        // Refresh open sessions every time dialog opens
         await this._loadOpenSessions();
 
         if (!this.cashTransferState.sessions.length) {
@@ -50,7 +71,7 @@ patch(Navbar.prototype, {
             return;
         }
 
-        // ── Step 1: Select destination counter ───────────────────────────
+        // Step 1: Select destination counter
         const sessionOptions = this.cashTransferState.sessions
             .map((s, i) => `${i + 1}. ${s.pos_name} (Cashier: ${s.cashier})`)
             .join("\n");
@@ -69,7 +90,7 @@ patch(Navbar.prototype, {
 
         const toSession = this.cashTransferState.sessions[choiceIdx];
 
-        // ── Step 2: Enter amount ──────────────────────────────────────────
+        // Step 2: Enter amount
         const amountStr = prompt(
             `Transfer to: ${toSession.pos_name}\n\nEnter amount (Rs.):`
         );
@@ -81,21 +102,19 @@ patch(Navbar.prototype, {
             return;
         }
 
-        // ── Step 3: Optional reason ───────────────────────────────────────
+        // Step 3: Optional reason
         const reason = prompt("Reason (optional):") || "";
 
-        // ── Step 4: Confirm ───────────────────────────────────────────────
+        // Step 4: Confirm
         const confirmed = confirm(
             `Confirm Transfer\n\nFrom: Current Counter\nTo: ${toSession.pos_name}\nAmount: Rs. ${amount.toFixed(2)}${reason ? "\nReason: " + reason : ""}\n\nProceed?`
         );
         if (!confirmed) return;
 
-        // ── Step 5: Execute transfer ──────────────────────────────────────
+        // Step 5: Execute transfer via HTTP route
         try {
-            const result = await this.orm.call(
-                "pos.cash.transfer",
-                "create_transfer_from_pos",
-                [],
+            const result = await jsonRpc(
+                "/pos/cash_transfer/process",
                 {
                     from_session_id: sessionId,
                     to_session_id: toSession.id,
