@@ -79,15 +79,26 @@ export class CharityDonationPopup extends Component {
     pressKey(key) {
         if (key === "⌫") {
             this.state.inputAmount = this.state.inputAmount.slice(0, -1);
-        } else if (key === ".") {
+            this.state.error = "";
+            return;
+        }
+        if (key === ".") {
             if (!this.state.inputAmount.includes(".")) {
                 this.state.inputAmount += this.state.inputAmount === "" ? "0." : ".";
             }
-        } else {
-            const p = this.state.inputAmount.split(".");
-            if (p[1] && p[1].length >= 2) return;
-            this.state.inputAmount += key;
+            this.state.error = "";
+            return;
         }
+        // Build candidate and reject if it exceeds the finite cap
+        const p = this.state.inputAmount.split(".");
+        if (p[1] && p[1].length >= 2) return;
+        const candidate = this.state.inputAmount + key;
+        const candidateVal = parseFloat(candidate);
+        if (!this.hasNoMax && !isNaN(candidateVal) && candidateVal > this.maxAmount) {
+            this.state.error = "Maximum is " + this.symbol + this.maxAmount.toFixed(2);
+            return;
+        }
+        this.state.inputAmount = candidate;
         this.state.error = "";
     }
 }
