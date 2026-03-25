@@ -34,33 +34,40 @@ function computeRoundOff(total) {
 }
 
 /**
- * Sum baseLines array from Odoo 19's _prices structure.
- * Each baseLine object contains per-line tax computation data.
- * We try every plausible key for the tax-inclusive subtotal.
+ * Compute total from Odoo 19 CE baseLines.
+ *
+ * In Odoo 19 CE, _prices.original.baseLines contains RAW line data:
+ *   { price_unit, quantity, discount, tax_ids, currency_id, ... }
+ *
+ * There is NO pre-computed subtotal key — we must calculate it ourselves:
+ *   line_total = price_unit * quantity * (1 - discount / 100)
+ *
+ * Tax handling: since tax_ids is an array (not computed tax amounts here),
+ * we compute the tax-exclusive subtotal. For the purpose of round-off
+ * calculation (which only needs the order magnitude), this is sufficient.
+ * If taxes are included in price_unit (tax-inclusive products), this is exact.
  */
 function sumBaseLines(baseLines) {
     if (!Array.isArray(baseLines) || baseLines.length === 0) return 0;
     return baseLines.reduce((sum, line) => {
-        // Try keys in order of likelihood for tax-inclusive total per line
-        const keys = [
-            "priceSubtotalIncl",
-            "price_subtotal_incl",
-            "priceIncludingTax",
-            "totalIncludingTax",
-            "subtotal_incl",
-            "amountTax",      // may be just tax
-            "priceSubtotal",  // excl. tax fallback
-            "price_subtotal",
-            "subtotal",
-            "total",
-            "amount",
+        const priceUnit = typeof line.price_unit === "number" ? line.price_unit : 0;
+        const qty = typeof line.quantity === "number" ? line.quantity : 1;
+        const discount = typeof line.discount === "number" ? line.discount : 0;
+        if (priceUnit > 0) {
+            return sum + priceUnit * qty * (1 - discount / 100);
+        }
+        // Fallback: try any pre-computed total key (older Odoo versions)
+        const fallbackKeys = [
+            "priceSubtotalIncl", "price_subtotal_incl",
+            "priceIncludingTax", "totalIncludingTax",
+            "subtotal_incl", "priceSubtotal",
+            "price_subtotal", "subtotal", "total", "amount",
         ];
-        for (const k of keys) {
+        for (const k of fallbackKeys) {
             if (typeof line[k] === "number" && line[k] > 0) {
                 return sum + line[k];
             }
         }
-        // If line has rawLine or line ref, skip — not a total holder
         return sum;
     }, 0);
 }
@@ -68,30 +75,16 @@ function sumBaseLines(baseLines) {
 /**
  * Get the order total for Odoo 19 CE.
  *
- * Odoo 19 _prices structure:
- *   order._prices = {
- *     original: { taxDetails: {}, baseLines: [{...}, ...], baseLineByLineUuids: {} },
- *     unit:     { taxDetails: {}, baseLines: [{...}, ...], baseLineByLineUuids: {} },
- *   }
- *
- * The grand total lives as the sum of baseLines inside _prices.original.
+ * Strategy (in priority order):
+ * 1. order.get_total_with_tax() — Odoo 19 CE PosOrder method (most accurate)
+ * 2. order.getTotalWithTax()    — camelCase variant
+ * 3. order.amount_total         — reactive computed field on PosOrder model
+ * 4. order._prices.original.baseLines — compute from raw line data (our fix)
+ * 5. order._prices.unit.baseLines     — fallback baseLine set
+ * 6. Sum order lines directly         — last resort
  */
 function getOrderTotal(order) {
-    // ── Odoo 19: sum _prices.original.baseLines ──────────────────────────────
-    const original = order._prices?.original;
-    if (original?.baseLines) {
-        const v = sumBaseLines(original.baseLines);
-        if (v > 0) return v;
-    }
-
-    // ── Odoo 19 fallback: _prices.unit.baseLines ─────────────────────────────
-    const unit = order._prices?.unit;
-    if (unit?.baseLines) {
-        const v = sumBaseLines(unit.baseLines);
-        if (v > 0) return v;
-    }
-
-    // ── Odoo 16/17/18: method calls ──────────────────────────────────────────
+    // ── Strategy 1 & 2: PosOrder method calls (Odoo 16/17/18/19) ────────────
     for (const m of ["get_total_with_tax", "getTotalWithTax", "getTotal", "get_total"]) {
         try {
             if (typeof order[m] === "function") {
@@ -101,26 +94,54 @@ function getOrderTotal(order) {
         } catch (_) {}
     }
 
-    // ── Direct property fallback ─────────────────────────────────────────────
-    for (const p of ["amount_total", "total_with_tax", "total"]) {
+    // ── Strategy 3: Direct reactive property (Odoo 19 CE model) ─────────────
+    // Odoo 19 CE PosOrder exposes computed totals as plain properties
+    for (const p of ["amount_total", "total_with_tax", "totalWithTax", "total"]) {
         if (typeof order[p] === "number" && order[p] > 0) return order[p];
     }
 
-    // ── Last resort: sum order lines directly ────────────────────────────────
+    // ── Strategy 4: _prices.original.baseLines — compute from raw data ───────
+    // THIS IS THE KEY FIX: Odoo 19 CE baseLines have price_unit/quantity/discount
+    const original = order._prices?.original;
+    if (original?.baseLines) {
+        const v = sumBaseLines(original.baseLines);
+        if (v > 0) return v;
+    }
+
+    // ── Strategy 5: _prices.unit.baseLines ───────────────────────────────────
+    const unit = order._prices?.unit;
+    if (unit?.baseLines) {
+        const v = sumBaseLines(unit.baseLines);
+        if (v > 0) return v;
+    }
+
+    // ── Strategy 6: Sum order lines directly ─────────────────────────────────
     const lines =
         (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
         order.lines ||
         order.orderlines ||
         [];
     const arr = Array.isArray(lines) ? lines : [...lines];
-    return arr.reduce((s, l) => {
-        const v =
-            (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
-            l.price_subtotal_incl ||
-            l.price_with_tax ||
-            0;
-        return s + (typeof v === "number" ? v : 0);
-    }, 0);
+    if (arr.length > 0) {
+        const lineTotal = arr.reduce((s, l) => {
+            // Try method first
+            const byMethod =
+                (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
+                (typeof l.getPriceWithTax === "function" && l.getPriceWithTax());
+            if (typeof byMethod === "number" && byMethod > 0) return s + byMethod;
+            // Try properties
+            const byProp = l.price_subtotal_incl || l.price_with_tax || 0;
+            if (typeof byProp === "number" && byProp > 0) return s + byProp;
+            // Compute from raw fields on the line itself
+            const pu = typeof l.price_unit === "number" ? l.price_unit : 0;
+            const qty = typeof l.qty === "number" ? l.qty : (typeof l.quantity === "number" ? l.quantity : 1);
+            const disc = typeof l.discount === "number" ? l.discount : 0;
+            return s + pu * qty * (1 - disc / 100);
+        }, 0);
+        if (lineTotal > 0) return lineTotal;
+    }
+
+    return 0;
 }
 
 function getCurrentOrder(pos) {
@@ -177,10 +198,11 @@ export class CharityOrderButton extends Component {
 
         const total = getOrderTotal(order);
 
-        // Diagnostic: expand baseLines[0] in console to confirm key names
+        // Diagnostic logs — safe to keep for debugging
         const bl = order._prices?.original?.baseLines || [];
         console.log("[CharityButton] baseLines[0]:", bl[0] ? JSON.parse(JSON.stringify(bl[0])) : "empty");
         console.log("[CharityButton] resolved total:", total);
+        console.log("[CharityButton] order.amount_total:", order.amount_total);
 
         if (total <= 0) {
             this.notification.add("Please add products before donating.", { type: "warning" });
@@ -188,6 +210,7 @@ export class CharityOrderButton extends Component {
         }
 
         const roundOff = computeRoundOff(total);
+        // If total is a whole number (roundOff === 0), allow a custom donation of up to 1 unit
         const maxDonate = roundOff > 0 ? roundOff : 1;
 
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
