@@ -39,8 +39,13 @@ export class CharityOrderButton extends Component {
     static props = {};
 
     setup() {
-        // Access the POS store via the registered "pos_store" service
-        this.pos = useService("pos_store");
+        // Try the "pos" service (Odoo 17/18/19). Fall back to env.pos as a
+        // last resort in case the service name differs in a future version.
+        try {
+            this.pos = useService("pos");
+        } catch (_) {
+            this.pos = this.env.pos;
+        }
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.charityState = useState({ donationAmount: 0, isDonating: false });
