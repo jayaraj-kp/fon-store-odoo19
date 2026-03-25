@@ -2,14 +2,16 @@
 
 import { patch } from "@web/core/utils/patch";
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
-import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
+import { ActionpadWidget } from "@point_of_sale/app/screens/product_screen/action_pad/action_pad";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { CharityDonationPopup } from "@pos_charity_ledger/js/charity_popup";
 import { useState } from "@odoo/owl";
+import { usePos } from "@point_of_sale/app/store/pos_hook";
+import { useService } from "@web/core/utils/hooks";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 
-// ── Extend POS Order to carry charity data through serialization ─────────────
+// ── Extend POS Order serialization ──────────────────────────────────────────
 patch(PosOrder.prototype, {
     serializeForORM(opts = {}) {
         const data = super.serializeForORM(opts);
@@ -21,20 +23,14 @@ patch(PosOrder.prototype, {
     },
 });
 
-// ── Shared helpers (used by both screens) ────────────────────────────────────
-function getCharityEnabled(pos) {
-    return pos.config.charity_enabled && pos.config.charity_account_id;
-}
-
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function getCurrencySymbol(pos) {
     return pos.currency?.symbol || "₹";
 }
 
 /**
- * Compute the round-up amount for a given total.
- * e.g. 299  → 1  (next multiple of 1 above 299 … already integer, so 300-299=1)
- *      299.5 → 0.5
- *      300   → 0  (already a round number)
+ * Round-up amount: gap between order total and the next whole number.
+ * e.g. 299 → 1,  299.50 → 0.50,  300 → 0 (already round)
  */
 function computeRoundOff(total) {
     const ceil = Math.ceil(total);
@@ -50,7 +46,7 @@ patch(PaymentScreen.prototype, {
     },
 
     get charityEnabled() {
-        return getCharityEnabled(this.pos);
+        return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
     },
 
     get charityButtonLabel() {
@@ -82,7 +78,6 @@ patch(PaymentScreen.prototype, {
             });
             return;
         }
-        // Round-off is 0 on payment screen (change already known)
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
             title: this.charityButtonLabel,
             changeAmount: changeAmt,
@@ -128,15 +123,18 @@ patch(PaymentScreen.prototype, {
     },
 });
 
-// ── Patch ProductScreen ───────────────────────────────────────────────────────
-patch(ProductScreen.prototype, {
+// ── Patch ActionpadWidget (Order / Product Screen bottom buttons) ─────────────
+patch(ActionpadWidget.prototype, {
     setup() {
         super.setup(...arguments);
+        this.pos = usePos();
+        this.dialog = useService("dialog");
+        this.notification = useService("notification");
         this.orderCharityState = useState({ donationAmount: 0, isDonating: false });
     },
 
     get charityEnabled() {
-        return getCharityEnabled(this.pos);
+        return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
     },
 
     get charityButtonLabel() {
@@ -147,30 +145,34 @@ patch(ProductScreen.prototype, {
         return getCurrencySymbol(this.pos);
     },
 
-    /** Round-off amount for the current order total */
     get orderRoundOffAmount() {
-        const order = this.currentOrder;
+        const order = this.pos.get_order
+            ? this.pos.get_order()
+            : this.pos.selectedOrder;
         if (!order) return 0;
-        return computeRoundOff(order.getTotalWithTax ? order.getTotalWithTax() : (order.amount_total || 0));
+        const total = order.getTotalWithTax
+            ? order.getTotalWithTax()
+            : (order.amount_total || 0);
+        return computeRoundOff(total);
     },
 
     async openOrderCharityPopup() {
         if (!this.charityEnabled) return;
-        const order = this.currentOrder;
-        if (!order || !(order.orderlines && order.orderlines.length)) {
+        const order = this.pos.get_order
+            ? this.pos.get_order()
+            : this.pos.selectedOrder;
+        if (!order) return;
+
+        const total = order.getTotalWithTax
+            ? order.getTotalWithTax()
+            : (order.amount_total || 0);
+        if (total <= 0) {
             this.notification.add("Please add products before donating.", { type: "warning" });
             return;
         }
 
-        const total = order.getTotalWithTax ? order.getTotalWithTax() : (order.amount_total || 0);
-        if (total <= 0) {
-            this.notification.add("No order total to calculate round-off.", { type: "warning" });
-            return;
-        }
-
-        // Maximum donatable = round-off amount (the gap to next rupee)
         const roundOff = computeRoundOff(total);
-        // If total is already a round number, allow up to 1 rupee as a goodwill donation
+        // If total is already a round number allow up to ₹1 as goodwill donation
         const maxDonate = roundOff > 0 ? roundOff : 1;
 
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
@@ -181,12 +183,11 @@ patch(ProductScreen.prototype, {
         });
 
         if (result && result.confirmed && result.amount > 0) {
-            this._applyOrderCharityDonation(result.amount);
+            this._applyOrderCharityDonation(result.amount, order);
         }
     },
 
-    _applyOrderCharityDonation(amount) {
-        const order = this.currentOrder;
+    _applyOrderCharityDonation(amount, order) {
         if (!order) return;
         const accountId = Array.isArray(this.pos.config.charity_account_id)
             ? this.pos.config.charity_account_id[0]
@@ -202,7 +203,9 @@ patch(ProductScreen.prototype, {
     },
 
     removeOrderCharityDonation() {
-        const order = this.currentOrder;
+        const order = this.pos.get_order
+            ? this.pos.get_order()
+            : this.pos.selectedOrder;
         if (order) {
             order._charity_donation_amount = 0;
             order._charity_account_id = null;

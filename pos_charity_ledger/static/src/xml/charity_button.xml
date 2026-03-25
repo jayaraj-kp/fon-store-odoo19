@@ -2,7 +2,7 @@
 <templates xml:space="preserve">
 
     <!-- ═══════════════════════════════════════════════════════════════
-         Payment Screen – Charity button (existing, unchanged logic)
+         Payment Screen – Charity button (below payment method buttons)
     ════════════════════════════════════════════════════════════════ -->
     <t t-inherit="point_of_sale.PaymentScreenButtons" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('payment-buttons')]" position="inside">
@@ -29,11 +29,12 @@
     </t>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         Order / Product Screen – Charity button in action buttons row
+         Order / Product Screen – Charity button inside ActionpadWidget
+         (sits above the Payment / Cash KDTY / Card KDTY buttons)
     ════════════════════════════════════════════════════════════════ -->
     <t t-inherit="point_of_sale.ActionpadWidget" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('actionpad')]" position="inside">
-            <div t-if="charityEnabled" class="charity-order-section w-100 mt-1 px-1">
+            <div t-if="charityEnabled" class="charity-order-section w-100 mt-1">
                 <t t-if="!orderCharityState.isDonating">
                     <button
                         class="btn btn-charity btn-charity-order w-100"

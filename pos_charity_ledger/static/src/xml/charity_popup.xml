@@ -9,7 +9,7 @@
                     </strong>
                 </p>
 
-                <!-- Quick amount buttons row + Round Off button -->
+                <!-- Quick fixed amount buttons -->
                 <div class="d-flex gap-2 mb-3 flex-wrap">
                     <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(1)"><t t-esc="symbol"/>1</button>
                     <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(2)"><t t-esc="symbol"/>2</button>
@@ -17,23 +17,28 @@
                     <button class="btn btn-danger flex-fill" t-on-click="setFullChange">Full Change</button>
                 </div>
 
-                <!-- Round Off button – only shown when there is a round-off amount -->
+                <!-- Round Off button: green, only shown when a rounding gap exists -->
                 <t t-if="roundOff > 0">
                     <div class="mb-3">
                         <button class="btn btn-charity-roundoff w-100" t-on-click="setRoundOff">
-                            ↑ Round Off  <strong><t t-esc="symbol"/><t t-esc="roundOff.toFixed(2)"/></strong>
-                            <span class="ms-1" style="font-size:12px;opacity:0.85;">(donate the rounding difference)</span>
+                            ↑ Round Off
+                            <strong class="ms-1"><t t-esc="symbol"/><t t-esc="roundOff.toFixed(2)"/></strong>
+                            <span class="ms-1" style="font-size:12px;opacity:0.85;">(donate rounding difference)</span>
                         </button>
                     </div>
                 </t>
 
+                <!-- Manual amount input -->
                 <div class="input-group mb-2">
                     <span class="input-group-text" style="font-size:20px;"><t t-esc="symbol"/></span>
                     <input type="number" class="form-control form-control-lg text-end"
                         t-att-value="state.inputAmount" t-on-input="onInputChange"
                         placeholder="0.00" min="0" t-att-max="maxAmount" step="0.01"/>
                 </div>
+
                 <div t-if="state.error" class="text-danger text-center mb-2" t-esc="state.error"/>
+
+                <!-- Numpad -->
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">
                     <t t-foreach="['1','2','3','4','5','6','7','8','9','.','0','⌫']" t-as="key" t-key="key">
                         <button class="btn btn-light btn-lg" style="font-size:20px;font-weight:600;" t-on-click="() => this.pressKey(key)">
