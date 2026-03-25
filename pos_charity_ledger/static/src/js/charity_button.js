@@ -34,28 +34,69 @@ function computeRoundOff(total) {
 }
 
 /**
- * Get the order total across Odoo versions:
- *   Odoo 16:    order.get_total_with_tax()
- *   Odoo 17/18: order.getTotalWithTax()
- *   Fallback 1: order.amount_total (pre-computed float)
- *   Fallback 2: sum orderlines manually
+ * Resolve the current POS order across Odoo versions.
+ * Odoo 16/17:  pos.get_order()
+ * Odoo 18/19:  pos.get_order() may be gone; use pos.selectedOrder
+ */
+function getCurrentOrder(pos) {
+    try {
+        const o = pos.get_order?.();
+        if (o) return o;
+    } catch (_) {}
+    try {
+        const o = pos.getCurrentOrder?.();
+        if (o) return o;
+    } catch (_) {}
+    return pos.selectedOrder || null;
+}
+
+/**
+ * Get the order total across all Odoo POS versions.
+ *
+ * Odoo 16        → order.get_total_with_tax()
+ * Odoo 17/18     → order.getTotalWithTax()
+ * Odoo 19 new    → order.get_total_with_tax() or order.amount_total
+ *                  or sum lines via line.get_price_with_tax / price_subtotal_incl
  */
 function getOrderTotal(order) {
-    if (typeof order.get_total_with_tax === "function") {
-        const v = order.get_total_with_tax();
-        if (v > 0) return v;
+    // Method-based (try every known name)
+    const methods = [
+        "get_total_with_tax",
+        "getTotalWithTax",
+        "getTotal",
+        "get_total",
+        "getTotalTaxed",
+    ];
+    for (const m of methods) {
+        try {
+            if (typeof order[m] === "function") {
+                const v = order[m]();
+                if (typeof v === "number" && v > 0) return v;
+            }
+        } catch (_) {}
     }
-    if (typeof order.getTotalWithTax === "function") {
-        const v = order.getTotalWithTax();
-        if (v > 0) return v;
+
+    // Property-based
+    for (const p of ["amount_total", "total_with_tax", "total"]) {
+        if (typeof order[p] === "number" && order[p] > 0) return order[p];
     }
-    if (order.amount_total > 0) return order.amount_total;
-    // Last resort: sum order lines directly
-    const lines = order.get_orderlines?.() || order.orderlines || [];
-    return [...lines].reduce(
-        (sum, l) => sum + (l.get_price_with_tax?.() || l.price_subtotal_incl || 0),
-        0
-    );
+
+    // Last resort: sum order lines
+    const lines =
+        (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
+        order.lines ||
+        order.orderlines ||
+        [];
+    const arr = Array.isArray(lines) ? lines : [...lines];
+    const sum = arr.reduce((s, l) => {
+        const v =
+            (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
+            l.price_subtotal_incl ||
+            l.price_with_tax ||
+            0;
+        return s + (typeof v === "number" ? v : 0);
+    }, 0);
+    return sum;
 }
 
 // ── Order Screen Charity Button Component ────────────────────────────────────
@@ -87,7 +128,7 @@ export class CharityOrderButton extends Component {
     }
 
     get currentOrder() {
-        return this.pos.get_order ? this.pos.get_order() : this.pos.selectedOrder;
+        return getCurrentOrder(this.pos);
     }
 
     get orderRoundOffAmount() {
@@ -99,15 +140,24 @@ export class CharityOrderButton extends Component {
     async openOrderCharityPopup() {
         if (!this.charityEnabled) return;
         const order = this.currentOrder;
-        if (!order) return;
+        if (!order) {
+            this.notification.add("No active order found.", { type: "warning" });
+            return;
+        }
 
         const total = getOrderTotal(order);
+
+        // Debug log to console so we can see what's happening
+        console.log("[CharityButton] order:", order);
+        console.log("[CharityButton] total:", total);
+
         if (total <= 0) {
             this.notification.add("Please add products before donating.", { type: "warning" });
             return;
         }
 
         const roundOff = computeRoundOff(total);
+        // Allow donating up to 1 unit even if total is already a round number
         const maxDonate = roundOff > 0 ? roundOff : 1;
 
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
