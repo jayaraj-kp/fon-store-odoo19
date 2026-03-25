@@ -210,8 +210,9 @@ export class CharityOrderButton extends Component {
         }
 
         const roundOff = computeRoundOff(total);
-        // If total is a whole number (roundOff === 0), allow a custom donation of up to 1 unit
-        const maxDonate = roundOff > 0 ? roundOff : 1;
+        // If there is a round-off amount, cap donations to it.
+        // If the total is already a whole number (no round-off), allow any amount — no cap.
+        const maxDonate = roundOff > 0 ? roundOff : Infinity;
 
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
             title: this.charityButtonLabel,

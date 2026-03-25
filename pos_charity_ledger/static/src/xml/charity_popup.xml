@@ -3,18 +3,25 @@
     <t t-name="pos_charity_ledger.CharityDonationPopup">
         <Dialog title="props.title" size="'md'">
             <div class="charity-popup-body">
-                <p class="text-center mb-3" style="font-size:15px;">
-                    Available Change: <strong style="color:#2ecc71;font-size:18px;">
-                        <t t-esc="symbol"/><t t-esc="maxAmount.toFixed(2)"/>
-                    </strong>
-                </p>
+
+                <!-- Show available change only when there is a finite cap -->
+                <t t-if="!hasNoMax">
+                    <p class="text-center mb-3" style="font-size:15px;">
+                        Available Change: <strong style="color:#2ecc71;font-size:18px;">
+                            <t t-esc="symbol"/><t t-esc="maxAmount.toFixed(2)"/>
+                        </strong>
+                    </p>
+                </t>
 
                 <!-- Quick fixed amount buttons -->
                 <div class="d-flex gap-2 mb-3 flex-wrap">
                     <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(1)"><t t-esc="symbol"/>1</button>
                     <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(2)"><t t-esc="symbol"/>2</button>
                     <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(5)"><t t-esc="symbol"/>5</button>
-                    <button class="btn btn-danger flex-fill" t-on-click="setFullChange">Full Change</button>
+                    <!-- Full Change button only makes sense when there is a finite cap -->
+                    <t t-if="!hasNoMax">
+                        <button class="btn btn-danger flex-fill" t-on-click="setFullChange">Full Change</button>
+                    </t>
                 </div>
 
                 <!-- Round Off button: green, only shown when a rounding gap exists -->
@@ -33,7 +40,7 @@
                     <span class="input-group-text" style="font-size:20px;"><t t-esc="symbol"/></span>
                     <input type="number" class="form-control form-control-lg text-end"
                         t-att-value="state.inputAmount" t-on-input="onInputChange"
-                        placeholder="0.00" min="0" t-att-max="maxAmount" step="0.01"/>
+                        placeholder="0.00" min="0" step="0.01"/>
                 </div>
 
                 <div t-if="state.error" class="text-danger text-center mb-2" t-esc="state.error"/>

@@ -20,6 +20,9 @@ export class CharityDonationPopup extends Component {
         this.state = useState({ inputAmount: "", error: "" });
     }
 
+    /** True when there is no upper cap (order total is a whole number) */
+    get hasNoMax() { return !isFinite(this.props.changeAmount); }
+
     get maxAmount() { return this.props.changeAmount || 0; }
     get symbol() { return this.props.currencySymbol || "₹"; }
     get roundOff() { return this.props.roundOffAmount || 0; }
@@ -30,7 +33,8 @@ export class CharityDonationPopup extends Component {
     }
 
     setAmount(amount) {
-        if (amount > this.maxAmount) {
+        // Only enforce the max when there is a finite cap
+        if (!this.hasNoMax && amount > this.maxAmount) {
             this.state.error = "Maximum is " + this.symbol + this.maxAmount.toFixed(2);
             return;
         }
@@ -38,6 +42,7 @@ export class CharityDonationPopup extends Component {
         this.state.inputAmount = String(amount);
     }
 
+    /** Only shown in template when hasNoMax is false */
     setFullChange() { this.setAmount(this.maxAmount); }
 
     setRoundOff() {
@@ -52,7 +57,8 @@ export class CharityDonationPopup extends Component {
             this.state.error = "Please enter a valid amount greater than 0.";
             return;
         }
-        if (val > this.maxAmount) {
+        // Only block submission when there is a finite cap
+        if (!this.hasNoMax && val > this.maxAmount) {
             this.state.error = "Maximum is " + this.symbol + this.maxAmount.toFixed(2);
             return;
         }
