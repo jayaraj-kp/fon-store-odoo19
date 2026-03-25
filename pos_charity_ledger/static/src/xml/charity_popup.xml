@@ -8,12 +8,25 @@
                         <t t-esc="symbol"/><t t-esc="maxAmount.toFixed(2)"/>
                     </strong>
                 </p>
-                <div class="d-flex gap-2 mb-3">
+
+                <!-- Quick amount buttons row + Round Off button -->
+                <div class="d-flex gap-2 mb-3 flex-wrap">
                     <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(1)"><t t-esc="symbol"/>1</button>
                     <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(2)"><t t-esc="symbol"/>2</button>
                     <button class="btn btn-outline-danger flex-fill" t-on-click="() => this.setAmount(5)"><t t-esc="symbol"/>5</button>
                     <button class="btn btn-danger flex-fill" t-on-click="setFullChange">Full Change</button>
                 </div>
+
+                <!-- Round Off button – only shown when there is a round-off amount -->
+                <t t-if="roundOff > 0">
+                    <div class="mb-3">
+                        <button class="btn btn-charity-roundoff w-100" t-on-click="setRoundOff">
+                            ↑ Round Off  <strong><t t-esc="symbol"/><t t-esc="roundOff.toFixed(2)"/></strong>
+                            <span class="ms-1" style="font-size:12px;opacity:0.85;">(donate the rounding difference)</span>
+                        </button>
+                    </div>
+                </t>
+
                 <div class="input-group mb-2">
                     <span class="input-group-text" style="font-size:20px;"><t t-esc="symbol"/></span>
                     <input type="number" class="form-control form-control-lg text-end"

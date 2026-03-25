@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
 
+    <!-- ═══════════════════════════════════════════════════════════════
+         Payment Screen – Charity button (existing, unchanged logic)
+    ════════════════════════════════════════════════════════════════ -->
     <t t-inherit="point_of_sale.PaymentScreenButtons" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('payment-buttons')]" position="inside">
             <div t-if="charityEnabled" class="charity-donation-section d-flex flex-column gap-1 w-100 mt-1">
                 <t t-if="!charityState.isDonating">
-                    <!-- Always enabled - validation happens inside the popup -->
                     <button
                         class="btn btn-charity btn-lg w-100 lh-lg"
                         t-on-click="openCharityPopup">
@@ -18,6 +20,38 @@
                             ❤ Donating <strong><t t-esc="currencySymbol"/><t t-esc="charityState.donationAmount.toFixed(2)"/></strong> to Charity
                         </span>
                         <button class="btn btn-sm btn-charity-remove" t-on-click="removeCharityDonation">
+                            ✕ Remove
+                        </button>
+                    </div>
+                </t>
+            </div>
+        </xpath>
+    </t>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Order / Product Screen – Charity button in action buttons row
+    ════════════════════════════════════════════════════════════════ -->
+    <t t-inherit="point_of_sale.ActionpadWidget" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('actionpad')]" position="inside">
+            <div t-if="charityEnabled" class="charity-order-section w-100 mt-1 px-1">
+                <t t-if="!orderCharityState.isDonating">
+                    <button
+                        class="btn btn-charity btn-charity-order w-100"
+                        t-on-click="openOrderCharityPopup">
+                        <span>❤ <t t-esc="charityButtonLabel"/></span>
+                        <t t-if="orderRoundOffAmount > 0">
+                            <span class="charity-roundoff-hint ms-1">
+                                (Round off <t t-esc="currencySymbol"/><t t-esc="orderRoundOffAmount.toFixed(2)"/>)
+                            </span>
+                        </t>
+                    </button>
+                </t>
+                <t t-else="">
+                    <div class="charity-active-donation d-flex align-items-center justify-content-between w-100 px-3 py-2">
+                        <span>
+                            ❤ Donating <strong><t t-esc="currencySymbol"/><t t-esc="orderCharityState.donationAmount.toFixed(2)"/></strong> to Charity
+                        </span>
+                        <button class="btn btn-sm btn-charity-remove" t-on-click="removeOrderCharityDonation">
                             ✕ Remove
                         </button>
                     </div>
