@@ -33,14 +33,37 @@ function computeRoundOff(total) {
     return diff > 0 ? diff : 0;
 }
 
+/**
+ * Get the order total across Odoo versions:
+ *   Odoo 16:    order.get_total_with_tax()
+ *   Odoo 17/18: order.getTotalWithTax()
+ *   Fallback 1: order.amount_total (pre-computed float)
+ *   Fallback 2: sum orderlines manually
+ */
+function getOrderTotal(order) {
+    if (typeof order.get_total_with_tax === "function") {
+        const v = order.get_total_with_tax();
+        if (v > 0) return v;
+    }
+    if (typeof order.getTotalWithTax === "function") {
+        const v = order.getTotalWithTax();
+        if (v > 0) return v;
+    }
+    if (order.amount_total > 0) return order.amount_total;
+    // Last resort: sum order lines directly
+    const lines = order.get_orderlines?.() || order.orderlines || [];
+    return [...lines].reduce(
+        (sum, l) => sum + (l.get_price_with_tax?.() || l.price_subtotal_incl || 0),
+        0
+    );
+}
+
 // ── Order Screen Charity Button Component ────────────────────────────────────
 export class CharityOrderButton extends Component {
     static template = "pos_charity_ledger.CharityOrderButton";
     static props = {};
 
     setup() {
-        // Try the "pos" service (Odoo 17/18/19). Fall back to env.pos as a
-        // last resort in case the service name differs in a future version.
         try {
             this.pos = useService("pos");
         } catch (_) {
@@ -70,10 +93,7 @@ export class CharityOrderButton extends Component {
     get orderRoundOffAmount() {
         const order = this.currentOrder;
         if (!order) return 0;
-        const total = order.getTotalWithTax
-            ? order.getTotalWithTax()
-            : (order.amount_total || 0);
-        return computeRoundOff(total);
+        return computeRoundOff(getOrderTotal(order));
     }
 
     async openOrderCharityPopup() {
@@ -81,9 +101,7 @@ export class CharityOrderButton extends Component {
         const order = this.currentOrder;
         if (!order) return;
 
-        const total = order.getTotalWithTax
-            ? order.getTotalWithTax()
-            : (order.amount_total || 0);
+        const total = getOrderTotal(order);
         if (total <= 0) {
             this.notification.add("Please add products before donating.", { type: "warning" });
             return;
