@@ -85,6 +85,7 @@
                     class="btn btn-primary ccd-btn-save"
                     t-on-click="onSave"
                     t-att-disabled="form.saving"
+                    title="Click to save or press Alt+C"
                 >
                     <t t-if="form.saving">Saving…</t>
                     <t t-else="">Save &amp; Close</t>
@@ -352,3 +353,359 @@
 <!--    </t>-->
 
 <!--</templates>-->
+
+
+<!--<?xml version="1.0" encoding="UTF-8"?>-->
+<!--<templates xml:space="preserve">-->
+
+<!--    &lt;!&ndash; ══════════════════════════════════════════-->
+<!--         Create Customer Dialog-->
+<!--    ══════════════════════════════════════════ &ndash;&gt;-->
+<!--    <t t-name="pos_cash_customer_contact.CreateCustomerDialog">-->
+<!--        <Dialog title="'Create Contact'" size="'md'">-->
+
+<!--            <div class="ccd-form">-->
+
+<!--                <div class="ccd-type-row">-->
+<!--                    <label class="ccd-type-opt ccd-type-active">-->
+<!--                        <span class="ccd-radio-dot"/> Contact-->
+<!--                    </label>-->
+<!--                </div>-->
+
+<!--                &lt;!&ndash; Name &ndash;&gt;-->
+<!--                <div class="ccd-field">-->
+<!--                    <input-->
+<!--                        type="text"-->
+<!--                        class="ccd-input ccd-name"-->
+<!--                        placeholder="e.g. Brandon Freeman"-->
+<!--                        t-model="form.name"-->
+<!--                        t-on-keydown="(ev) => ev.stopPropagation()"-->
+<!--                        t-on-keyup="(ev) => ev.stopPropagation()"-->
+<!--                    />-->
+<!--                </div>-->
+
+<!--                &lt;!&ndash; Email &ndash;&gt;-->
+<!--                <div class="ccd-field ccd-icon-field">-->
+<!--                    <span class="ccd-field-icon">✉</span>-->
+<!--                    <input-->
+<!--                        type="email"-->
+<!--                        class="ccd-input"-->
+<!--                        placeholder="Email"-->
+<!--                        t-model="form.email"-->
+<!--                        t-on-keydown="(ev) => ev.stopPropagation()"-->
+<!--                        t-on-keyup="(ev) => ev.stopPropagation()"-->
+<!--                    />-->
+<!--                </div>-->
+
+<!--                &lt;!&ndash; Phone &ndash;&gt;-->
+<!--                <div class="ccd-field ccd-icon-field">-->
+<!--                    <span class="ccd-field-icon">📱</span>-->
+<!--                    <input-->
+<!--                        type="tel"-->
+<!--                        class="ccd-input"-->
+<!--                        placeholder="Phone"-->
+<!--                        t-model="form.phone"-->
+<!--                        t-on-keydown="(ev) => ev.stopPropagation()"-->
+<!--                        t-on-keyup="(ev) => ev.stopPropagation()"-->
+<!--                    />-->
+<!--                </div>-->
+
+<!--                &lt;!&ndash; Mobile &ndash;&gt;-->
+<!--&lt;!&ndash;                <div class="ccd-field ccd-icon-field">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <span class="ccd-field-icon"></span>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <input&ndash;&gt;-->
+<!--&lt;!&ndash;                        type="tel"&ndash;&gt;-->
+<!--&lt;!&ndash;                        class="ccd-input"&ndash;&gt;-->
+<!--&lt;!&ndash;                        placeholder="Mobile"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-model="form.mobile"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keydown="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keyup="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                    />&ndash;&gt;-->
+<!--&lt;!&ndash;                </div>&ndash;&gt;-->
+
+<!--                &lt;!&ndash; Contact Tag (auto-assigned, read-only display) &ndash;&gt;-->
+<!--                <div t-if="form.tagId" class="ccd-field ccd-icon-field">-->
+<!--                    <span class="ccd-field-icon">🏷</span>-->
+<!--                    <div class="ccd-tag-wrap">-->
+<!--                        <span class="ccd-tag-badge">-->
+<!--                            <t t-esc="form.tagName"/>-->
+<!--                        </span>-->
+<!--                        <span class="ccd-tag-hint">Auto-assigned from POS</span>-->
+<!--                    </div>-->
+<!--                </div>-->
+
+<!--                <p t-if="form.error" class="ccd-error">⚠ <t t-esc="form.error"/></p>-->
+<!--            </div>-->
+
+<!--            <t t-set-slot="footer">-->
+<!--                <button-->
+<!--                    class="btn btn-primary ccd-btn-save"-->
+<!--                    t-on-click="onSave"-->
+<!--                    t-att-disabled="form.saving"-->
+<!--                >-->
+<!--                    <t t-if="form.saving">Saving…</t>-->
+<!--                    <t t-else="">Save &amp; Close</t>-->
+<!--                </button>-->
+<!--                <button class="btn btn-secondary" t-on-click="onDiscard">Discard</button>-->
+<!--            </t>-->
+
+<!--        </Dialog>-->
+<!--    </t>-->
+
+
+<!--    &lt;!&ndash; ══════════════════════════════════════════-->
+<!--         Phone Customer Bar-->
+<!--    ══════════════════════════════════════════ &ndash;&gt;-->
+<!--    <t t-name="pos_cash_customer_contact.PhoneCustomerBar">-->
+<!--        <div class="phone-customer-bar">-->
+<!--            <span class="pcb-icon">📞</span>-->
+
+<!--            <div class="pcb-input-wrap">-->
+<!--                <input-->
+<!--                    t-ref="input"-->
+<!--                    type="text"-->
+<!--                    class="pcb-input"-->
+<!--                    placeholder="Search by name or phone…"-->
+<!--                    t-att-value="state.query"-->
+<!--                    t-on-input="onInput"-->
+<!--                    t-on-focus="onFocus"-->
+<!--                    t-on-blur="onBlur"-->
+<!--                    t-on-keydown="(ev) => ev.stopPropagation()"-->
+<!--                    t-on-keyup="(ev) => ev.stopPropagation()"-->
+<!--                    t-on-keypress="(ev) => ev.stopPropagation()"-->
+<!--                    autocomplete="off"-->
+<!--                />-->
+<!--                <button t-if="state.query" class="pcb-clear" t-on-click="onClear">✕</button>-->
+
+<!--                &lt;!&ndash; Unified dropdown &ndash;&gt;-->
+<!--                <div t-if="state.showDropdown" class="pcb-dropdown">-->
+
+<!--                    &lt;!&ndash; Search results &ndash;&gt;-->
+<!--                    <div-->
+<!--                        t-foreach="state.suggestions"-->
+<!--                        t-as="partner"-->
+<!--                        t-key="partner.id"-->
+<!--                        class="pcb-dropdown-item"-->
+<!--                        t-on-mousedown="(ev) => this.onSelectSuggestion(ev, partner)"-->
+<!--                    >-->
+<!--                        <span class="pcb-item-name"><t t-esc="partner.name"/></span>-->
+<!--                        <span class="pcb-item-phone">-->
+<!--                            <t t-esc="partner.phone || partner.mobile || ''"/>-->
+<!--                        </span>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Divider &ndash;&gt;-->
+<!--                    <div t-if="state.suggestions.length" class="pcb-dropdown-divider"/>-->
+
+<!--                    &lt;!&ndash; Create "[query]" &ndash;&gt;-->
+<!--                    <div class="pcb-dropdown-item pcb-create-row" t-on-mousedown="onQuickCreate">-->
+<!--                        <span class="pcb-create-icon">＋</span>-->
+<!--                        <span class="pcb-create-label">-->
+<!--                            Create "<t t-esc="state.query"/>"-->
+<!--                        </span>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Create and edit... &ndash;&gt;-->
+<!--                    <div class="pcb-dropdown-item pcb-create-row" t-on-mousedown="onCreateAndEdit">-->
+<!--                        <span class="pcb-create-icon">✎</span>-->
+<!--                        <span class="pcb-create-label">Create and edit...</span>-->
+<!--                    </div>-->
+
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            &lt;!&ndash; Found badge &ndash;&gt;-->
+<!--            <span t-if="state.found" class="pcb-status pcb-found">-->
+<!--                ✅ <t t-esc="state.selectedName"/>-->
+<!--            </span>-->
+
+<!--            &lt;!&ndash; Not found &ndash;&gt;-->
+<!--            <t t-elif="state.query and !state.showDropdown and state.query.length >= 3 and !state.found">-->
+<!--                <span class="pcb-status pcb-notfound">Not found</span>-->
+<!--            </t>-->
+
+<!--        </div>-->
+<!--    </t>-->
+
+
+<!--    &lt;!&ndash; ══════════════════════════════════════════-->
+<!--         Inject bar into ProductScreen-->
+<!--    ══════════════════════════════════════════ &ndash;&gt;-->
+<!--    <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">-->
+<!--        <xpath expr="//div[hasclass('leftpane')]" position="inside">-->
+<!--            <PhoneCustomerBar/>-->
+<!--        </xpath>-->
+<!--    </t>-->
+
+<!--</templates>-->
+
+
+
+<!--&lt;!&ndash;<?xml version="1.0" encoding="UTF-8"?>&ndash;&gt;-->
+<!--&lt;!&ndash;<templates xml:space="preserve">&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &lt;!&ndash; ══════════════════════════════════════════&ndash;&gt;-->
+<!--&lt;!&ndash;         Create Customer Dialog&ndash;&gt;-->
+<!--&lt;!&ndash;    ══════════════════════════════════════════ &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <t t-name="pos_cash_customer_contact.CreateCustomerDialog">&ndash;&gt;-->
+<!--&lt;!&ndash;        <Dialog title="'Create Contact'" size="'md'">&ndash;&gt;-->
+
+<!--&lt;!&ndash;            <div class="ccd-form">&ndash;&gt;-->
+
+<!--&lt;!&ndash;                <div class="ccd-type-row">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <label class="ccd-type-opt ccd-type-active">&ndash;&gt;-->
+<!--&lt;!&ndash;                        <span class="ccd-radio-dot"/> Contact&ndash;&gt;-->
+<!--&lt;!&ndash;                    </label>&ndash;&gt;-->
+<!--&lt;!&ndash;                </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                <div class="ccd-field">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <input&ndash;&gt;-->
+<!--&lt;!&ndash;                        type="text"&ndash;&gt;-->
+<!--&lt;!&ndash;                        class="ccd-input ccd-name"&ndash;&gt;-->
+<!--&lt;!&ndash;                        placeholder="e.g. Brandon Freeman"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-model="form.name"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keydown="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keyup="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                    />&ndash;&gt;-->
+<!--&lt;!&ndash;                </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                <div class="ccd-field ccd-icon-field">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <span class="ccd-field-icon">✉</span>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <input&ndash;&gt;-->
+<!--&lt;!&ndash;                        type="email"&ndash;&gt;-->
+<!--&lt;!&ndash;                        class="ccd-input"&ndash;&gt;-->
+<!--&lt;!&ndash;                        placeholder="Email"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-model="form.email"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keydown="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keyup="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                    />&ndash;&gt;-->
+<!--&lt;!&ndash;                </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                <div class="ccd-field ccd-icon-field">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <span class="ccd-field-icon">📞</span>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <input&ndash;&gt;-->
+<!--&lt;!&ndash;                        type="tel"&ndash;&gt;-->
+<!--&lt;!&ndash;                        class="ccd-input"&ndash;&gt;-->
+<!--&lt;!&ndash;                        placeholder="Phone"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-model="form.phone"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keydown="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keyup="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                    />&ndash;&gt;-->
+<!--&lt;!&ndash;                </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                <div class="ccd-field ccd-icon-field">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <span class="ccd-field-icon">📱</span>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <input&ndash;&gt;-->
+<!--&lt;!&ndash;                        type="tel"&ndash;&gt;-->
+<!--&lt;!&ndash;                        class="ccd-input"&ndash;&gt;-->
+<!--&lt;!&ndash;                        placeholder="Mobile"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-model="form.mobile"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keydown="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-keyup="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                    />&ndash;&gt;-->
+<!--&lt;!&ndash;                </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                <p t-if="form.error" class="ccd-error">⚠ <t t-esc="form.error"/></p>&ndash;&gt;-->
+<!--&lt;!&ndash;            </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;            <t t-set-slot="footer">&ndash;&gt;-->
+<!--&lt;!&ndash;                <button&ndash;&gt;-->
+<!--&lt;!&ndash;                    class="btn btn-primary ccd-btn-save"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-on-click="onSave"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-att-disabled="form.saving"&ndash;&gt;-->
+<!--&lt;!&ndash;                >&ndash;&gt;-->
+<!--&lt;!&ndash;                    <t t-if="form.saving">Saving…</t>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <t t-else="">Save &amp; Close</t>&ndash;&gt;-->
+<!--&lt;!&ndash;                </button>&ndash;&gt;-->
+<!--&lt;!&ndash;                <button class="btn btn-secondary" t-on-click="onDiscard">Discard</button>&ndash;&gt;-->
+<!--&lt;!&ndash;            </t>&ndash;&gt;-->
+
+<!--&lt;!&ndash;        </Dialog>&ndash;&gt;-->
+<!--&lt;!&ndash;    </t>&ndash;&gt;-->
+
+
+<!--&lt;!&ndash;    &lt;!&ndash; ══════════════════════════════════════════&ndash;&gt;-->
+<!--&lt;!&ndash;         Phone Customer Bar&ndash;&gt;-->
+<!--&lt;!&ndash;    ══════════════════════════════════════════ &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <t t-name="pos_cash_customer_contact.PhoneCustomerBar">&ndash;&gt;-->
+<!--&lt;!&ndash;        <div class="phone-customer-bar">&ndash;&gt;-->
+<!--&lt;!&ndash;            <span class="pcb-icon">📞</span>&ndash;&gt;-->
+
+<!--&lt;!&ndash;            <div class="pcb-input-wrap">&ndash;&gt;-->
+<!--&lt;!&ndash;                <input&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-ref="input"&ndash;&gt;-->
+<!--&lt;!&ndash;                    type="text"&ndash;&gt;-->
+<!--&lt;!&ndash;                    class="pcb-input"&ndash;&gt;-->
+<!--&lt;!&ndash;                    placeholder="Search by name or phone…"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-att-value="state.query"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-on-input="onInput"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-on-focus="onFocus"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-on-blur="onBlur"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-on-keydown="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-on-keyup="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                    t-on-keypress="(ev) => ev.stopPropagation()"&ndash;&gt;-->
+<!--&lt;!&ndash;                    autocomplete="off"&ndash;&gt;-->
+<!--&lt;!&ndash;                />&ndash;&gt;-->
+<!--&lt;!&ndash;                <button t-if="state.query" class="pcb-clear" t-on-click="onClear">✕</button>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                &lt;!&ndash; ── Unified dropdown: search results + create options ── &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;                <div t-if="state.showDropdown" class="pcb-dropdown">&ndash;&gt;-->
+
+<!--&lt;!&ndash;                    &lt;!&ndash; Search result rows &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;                    <div&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-foreach="state.suggestions"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-as="partner"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-key="partner.id"&ndash;&gt;-->
+<!--&lt;!&ndash;                        class="pcb-dropdown-item"&ndash;&gt;-->
+<!--&lt;!&ndash;                        t-on-mousedown="(ev) => this.onSelectSuggestion(ev, partner)"&ndash;&gt;-->
+<!--&lt;!&ndash;                    >&ndash;&gt;-->
+<!--&lt;!&ndash;                        <span class="pcb-item-name"><t t-esc="partner.name"/></span>&ndash;&gt;-->
+<!--&lt;!&ndash;                        <span class="pcb-item-phone">&ndash;&gt;-->
+<!--&lt;!&ndash;                            <t t-esc="partner.phone || partner.mobile || ''"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                        </span>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                    &lt;!&ndash; Divider only when there are results above &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;                    <div t-if="state.suggestions.length" class="pcb-dropdown-divider"/>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                    &lt;!&ndash; Create "[query]" &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;                    <div class="pcb-dropdown-item pcb-create-row" t-on-mousedown="onQuickCreate">&ndash;&gt;-->
+<!--&lt;!&ndash;                        <span class="pcb-create-icon">＋</span>&ndash;&gt;-->
+<!--&lt;!&ndash;                        <span class="pcb-create-label">&ndash;&gt;-->
+<!--&lt;!&ndash;                            Create "<t t-esc="state.query"/>"&ndash;&gt;-->
+<!--&lt;!&ndash;                        </span>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                    &lt;!&ndash; Create and edit... &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;                    <div class="pcb-dropdown-item pcb-create-row" t-on-mousedown="onCreateAndEdit">&ndash;&gt;-->
+<!--&lt;!&ndash;                        <span class="pcb-create-icon">✎</span>&ndash;&gt;-->
+<!--&lt;!&ndash;                        <span class="pcb-create-label">Create and edit...</span>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;                </div>&ndash;&gt;-->
+<!--&lt;!&ndash;            </div>&ndash;&gt;-->
+
+<!--&lt;!&ndash;            &lt;!&ndash; Customer found badge &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;            <span t-if="state.found" class="pcb-status pcb-found">&ndash;&gt;-->
+<!--&lt;!&ndash;                ✅ <t t-esc="state.selectedName"/>&ndash;&gt;-->
+<!--&lt;!&ndash;            </span>&ndash;&gt;-->
+
+<!--&lt;!&ndash;            &lt;!&ndash; "Not found" text when dropdown is closed and no match &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;            <t t-elif="state.query and !state.showDropdown and state.query.length >= 3 and !state.found">&ndash;&gt;-->
+<!--&lt;!&ndash;                <span class="pcb-status pcb-notfound">Not found</span>&ndash;&gt;-->
+<!--&lt;!&ndash;            </t>&ndash;&gt;-->
+
+<!--&lt;!&ndash;        </div>&ndash;&gt;-->
+<!--&lt;!&ndash;    </t>&ndash;&gt;-->
+
+
+<!--&lt;!&ndash;    &lt;!&ndash; ══════════════════════════════════════════&ndash;&gt;-->
+<!--&lt;!&ndash;         Inject bar into ProductScreen&ndash;&gt;-->
+<!--&lt;!&ndash;    ══════════════════════════════════════════ &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">&ndash;&gt;-->
+<!--&lt;!&ndash;        <xpath expr="//div[hasclass('leftpane')]" position="inside">&ndash;&gt;-->
+<!--&lt;!&ndash;            <PhoneCustomerBar/>&ndash;&gt;-->
+<!--&lt;!&ndash;        </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;    </t>&ndash;&gt;-->
+
+<!--&lt;!&ndash;</templates>&ndash;&gt;-->

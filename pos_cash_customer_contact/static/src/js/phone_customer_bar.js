@@ -371,30 +371,41 @@ export class CreateCustomerDialog extends Component {
         useEffect(() => {
             console.log("🟢 useEffect hook - Setting up keyboard listener");
 
+            // IMPORTANT: Use capture phase (true) to ensure we catch the event before other handlers
             const handleKeyDown = (event) => {
-                console.log("⌨️ Key pressed:", {
+                console.log("⌨️ Raw Key Event:", {
                     key: event.key,
+                    code: event.code,
                     altKey: event.altKey,
                     ctrlKey: event.ctrlKey,
                     shiftKey: event.shiftKey,
+                    metaKey: event.metaKey,
                 });
 
-                // Check for Alt+C combination
+                // Check for Alt+C combination (case insensitive)
                 if (event.altKey && (event.key === 'c' || event.key === 'C')) {
-                    console.log("✅ Alt+C detected! Calling onSave()");
+                    console.log("✅ Alt+C detected! Preventing default and calling onSave()");
                     event.preventDefault();
+                    event.stopPropagation();
                     this.onSave();
-                } else {
-                    console.log("❌ Key combination not Alt+C");
+                }
+                // Also try Ctrl+S as backup (common save shortcut)
+                else if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
+                    console.log("✅ Ctrl+S detected! Preventing default and calling onSave()");
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.onSave();
                 }
             };
 
-            console.log("🟢 Adding keydown event listener to document");
-            document.addEventListener('keydown', handleKeyDown);
+            console.log("🟢 Adding keydown event listener to document (capture phase)");
+
+            // Use capture phase to catch events before they bubble
+            document.addEventListener('keydown', handleKeyDown, true);
 
             return () => {
                 console.log("🟡 Cleanup: Removing keydown event listener");
-                document.removeEventListener('keydown', handleKeyDown);
+                document.removeEventListener('keydown', handleKeyDown, true);
             };
         });
     }
@@ -699,4 +710,4 @@ patch(ProductScreen, {
     },
 });
 
-console.log("✅ phone_customer_bar.js module loaded successfully");
+console.log("✅ phone_customer_bar.js module loaded successfully - Alt+C and Ctrl+S shortcuts enabled");
