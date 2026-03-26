@@ -331,13 +331,12 @@
 import { patch } from "@web/core/utils/patch";
 import { Component } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
-
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 
-console.log("[pos_require_customer] FINAL VERSION LOADED");
+console.log("[pos_require_customer] FINAL FIX VERSION LOADED");
 
 // ─────────────────────────────────────────────
-// Dialog Component
+// Dialog
 // ─────────────────────────────────────────────
 export class CustomerRequiredDialog extends Component {
     static template = "pos_require_customer.CustomerRequiredDialog";
@@ -364,7 +363,7 @@ function hasCustomer(order) {
 }
 
 // ─────────────────────────────────────────────
-// PaymentScreen Safety (normal POS)
+// PaymentScreen Safety
 // ─────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
@@ -373,16 +372,15 @@ patch(PaymentScreen.prototype, {
         console.log("[pos_require_customer] PaymentScreen patched ✓");
     },
 
-    async validateOrder(isForceValidate) {
-        const order = this.pos.get_order();
+    async validateOrder() {
+        const order = this.pos.getOrder(); // ✅ FIXED
 
         if (!hasCustomer(order)) {
             await this._rcDialog.add(CustomerRequiredDialog, {
                 title: "Customer Required",
                 body: "Please select a customer before completing payment.",
             });
-
-            return; // block
+            return;
         }
 
         return super.validateOrder(...arguments);
@@ -390,27 +388,33 @@ patch(PaymentScreen.prototype, {
 });
 
 // ─────────────────────────────────────────────
-// 🔥 FINAL BLOCK (KDTY + ALL CUSTOM FLOWS)
+// 🔥 FINAL PATCH WITH RETRY (IMPORTANT)
 // ─────────────────────────────────────────────
-setTimeout(() => {
+function patchFinalize() {
     try {
         const pos = odoo.__WOWL_DEBUG__?.root?.env?.services?.pos;
-        const order = pos?.get_order?.();
+
+        if (!pos || !pos.getOrder) {
+            console.log("⏳ POS not ready yet...");
+            return false;
+        }
+
+        const order = pos.getOrder();
 
         if (!order) {
-            console.warn("[pos_require_customer] Order not found");
-            return;
+            console.log("⏳ Order not ready yet...");
+            return false;
         }
 
         const proto = Object.getPrototypeOf(order);
 
-        if (proto.__rc_final_patch__) return;
+        if (proto.__rc_final_patch__) return true;
 
-        const originalFinalize = proto.finalize_validation;
+        const original = proto.finalize_validation;
 
-        if (!originalFinalize) {
-            console.warn("[pos_require_customer] finalize_validation not found");
-            return;
+        if (!original) {
+            console.warn("❌ finalize_validation not found");
+            return false;
         }
 
         proto.finalize_validation = function (...args) {
@@ -432,14 +436,28 @@ setTimeout(() => {
                 return; // 🔥 HARD BLOCK
             }
 
-            return originalFinalize.apply(this, args);
+            return original.apply(this, args);
         };
 
         proto.__rc_final_patch__ = true;
 
-        console.log("[pos_require_customer] FINALIZE PATCH APPLIED ✅");
+        console.log("✅ FINALIZE PATCH APPLIED SUCCESSFULLY");
+
+        return true;
 
     } catch (e) {
-        console.error("[pos_require_customer] ERROR:", e);
+        console.error("Patch error:", e);
+        return false;
     }
-}, 2000);
+}
+
+// 🔁 Retry until POS is ready
+let tries = 0;
+const interval = setInterval(() => {
+    const done = patchFinalize();
+    tries++;
+
+    if (done || tries > 10) {
+        clearInterval(interval);
+    }
+}, 1000);
