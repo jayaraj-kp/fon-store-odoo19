@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_config_form_charity" model="ir.ui.view">
+        <field name="name">pos.config.form.charity</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@id='restaurant_on_create']" position="after">
+                <div class="row mt16 o_settings_container"
+                     invisible="context.get('pos_config_create_mode', False)">
+                    <setting string="Charity Donations"
+                             help="Show a Charity button on the POS payment screen to let customers donate their change.">
+                        <field name="charity_enabled"/>
+                        <div class="content-group mt8" invisible="not charity_enabled">
+                            <div class="row mb-2">
+                                <div class="col-lg-4 o_light_label">
+                                    <label string="Charity Account" for="charity_account_id"/>
+                                </div>
+                                <div class="col-lg-8">
+                                    <field name="charity_account_id" required="charity_enabled"/>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-lg-4 o_light_label">
+                                    <label string="Button Label" for="charity_button_label"/>
+                                </div>
+                                <div class="col-lg-8">
+                                    <field name="charity_button_label"/>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-lg-4 o_light_label">
+                                    <label string="GL Account (Credit)" for="charity_gl_account_id"/>
+                                </div>
+                                <div class="col-lg-8">
+                                    <field name="charity_gl_account_id"
+                                           placeholder="e.g. 201002 Charity"/>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-lg-4 o_light_label">
+                                    <label string="Journal" for="charity_journal_id"/>
+                                </div>
+                                <div class="col-lg-8">
+                                    <field name="charity_journal_id"
+                                           placeholder="Leave empty to use POS Sales Journal"/>
+                                </div>
+                            </div>
+                        </div>
+                    </setting>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
