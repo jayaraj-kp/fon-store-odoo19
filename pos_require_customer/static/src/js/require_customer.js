@@ -1,35 +1,28 @@
 /** @odoo-module **/
 
-import { patch }      from "@web/core/utils/patch";
+import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
-import { Component }  from "@odoo/owl";
+import { Component } from "@odoo/owl";
 
-import { PaymentScreen }  from "@point_of_sale/app/screens/payment_screen/payment_screen";
-import { ProductScreen }  from "@point_of_sale/app/screens/product_screen/product_screen";
+import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { ActionpadWidget } from "@point_of_sale/app/screens/product_screen/action_pad/action_pad";
 
-// ⚠️ Try this path first
-import { Order } from "@point_of_sale/app/models/order";
-
-console.log("[pos_require_customer] FINAL HARD BLOCK VERSION LOADED");
+console.log("[pos_require_customer] RUNTIME PATCH VERSION LOADED");
 
 // ─────────────────────────────────────────────
-// Dialog Component
+// Dialog
 // ─────────────────────────────────────────────
 export class CustomerRequiredDialog extends Component {
     static template = "pos_require_customer.CustomerRequiredDialog";
-    static props = {
-        title: { type: String, optional: true },
-        body:  { type: String, optional: true },
-        close: { type: Function, optional: true },
-    };
+    static props = { close: Function };
+
     confirm() {
         this.props.close?.();
     }
 }
 
 // ─────────────────────────────────────────────
-// Helpers
+// Helper
 // ─────────────────────────────────────────────
 function hasCustomer(order) {
     return !!(
@@ -40,39 +33,47 @@ function hasCustomer(order) {
     );
 }
 
-async function showPopup(env, body) {
-    return new Promise((resolve) => {
-        env.services.dialog.add(CustomerRequiredDialog, {
-            title: "Customer Required",
-            body,
-            close: resolve,
-        });
-    });
-}
-
 // ─────────────────────────────────────────────
-// 🔥 MODEL LEVEL (MOST IMPORTANT)
-// Blocks ALL payment additions (including KDTY)
+// 🔥 RUNTIME PATCH (NO IMPORT)
 // ─────────────────────────────────────────────
-patch(Order.prototype, {
-    add_paymentline(payment_method) {
-        if (!hasCustomer(this)) {
-            const env = this.env;
+setTimeout(() => {
+    try {
+        const pos = odoo.__WOWL_DEBUG__?.root?.env?.services?.pos;
+        const order = pos?.get_order?.();
 
-            env.services.dialog.add(CustomerRequiredDialog, {
-                title: "Customer Required",
-                body: "Please select a customer before payment.",
-            });
-
-            return; // 🚫 BLOCK EVERYTHING HERE
+        if (!order) {
+            console.warn("Order not found for patch");
+            return;
         }
 
-        return super.add_paymentline(...arguments);
-    },
-});
+        const proto = Object.getPrototypeOf(order);
+
+        if (proto.__rc_patched__) return;
+
+        const original = proto.add_paymentline;
+
+        proto.add_paymentline = function (...args) {
+            if (!hasCustomer(this)) {
+                this.env.services.dialog.add(CustomerRequiredDialog, {
+                    title: "Customer Required",
+                    body: "Please select a customer before payment.",
+                });
+                return;
+            }
+            return original.apply(this, args);
+        };
+
+        proto.__rc_patched__ = true;
+
+        console.log("[pos_require_customer] Order patched dynamically ✅");
+
+    } catch (e) {
+        console.error("Runtime patch failed:", e);
+    }
+}, 2000);
 
 // ─────────────────────────────────────────────
-// ActionpadWidget
+// ActionpadWidget (normal flow)
 // ─────────────────────────────────────────────
 patch(ActionpadWidget.prototype, {
     setup() {
@@ -80,9 +81,12 @@ patch(ActionpadWidget.prototype, {
         this._rcDialog = useService("dialog");
     },
 
-    async fastValidate(paymentMethod) {
+    async fastValidate() {
         if (!hasCustomer(this.currentOrder)) {
-            await showPopup(this.env, "Please select a customer before payment.");
+            await this._rcDialog.add(CustomerRequiredDialog, {
+                title: "Customer Required",
+                body: "Please select a customer before payment.",
+            });
             return;
         }
         return super.fastValidate.apply(this, arguments);
@@ -90,7 +94,10 @@ patch(ActionpadWidget.prototype, {
 
     async pay() {
         if (!hasCustomer(this.currentOrder)) {
-            await showPopup(this.env, "Please select a customer before payment.");
+            await this._rcDialog.add(CustomerRequiredDialog, {
+                title: "Customer Required",
+                body: "Please select a customer before payment.",
+            });
             return;
         }
         return super.pay(...arguments);
@@ -98,55 +105,17 @@ patch(ActionpadWidget.prototype, {
 });
 
 // ─────────────────────────────────────────────
-// ProductScreen
-// ─────────────────────────────────────────────
-patch(ProductScreen.prototype, {
-    setup() {
-        super.setup(...arguments);
-
-        const pos = this.pos;
-
-        if (pos?.pay && !pos.__rc_pay_wrapped__) {
-            const original = pos.pay.bind(pos);
-
-            pos.pay = async (...args) => {
-                if (!hasCustomer(pos.get_order())) {
-                    await showPopup(this.env, "Please select a customer before payment.");
-                    return;
-                }
-                return original(...args);
-            };
-
-            pos.__rc_pay_wrapped__ = true;
-        }
-    },
-});
-
-// ─────────────────────────────────────────────
-// PaymentScreen (safety)
+// PaymentScreen safety
 // ─────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
-    async addNewPaymentLine(paymentMethod) {
+    async validateOrder() {
         if (!hasCustomer(this.pos.get_order())) {
-            await showPopup(this.env, "Please select a customer before payment.");
-            return;
-        }
-        return super.addNewPaymentLine(...arguments);
-    },
-
-    async validateOrder(isForceValidate) {
-        if (!hasCustomer(this.pos.get_order())) {
-            await showPopup(this.env, "Please select a customer before completing payment.");
+            this.env.services.dialog.add(CustomerRequiredDialog, {
+                title: "Customer Required",
+                body: "Please select a customer before completing payment.",
+            });
             return;
         }
         return super.validateOrder(...arguments);
-    },
-
-    async validateOrderFast() {
-        if (!hasCustomer(this.pos.get_order())) {
-            await showPopup(this.env, "Please select a customer before completing payment.");
-            return;
-        }
-        return super.validateOrderFast?.(...arguments);
     },
 });
