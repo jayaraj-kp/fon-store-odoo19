@@ -136,12 +136,33 @@
                 ✅ <t t-esc="state.selectedName"/>
             </span>
 
-            <!-- Not found → Create button -->
+            <!-- Not found → Split "Create" button -->
             <t t-elif="state.query and !state.showDropdown and state.query.length >= 3">
                 <span class="pcb-status pcb-notfound">Not found</span>
-                <button class="pcb-create-btn" t-on-click="openCreateDialog">
-                    + Create Customer
-                </button>
+
+                <!-- Split button wrapper -->
+                <div class="pcb-split-wrap">
+                    <!-- Left: quick Create -->
+                    <button class="pcb-create-btn pcb-create-main" t-on-click="onQuickCreate">
+                        + Create
+                    </button>
+                    <!-- Right: chevron to open menu -->
+                    <button
+                        class="pcb-create-btn pcb-create-caret"
+                        t-on-click="toggleCreateMenu"
+                        t-on-keydown="(ev) => ev.stopPropagation()"
+                    >▾</button>
+
+                    <!-- Dropdown menu -->
+                    <div t-if="state.showCreateMenu" class="pcb-create-menu">
+                        <div class="pcb-create-menu-item" t-on-mousedown="onQuickCreate">
+                            Create "<t t-esc="state.query"/>"
+                        </div>
+                        <div class="pcb-create-menu-item" t-on-mousedown="openCreateDialog">
+                            Create and edit…
+                        </div>
+                    </div>
+                </div>
             </t>
         </div>
     </t>
@@ -157,71 +178,3 @@
     </t>
 
 </templates>
-
-
-
-<!--<?xml version="1.0" encoding="UTF-8"?>-->
-<!--<templates xml:space="preserve">-->
-
-<!--    <t t-name="pos_cash_customer_contact.PhoneCustomerBar">-->
-<!--        <div class="phone-customer-bar">-->
-<!--            <span class="pcb-icon">📞</span>-->
-
-<!--            <div class="pcb-input-wrap">-->
-<!--                <input-->
-<!--                    t-ref="input"-->
-<!--                    type="text"-->
-<!--                    class="pcb-input"-->
-<!--                    placeholder="Search by name or phone…"-->
-<!--                    t-att-value="state.query"-->
-<!--                    t-on-input="onInput"-->
-<!--                    t-on-focus="onFocus"-->
-<!--                    t-on-blur="onBlur"-->
-<!--                    autocomplete="off"-->
-<!--                />-->
-<!--                <button t-if="state.query" class="pcb-clear" t-on-click="onClear">✕</button>-->
-
-<!--                &lt;!&ndash; Dropdown suggestions &ndash;&gt;-->
-<!--                <div t-if="state.showDropdown" class="pcb-dropdown">-->
-<!--                    <div-->
-<!--                        t-foreach="state.suggestions"-->
-<!--                        t-as="partner"-->
-<!--                        t-key="partner.id"-->
-<!--                        class="pcb-dropdown-item"-->
-<!--                        t-on-mousedown="(ev) => this.onSelectSuggestion(ev, partner)"-->
-<!--                    >-->
-<!--                        <span class="pcb-item-name"><t t-esc="partner.name"/></span>-->
-<!--                        <span class="pcb-item-phone">-->
-<!--                            <t t-esc="partner.phone || partner.mobile || ''"/>-->
-<!--                        </span>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-
-<!--            &lt;!&ndash; Customer found / assigned &ndash;&gt;-->
-<!--            <span t-if="state.found" class="pcb-status pcb-found">-->
-<!--                ✅ <t t-esc="state.selectedName"/>-->
-<!--            </span>-->
-
-<!--            &lt;!&ndash; No match yet — show Create button &ndash;&gt;-->
-<!--            <t t-elif="state.query and !state.showDropdown and state.query.length >= 3">-->
-<!--                <span class="pcb-status pcb-notfound">Not found</span>-->
-<!--                <button-->
-<!--                    class="pcb-create-btn"-->
-<!--                    t-on-click="onCreateCustomer"-->
-<!--                    t-att-disabled="state.creating"-->
-<!--                >-->
-<!--                    <t t-if="state.creating">Creating…</t>-->
-<!--                    <t t-else="">+ Create Customer</t>-->
-<!--                </button>-->
-<!--            </t>-->
-<!--        </div>-->
-<!--    </t>-->
-
-<!--    <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">-->
-<!--        <xpath expr="//div[hasclass('leftpane')]" position="inside">-->
-<!--            <PhoneCustomerBar/>-->
-<!--        </xpath>-->
-<!--    </t>-->
-
-<!--</templates>-->

@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState } from "@odoo/owl";
+import { Component, useState, useRef } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { patch } from "@web/core/utils/patch";
@@ -11,15 +11,15 @@ const CASH_CUSTOMER_NAME = "CASH CUSTOMER";
 const MIN_CHARS = 3;
 
 // ─────────────────────────────────────────────
-//  Create Customer Dialog
+//  Create Customer Dialog  (Create and Edit…)
 // ─────────────────────────────────────────────
 export class CreateCustomerDialog extends Component {
     static template = "pos_cash_customer_contact.CreateCustomerDialog";
     static components = { Dialog };
     static props = {
         phone: { type: String, default: "" },
-        onCreated: Function,   // callback(partner)
-        close: Function,       // injected by dialog service
+        onCreated: Function,
+        close: Function,
     };
 
     setup() {
@@ -27,14 +27,10 @@ export class CreateCustomerDialog extends Component {
         this.notification = useService("notification");
 
         const query = this.props.phone || "";
-
-        // Detect if the query looks like a phone number (digits only, possibly with spaces/+/-)
         const digitsOnly = query.replace(/\D/g, "");
         const isPhone = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 3;
 
         this.form = useState({
-            // ── FEATURE 1: if input is a phone number, pre-fill both name and phone
-            //    with the same value so the cashier doesn't have to type it twice
             name: isPhone ? query : query,
             phone: isPhone ? query : "",
             mobile: "",
@@ -44,23 +40,14 @@ export class CreateCustomerDialog extends Component {
         });
     }
 
-    // ── FEATURE 2: validate phone is exactly 10 digits before saving
-    _isPhoneInput(value) {
-        // Returns true when the value contains ONLY digits (no spaces, dashes etc.)
-        return /^\d+$/.test(value.trim());
-    }
-
     async onSave() {
         this.form.error = "";
 
-        // Name is always required
         if (!this.form.name.trim()) {
             this.form.error = "Name is required.";
             return;
         }
 
-        // Phone digit-count validation — only enforced when phone field has a value
-        // and that value looks like a pure number entry (not a named contact)
         const phoneVal = this.form.phone.trim();
         if (phoneVal) {
             const digits = phoneVal.replace(/\D/g, "");
@@ -70,7 +57,6 @@ export class CreateCustomerDialog extends Component {
             }
         }
 
-        // Mobile digit-count validation (same rule, optional field)
         const mobileVal = this.form.mobile.trim();
         if (mobileVal) {
             const mDigits = mobileVal.replace(/\D/g, "");
@@ -119,6 +105,8 @@ export class PhoneCustomerBar extends Component {
             showDropdown: false,
             selectedName: "",
             found: false,
+            // controls the Create split-button dropdown
+            showCreateMenu: false,
         });
     }
 
@@ -142,6 +130,7 @@ export class PhoneCustomerBar extends Component {
         this.state.query = query;
         this.state.found = false;
         this.state.selectedName = "";
+        this.state.showCreateMenu = false;
 
         if (!query) {
             this.pos.getOrder().setPartner(false);
@@ -173,6 +162,7 @@ export class PhoneCustomerBar extends Component {
         this.state.selectedName = partner.name;
         this.state.found = true;
         this.state.showDropdown = false;
+        this.state.showCreateMenu = false;
         this.state.suggestions = [];
     }
 
@@ -182,6 +172,7 @@ export class PhoneCustomerBar extends Component {
         this.state.selectedName = "";
         this.state.suggestions = [];
         this.state.showDropdown = false;
+        this.state.showCreateMenu = false;
         this.pos.getOrder().setPartner(false);
     }
 
@@ -192,6 +183,19 @@ export class PhoneCustomerBar extends Component {
     onFocus() {
         if (this.state.suggestions.length > 0) {
             this.state.showDropdown = true;
+        }
+    }
+
+    // ── Toggle the Create split-button dropdown
+    toggleCreateMenu(ev) {
+        ev.stopPropagation();
+        this.state.showCreateMenu = !this.state.showCreateMenu;
+        if (this.state.showCreateMenu) {
+            const handler = () => {
+                this.state.showCreateMenu = false;
+                document.removeEventListener("click", handler);
+            };
+            document.addEventListener("click", handler);
         }
     }
 
@@ -212,7 +216,68 @@ export class PhoneCustomerBar extends Component {
         return Array.isArray(newId) ? newId[0] : newId;
     }
 
+    // ── "Create" — quick silent create using query as name (+ phone if digits)
+    async onQuickCreate() {
+        this.state.showCreateMenu = false;
+        if (!this.state.query) return;
+
+        const query = this.state.query.trim();
+        const digitsOnly = query.replace(/\D/g, "");
+        const isPhone = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 3;
+
+        // Enforce 10-digit rule for phone-only entries
+        if (isPhone && digitsOnly.length !== 10) {
+            this.notification.add(
+                "Phone number must be exactly 10 digits.",
+                { type: "danger", sticky: false }
+            );
+            return;
+        }
+
+        try {
+            const parentId = await this._getCashCustomerParentId();
+
+            const rawId = await this.orm.create("res.partner", [{
+                name: query,
+                phone: isPhone ? query : false,
+                parent_id: parentId,
+                customer_rank: 1,
+            }]);
+            const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
+
+            await this.pos.data.searchRead(
+                "res.partner",
+                [["id", "=", partnerId]],
+                [],
+                { load: false }
+            );
+
+            const newPartner = this.pos.models["res.partner"].find(
+                (p) => p.id === partnerId
+            );
+
+            if (newPartner) {
+                this.pos.getOrder().setPartner(newPartner);
+                this.state.query = newPartner.phone || newPartner.name;
+                this.state.found = true;
+                this.state.selectedName = newPartner.name;
+                this.notification.add(
+                    `Customer created: ${newPartner.name}`,
+                    { type: "success", sticky: false }
+                );
+            }
+        } catch (err) {
+            console.error("Quick create failed:", err);
+            this.notification.add(
+                "Could not create customer: " + (err.message || err),
+                { type: "danger", sticky: false }
+            );
+        }
+    }
+
+    // ── "Create and Edit…" — open full dialog
     openCreateDialog() {
+        this.state.showCreateMenu = false;
         this.dialog.add(CreateCustomerDialog, {
             phone: this.state.query,
             onCreated: async (formData) => {

@@ -36,7 +36,7 @@
 }
 .pcb-clear:hover { color: #ef4444; }
 
-/* Dropdown */
+/* Autocomplete Dropdown */
 .pcb-dropdown {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0;
     background: #fff; border: 1px solid #c7d2fe;
@@ -58,14 +58,65 @@
 .pcb-found { color: #16a34a; }
 .pcb-notfound { color: #94a3b8; font-weight: 400; }
 
-/* Create button */
+/* ── Split Create Button ─────────────────────────────────── */
+.pcb-split-wrap {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+/* Shared base for both halves */
 .pcb-create-btn {
-    padding: 5px 12px; background: #6366f1; color: #fff;
-    border: none; border-radius: 6px;
-    font-size: 12px; font-weight: 600;
-    cursor: pointer; white-space: nowrap;
+    padding: 5px 10px;
+    background: #6366f1;
+    color: #fff;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1;
 }
 .pcb-create-btn:hover { background: #4f46e5; }
+
+/* Left half — label */
+.pcb-create-main {
+    border-radius: 6px 0 0 6px;
+    border-right: 1px solid rgba(255,255,255,0.3);
+    padding-right: 10px;
+}
+
+/* Right half — caret */
+.pcb-create-caret {
+    border-radius: 0 6px 6px 0;
+    padding: 5px 8px;
+    font-size: 11px;
+}
+
+/* Dropdown menu */
+.pcb-create-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 170px;
+    background: #fff;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(99,102,241,.15);
+    z-index: 9999;
+    overflow: hidden;
+}
+.pcb-create-menu-item {
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #1e293b;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .1s;
+}
+.pcb-create-menu-item:last-child { border-bottom: none; }
+.pcb-create-menu-item:hover { background: #eef2ff; color: #6366f1; font-weight: 600; }
 
 
 /* ══ Create Customer Dialog ══════════════════════════════════ */
