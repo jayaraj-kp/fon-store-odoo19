@@ -22,12 +22,12 @@ class CashCustomerReportWizard(models.TransientModel):
             'partner_ids': self.partner_ids.ids or [],
         }
         return self.env.ref(
-            'custom_sales_contacts_v3.action_cash_customer_pos_report'
+            'custom_sales_contacts_v3_fix.action_cash_customer_pos_report'
         ).report_action(self, data=data)
 
 
 class CashCustomerReportParser(models.AbstractModel):
-    _name = 'report.custom_sales_contacts_v3.cash_customer_report_template'
+    _name = 'report.custom_sales_contacts_v3_fix.cash_customer_report_template'
     _description = 'Cash Customer POS Report Parser'
 
     @api.model

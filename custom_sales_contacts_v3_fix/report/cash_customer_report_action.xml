@@ -6,7 +6,7 @@
         <field name="name">Cash Customer POS Report</field>
         <field name="model">cash.customer.report.wizard</field>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">custom_sales_contacts_v3.cash_customer_report_template</field>
+        <field name="report_name">custom_sales_contacts_v3_fix.cash_customer_report_template</field>
         <field name="report_file">cash_customer_pos_report</field>
         <field name="print_report_name">'Cash Customer POS Report'</field>
         <field name="binding_model_id" ref="base.model_res_partner"/>
