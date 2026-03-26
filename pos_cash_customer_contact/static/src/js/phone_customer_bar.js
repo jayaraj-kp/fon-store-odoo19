@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, useRef } from "@odoo/owl";
+import { Component, useState } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { patch } from "@web/core/utils/patch";
@@ -11,7 +11,7 @@ const CASH_CUSTOMER_NAME = "CASH CUSTOMER";
 const MIN_CHARS = 3;
 
 // ─────────────────────────────────────────────
-//  Create Customer Dialog  (Create and Edit…)
+//  Create Customer Dialog
 // ─────────────────────────────────────────────
 export class CreateCustomerDialog extends Component {
     static template = "pos_cash_customer_contact.CreateCustomerDialog";
@@ -105,8 +105,7 @@ export class PhoneCustomerBar extends Component {
             showDropdown: false,
             selectedName: "",
             found: false,
-            // controls the Create split-button dropdown
-            showCreateMenu: false,
+            showCreateMenu: false,   // controls the create quick-menu
         });
     }
 
@@ -177,7 +176,10 @@ export class PhoneCustomerBar extends Component {
     }
 
     onBlur() {
-        setTimeout(() => { this.state.showDropdown = false; }, 200);
+        setTimeout(() => {
+            this.state.showDropdown = false;
+            this.state.showCreateMenu = false;
+        }, 200);
     }
 
     onFocus() {
@@ -186,17 +188,9 @@ export class PhoneCustomerBar extends Component {
         }
     }
 
-    // ── Toggle the Create split-button dropdown
-    toggleCreateMenu(ev) {
-        ev.stopPropagation();
+    // Toggle the small create-menu dropdown
+    toggleCreateMenu() {
         this.state.showCreateMenu = !this.state.showCreateMenu;
-        if (this.state.showCreateMenu) {
-            const handler = () => {
-                this.state.showCreateMenu = false;
-                document.removeEventListener("click", handler);
-            };
-            document.addEventListener("click", handler);
-        }
     }
 
     async _getCashCustomerParentId() {
@@ -216,17 +210,51 @@ export class PhoneCustomerBar extends Component {
         return Array.isArray(newId) ? newId[0] : newId;
     }
 
-    // ── "Create" — quick silent create using query as name (+ phone if digits)
+    async _doCreate(formData) {
+        const parentId = await this._getCashCustomerParentId();
+
+        const rawId = await this.orm.create("res.partner", [{
+            name: formData.name,
+            phone: formData.phone || false,
+            email: formData.email || false,
+            parent_id: parentId,
+            customer_rank: 1,
+        }]);
+        const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
+
+        await this.pos.data.searchRead(
+            "res.partner",
+            [["id", "=", partnerId]],
+            [],
+            { load: false }
+        );
+
+        const newPartner = this.pos.models["res.partner"].find(
+            (p) => p.id === partnerId
+        );
+
+        if (newPartner) {
+            this.pos.getOrder().setPartner(newPartner);
+            this.state.query = newPartner.phone || newPartner.name;
+            this.state.found = true;
+            this.state.selectedName = newPartner.name;
+            this.state.showCreateMenu = false;
+            this.notification.add(
+                `Customer created: ${newPartner.name}`,
+                { type: "success", sticky: false }
+            );
+        }
+    }
+
+    // "Create [query]" — quick create using query as both name and phone
     async onQuickCreate() {
         this.state.showCreateMenu = false;
-        if (!this.state.query) return;
-
         const query = this.state.query.trim();
-        const digitsOnly = query.replace(/\D/g, "");
-        const isPhone = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 3;
+        if (!query) return;
 
-        // Enforce 10-digit rule for phone-only entries
-        if (isPhone && digitsOnly.length !== 10) {
+        // Validate 10 digits if it looks like a phone number
+        const looksLikePhone = /^\d+$/.test(query);
+        if (looksLikePhone && query.replace(/\D/g, "").length !== 10) {
             this.notification.add(
                 "Phone number must be exactly 10 digits.",
                 { type: "danger", sticky: false }
@@ -234,85 +262,20 @@ export class PhoneCustomerBar extends Component {
             return;
         }
 
-        try {
-            const parentId = await this._getCashCustomerParentId();
-
-            const rawId = await this.orm.create("res.partner", [{
-                name: query,
-                phone: isPhone ? query : false,
-                parent_id: parentId,
-                customer_rank: 1,
-            }]);
-            const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
-
-            await this.pos.data.searchRead(
-                "res.partner",
-                [["id", "=", partnerId]],
-                [],
-                { load: false }
-            );
-
-            const newPartner = this.pos.models["res.partner"].find(
-                (p) => p.id === partnerId
-            );
-
-            if (newPartner) {
-                this.pos.getOrder().setPartner(newPartner);
-                this.state.query = newPartner.phone || newPartner.name;
-                this.state.found = true;
-                this.state.selectedName = newPartner.name;
-                this.notification.add(
-                    `Customer created: ${newPartner.name}`,
-                    { type: "success", sticky: false }
-                );
-            }
-        } catch (err) {
-            console.error("Quick create failed:", err);
-            this.notification.add(
-                "Could not create customer: " + (err.message || err),
-                { type: "danger", sticky: false }
-            );
-        }
+        await this._doCreate({
+            name: query,
+            phone: looksLikePhone ? query : "",
+            email: "",
+        });
     }
 
-    // ── "Create and Edit…" — open full dialog
-    openCreateDialog() {
+    // "Create and edit..." — open full dialog
+    onCreateAndEdit() {
         this.state.showCreateMenu = false;
         this.dialog.add(CreateCustomerDialog, {
             phone: this.state.query,
             onCreated: async (formData) => {
-                const parentId = await this._getCashCustomerParentId();
-
-                const rawId = await this.orm.create("res.partner", [{
-                    name: formData.name,
-                    phone: formData.phone || false,
-                    email: formData.email || false,
-                    parent_id: parentId,
-                    customer_rank: 1,
-                }]);
-                const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
-
-                await this.pos.data.searchRead(
-                    "res.partner",
-                    [["id", "=", partnerId]],
-                    [],
-                    { load: false }
-                );
-
-                const newPartner = this.pos.models["res.partner"].find(
-                    (p) => p.id === partnerId
-                );
-
-                if (newPartner) {
-                    this.pos.getOrder().setPartner(newPartner);
-                    this.state.query = newPartner.phone || newPartner.name;
-                    this.state.found = true;
-                    this.state.selectedName = newPartner.name;
-                    this.notification.add(
-                        `Customer created: ${newPartner.name}`,
-                        { type: "success", sticky: false }
-                    );
-                }
+                await this._doCreate(formData);
             },
         });
     }

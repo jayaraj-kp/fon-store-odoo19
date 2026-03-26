@@ -136,30 +136,27 @@
                 ✅ <t t-esc="state.selectedName"/>
             </span>
 
-            <!-- Not found → Split "Create" button -->
+            <!-- Not found → Split Create button with mini dropdown -->
             <t t-elif="state.query and !state.showDropdown and state.query.length >= 3">
                 <span class="pcb-status pcb-notfound">Not found</span>
 
-                <!-- Split button wrapper -->
-                <div class="pcb-split-wrap">
-                    <!-- Left: quick Create -->
-                    <button class="pcb-create-btn pcb-create-main" t-on-click="onQuickCreate">
+                <div class="pcb-create-wrap">
+                    <!-- Main quick-create button -->
+                    <button class="pcb-create-btn pcb-create-main" t-on-mousedown="onQuickCreate">
                         + Create
                     </button>
-                    <!-- Right: chevron to open menu -->
-                    <button
-                        class="pcb-create-btn pcb-create-caret"
-                        t-on-click="toggleCreateMenu"
-                        t-on-keydown="(ev) => ev.stopPropagation()"
-                    >▾</button>
+                    <!-- Arrow to open mini menu -->
+                    <button class="pcb-create-btn pcb-create-arrow" t-on-mousedown="toggleCreateMenu">
+                        ▾
+                    </button>
 
-                    <!-- Dropdown menu -->
+                    <!-- Mini dropdown menu -->
                     <div t-if="state.showCreateMenu" class="pcb-create-menu">
                         <div class="pcb-create-menu-item" t-on-mousedown="onQuickCreate">
                             Create "<t t-esc="state.query"/>"
                         </div>
-                        <div class="pcb-create-menu-item" t-on-mousedown="openCreateDialog">
-                            Create and edit…
+                        <div class="pcb-create-menu-item" t-on-mousedown="onCreateAndEdit">
+                            Create and edit...
                         </div>
                     </div>
                 </div>
