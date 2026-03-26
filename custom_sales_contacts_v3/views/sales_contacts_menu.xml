@@ -1,16 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!--
-        Action: Opens res.partner list filtered to contacts
-        whose parent (company) name is "CASH CUSTOMER" (case-sensitive match)
-        Also uses ilike for safety in case of minor variations
-    -->
+    <!-- Action: Contacts list filtered to CASH CUSTOMER children -->
     <record id="action_sales_cash_customer_contacts" model="ir.actions.act_window">
         <field name="name">Contacts</field>
         <field name="res_model">res.partner</field>
         <field name="view_mode">list,form</field>
-        <!-- parent_id.name ilike is case-insensitive — handles CASH CUSTOMER, Cash Customer, cash customer -->
         <field name="domain">[('parent_id.name', 'ilike', 'cash customer')]</field>
         <field name="context">{}</field>
         <field name="help" type="html">
@@ -19,19 +14,25 @@
             </p>
             <p>
                 Contacts listed here are child contacts of the
-                <strong>CASH CUSTOMER</strong> parent partner.
+                <strong>CASH CUSTOMER</strong> parent partner created via POS.
             </p>
         </field>
     </record>
 
-    <!--
-        Menu Item: Sales > Orders > Contacts
-    -->
+    <!-- Menu: Sales > Orders > Contacts -->
     <menuitem
         id="menu_sales_cash_customer_contacts"
         name="Contacts"
         parent="sale.menu_sale_order"
         action="action_sales_cash_customer_contacts"
         sequence="30"/>
+
+    <!-- Menu: Sales > Orders > Cash Customer Report -->
+    <menuitem
+        id="menu_sales_cash_customer_report"
+        name="Cash Customer Report"
+        parent="sale.menu_sale_order"
+        action="action_cash_customer_report_wizard"
+        sequence="31"/>
 
 </odoo>

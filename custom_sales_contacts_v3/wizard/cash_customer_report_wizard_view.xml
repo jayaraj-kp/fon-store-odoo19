@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Wizard Form View -->
+    <record id="view_cash_customer_report_wizard_form" model="ir.ui.view">
+        <field name="name">cash.customer.report.wizard.form</field>
+        <field name="model">cash.customer.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cash Customer POS Report">
+                <group>
+                    <group string="Date Filter (Optional)">
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                    <group string="Customer Filter (Optional)">
+                        <field name="partner_ids" widget="many2many_tags"
+                               placeholder="Leave empty for ALL cash customers..."/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_print_report"
+                            string="Print PDF Report"
+                            type="object"
+                            class="btn-primary"
+                            icon="fa-print"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Wizard Action -->
+    <record id="action_cash_customer_report_wizard" model="ir.actions.act_window">
+        <field name="name">Cash Customer POS Report</field>
+        <field name="res_model">cash.customer.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

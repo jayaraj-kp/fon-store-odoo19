@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<template id="cash_customer_report_template">
+    <t t-call="web.html_container">
+        <t t-call="web.external_layout">
+            <div class="page">
+
+                <!-- Report Title -->
+                <div class="row mb-4">
+                    <div class="col-12 text-center">
+                        <h2 style="color:#6f42c1; border-bottom: 2px solid #6f42c1; padding-bottom:8px;">
+                            <strong>CASH CUSTOMER - POS SALES REPORT</strong>
+                        </h2>
+                        <p class="text-muted">
+                            Period:
+                            <strong><t t-esc="date_from"/></strong>
+                            to
+                            <strong><t t-esc="date_to"/></strong>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Summary Box -->
+                <div class="row mb-4">
+                    <div class="col-6">
+                        <div style="background:#f3f0ff; border:1px solid #6f42c1; border-radius:6px; padding:12px;">
+                            <h5 style="color:#6f42c1;">Total Customers</h5>
+                            <h3><t t-esc="len(report_lines)"/></h3>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div style="background:#f0fff4; border:1px solid #28a745; border-radius:6px; padding:12px;">
+                            <h5 style="color:#28a745;">Grand Total Sales</h5>
+                            <h3>
+                                <t t-esc="'{:,.2f}'.format(grand_total)"/>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Per Customer Section -->
+                <t t-foreach="report_lines" t-as="line">
+                    <div style="margin-bottom:20px; page-break-inside:avoid;">
+
+                        <!-- Customer Header -->
+                        <table class="table table-sm" style="margin-bottom:0;">
+                            <thead>
+                                <tr style="background:#6f42c1; color:white;">
+                                    <th colspan="2">
+                                        <strong>
+                                            <t t-esc="line['partner'].name"/>
+                                        </strong>
+                                    </th>
+                                    <th colspan="2" class="text-right">
+                                        Phone: <t t-esc="line['partner'].phone or line['partner'].mobile or '-'"/>
+                                    </th>
+                                    <th class="text-right">
+                                        Orders: <t t-esc="line['order_count']"/>
+                                    </th>
+                                    <th class="text-right">
+                                        Total: <t t-esc="'{:,.2f}'.format(line['total'])"/>
+                                    </th>
+                                </tr>
+                            </thead>
+                        </table>
+
+                        <!-- Orders Table -->
+                        <t t-if="line['orders']">
+                            <table class="table table-sm table-bordered" style="font-size:12px;">
+                                <thead style="background:#e9ecef;">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Order Ref</th>
+                                        <th>Date</th>
+                                        <th>Payment Method</th>
+                                        <th class="text-right">Amount</th>
+                                        <th class="text-right">Paid</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="line['orders']" t-as="order">
+                                        <tr>
+                                            <td><t t-esc="order_index + 1"/></td>
+                                            <td><t t-esc="order['name']"/></td>
+                                            <td>
+                                                <t t-esc="order['date'].strftime('%d/%m/%Y %H:%M') if order['date'] else '-'"/>
+                                            </td>
+                                            <td><t t-esc="order['payment_method'] or '-'"/></td>
+                                            <td class="text-right">
+                                                <t t-esc="'{:,.2f}'.format(order['amount_total'])"/>
+                                            </td>
+                                            <td class="text-right">
+                                                <t t-esc="'{:,.2f}'.format(order['amount_paid'])"/>
+                                            </td>
+                                            <td>
+                                                <span t-attf-style="color: {{ 'green' if order['state'] in ['paid','done','invoiced'] else 'orange' }}">
+                                                    <t t-esc="order['state'].upper()"/>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <!-- Customer Sub-total -->
+                                    <tr style="background:#f8f9fa; font-weight:bold;">
+                                        <td colspan="4" class="text-right">Customer Total:</td>
+                                        <td class="text-right" style="color:#6f42c1;">
+                                            <t t-esc="'{:,.2f}'.format(line['total'])"/>
+                                        </td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <!-- No orders for this customer -->
+                        <t t-else="">
+                            <p class="text-muted" style="font-size:12px; padding-left:10px;">
+                                No POS orders found for this customer in the selected period.
+                            </p>
+                        </t>
+
+                    </div>
+                </t>
+
+                <!-- Grand Total Footer -->
+                <div style="margin-top:30px; border-top:2px solid #6f42c1; padding-top:10px;">
+                    <table class="table table-sm" style="font-size:14px;">
+                        <tr>
+                            <td><strong>Total Customers:</strong> <t t-esc="len(report_lines)"/></td>
+                            <td><strong>Total POS Orders:</strong> <t t-esc="grand_orders"/></td>
+                            <td class="text-right">
+                                <strong style="color:#6f42c1; font-size:16px;">
+                                    GRAND TOTAL: <t t-esc="'{:,.2f}'.format(grand_total)"/>
+                                </strong>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+        </t>
+    </t>
+</template>
+</odoo>
