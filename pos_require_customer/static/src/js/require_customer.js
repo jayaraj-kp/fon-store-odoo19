@@ -1,17 +1,16 @@
 /** @odoo-module **/
 
 /**
- * POS Require Customer v13 — Odoo 19 CE
+ * POS Require Customer v14 — Odoo 19 CE
  *
- * Root cause CONFIRMED via DOM event inspection:
- *   "Cash KDTY" / "Card KDTY" buttons call:  fastValidate(paymentMethod)
- *   "Payment" button calls:                  pay()
- *   Both are on ActionpadWidget.
+ * ROOT CAUSE CONFIRMED:
+ *   ActionpadWidget does NOT have `this.pos` — it is undefined.
+ *   It only exposes `this.currentOrder` directly on its prototype.
+ *   So noCustomer(this.pos) was always returning false → payment allowed.
  *
- * Intercepts:
- * 1. ActionpadWidget.fastValidate()  ← "Cash KDTY / Card KDTY"  ✅ CONFIRMED FIX
- * 2. ActionpadWidget.pay()           ← "Payment" button
- * 3. PaymentScreen.validateOrder()   ← Final validation safety net
+ * FIX:
+ *   - ActionpadWidget: check this.currentOrder directly
+ *   - ProductScreen / PaymentScreen: check this.pos (they DO have it)
  */
 
 import { patch }      from "@web/core/utils/patch";
@@ -21,7 +20,7 @@ import { PaymentScreen }  from "@point_of_sale/app/screens/payment_screen/paymen
 import { ProductScreen }  from "@point_of_sale/app/screens/product_screen/product_screen";
 import { ActionpadWidget } from "@point_of_sale/app/screens/product_screen/action_pad/action_pad";
 
-console.log("[pos_require_customer] v13 - fastValidate interception loaded");
+console.log("[pos_require_customer] v14 - currentOrder fix loaded");
 
 // ─────────────────────────────────────────────────────────
 //  Dialog component
@@ -39,7 +38,8 @@ export class CustomerRequiredDialog extends Component {
 }
 
 // ─────────────────────────────────────────────────────────
-//  Helper — check if current order has no customer
+//  noCustomer — checks order from pos service
+//  Used by ProductScreen / PaymentScreen (have this.pos)
 // ─────────────────────────────────────────────────────────
 function noCustomer(pos) {
     try {
@@ -56,7 +56,26 @@ function noCustomer(pos) {
             order.partner_id
         );
     } catch (e) {
-        console.warn("[pos_require_customer] customer check error:", e);
+        console.warn("[pos_require_customer] noCustomer error:", e);
+        return false;
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+//  noCustomerOnOrder — checks order directly
+//  Used by ActionpadWidget (has this.currentOrder, no this.pos)
+// ─────────────────────────────────────────────────────────
+function noCustomerOnOrder(order) {
+    try {
+        if (!order) return false;
+        return !(
+            order.get_partner?.() ||
+            order.getPartner?.() ||
+            order.partner         ||
+            order.partner_id
+        );
+    } catch (e) {
+        console.warn("[pos_require_customer] noCustomerOnOrder error:", e);
         return false;
     }
 }
@@ -74,6 +93,8 @@ async function showPopup(dialogService, body) {
 
 // ─────────────────────────────────────────────────────────
 //  Patch ActionpadWidget
+//  - this.pos is UNDEFINED here
+//  - use this.currentOrder directly instead
 // ─────────────────────────────────────────────────────────
 patch(ActionpadWidget.prototype, {
     setup() {
@@ -83,22 +104,20 @@ patch(ActionpadWidget.prototype, {
     },
 
     /**
-     * CONFIRMED FIX — handles "Cash KDTY" / "Card KDTY" one-click pay buttons
-     * DOM event: __event__click -> ()=>v5.fastValidate(v6)
+     * CONFIRMED FIX — "Cash KDTY" / "Card KDTY" one-click pay buttons
+     * Uses this.currentOrder (not this.pos which is undefined here)
      */
     async fastValidate(paymentMethod) {
-        if (noCustomer(this.pos)) {
+        if (noCustomerOnOrder(this.currentOrder)) {
             await showPopup(this._rcDialog, "Please select a customer before payment.");
             return;
         }
         return super.fastValidate?.(...arguments);
     },
 
-    /**
-     * Handles the "Payment" button
-     */
+    /** "Payment" button */
     async pay() {
-        if (noCustomer(this.pos)) {
+        if (noCustomerOnOrder(this.currentOrder)) {
             await showPopup(this._rcDialog, "Please select a customer before payment.");
             return;
         }
@@ -107,7 +126,7 @@ patch(ActionpadWidget.prototype, {
 });
 
 // ─────────────────────────────────────────────────────────
-//  Patch ProductScreen — guard pos.pay() at service level
+//  Patch ProductScreen — this.pos IS available here
 // ─────────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
     setup() {
@@ -131,7 +150,7 @@ patch(ProductScreen.prototype, {
 });
 
 // ─────────────────────────────────────────────────────────
-//  Patch PaymentScreen — safety net if user reaches it
+//  Patch PaymentScreen — final safety net
 // ─────────────────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
