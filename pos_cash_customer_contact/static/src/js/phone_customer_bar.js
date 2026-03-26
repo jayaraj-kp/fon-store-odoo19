@@ -365,26 +365,26 @@ export class CreateCustomerDialog extends Component {
     }
 
     // ✅ KEYBOARD SHORTCUTS
-    mounted() {
-        this._onKeyDown = (ev) => {
-            // ALT + C → Save
-            if (ev.altKey && (ev.key === "c" || ev.key === "C")) {
-                ev.preventDefault();
-                this.onSave();
-            }
+mounted() {
+    this._onKeyDown = (ev) => {
+        if (ev.altKey && (ev.key === "c" || ev.key === "C")) {
+            ev.preventDefault();
+            this.onSave();
+        }
 
-            // ESC → Close dialog
-            if (ev.key === "Escape") {
-                ev.preventDefault();
-                this.onDiscard();
-            }
-        };
-        window.addEventListener("keydown", this._onKeyDown);
-    }
+        if (ev.key === "Escape") {
+            ev.preventDefault();
+            this.onDiscard();
+        }
+    };
 
-    willUnmount() {
-        window.removeEventListener("keydown", this._onKeyDown);
-    }
+    // ✅ ADD `true` (capture mode)
+    window.addEventListener("keydown", this._onKeyDown, true);
+}
+
+willUnmount() {
+    window.removeEventListener("keydown", this._onKeyDown, true);
+}
 
     async onSave() {
         this.form.error = "";
