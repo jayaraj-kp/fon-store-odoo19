@@ -73,8 +73,18 @@ class CashCustomerReportParser(models.AbstractModel):
             grand_total += partner_total
             grand_orders += len(pos_orders)
 
+            # Safely resolve phone/mobile in Python (avoids QWeb field access issues)
+            phone = partner.phone or ''
+            try:
+                mobile = partner.mobile or ''
+            except Exception:
+                mobile = ''
+            contact_phone = phone or mobile or '-'
+
             report_lines.append({
                 'partner': partner,
+                'partner_name': partner.name or '-',
+                'partner_phone': contact_phone,
                 'orders': orders_data,
                 'total': partner_total,
                 'order_count': len(pos_orders),

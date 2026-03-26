@@ -48,11 +48,11 @@
                                 <tr style="background:#6f42c1; color:white;">
                                     <th colspan="2">
                                         <strong>
-                                            <t t-esc="line['partner'].name"/>
+                                            <t t-esc="line['partner_name']"/>
                                         </strong>
                                     </th>
                                     <th colspan="2" class="text-right">
-                                        Phone: <t t-esc="line['partner'].phone or line['partner'].mobile or '-'"/>
+                                        Phone: <t t-esc="line['partner_phone']"/>
                                     </th>
                                     <th class="text-right">
                                         Orders: <t t-esc="line['order_count']"/>
