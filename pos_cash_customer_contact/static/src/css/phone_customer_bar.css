@@ -36,13 +36,15 @@
 }
 .pcb-clear:hover { color: #ef4444; }
 
-/* Autocomplete Dropdown */
+/* ── Unified Dropdown ───────────────────────────────────────── */
 .pcb-dropdown {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0;
     background: #fff; border: 1px solid #c7d2fe;
     border-radius: 8px; box-shadow: 0 8px 24px rgba(99,102,241,.15);
-    z-index: 9999; overflow: hidden; max-height: 260px; overflow-y: auto;
+    z-index: 9999; overflow: hidden; max-height: 320px; overflow-y: auto;
 }
+
+/* Regular search result row */
 .pcb-dropdown-item {
     display: flex; justify-content: space-between; align-items: center;
     padding: 9px 12px; cursor: pointer;
@@ -50,72 +52,53 @@
 }
 .pcb-dropdown-item:last-child { border-bottom: none; }
 .pcb-dropdown-item:hover { background: #eef2ff; }
-.pcb-item-name { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.pcb-item-name {
+    font-size: 13px; font-weight: 600; color: #1e293b;
+    flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .pcb-item-phone { font-size: 12px; color: #64748b; white-space: nowrap; flex-shrink: 0; }
 
-/* Status */
-.pcb-status { font-size: 13px; font-weight: 600; white-space: nowrap; }
-.pcb-found { color: #16a34a; }
-.pcb-notfound { color: #94a3b8; font-weight: 400; }
-
-/* ── Split Create Button ─────────────────────────────────── */
-.pcb-create-wrap {
-    position: relative;
-    display: flex;
-    align-items: stretch;
+/* Thin divider between results and create rows */
+.pcb-dropdown-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 0;
 }
 
-.pcb-create-btn {
-    padding: 5px 10px;
-    background: #6366f1;
-    color: #fff;
-    border: none;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    line-height: 1.4;
-}
-.pcb-create-btn:hover { background: #4f46e5; }
-
-/* Left half — main "Create" label */
-.pcb-create-main {
-    border-radius: 6px 0 0 6px;
-    border-right: 1px solid rgba(255,255,255,0.3);
-    padding-right: 8px;
-}
-
-/* Right half — arrow toggle */
-.pcb-create-arrow {
-    border-radius: 0 6px 6px 0;
-    padding: 5px 7px;
-    font-size: 10px;
-}
-
-/* Mini dropdown that appears below the split button */
-.pcb-create-menu {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    min-width: 180px;
-    background: #fff;
-    border: 1px solid #c7d2fe;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(99,102,241,.18);
-    z-index: 9999;
-    overflow: hidden;
-}
-.pcb-create-menu-item {
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #1e293b;
+/* Create option rows — sit inside the same dropdown */
+.pcb-create-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px;
+    padding: 9px 12px !important;
     cursor: pointer;
     border-bottom: 1px solid #f1f5f9;
     transition: background .1s;
-    white-space: nowrap;
 }
-.pcb-create-menu-item:last-child { border-bottom: none; }
-.pcb-create-menu-item:hover { background: #eef2ff; color: #6366f1; }
+.pcb-create-row:last-child { border-bottom: none; }
+.pcb-create-row:hover { background: #eef2ff !important; }
+
+.pcb-create-icon {
+    font-size: 14px;
+    color: #6366f1;
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+}
+.pcb-create-label {
+    font-size: 13px;
+    color: #6366f1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Status badges ──────────────────────────────────────────── */
+.pcb-status { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.pcb-found { color: #16a34a; }
+.pcb-notfound { color: #94a3b8; font-weight: 400; }
 
 
 /* ══ Create Customer Dialog ══════════════════════════════════ */
@@ -142,10 +125,7 @@
     width: 6px; height: 6px; border-radius: 50%; background: #fff;
 }
 
-.ccd-field {
-    border-bottom: 1px solid #e2e8f0;
-    padding: 4px 0;
-}
+.ccd-field { border-bottom: 1px solid #e2e8f0; padding: 4px 0; }
 .ccd-icon-field { display: flex; align-items: center; gap: 10px; }
 .ccd-field-icon { font-size: 15px; color: #94a3b8; flex-shrink: 0; width: 20px; text-align: center; }
 

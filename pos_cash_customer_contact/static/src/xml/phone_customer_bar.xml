@@ -9,14 +9,12 @@
 
             <div class="ccd-form">
 
-                <!-- Contact type row (visual only, always Contact) -->
                 <div class="ccd-type-row">
                     <label class="ccd-type-opt ccd-type-active">
                         <span class="ccd-radio-dot"/> Contact
                     </label>
                 </div>
 
-                <!-- Name (required) -->
                 <div class="ccd-field">
                     <input
                         type="text"
@@ -28,7 +26,6 @@
                     />
                 </div>
 
-                <!-- Email -->
                 <div class="ccd-field ccd-icon-field">
                     <span class="ccd-field-icon">✉</span>
                     <input
@@ -41,7 +38,6 @@
                     />
                 </div>
 
-                <!-- Phone -->
                 <div class="ccd-field ccd-icon-field">
                     <span class="ccd-field-icon">📞</span>
                     <input
@@ -54,7 +50,6 @@
                     />
                 </div>
 
-                <!-- Mobile -->
                 <div class="ccd-field ccd-icon-field">
                     <span class="ccd-field-icon">📱</span>
                     <input
@@ -67,11 +62,9 @@
                     />
                 </div>
 
-                <!-- Error message -->
                 <p t-if="form.error" class="ccd-error">⚠ <t t-esc="form.error"/></p>
             </div>
 
-            <!-- Footer buttons -->
             <t t-set-slot="footer">
                 <button
                     class="btn btn-primary ccd-btn-save"
@@ -81,9 +74,7 @@
                     <t t-if="form.saving">Saving…</t>
                     <t t-else="">Save &amp; Close</t>
                 </button>
-                <button class="btn btn-secondary" t-on-click="onDiscard">
-                    Discard
-                </button>
+                <button class="btn btn-secondary" t-on-click="onDiscard">Discard</button>
             </t>
 
         </Dialog>
@@ -114,8 +105,10 @@
                 />
                 <button t-if="state.query" class="pcb-clear" t-on-click="onClear">✕</button>
 
-                <!-- Autocomplete dropdown -->
+                <!-- ── Unified dropdown: search results + create options ── -->
                 <div t-if="state.showDropdown" class="pcb-dropdown">
+
+                    <!-- Search result rows -->
                     <div
                         t-foreach="state.suggestions"
                         t-as="partner"
@@ -128,39 +121,37 @@
                             <t t-esc="partner.phone || partner.mobile || ''"/>
                         </span>
                     </div>
+
+                    <!-- Divider only when there are results above -->
+                    <div t-if="state.suggestions.length" class="pcb-dropdown-divider"/>
+
+                    <!-- Create "[query]" -->
+                    <div class="pcb-dropdown-item pcb-create-row" t-on-mousedown="onQuickCreate">
+                        <span class="pcb-create-icon">＋</span>
+                        <span class="pcb-create-label">
+                            Create "<t t-esc="state.query"/>"
+                        </span>
+                    </div>
+
+                    <!-- Create and edit... -->
+                    <div class="pcb-dropdown-item pcb-create-row" t-on-mousedown="onCreateAndEdit">
+                        <span class="pcb-create-icon">✎</span>
+                        <span class="pcb-create-label">Create and edit...</span>
+                    </div>
+
                 </div>
             </div>
 
-            <!-- Found -->
+            <!-- Customer found badge -->
             <span t-if="state.found" class="pcb-status pcb-found">
                 ✅ <t t-esc="state.selectedName"/>
             </span>
 
-            <!-- Not found → Split Create button with mini dropdown -->
-            <t t-elif="state.query and !state.showDropdown and state.query.length >= 3">
+            <!-- "Not found" text when dropdown is closed and no match -->
+            <t t-elif="state.query and !state.showDropdown and state.query.length >= 3 and !state.found">
                 <span class="pcb-status pcb-notfound">Not found</span>
-
-                <div class="pcb-create-wrap">
-                    <!-- Main quick-create button -->
-                    <button class="pcb-create-btn pcb-create-main" t-on-mousedown="onQuickCreate">
-                        + Create
-                    </button>
-                    <!-- Arrow to open mini menu -->
-                    <button class="pcb-create-btn pcb-create-arrow" t-on-mousedown="toggleCreateMenu">
-                        ▾
-                    </button>
-
-                    <!-- Mini dropdown menu -->
-                    <div t-if="state.showCreateMenu" class="pcb-create-menu">
-                        <div class="pcb-create-menu-item" t-on-mousedown="onQuickCreate">
-                            Create "<t t-esc="state.query"/>"
-                        </div>
-                        <div class="pcb-create-menu-item" t-on-mousedown="onCreateAndEdit">
-                            Create and edit...
-                        </div>
-                    </div>
-                </div>
             </t>
+
         </div>
     </t>
 

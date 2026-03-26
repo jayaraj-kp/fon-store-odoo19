@@ -31,7 +31,7 @@ export class CreateCustomerDialog extends Component {
         const isPhone = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 3;
 
         this.form = useState({
-            name: isPhone ? query : query,
+            name: query,          // always pre-fill name with whatever was typed
             phone: isPhone ? query : "",
             mobile: "",
             email: "",
@@ -102,10 +102,11 @@ export class PhoneCustomerBar extends Component {
         this.state = useState({
             query: "",
             suggestions: [],
+            // showDropdown now controls the unified dropdown
+            // (search results + create options together)
             showDropdown: false,
             selectedName: "",
             found: false,
-            showCreateMenu: false,   // controls the create quick-menu
         });
     }
 
@@ -129,7 +130,6 @@ export class PhoneCustomerBar extends Component {
         this.state.query = query;
         this.state.found = false;
         this.state.selectedName = "";
-        this.state.showCreateMenu = false;
 
         if (!query) {
             this.pos.getOrder().setPartner(false);
@@ -140,7 +140,10 @@ export class PhoneCustomerBar extends Component {
 
         const suggestions = this._getSuggestions(query);
         this.state.suggestions = suggestions;
-        this.state.showDropdown = suggestions.length > 0;
+
+        // Show dropdown whenever we have text >= MIN_CHARS
+        // (it will show results + create options together)
+        this.state.showDropdown = query.length >= MIN_CHARS;
 
         const exact = this.pos.models["res.partner"].find(
             (p) => p.phone === query || p.mobile === query
@@ -161,7 +164,6 @@ export class PhoneCustomerBar extends Component {
         this.state.selectedName = partner.name;
         this.state.found = true;
         this.state.showDropdown = false;
-        this.state.showCreateMenu = false;
         this.state.suggestions = [];
     }
 
@@ -171,26 +173,19 @@ export class PhoneCustomerBar extends Component {
         this.state.selectedName = "";
         this.state.suggestions = [];
         this.state.showDropdown = false;
-        this.state.showCreateMenu = false;
         this.pos.getOrder().setPartner(false);
     }
 
     onBlur() {
         setTimeout(() => {
             this.state.showDropdown = false;
-            this.state.showCreateMenu = false;
         }, 200);
     }
 
     onFocus() {
-        if (this.state.suggestions.length > 0) {
+        if (this.state.query && this.state.query.length >= MIN_CHARS && !this.state.found) {
             this.state.showDropdown = true;
         }
-    }
-
-    // Toggle the small create-menu dropdown
-    toggleCreateMenu() {
-        this.state.showCreateMenu = !this.state.showCreateMenu;
     }
 
     async _getCashCustomerParentId() {
@@ -238,7 +233,7 @@ export class PhoneCustomerBar extends Component {
             this.state.query = newPartner.phone || newPartner.name;
             this.state.found = true;
             this.state.selectedName = newPartner.name;
-            this.state.showCreateMenu = false;
+            this.state.showDropdown = false;
             this.notification.add(
                 `Customer created: ${newPartner.name}`,
                 { type: "success", sticky: false }
@@ -246,13 +241,12 @@ export class PhoneCustomerBar extends Component {
         }
     }
 
-    // "Create [query]" — quick create using query as both name and phone
+    // "Create [query]" quick create — clicked from inside the dropdown
     async onQuickCreate() {
-        this.state.showCreateMenu = false;
+        this.state.showDropdown = false;
         const query = this.state.query.trim();
         if (!query) return;
 
-        // Validate 10 digits if it looks like a phone number
         const looksLikePhone = /^\d+$/.test(query);
         if (looksLikePhone && query.replace(/\D/g, "").length !== 10) {
             this.notification.add(
@@ -269,9 +263,9 @@ export class PhoneCustomerBar extends Component {
         });
     }
 
-    // "Create and edit..." — open full dialog
+    // "Create and edit..." — clicked from inside the dropdown
     onCreateAndEdit() {
-        this.state.showCreateMenu = false;
+        this.state.showDropdown = false;
         this.dialog.add(CreateCustomerDialog, {
             phone: this.state.query,
             onCreated: async (formData) => {
