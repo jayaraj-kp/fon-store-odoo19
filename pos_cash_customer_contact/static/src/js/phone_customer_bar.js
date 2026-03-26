@@ -347,6 +347,7 @@ export class CreateCustomerDialog extends Component {
     };
 
     setup() {
+        console.log("🔵 CreateCustomerDialog setup() called");
         this.orm = useService("orm");
         this.notification = useService("notification");
 
@@ -364,28 +365,46 @@ export class CreateCustomerDialog extends Component {
             tagName: this.props.autoTag ? this.props.autoTag.name : "",
         });
 
+        console.log("🔵 CreateCustomerDialog form initialized:", this.form);
+
         // Set up keyboard shortcut listener for Alt+C
         useEffect(() => {
+            console.log("🟢 useEffect hook - Setting up keyboard listener");
+
             const handleKeyDown = (event) => {
+                console.log("⌨️ Key pressed:", {
+                    key: event.key,
+                    altKey: event.altKey,
+                    ctrlKey: event.ctrlKey,
+                    shiftKey: event.shiftKey,
+                });
+
                 // Check for Alt+C combination
-                if (event.altKey && event.key === 'c') {
+                if (event.altKey && (event.key === 'c' || event.key === 'C')) {
+                    console.log("✅ Alt+C detected! Calling onSave()");
                     event.preventDefault();
                     this.onSave();
+                } else {
+                    console.log("❌ Key combination not Alt+C");
                 }
             };
 
+            console.log("🟢 Adding keydown event listener to document");
             document.addEventListener('keydown', handleKeyDown);
 
             return () => {
+                console.log("🟡 Cleanup: Removing keydown event listener");
                 document.removeEventListener('keydown', handleKeyDown);
             };
         });
     }
 
     async onSave() {
+        console.log("🔴 onSave() called");
         this.form.error = "";
 
         if (!this.form.name.trim()) {
+            console.log("❌ Validation failed: Name is empty");
             this.form.error = "Name is required.";
             return;
         }
@@ -394,6 +413,7 @@ export class CreateCustomerDialog extends Component {
         if (phoneVal) {
             const digits = phoneVal.replace(/\D/g, "");
             if (digits.length !== 10) {
+                console.log("❌ Validation failed: Phone digits =", digits.length);
                 this.form.error = "Phone number must be exactly 10 digits.";
                 return;
             }
@@ -403,28 +423,41 @@ export class CreateCustomerDialog extends Component {
         if (emailVal) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(emailVal)) {
+                console.log("❌ Validation failed: Invalid email format");
                 this.form.error = "Please enter a valid email address.";
                 return;
             }
         }
 
+        console.log("✅ All validations passed");
         this.form.saving = true;
 
         try {
+            console.log("📤 Calling onCreated with form data:", {
+                name: this.form.name.trim(),
+                phone: this.form.phone.trim(),
+                email: this.form.email.trim(),
+                tagId: this.form.tagId,
+            });
+
             await this.props.onCreated({
                 name: this.form.name.trim(),
                 phone: this.form.phone.trim(),
                 email: this.form.email.trim(),
                 tagId: this.form.tagId,
             });
+
+            console.log("✅ onCreated succeeded, closing dialog");
             this.props.close();
         } catch (err) {
+            console.error("❌ Error in onCreated:", err);
             this.form.error = err.message || "Could not save customer.";
             this.form.saving = false;
         }
     }
 
     onDiscard() {
+        console.log("🔴 onDiscard() called, closing dialog");
         this.props.close();
     }
 }
@@ -437,6 +470,7 @@ export class PhoneCustomerBar extends Component {
     static props = {};
 
     setup() {
+        console.log("🔵 PhoneCustomerBar setup() called");
         this.pos = usePos();
         this.orm = useService("orm");
         this.dialog = useService("dialog");
@@ -448,13 +482,16 @@ export class PhoneCustomerBar extends Component {
             selectedName: "",
             found: false,
         });
+        console.log("🔵 PhoneCustomerBar initialized");
     }
 
     // ── Resolve which tag to auto-assign based on POS config name ──
     // Matches if the POS name contains the tag name (case-insensitive)
     async _getAutoTag() {
+        console.log("🔍 _getAutoTag() called");
         try {
             const posName = (this.pos.config.name || "").toUpperCase();
+            console.log("POS Config Name:", posName);
 
             // Load all tags from res.partner.category
             const tags = await this.orm.searchRead(
@@ -464,11 +501,14 @@ export class PhoneCustomerBar extends Component {
                 { limit: 100 }
             );
 
+            console.log("Available tags:", tags);
+
             // Find the first tag whose name appears in the POS config name
             const matched = tags.find(
                 (t) => posName.includes(t.name.toUpperCase())
             );
 
+            console.log("Matched tag:", matched);
             return matched ? { id: matched.id, name: matched.name } : null;
         } catch (e) {
             console.warn("Could not resolve auto tag:", e);
@@ -636,13 +676,16 @@ export class PhoneCustomerBar extends Component {
 
     // "Create and edit..." — open full dialog with tag pre-filled
     async onCreateAndEdit() {
+        console.log("🔴 onCreateAndEdit() called");
         this.state.showDropdown = false;
         const autoTag = await this._getAutoTag();
 
+        console.log("🔴 Opening CreateCustomerDialog with autoTag:", autoTag);
         this.dialog.add(CreateCustomerDialog, {
             phone: this.state.query,
             autoTag: autoTag,
             onCreated: async (formData) => {
+                console.log("🔴 CreateCustomerDialog onCreated callback triggered");
                 await this._doCreate(formData);
             },
         });
@@ -655,3 +698,5 @@ patch(ProductScreen, {
         PhoneCustomerBar,
     },
 });
+
+console.log("✅ phone_customer_bar.js module loaded successfully");
