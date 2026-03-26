@@ -27,7 +27,7 @@ class CashCustomerReportWizard(models.TransientModel):
 
 
 class CashCustomerReportParser(models.AbstractModel):
-    _name = 'report.custom_sales_contacts_v3_fix.cash_customer_report_template'
+    _name = 'report.custom_sales_contacts_v3_fix.cc_pos_report'
     _description = 'Cash Customer POS Report Parser'
 
     @api.model
