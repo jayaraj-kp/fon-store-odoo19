@@ -1,4 +1,4 @@
-///** @odoo-module **/
+/////** @odoo-module **/
 //
 //import { patch } from "@web/core/utils/patch";
 //import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
@@ -361,7 +361,7 @@ function getCurrencySymbol(pos) {
 }
 
 function computeRoundOff(total) {
-    const ceil = Math.ceil(total);
+    const ceil = Math.ceil(total / 10) * 10;
     const diff = parseFloat((ceil - total).toFixed(2));
     return diff > 0 ? diff : 0;
 }
@@ -548,7 +548,7 @@ export class CharityOrderButton extends Component {
         const maxDonate = roundOff > 0 ? roundOff : Infinity;
         // ceilAmount: the difference to the next whole number (e.g. ₹999 → 1, ₹693.45 → 0.55)
         // Used for the "Full Change" one-tap button when total is whole.
-        const ceilAmount = roundOff > 0 ? roundOff : 1;
+        const ceilAmount = roundOff > 0 ? roundOff : 10;
 
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
             title: this.charityButtonLabel,
