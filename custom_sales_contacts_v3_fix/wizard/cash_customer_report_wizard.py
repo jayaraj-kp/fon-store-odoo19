@@ -15,15 +15,24 @@ class CashCustomerReportWizard(models.TransientModel):
         domain="[('parent_id.name', 'ilike', 'cash customer')]"
     )
 
-    def action_print_report(self):
-        data = {
+    def _build_data(self):
+        return {
             'date_from': self.date_from and str(self.date_from) or False,
             'date_to': self.date_to and str(self.date_to) or False,
             'partner_ids': self.partner_ids.ids or [],
         }
-        return self.env.ref(
-            'custom_sales_contacts_v3_fix.action_cash_customer_pos_report'
-        ).report_action(self, data=data)
+
+    def action_print_report(self):
+        """Generate and download PDF."""
+        report = self.env.ref('custom_sales_contacts_v3_fix.action_cash_customer_pos_report')
+        return report.report_action(self, data=self._build_data())
+
+    def action_preview_report(self):
+        """Open report as HTML preview in browser tab."""
+        report = self.env.ref('custom_sales_contacts_v3_fix.action_cash_customer_pos_report')
+        action = report.report_action(self, data=self._build_data())
+        action['report_type'] = 'qweb-html'
+        return action
 
 
 class CashCustomerReportParser(models.AbstractModel):
@@ -37,7 +46,6 @@ class CashCustomerReportParser(models.AbstractModel):
         date_to = data.get('date_to')
         partner_ids = data.get('partner_ids', [])
 
-        # Get all CASH CUSTOMER child contacts
         domain = [('parent_id.name', 'ilike', 'cash customer')]
         if partner_ids:
             domain.append(('id', 'in', partner_ids))
@@ -48,7 +56,6 @@ class CashCustomerReportParser(models.AbstractModel):
         grand_orders = 0
 
         for partner in partners:
-            # Build POS order domain for this partner
             pos_domain = [('partner_id', '=', partner.id), ('state', 'in', ['paid', 'done', 'invoiced'])]
             if date_from:
                 pos_domain.append(('date_order', '>=', date_from + ' 00:00:00'))
@@ -73,7 +80,6 @@ class CashCustomerReportParser(models.AbstractModel):
             grand_total += partner_total
             grand_orders += len(pos_orders)
 
-            # Safely resolve phone/mobile in Python (avoids QWeb field access issues)
             phone = partner.phone or ''
             try:
                 mobile = partner.mobile or ''

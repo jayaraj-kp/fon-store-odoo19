@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Wizard Form View -->
     <record id="view_cash_customer_report_wizard_form" model="ir.ui.view">
         <field name="name">cash.customer.report.wizard.form</field>
         <field name="model">cash.customer.report.wizard</field>
@@ -18,8 +17,13 @@
                     </group>
                 </group>
                 <footer>
+                    <button name="action_preview_report"
+                            string="👁 Preview"
+                            type="object"
+                            class="btn-secondary"
+                            icon="fa-eye"/>
                     <button name="action_print_report"
-                            string="Print PDF Report"
+                            string="🖨 Print PDF"
                             type="object"
                             class="btn-primary"
                             icon="fa-print"/>
@@ -29,7 +33,6 @@
         </field>
     </record>
 
-    <!-- Wizard Action -->
     <record id="action_cash_customer_report_wizard" model="ir.actions.act_window">
         <field name="name">Cash Customer POS Report</field>
         <field name="res_model">cash.customer.report.wizard</field>
