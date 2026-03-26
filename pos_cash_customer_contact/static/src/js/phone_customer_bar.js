@@ -44,33 +44,36 @@ export class CreateCustomerDialog extends Component {
     }
 
     // ✅ FINAL KEYBOARD SHORTCUTS
-    mounted() {
-        this._onKeyDown = (ev) => {
+mounted() {
+    console.log("✅ Dialog mounted");
 
-            // 🚫 prevent multiple save clicks
-            if (this.form.saving) return;
+    this._onKeyDown = (ev) => {
 
-            // ✅ ALT + C OR ENTER → Save
-            if (
-                (ev.altKey && ev.key.toLowerCase() === "c") ||
-                ev.key === "Enter"
-            ) {
-                console.log("SAVE TRIGGERED", ev.key);
-                ev.preventDefault();
-                this.onSave();
-            }
+        console.log("🔥 KEY DETECTED:", ev.key, "ALT:", ev.altKey);
 
-            // ✅ ESC → Close
-            if (ev.key === "Escape") {
-                console.log("DIALOG CLOSED");
-                ev.preventDefault();
-                this.onDiscard();
-            }
-        };
+        if (this.form.saving) {
+            console.log("⛔ Blocked: already saving");
+            return;
+        }
 
-        // 🔥 MOST RELIABLE (POS safe)
-        document.addEventListener("keydown", this._onKeyDown, true);
-    }
+        if (
+            (ev.altKey && ev.key.toLowerCase() === "c") ||
+            ev.key === "Enter"
+        ) {
+            console.log("✅ SAVE TRIGGERED");
+            ev.preventDefault();
+            this.onSave();
+        }
+
+        if (ev.key === "Escape") {
+            console.log("❌ CLOSE TRIGGERED");
+            ev.preventDefault();
+            this.onDiscard();
+        }
+    };
+
+    document.addEventListener("keydown", this._onKeyDown, true);
+}
 
     willUnmount() {
         document.removeEventListener("keydown", this._onKeyDown, true);
