@@ -7,9 +7,8 @@ import { Component }  from "@odoo/owl";
 import { PaymentScreen }  from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { ProductScreen }  from "@point_of_sale/app/screens/product_screen/product_screen";
 import { ActionpadWidget } from "@point_of_sale/app/screens/product_screen/action_pad/action_pad";
-import { PosStore } from "@point_of_sale/app/store/pos_store";
 
-console.log("[pos_require_customer] FINAL FIX LOADED");
+console.log("[pos_require_customer] FINAL CLEAN VERSION LOADED");
 
 // ─────────────────────────────────────────────
 // Dialog Component
@@ -46,7 +45,7 @@ function noCustomer(pos) {
             order.partner_id
         );
     } catch (e) {
-        console.warn("noCustomer error:", e);
+        console.warn("[pos_require_customer] noCustomer error:", e);
         return false;
     }
 }
@@ -62,7 +61,7 @@ function noCustomerOnOrder(order) {
             order.partner_id
         );
     } catch (e) {
-        console.warn("noCustomerOnOrder error:", e);
+        console.warn("[pos_require_customer] noCustomerOnOrder error:", e);
         return false;
     }
 }
@@ -78,29 +77,13 @@ async function showPopup(dialogService, body) {
 }
 
 // ─────────────────────────────────────────────
-// 🔥 CRITICAL FIX → BLOCK ALL ONE-CLICK PAYMENTS
-// ─────────────────────────────────────────────
-patch(PosStore.prototype, {
-    async addPaymentLine(paymentMethod) {
-        const order = this.get_order();
-
-        if (noCustomerOnOrder(order)) {
-            const dialog = this.env.services.dialog;
-            await showPopup(dialog, "Please select a customer before payment.");
-            return;
-        }
-
-        return super.addPaymentLine(...arguments);
-    },
-});
-
-// ─────────────────────────────────────────────
-// ActionpadWidget
+// ActionpadWidget (Pay + One-click trigger)
 // ─────────────────────────────────────────────
 patch(ActionpadWidget.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
+        console.log("[pos_require_customer] ActionpadWidget patched ✓");
     },
 
     async fastValidate(paymentMethod) {
@@ -121,7 +104,7 @@ patch(ActionpadWidget.prototype, {
 });
 
 // ─────────────────────────────────────────────
-// ProductScreen
+// ProductScreen (extra safety)
 // ─────────────────────────────────────────────
 patch(ProductScreen.prototype, {
     setup() {
@@ -148,12 +131,21 @@ patch(ProductScreen.prototype, {
 });
 
 // ─────────────────────────────────────────────
-// PaymentScreen (Final Safety)
+// 🔥 MAIN FIX → One-click payments handled here
 // ─────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
+        console.log("[pos_require_customer] PaymentScreen patched ✓");
+    },
+
+    async addNewPaymentLine(paymentMethod) {
+        if (noCustomer(this.pos)) {
+            await showPopup(this._rcDialog, "Please select a customer before payment.");
+            return;
+        }
+        return super.addNewPaymentLine(...arguments);
     },
 
     async validateOrder(isForceValidate) {
@@ -170,13 +162,5 @@ patch(PaymentScreen.prototype, {
             return;
         }
         return super.validateOrderFast?.(...arguments);
-    },
-
-    async addNewPaymentLine(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.addNewPaymentLine(...arguments);
     },
 });
