@@ -1,4 +1,4 @@
-///** @odoo-module **/
+//
 //
 //import { Component, useState } from "@odoo/owl";
 //import { usePos } from "@point_of_sale/app/hooks/pos_hook";
@@ -18,6 +18,7 @@
 //    static components = { Dialog };
 //    static props = {
 //        phone: { type: String, default: "" },
+//        autoTag: { type: Object, optional: true },  // { id, name } of the matched tag
 //        onCreated: Function,
 //        close: Function,
 //    };
@@ -31,10 +32,13 @@
 //        const isPhone = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 3;
 //
 //        this.form = useState({
-//            name: query,          // always pre-fill name with whatever was typed
+//            name: query,
 //            phone: isPhone ? query : "",
 //            mobile: "",
 //            email: "",
+//            // pre-select the tag if one was resolved
+//            tagId: this.props.autoTag ? this.props.autoTag.id : false,
+//            tagName: this.props.autoTag ? this.props.autoTag.name : "",
 //            saving: false,
 //            error: "",
 //        });
@@ -52,7 +56,7 @@
 //        if (phoneVal) {
 //            const digits = phoneVal.replace(/\D/g, "");
 //            if (digits.length !== 10) {
-//                this.form.error = "Phone number must be exactly 10 digits.";
+//                this.form.error = "Please enter 10 digit mobile number.";
 //                return;
 //            }
 //        }
@@ -61,7 +65,7 @@
 //        if (mobileVal) {
 //            const mDigits = mobileVal.replace(/\D/g, "");
 //            if (mDigits.length !== 10) {
-//                this.form.error = "Mobile number must be exactly 10 digits.";
+//                this.form.error = "Please enter 10 digit mobile number";
 //                return;
 //            }
 //        }
@@ -74,6 +78,7 @@
 //                phone: this.form.phone.trim(),
 //                mobile: this.form.mobile.trim(),
 //                email: this.form.email.trim(),
+//                tagId: this.form.tagId,
 //            });
 //            this.props.close();
 //        } catch (err) {
@@ -102,12 +107,36 @@
 //        this.state = useState({
 //            query: "",
 //            suggestions: [],
-//            // showDropdown now controls the unified dropdown
-//            // (search results + create options together)
 //            showDropdown: false,
 //            selectedName: "",
 //            found: false,
 //        });
+//    }
+//
+//    // ── Resolve which tag to auto-assign based on POS config name ──
+//    // Matches if the POS name contains the tag name (case-insensitive)
+//    async _getAutoTag() {
+//        try {
+//            const posName = (this.pos.config.name || "").toUpperCase();
+//
+//            // Load all tags from res.partner.category
+//            const tags = await this.orm.searchRead(
+//                "res.partner.category",
+//                [],
+//                ["id", "name"],
+//                { limit: 100 }
+//            );
+//
+//            // Find the first tag whose name appears in the POS config name
+//            const matched = tags.find(
+//                (t) => posName.includes(t.name.toUpperCase())
+//            );
+//
+//            return matched ? { id: matched.id, name: matched.name } : null;
+//        } catch (e) {
+//            console.warn("Could not resolve auto tag:", e);
+//            return null;
+//        }
 //    }
 //
 //    _getSuggestions(query) {
@@ -140,9 +169,6 @@
 //
 //        const suggestions = this._getSuggestions(query);
 //        this.state.suggestions = suggestions;
-//
-//        // Show dropdown whenever we have text >= MIN_CHARS
-//        // (it will show results + create options together)
 //        this.state.showDropdown = query.length >= MIN_CHARS;
 //
 //        const exact = this.pos.models["res.partner"].find(
@@ -177,9 +203,7 @@
 //    }
 //
 //    onBlur() {
-//        setTimeout(() => {
-//            this.state.showDropdown = false;
-//        }, 200);
+//        setTimeout(() => { this.state.showDropdown = false; }, 200);
 //    }
 //
 //    onFocus() {
@@ -208,13 +232,20 @@
 //    async _doCreate(formData) {
 //        const parentId = await this._getCashCustomerParentId();
 //
-//        const rawId = await this.orm.create("res.partner", [{
+//        const vals = {
 //            name: formData.name,
 //            phone: formData.phone || false,
 //            email: formData.email || false,
 //            parent_id: parentId,
 //            customer_rank: 1,
-//        }]);
+//        };
+//
+//        // Attach the contact tag if resolved
+//        if (formData.tagId) {
+//            vals.category_id = [[4, formData.tagId]];  // ORM command 4 = link existing
+//        }
+//
+//        const rawId = await this.orm.create("res.partner", [vals]);
 //        const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
 //
 //        await this.pos.data.searchRead(
@@ -241,7 +272,7 @@
 //        }
 //    }
 //
-//    // "Create [query]" quick create — clicked from inside the dropdown
+//    // "Create [query]" quick create from dropdown
 //    async onQuickCreate() {
 //        this.state.showDropdown = false;
 //        const query = this.state.query.trim();
@@ -256,18 +287,24 @@
 //            return;
 //        }
 //
+//        const autoTag = await this._getAutoTag();
+//
 //        await this._doCreate({
 //            name: query,
 //            phone: looksLikePhone ? query : "",
 //            email: "",
+//            tagId: autoTag ? autoTag.id : false,
 //        });
 //    }
 //
-//    // "Create and edit..." — clicked from inside the dropdown
-//    onCreateAndEdit() {
+//    // "Create and edit..." — open full dialog with tag pre-filled
+//    async onCreateAndEdit() {
 //        this.state.showDropdown = false;
+//        const autoTag = await this._getAutoTag();
+//
 //        this.dialog.add(CreateCustomerDialog, {
 //            phone: this.state.query,
+//            autoTag: autoTag,
 //            onCreated: async (formData) => {
 //                await this._doCreate(formData);
 //            },
@@ -302,7 +339,7 @@ export class CreateCustomerDialog extends Component {
     static components = { Dialog };
     static props = {
         phone: { type: String, default: "" },
-        autoTag: { type: Object, optional: true },  // { id, name } of the matched tag
+        autoTag: { type: Object, optional: true },
         onCreated: Function,
         close: Function,
     };
@@ -320,12 +357,33 @@ export class CreateCustomerDialog extends Component {
             phone: isPhone ? query : "",
             mobile: "",
             email: "",
-            // pre-select the tag if one was resolved
             tagId: this.props.autoTag ? this.props.autoTag.id : false,
             tagName: this.props.autoTag ? this.props.autoTag.name : "",
             saving: false,
             error: "",
         });
+    }
+
+    // ✅ KEYBOARD SHORTCUTS
+    mounted() {
+        this._onKeyDown = (ev) => {
+            // ALT + C → Save
+            if (ev.altKey && (ev.key === "c" || ev.key === "C")) {
+                ev.preventDefault();
+                this.onSave();
+            }
+
+            // ESC → Close dialog
+            if (ev.key === "Escape") {
+                ev.preventDefault();
+                this.onDiscard();
+            }
+        };
+        window.addEventListener("keydown", this._onKeyDown);
+    }
+
+    willUnmount() {
+        window.removeEventListener("keydown", this._onKeyDown);
     }
 
     async onSave() {
@@ -397,13 +455,10 @@ export class PhoneCustomerBar extends Component {
         });
     }
 
-    // ── Resolve which tag to auto-assign based on POS config name ──
-    // Matches if the POS name contains the tag name (case-insensitive)
     async _getAutoTag() {
         try {
             const posName = (this.pos.config.name || "").toUpperCase();
 
-            // Load all tags from res.partner.category
             const tags = await this.orm.searchRead(
                 "res.partner.category",
                 [],
@@ -411,7 +466,6 @@ export class PhoneCustomerBar extends Component {
                 { limit: 100 }
             );
 
-            // Find the first tag whose name appears in the POS config name
             const matched = tags.find(
                 (t) => posName.includes(t.name.toUpperCase())
             );
@@ -524,9 +578,8 @@ export class PhoneCustomerBar extends Component {
             customer_rank: 1,
         };
 
-        // Attach the contact tag if resolved
         if (formData.tagId) {
-            vals.category_id = [[4, formData.tagId]];  // ORM command 4 = link existing
+            vals.category_id = [[4, formData.tagId]];
         }
 
         const rawId = await this.orm.create("res.partner", [vals]);
@@ -556,7 +609,6 @@ export class PhoneCustomerBar extends Component {
         }
     }
 
-    // "Create [query]" quick create from dropdown
     async onQuickCreate() {
         this.state.showDropdown = false;
         const query = this.state.query.trim();
@@ -581,7 +633,6 @@ export class PhoneCustomerBar extends Component {
         });
     }
 
-    // "Create and edit..." — open full dialog with tag pre-filled
     async onCreateAndEdit() {
         this.state.showDropdown = false;
         const autoTag = await this._getAutoTag();
