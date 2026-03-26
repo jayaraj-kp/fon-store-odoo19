@@ -340,7 +340,7 @@ export class CreateCustomerDialog extends Component {
         if (phoneVal) {
             const digits = phoneVal.replace(/\D/g, "");
             if (digits.length !== 10) {
-                this.form.error = "Phone number must be exactly 10 digits.";
+                this.form.error = "Please enter 10 digit mobile number.";
                 return;
             }
         }
@@ -349,7 +349,7 @@ export class CreateCustomerDialog extends Component {
         if (mobileVal) {
             const mDigits = mobileVal.replace(/\D/g, "");
             if (mDigits.length !== 10) {
-                this.form.error = "Mobile number must be exactly 10 digits.";
+                this.form.error = "Please enter 10 digit mobile number";
                 return;
             }
         }

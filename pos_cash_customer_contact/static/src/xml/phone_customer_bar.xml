@@ -42,7 +42,7 @@
 
                 <!-- Phone -->
                 <div class="ccd-field ccd-icon-field">
-                    <span class="ccd-field-icon">📞</span>
+                    <span class="ccd-field-icon">📱</span>
                     <input
                         type="tel"
                         class="ccd-input"
@@ -54,17 +54,17 @@
                 </div>
 
                 <!-- Mobile -->
-                <div class="ccd-field ccd-icon-field">
-                    <span class="ccd-field-icon">📱</span>
-                    <input
-                        type="tel"
-                        class="ccd-input"
-                        placeholder="Mobile"
-                        t-model="form.mobile"
-                        t-on-keydown="(ev) => ev.stopPropagation()"
-                        t-on-keyup="(ev) => ev.stopPropagation()"
-                    />
-                </div>
+<!--                <div class="ccd-field ccd-icon-field">-->
+<!--                    <span class="ccd-field-icon"></span>-->
+<!--                    <input-->
+<!--                        type="tel"-->
+<!--                        class="ccd-input"-->
+<!--                        placeholder="Mobile"-->
+<!--                        t-model="form.mobile"-->
+<!--                        t-on-keydown="(ev) => ev.stopPropagation()"-->
+<!--                        t-on-keyup="(ev) => ev.stopPropagation()"-->
+<!--                    />-->
+<!--                </div>-->
 
                 <!-- Contact Tag (auto-assigned, read-only display) -->
                 <div t-if="form.tagId" class="ccd-field ccd-icon-field">
