@@ -325,15 +325,12 @@
 //});
 
 /** @odoo-module **/
-
 /** @odoo-module **/
 
-import { patch } from "@web/core/utils/patch";
 import { Component } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks";
-import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
+import { ActionpadWidget } from "@point_of_sale/app/screens/product_screen/action_pad/action_pad";
 
-console.log("[pos_require_customer] FINAL FIX VERSION LOADED");
+console.log("[pos_require_customer] FINAL TRUE BLOCK VERSION LOADED");
 
 // ─────────────────────────────────────────────
 // Dialog
@@ -363,101 +360,47 @@ function hasCustomer(order) {
 }
 
 // ─────────────────────────────────────────────
-// PaymentScreen Safety
+// 🔥 HARD OVERRIDE (NO SUPER CALL EVER)
 // ─────────────────────────────────────────────
-patch(PaymentScreen.prototype, {
-    setup() {
-        super.setup(...arguments);
-        this._rcDialog = useService("dialog");
-        console.log("[pos_require_customer] PaymentScreen patched ✓");
-    },
+const originalFastValidate = ActionpadWidget.prototype.fastValidate;
 
-    async validateOrder() {
-        const order = this.pos.getOrder(); // ✅ FIXED
+ActionpadWidget.prototype.fastValidate = async function (paymentMethod) {
 
-        if (!hasCustomer(order)) {
-            await this._rcDialog.add(CustomerRequiredDialog, {
-                title: "Customer Required",
-                body: "Please select a customer before completing payment.",
-            });
-            return;
-        }
+    const order = this.currentOrder;
 
-        return super.validateOrder(...arguments);
-    },
-});
+    if (!hasCustomer(order)) {
+        this.env.services.dialog.add(CustomerRequiredDialog, {
+            title: "Customer Required",
+            body: "Please select a customer before payment.",
+        });
 
-// ─────────────────────────────────────────────
-// 🔥 FINAL PATCH WITH RETRY (IMPORTANT)
-// ─────────────────────────────────────────────
-function patchFinalize() {
-    try {
-        const pos = odoo.__WOWL_DEBUG__?.root?.env?.services?.pos;
+        console.log("🚫 BLOCKED BEFORE fastValidate");
 
-        if (!pos || !pos.getOrder) {
-            console.log("⏳ POS not ready yet...");
-            return false;
-        }
-
-        const order = pos.getOrder();
-
-        if (!order) {
-            console.log("⏳ Order not ready yet...");
-            return false;
-        }
-
-        const proto = Object.getPrototypeOf(order);
-
-        if (proto.__rc_final_patch__) return true;
-
-        const original = proto.finalize_validation;
-
-        if (!original) {
-            console.warn("❌ finalize_validation not found");
-            return false;
-        }
-
-        proto.finalize_validation = function (...args) {
-
-            const hasCust =
-                this.get_partner?.() ||
-                this.getPartner?.() ||
-                this.partner ||
-                this.partner_id;
-
-            if (!hasCust) {
-                this.env.services.dialog.add(CustomerRequiredDialog, {
-                    title: "Customer Required",
-                    body: "Please select a customer before payment.",
-                });
-
-                console.log("🚫 BLOCKED at finalize_validation");
-
-                return; // 🔥 HARD BLOCK
-            }
-
-            return original.apply(this, args);
-        };
-
-        proto.__rc_final_patch__ = true;
-
-        console.log("✅ FINALIZE PATCH APPLIED SUCCESSFULLY");
-
-        return true;
-
-    } catch (e) {
-        console.error("Patch error:", e);
-        return false;
+        return; // 🔥 STOP HERE COMPLETELY
     }
-}
 
-// 🔁 Retry until POS is ready
-let tries = 0;
-const interval = setInterval(() => {
-    const done = patchFinalize();
-    tries++;
+    return await originalFastValidate.apply(this, arguments);
+};
 
-    if (done || tries > 10) {
-        clearInterval(interval);
+// ─────────────────────────────────────────────
+// ALSO OVERRIDE PAY BUTTON
+// ─────────────────────────────────────────────
+const originalPay = ActionpadWidget.prototype.pay;
+
+ActionpadWidget.prototype.pay = async function () {
+
+    const order = this.currentOrder;
+
+    if (!hasCustomer(order)) {
+        this.env.services.dialog.add(CustomerRequiredDialog, {
+            title: "Customer Required",
+            body: "Please select a customer before payment.",
+        });
+
+        console.log("🚫 BLOCKED PAY BUTTON");
+
+        return;
     }
-}, 1000);
+
+    return await originalPay.apply(this, arguments);
+};
