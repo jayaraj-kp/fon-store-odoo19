@@ -1,30 +1,19 @@
 /** @odoo-module **/
 
-/**
- * POS Require Customer v14 — Odoo 19 CE
- *
- * ROOT CAUSE CONFIRMED:
- *   ActionpadWidget does NOT have `this.pos` — it is undefined.
- *   It only exposes `this.currentOrder` directly on its prototype.
- *   So noCustomer(this.pos) was always returning false → payment allowed.
- *
- * FIX:
- *   - ActionpadWidget: check this.currentOrder directly
- *   - ProductScreen / PaymentScreen: check this.pos (they DO have it)
- */
-
 import { patch }      from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
 import { Component }  from "@odoo/owl";
+
 import { PaymentScreen }  from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { ProductScreen }  from "@point_of_sale/app/screens/product_screen/product_screen";
 import { ActionpadWidget } from "@point_of_sale/app/screens/product_screen/action_pad/action_pad";
+import { PosStore } from "@point_of_sale/app/store/pos_store";
 
-console.log("[pos_require_customer] v14 - currentOrder fix loaded");
+console.log("[pos_require_customer] FINAL FIX LOADED");
 
-// ─────────────────────────────────────────────────────────
-//  Dialog component
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Dialog Component
+// ─────────────────────────────────────────────
 export class CustomerRequiredDialog extends Component {
     static template = "pos_require_customer.CustomerRequiredDialog";
     static props = {
@@ -37,10 +26,9 @@ export class CustomerRequiredDialog extends Component {
     }
 }
 
-// ─────────────────────────────────────────────────────────
-//  noCustomer — checks order from pos service
-//  Used by ProductScreen / PaymentScreen (have this.pos)
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
 function noCustomer(pos) {
     try {
         const order =
@@ -48,39 +36,37 @@ function noCustomer(pos) {
             pos?.getOrder?.()  ||
             pos?.selectedOrder ||
             pos?.currentOrder;
+
         if (!order) return false;
+
         return !(
             order.get_partner?.() ||
             order.getPartner?.() ||
-            order.partner         ||
+            order.partner ||
             order.partner_id
         );
     } catch (e) {
-        console.warn("[pos_require_customer] noCustomer error:", e);
+        console.warn("noCustomer error:", e);
         return false;
     }
 }
 
-// ─────────────────────────────────────────────────────────
-//  noCustomerOnOrder — checks order directly
-//  Used by ActionpadWidget (has this.currentOrder, no this.pos)
-// ─────────────────────────────────────────────────────────
 function noCustomerOnOrder(order) {
     try {
         if (!order) return false;
+
         return !(
             order.get_partner?.() ||
             order.getPartner?.() ||
-            order.partner         ||
+            order.partner ||
             order.partner_id
         );
     } catch (e) {
-        console.warn("[pos_require_customer] noCustomerOnOrder error:", e);
+        console.warn("noCustomerOnOrder error:", e);
         return false;
     }
 }
 
-// Show the "Customer Required" popup
 async function showPopup(dialogService, body) {
     return new Promise((resolve) => {
         dialogService.add(CustomerRequiredDialog, {
@@ -91,31 +77,40 @@ async function showPopup(dialogService, body) {
     });
 }
 
-// ─────────────────────────────────────────────────────────
-//  Patch ActionpadWidget
-//  - this.pos is UNDEFINED here
-//  - use this.currentOrder directly instead
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// 🔥 CRITICAL FIX → BLOCK ALL ONE-CLICK PAYMENTS
+// ─────────────────────────────────────────────
+patch(PosStore.prototype, {
+    async addPaymentLine(paymentMethod) {
+        const order = this.get_order();
+
+        if (noCustomerOnOrder(order)) {
+            const dialog = this.env.services.dialog;
+            await showPopup(dialog, "Please select a customer before payment.");
+            return;
+        }
+
+        return super.addPaymentLine(...arguments);
+    },
+});
+
+// ─────────────────────────────────────────────
+// ActionpadWidget
+// ─────────────────────────────────────────────
 patch(ActionpadWidget.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
-        console.log("[pos_require_customer] ActionpadWidget patched ✓");
     },
 
-    /**
-     * CONFIRMED FIX — "Cash KDTY" / "Card KDTY" one-click pay buttons
-     * Uses this.currentOrder (not this.pos which is undefined here)
-     */
     async fastValidate(paymentMethod) {
         if (noCustomerOnOrder(this.currentOrder)) {
             await showPopup(this._rcDialog, "Please select a customer before payment.");
             return;
         }
-        return super.fastValidate?.(...arguments);
+        return super.fastValidate.apply(this, arguments);
     },
 
-    /** "Payment" button */
     async pay() {
         if (noCustomerOnOrder(this.currentOrder)) {
             await showPopup(this._rcDialog, "Please select a customer before payment.");
@@ -125,33 +120,36 @@ patch(ActionpadWidget.prototype, {
     },
 });
 
-// ─────────────────────────────────────────────────────────
-//  Patch ProductScreen — this.pos IS available here
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// ProductScreen
+// ─────────────────────────────────────────────
 patch(ProductScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
-        const pos    = this.pos;
+
+        const pos = this.pos;
         const dialog = this._rcDialog;
 
         if (pos?.pay && !pos.__rc_pay_wrapped__) {
-            const orig = pos.pay.bind(pos);
+            const original = pos.pay.bind(pos);
+
             pos.pay = async (...args) => {
                 if (noCustomer(pos)) {
                     await showPopup(dialog, "Please select a customer before payment.");
                     return;
                 }
-                return orig(...args);
+                return original(...args);
             };
+
             pos.__rc_pay_wrapped__ = true;
         }
     },
 });
 
-// ─────────────────────────────────────────────────────────
-//  Patch PaymentScreen — final safety net
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// PaymentScreen (Final Safety)
+// ─────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
@@ -172,5 +170,13 @@ patch(PaymentScreen.prototype, {
             return;
         }
         return super.validateOrderFast?.(...arguments);
+    },
+
+    async addNewPaymentLine(paymentMethod) {
+        if (noCustomer(this.pos)) {
+            await showPopup(this._rcDialog, "Please select a customer before payment.");
+            return;
+        }
+        return super.addNewPaymentLine(...arguments);
     },
 });
