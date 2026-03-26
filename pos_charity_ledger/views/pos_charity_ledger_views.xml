@@ -148,7 +148,24 @@
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No charity donations yet</p>
-            <p>Donations will appear here once customers donate from POS.</p>
+            <p>Donations will appear here once a POS session is closed.</p>
+        </field>
+    </record>
+
+    <!-- ==================== POS Session form — show pending charity ========= -->
+    <record id="view_pos_session_form_charity" model="ir.ui.view">
+        <field name="name">pos.session.form.charity</field>
+        <field name="model">pos.session</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_session_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='session_info']" position="inside">
+                <field name="charity_pending_amount" widget="monetary"
+                       string="Pending Charity (to post on close)"
+                       invisible="charity_pending_amount == 0"/>
+                <field name="charity_donation_total" widget="monetary"
+                       string="Total Charity Donated (posted)"
+                       invisible="charity_donation_total == 0"/>
+            </xpath>
         </field>
     </record>
 
