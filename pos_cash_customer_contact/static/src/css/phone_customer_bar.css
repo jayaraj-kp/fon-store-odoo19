@@ -44,7 +44,6 @@
     z-index: 9999; overflow: hidden; max-height: 320px; overflow-y: auto;
 }
 
-/* Regular search result row */
 .pcb-dropdown-item {
     display: flex; justify-content: space-between; align-items: center;
     padding: 9px 12px; cursor: pointer;
@@ -59,14 +58,9 @@
 }
 .pcb-item-phone { font-size: 12px; color: #64748b; white-space: nowrap; flex-shrink: 0; }
 
-/* Thin divider between results and create rows */
-.pcb-dropdown-divider {
-    height: 1px;
-    background: #e2e8f0;
-    margin: 0;
-}
+.pcb-dropdown-divider { height: 1px; background: #e2e8f0; margin: 0; }
 
-/* Create option rows — sit inside the same dropdown */
+/* Create option rows */
 .pcb-create-row {
     display: flex !important;
     align-items: center !important;
@@ -78,24 +72,10 @@
 }
 .pcb-create-row:last-child { border-bottom: none; }
 .pcb-create-row:hover { background: #eef2ff !important; }
+.pcb-create-icon { font-size: 14px; color: #6366f1; flex-shrink: 0; width: 18px; text-align: center; }
+.pcb-create-label { font-size: 13px; color: #6366f1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.pcb-create-icon {
-    font-size: 14px;
-    color: #6366f1;
-    flex-shrink: 0;
-    width: 18px;
-    text-align: center;
-}
-.pcb-create-label {
-    font-size: 13px;
-    color: #6366f1;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* ── Status badges ──────────────────────────────────────────── */
+/* Status */
 .pcb-status { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .pcb-found { color: #16a34a; }
 .pcb-notfound { color: #94a3b8; font-weight: 400; }
@@ -110,10 +90,7 @@
     border-bottom: 1px solid #e2e8f0;
     margin-bottom: 16px;
 }
-.ccd-type-opt {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: #64748b; cursor: pointer;
-}
+.ccd-type-opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748b; cursor: pointer; }
 .ccd-type-active { color: #6366f1; font-weight: 600; }
 .ccd-radio-dot {
     width: 14px; height: 14px; border-radius: 50%;
@@ -137,6 +114,31 @@
 .ccd-name { font-size: 20px; font-weight: 400; color: #94a3b8; }
 .ccd-name:focus { color: #1e293b; }
 .ccd-input::placeholder { color: #cbd5e1; }
+
+/* ── Auto Tag Badge ─────────────────────────────────────────── */
+.ccd-tag-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    flex-wrap: wrap;
+}
+.ccd-tag-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    background: #eef2ff;
+    border: 1px solid #a5b4fc;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4f46e5;
+}
+.ccd-tag-hint {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
+}
 
 .ccd-error {
     color: #ef4444; font-size: 12px;
