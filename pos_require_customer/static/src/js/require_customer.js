@@ -8,7 +8,10 @@ import { PaymentScreen }  from "@point_of_sale/app/screens/payment_screen/paymen
 import { ProductScreen }  from "@point_of_sale/app/screens/product_screen/product_screen";
 import { ActionpadWidget } from "@point_of_sale/app/screens/product_screen/action_pad/action_pad";
 
-console.log("[pos_require_customer] FINAL CLEAN VERSION LOADED");
+// ⚠️ Try this path first
+import { Order } from "@point_of_sale/app/models/order";
+
+console.log("[pos_require_customer] FINAL HARD BLOCK VERSION LOADED");
 
 // ─────────────────────────────────────────────
 // Dialog Component
@@ -28,47 +31,18 @@ export class CustomerRequiredDialog extends Component {
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
-function noCustomer(pos) {
-    try {
-        const order =
-            pos?.get_order?.() ||
-            pos?.getOrder?.()  ||
-            pos?.selectedOrder ||
-            pos?.currentOrder;
-
-        if (!order) return false;
-
-        return !(
-            order.get_partner?.() ||
-            order.getPartner?.() ||
-            order.partner ||
-            order.partner_id
-        );
-    } catch (e) {
-        console.warn("[pos_require_customer] noCustomer error:", e);
-        return false;
-    }
+function hasCustomer(order) {
+    return !!(
+        order?.get_partner?.() ||
+        order?.getPartner?.() ||
+        order?.partner ||
+        order?.partner_id
+    );
 }
 
-function noCustomerOnOrder(order) {
-    try {
-        if (!order) return false;
-
-        return !(
-            order.get_partner?.() ||
-            order.getPartner?.() ||
-            order.partner ||
-            order.partner_id
-        );
-    } catch (e) {
-        console.warn("[pos_require_customer] noCustomerOnOrder error:", e);
-        return false;
-    }
-}
-
-async function showPopup(dialogService, body) {
+async function showPopup(env, body) {
     return new Promise((resolve) => {
-        dialogService.add(CustomerRequiredDialog, {
+        env.services.dialog.add(CustomerRequiredDialog, {
             title: "Customer Required",
             body,
             close: resolve,
@@ -77,26 +51,46 @@ async function showPopup(dialogService, body) {
 }
 
 // ─────────────────────────────────────────────
-// ActionpadWidget (Pay + One-click trigger)
+// 🔥 MODEL LEVEL (MOST IMPORTANT)
+// Blocks ALL payment additions (including KDTY)
+// ─────────────────────────────────────────────
+patch(Order.prototype, {
+    add_paymentline(payment_method) {
+        if (!hasCustomer(this)) {
+            const env = this.env;
+
+            env.services.dialog.add(CustomerRequiredDialog, {
+                title: "Customer Required",
+                body: "Please select a customer before payment.",
+            });
+
+            return; // 🚫 BLOCK EVERYTHING HERE
+        }
+
+        return super.add_paymentline(...arguments);
+    },
+});
+
+// ─────────────────────────────────────────────
+// ActionpadWidget
 // ─────────────────────────────────────────────
 patch(ActionpadWidget.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
-        console.log("[pos_require_customer] ActionpadWidget patched ✓");
     },
 
     async fastValidate(paymentMethod) {
-        if (noCustomerOnOrder(this.currentOrder)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
+        if (!hasCustomer(this.currentOrder)) {
+            await showPopup(this.env, "Please select a customer before payment.");
             return;
         }
         return super.fastValidate.apply(this, arguments);
     },
 
     async pay() {
-        if (noCustomerOnOrder(this.currentOrder)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
+        if (!hasCustomer(this.currentOrder)) {
+            await showPopup(this.env, "Please select a customer before payment.");
             return;
         }
         return super.pay(...arguments);
@@ -104,22 +98,20 @@ patch(ActionpadWidget.prototype, {
 });
 
 // ─────────────────────────────────────────────
-// ProductScreen (extra safety)
+// ProductScreen
 // ─────────────────────────────────────────────
 patch(ProductScreen.prototype, {
     setup() {
         super.setup(...arguments);
-        this._rcDialog = useService("dialog");
 
         const pos = this.pos;
-        const dialog = this._rcDialog;
 
         if (pos?.pay && !pos.__rc_pay_wrapped__) {
             const original = pos.pay.bind(pos);
 
             pos.pay = async (...args) => {
-                if (noCustomer(pos)) {
-                    await showPopup(dialog, "Please select a customer before payment.");
+                if (!hasCustomer(pos.get_order())) {
+                    await showPopup(this.env, "Please select a customer before payment.");
                     return;
                 }
                 return original(...args);
@@ -131,34 +123,28 @@ patch(ProductScreen.prototype, {
 });
 
 // ─────────────────────────────────────────────
-// 🔥 MAIN FIX → One-click payments handled here
+// PaymentScreen (safety)
 // ─────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
-    setup() {
-        super.setup(...arguments);
-        this._rcDialog = useService("dialog");
-        console.log("[pos_require_customer] PaymentScreen patched ✓");
-    },
-
     async addNewPaymentLine(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
+        if (!hasCustomer(this.pos.get_order())) {
+            await showPopup(this.env, "Please select a customer before payment.");
             return;
         }
         return super.addNewPaymentLine(...arguments);
     },
 
     async validateOrder(isForceValidate) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before completing payment.");
+        if (!hasCustomer(this.pos.get_order())) {
+            await showPopup(this.env, "Please select a customer before completing payment.");
             return;
         }
         return super.validateOrder(...arguments);
     },
 
     async validateOrderFast() {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before completing payment.");
+        if (!hasCustomer(this.pos.get_order())) {
+            await showPopup(this.env, "Please select a customer before completing payment.");
             return;
         }
         return super.validateOrderFast?.(...arguments);
