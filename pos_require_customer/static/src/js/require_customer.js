@@ -1,14 +1,17 @@
 /** @odoo-module **/
 
 /**
- * POS Require Customer v11 — Odoo 19 CE
+ * POS Require Customer v13 — Odoo 19 CE
  *
- * Intercepts payment at ALL entry points:
- * 1. ActionpadWidget.pay()              ← "Payment" button
- * 2. ActionpadWidget.clickPaymentMethod() ← "Cash KDTY / Card KDTY" direct buttons  ✅ NEW
- * 3. ProductScreen payment methods
- * 4. PaymentScreen validation + payment methods
- * 5. pos.pay() / order method wrappers
+ * Root cause CONFIRMED via DOM event inspection:
+ *   "Cash KDTY" / "Card KDTY" buttons call:  fastValidate(paymentMethod)
+ *   "Payment" button calls:                  pay()
+ *   Both are on ActionpadWidget.
+ *
+ * Intercepts:
+ * 1. ActionpadWidget.fastValidate()  ← "Cash KDTY / Card KDTY"  ✅ CONFIRMED FIX
+ * 2. ActionpadWidget.pay()           ← "Payment" button
+ * 3. PaymentScreen.validateOrder()   ← Final validation safety net
  */
 
 import { patch }      from "@web/core/utils/patch";
@@ -18,7 +21,7 @@ import { PaymentScreen }  from "@point_of_sale/app/screens/payment_screen/paymen
 import { ProductScreen }  from "@point_of_sale/app/screens/product_screen/product_screen";
 import { ActionpadWidget } from "@point_of_sale/app/screens/product_screen/action_pad/action_pad";
 
-console.log("[pos_require_customer] v11 - ActionpadWidget interception loaded");
+console.log("[pos_require_customer] v13 - fastValidate interception loaded");
 
 // ─────────────────────────────────────────────────────────
 //  Dialog component
@@ -36,7 +39,7 @@ export class CustomerRequiredDialog extends Component {
 }
 
 // ─────────────────────────────────────────────────────────
-//  Helper — check customer on current order
+//  Helper — check if current order has no customer
 // ─────────────────────────────────────────────────────────
 function noCustomer(pos) {
     try {
@@ -58,7 +61,7 @@ function noCustomer(pos) {
     }
 }
 
-// Show the red "Customer Required" popup
+// Show the "Customer Required" popup
 async function showPopup(dialogService, body) {
     return new Promise((resolve) => {
         dialogService.add(CustomerRequiredDialog, {
@@ -71,18 +74,29 @@ async function showPopup(dialogService, body) {
 
 // ─────────────────────────────────────────────────────────
 //  Patch ActionpadWidget
-//  This is the component that renders:
-//    • the "Payment" button
-//    • direct payment buttons like "Cash KDTY", "Card KDTY"
 // ─────────────────────────────────────────────────────────
 patch(ActionpadWidget.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
-        console.log("[pos_require_customer] ActionpadWidget patched");
+        console.log("[pos_require_customer] ActionpadWidget patched ✓");
     },
 
-    /** Called when the big "Payment" button is clicked */
+    /**
+     * CONFIRMED FIX — handles "Cash KDTY" / "Card KDTY" one-click pay buttons
+     * DOM event: __event__click -> ()=>v5.fastValidate(v6)
+     */
+    async fastValidate(paymentMethod) {
+        if (noCustomer(this.pos)) {
+            await showPopup(this._rcDialog, "Please select a customer before payment.");
+            return;
+        }
+        return super.fastValidate?.(...arguments);
+    },
+
+    /**
+     * Handles the "Payment" button
+     */
     async pay() {
         if (noCustomer(this.pos)) {
             await showPopup(this._rcDialog, "Please select a customer before payment.");
@@ -90,42 +104,10 @@ patch(ActionpadWidget.prototype, {
         }
         return super.pay(...arguments);
     },
-
-    /**
-     * Called when a direct payment-method button is clicked
-     * (e.g. "Cash KDTY", "Card KDTY" shown at the bottom of the product screen)
-     */
-    async clickPaymentMethod(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(
-                this._rcDialog,
-                "Please select a customer before payment."
-            );
-            return;
-        }
-        return super.clickPaymentMethod?.(...arguments);
-    },
-
-    // Extra aliases used in some Odoo 19 builds
-    async selectPaymentMethod(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.selectPaymentMethod?.(...arguments);
-    },
-
-    async addPaymentLine(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.addPaymentLine?.(...arguments);
-    },
 });
 
 // ─────────────────────────────────────────────────────────
-//  Patch ProductScreen — secondary guard
+//  Patch ProductScreen — guard pos.pay() at service level
 // ─────────────────────────────────────────────────────────
 patch(ProductScreen.prototype, {
     setup() {
@@ -134,9 +116,8 @@ patch(ProductScreen.prototype, {
         const pos    = this.pos;
         const dialog = this._rcDialog;
 
-        // Wrap pos.pay() at the service level
         if (pos?.pay && !pos.__rc_pay_wrapped__) {
-            const orig  = pos.pay.bind(pos);
+            const orig = pos.pay.bind(pos);
             pos.pay = async (...args) => {
                 if (noCustomer(pos)) {
                     await showPopup(dialog, "Please select a customer before payment.");
@@ -146,134 +127,16 @@ patch(ProductScreen.prototype, {
             };
             pos.__rc_pay_wrapped__ = true;
         }
-
-        // Wrap pos.createPaymentLine() if present
-        if (pos?.createPaymentLine && !pos.__rc_create_payment_line_wrapped__) {
-            const orig  = pos.createPaymentLine.bind(pos);
-            pos.createPaymentLine = async (...args) => {
-                if (noCustomer(pos)) {
-                    await showPopup(dialog, "Please select a customer before adding payment.");
-                    return false;
-                }
-                return orig(...args);
-            };
-            pos.__rc_create_payment_line_wrapped__ = true;
-        }
-
-        // Wrap current order instance methods
-        const order = pos?.get_order?.() || pos?.getOrder?.() || pos?.selectedOrder;
-        if (order) {
-            if (order.addPaymentLine && !order.__rc_add_payment_wrapped__) {
-                const orig = order.addPaymentLine.bind(order);
-                order.addPaymentLine = async (...args) => {
-                    if (noCustomer(pos)) {
-                        await showPopup(dialog, "Please select a customer before adding payment.");
-                        return false;
-                    }
-                    return orig(...args);
-                };
-                order.__rc_add_payment_wrapped__ = true;
-            }
-
-            if (order.createPaymentLine && !order.__rc_create_payment_wrapped__) {
-                const orig = order.createPaymentLine.bind(order);
-                order.createPaymentLine = async (...args) => {
-                    if (noCustomer(pos)) {
-                        await showPopup(dialog, "Please select a customer before adding payment.");
-                        return false;
-                    }
-                    return orig(...args);
-                };
-                order.__rc_create_payment_wrapped__ = true;
-            }
-        }
-    },
-
-    async selectPaymentMethod(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.selectPaymentMethod?.(...arguments);
-    },
-
-    async clickPaymentMethod(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.clickPaymentMethod?.(...arguments);
-    },
-
-    async addPaymentLine(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before adding payment.");
-            return;
-        }
-        return super.addPaymentLine?.(...arguments);
-    },
-
-    async createPaymentLine(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before creating payment.");
-            return;
-        }
-        return super.createPaymentLine?.(...arguments);
-    },
-
-    async openPaymentInterfaceElectronically(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before card payment.");
-            return;
-        }
-        return super.openPaymentInterfaceElectronically?.(...arguments);
-    },
-
-    async addPayment(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.addPayment?.(...arguments);
     },
 });
 
 // ─────────────────────────────────────────────────────────
-//  Patch PaymentScreen — final safety net
+//  Patch PaymentScreen — safety net if user reaches it
 // ─────────────────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
-        const pos    = this.pos;
-        const dialog = this._rcDialog;
-
-        const order = pos?.get_order?.() || pos?.getOrder?.() || pos?.selectedOrder;
-        if (order) {
-            if (order.addPaymentLine && !order.__rc_add_payment_ps_wrapped__) {
-                const orig = order.addPaymentLine.bind(order);
-                order.addPaymentLine = async (...args) => {
-                    if (noCustomer(pos)) {
-                        await showPopup(dialog, "Please select a customer before adding payment.");
-                        return false;
-                    }
-                    return orig(...args);
-                };
-                order.__rc_add_payment_ps_wrapped__ = true;
-            }
-
-            if (order.createPaymentLine && !order.__rc_create_payment_ps_wrapped__) {
-                const orig = order.createPaymentLine.bind(order);
-                order.createPaymentLine = async (...args) => {
-                    if (noCustomer(pos)) {
-                        await showPopup(dialog, "Please select a customer before creating payment.");
-                        return false;
-                    }
-                    return orig(...args);
-                };
-                order.__rc_create_payment_ps_wrapped__ = true;
-            }
-        }
     },
 
     async validateOrder(isForceValidate) {
@@ -290,53 +153,5 @@ patch(PaymentScreen.prototype, {
             return;
         }
         return super.validateOrderFast?.(...arguments);
-    },
-
-    async selectPaymentMethod(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.selectPaymentMethod?.(...arguments);
-    },
-
-    async clickPaymentMethod(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.clickPaymentMethod?.(...arguments);
-    },
-
-    async addPaymentLine(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before adding payment.");
-            return;
-        }
-        return super.addPaymentLine?.(...arguments);
-    },
-
-    async createPaymentLine(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before creating payment.");
-            return;
-        }
-        return super.createPaymentLine?.(...arguments);
-    },
-
-    async openPaymentInterfaceElectronically(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before card payment.");
-            return;
-        }
-        return super.openPaymentInterfaceElectronically?.(...arguments);
-    },
-
-    async addPayment(paymentMethod) {
-        if (noCustomer(this.pos)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
-            return;
-        }
-        return super.addPayment?.(...arguments);
     },
 });
