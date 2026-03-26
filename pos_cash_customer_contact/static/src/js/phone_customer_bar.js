@@ -320,6 +320,7 @@
 //});
 
 /** @odoo-module **/
+/** @odoo-module **/
 
 import { Component, useState } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
@@ -364,27 +365,33 @@ export class CreateCustomerDialog extends Component {
         });
     }
 
-    // ✅ KEYBOARD SHORTCUTS
-mounted() {
-    this._onKeyDown = (ev) => {
-        if (ev.altKey && (ev.key === "c" || ev.key === "C")) {
-            ev.preventDefault();
-            this.onSave();
-        }
+    // ✅ Keyboard shortcuts (FINAL VERSION)
+    mounted() {
+        this._onKeyDown = (ev) => {
 
-        if (ev.key === "Escape") {
-            ev.preventDefault();
-            this.onDiscard();
-        }
-    };
+            // 🚫 prevent multiple clicks
+            if (this.form.saving) return;
 
-    // ✅ ADD `true` (capture mode)
-    window.addEventListener("keydown", this._onKeyDown, true);
-}
+            // ✅ ALT + C → Save
+            if (ev.altKey && (ev.key === "c" || ev.key === "C")) {
+                ev.preventDefault();
+                this.onSave();
+            }
 
-willUnmount() {
-    window.removeEventListener("keydown", this._onKeyDown, true);
-}
+            // ✅ ESC → Close dialog
+            if (ev.key === "Escape") {
+                ev.preventDefault();
+                this.onDiscard();
+            }
+        };
+
+        // ✅ capture mode (important fix)
+        window.addEventListener("keydown", this._onKeyDown, true);
+    }
+
+    willUnmount() {
+        window.removeEventListener("keydown", this._onKeyDown, true);
+    }
 
     async onSave() {
         this.form.error = "";
