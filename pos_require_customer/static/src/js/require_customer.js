@@ -61,31 +61,49 @@ patch(ActionpadWidget.prototype, {
     setup() {
         super.setup(...arguments);
         this._rcDialog = useService("dialog");
-        console.log("[pos_require_customer] ActionpadWidget patched ✓");
+        console.log("[pos_require_customer] ActionpadWidget HARD OVERRIDE ✓");
     },
 
-    // 🔥 ONE-CLICK PAYMENT FIX (Cash KDTY / Card KDTY)
     async fastValidate(paymentMethod) {
-        if (noCustomerOnOrder(this.currentOrder)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
+        if (
+            !(
+                this.currentOrder?.get_partner?.() ||
+                this.currentOrder?.getPartner?.() ||
+                this.currentOrder?.partner ||
+                this.currentOrder?.partner_id
+            )
+        ) {
+            await this._rcDialog.add(CustomerRequiredDialog, {
+                title: "Customer Required",
+                body: "Please select a customer before payment.",
+            });
 
-            // 🔥 HARD STOP (VERY IMPORTANT)
-            throw new Error("BLOCK PAYMENT - NO CUSTOMER");
+            // 🔥 DO NOT CALL SUPER → THIS IS THE KEY
+            return false;
         }
 
-        return super.fastValidate.apply(this, arguments);
+        // ✅ Only call original if customer exists
+        return await super.fastValidate.apply(this, arguments);
     },
 
-    // Payment button
     async pay() {
-        if (noCustomerOnOrder(this.currentOrder)) {
-            await showPopup(this._rcDialog, "Please select a customer before payment.");
+        if (
+            !(
+                this.currentOrder?.get_partner?.() ||
+                this.currentOrder?.getPartner?.() ||
+                this.currentOrder?.partner ||
+                this.currentOrder?.partner_id
+            )
+        ) {
+            await this._rcDialog.add(CustomerRequiredDialog, {
+                title: "Customer Required",
+                body: "Please select a customer before payment.",
+            });
 
-            // 🔥 HARD STOP
-            throw new Error("BLOCK PAYMENT - NO CUSTOMER");
+            return false;
         }
 
-        return super.pay(...arguments);
+        return await super.pay(...arguments);
     },
 });
 
