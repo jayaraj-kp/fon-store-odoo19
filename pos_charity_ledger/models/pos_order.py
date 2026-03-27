@@ -102,7 +102,6 @@
 #             _logger.info('Charity journal entry %s created for order %s', move.name, self.name)
 #         except Exception as e:
 #             _logger.error('Failed to create charity journal entry for order %s: %s', self.name, str(e))
-
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 import logging
