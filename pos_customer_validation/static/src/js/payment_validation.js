@@ -5,27 +5,23 @@ import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 
 patch(PaymentScreen.prototype, {
-    /**
-     * Override addPaymentLine to validate customer selection
-     * Prevents payment processing without a customer
-     */
-    async addPaymentLine(paymentMethod) {
-        // Get the currently selected customer
+
+    async validateOrder(isForceValidate) {
         const currentClient = this.pos.get_client();
-        
-        // Check if customer is selected
-        if (!currentClient) {
-            // Show popup warning
+
+        // Get config value (optional but recommended)
+        const requireCustomer = this.pos.config.require_customer_for_payment;
+
+        if (requireCustomer && !currentClient) {
             this.env.services.dialog.add(AlertDialog, {
                 title: '⚠️ Customer Required',
-                body: 'Please select a customer before proceeding with payment.',
+                body: 'Please select a customer before validating payment.',
             });
-            
-            // Block payment processing
-            return;
+
+            return; // ❌ BLOCK ORDER VALIDATION
         }
-        
-        // Customer is selected, proceed with payment
-        return super.addPaymentLine(...arguments);
+
+        return super.validateOrder(...arguments);
     },
+
 });
