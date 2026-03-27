@@ -36,6 +36,7 @@
 # -*- coding: utf-8 -*-
 # -*- coding: utf-8 -*-
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 {
     'name': 'POS Charity Ledger',
     'version': '19.0.1.0.0',
@@ -61,11 +62,9 @@
             'pos_charity_ledger/static/src/js/charity_popup.js',
             'pos_charity_ledger/static/src/js/charity_button.js',
             'pos_charity_ledger/static/src/js/charity_order_button_register.js',
-            # Patches pos_hr ClosePosPopup — which IS in the main POS bundle
             'pos_charity_ledger/static/src/js/charity_closing_popup.js',
             'pos_charity_ledger/static/src/xml/charity_button.xml',
             'pos_charity_ledger/static/src/xml/charity_popup.xml',
-            # Extends pos_hr.ClosePosPopup template with charity section
             'pos_charity_ledger/static/src/xml/charity_closing_popup.xml',
             'pos_charity_ledger/static/src/css/charity.css',
         ],

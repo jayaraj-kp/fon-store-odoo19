@@ -1,18 +1,19 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { ClosePosPopup } from "@pos_hr/app/components/popups/closing_popup/closing_popup";
+import { ClosePosPopup } from "@point_of_sale/app/components/popups/closing_popup/closing_popup";
 import { useState, onMounted } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
 /**
  * POS Charity — Closing Register Integration (Odoo 19 CE)
  *
- * We patch pos_hr's ClosePosPopup (which IS in the main POS bundle)
- * to inject charity totals into the closing register dialog.
+ * Correct import path (confirmed via console):
+ *   @point_of_sale/app/components/popups/closing_popup/closing_popup  ✓
  *
- * The companion XML (charity_closing_popup.xml) extends the
- * pos_hr closing popup template to render the charity section.
+ * This patches ClosePosPopup to inject charityData and
+ * charityAmountFormatted into the component so the XML template
+ * can render the charity section inside the Closing Register dialog.
  */
 patch(ClosePosPopup.prototype, {
 
