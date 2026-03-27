@@ -2,13 +2,14 @@
 <templates xml:space="preserve">
 
     <!--
-        Extend ClosePosPopup to show charity donations summary
-        inside the Closing Register dialog, above the closing note textarea.
+        Extend pos_hr's ClosePosPopup template (which is the final rendered
+        template in Odoo 19 CE when pos_hr is installed).
+        Target: the .closing-notes textarea confirmed in DOM inspection.
     -->
-    <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
-        <xpath expr="//textarea" position="before">
+    <t t-inherit="pos_hr.ClosePosPopup" t-inherit-mode="extension">
+        <xpath expr="//textarea[hasclass('closing-notes')]" position="before">
             <t t-if="charityData and charityData.total > 0">
-                <div class="charity-closing-section">
+                <div class="charity-closing-section mb-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="charity-closing-title">
                             <i class="fa fa-heart me-2" style="color:#e74c3c;"/>
