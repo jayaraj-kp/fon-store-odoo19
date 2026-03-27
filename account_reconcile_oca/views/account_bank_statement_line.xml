@@ -37,16 +37,22 @@
                                 <field name="date"/>
                             </div>
                             <div class="col-4" style="text-align:right">
-                                <field
-                                        name="amount"
+                                <span
                                         t-if="!record.foreign_currency_id.raw_value"
-                                />
-                                <field
-                                        name="amount_currency"
+                                        t-att-class="record.amount.raw_value &lt; 0 ? 'o_reconcile_amount_negative' : 'o_reconcile_amount_positive'"
+                                >
+                                    <field name="amount"/>
+                                </span>
+                                <span
                                         t-if="record.foreign_currency_id.raw_value"
-                                        widget="monetary"
-                                        options="{'currency_field': 'foreign_currency_id'}"
-                                />
+                                        t-att-class="record.amount_currency.raw_value &lt; 0 ? 'o_reconcile_amount_negative' : 'o_reconcile_amount_positive'"
+                                >
+                                    <field
+                                            name="amount_currency"
+                                            widget="monetary"
+                                            options="{'currency_field': 'foreign_currency_id'}"
+                                    />
+                                </span>
                             </div>
                         </div>
 

@@ -40,6 +40,7 @@
             "account_reconcile_oca/static/src/js/reconcile/*.esm.js",
             "account_reconcile_oca/static/src/xml/reconcile.xml",
             "account_reconcile_oca/static/src/scss/reconcile.scss",
+            'account_reconcile_oca/static/src/css/reconcile_custom.css',
         ],
     },
 }

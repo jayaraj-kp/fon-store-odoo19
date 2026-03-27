@@ -1,0 +1,21 @@
+/* ── Negative amounts → Red ── */
+.o_account_reconcile_oca_selector .o_kanban_record
+    .o_reconcile_amount_negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* ── Positive amounts → normal dark ── */
+.o_account_reconcile_oca_selector .o_kanban_record
+    .o_reconcile_amount_positive {
+    color: inherit;
+}
+
+/* ── Selected card: amount turns blue ── */
+.o_account_reconcile_oca_selector .o_kanban_record.o_current
+    .o_reconcile_amount_negative,
+.o_account_reconcile_oca_selector .o_kanban_record.o_current
+    .o_reconcile_amount_positive {
+    color: #0d6efd !important;
+    font-weight: 700;
+}
