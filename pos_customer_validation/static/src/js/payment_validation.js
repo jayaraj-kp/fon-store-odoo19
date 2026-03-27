@@ -5,20 +5,27 @@ import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 
 patch(PaymentScreen.prototype, {
+    /**
+     * Override addPaymentLine to validate customer selection
+     * Prevents payment processing without a customer
+     */
     async addPaymentLine(paymentMethod) {
+        // Get the currently selected customer
         const currentClient = this.pos.get_client();
         
-        // Check if customer is selected before processing payment
+        // Check if customer is selected
         if (!currentClient) {
-            // Show warning dialog
+            // Show popup warning
             this.env.services.dialog.add(AlertDialog, {
-                title: 'Missing Customer',
-                body: 'Please select a customer before proceeding with payment (Cash KDTY or Card KDTY).',
+                title: '⚠️ Customer Required',
+                body: 'Please select a customer before proceeding with payment.',
             });
+            
+            // Block payment processing
             return;
         }
         
-        // If customer is selected, proceed with original method
+        // Customer is selected, proceed with payment
         return super.addPaymentLine(...arguments);
     },
 });
