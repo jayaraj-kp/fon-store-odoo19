@@ -2,26 +2,79 @@
 
 console.log("✅ POS Customer Validation JS LOADED");
 
-import { patch } from "@web/core/utils/patch";
-import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
-import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+/**
+ * This script blocks:
+ * - Cash KDTY
+ * - Card KDTY
+ * (fast-pay-button / one-click payments)
+ * if NO customer is selected
+ */
 
-patch(PaymentScreen.prototype, {
-    async validateOrder(isForceValidate) {
+(function () {
 
-        console.log("🔥 validateOrder triggered");
+    function getPosInstance() {
+        try {
+            const posRoot = document.querySelector(".pos");
 
-        const currentClient = this.pos.get_client();
-        const requireCustomer = this.pos.config.require_customer_for_payment;
+            if (!posRoot || !posRoot.__owl__) {
+                console.log("❌ POS root or OWL not found");
+                return null;
+            }
 
-        if (requireCustomer && !currentClient) {
-            this.env.services.dialog.add(AlertDialog, {
-                title: 'Customer Required',
-                body: 'Please select a customer before payment.',
-            });
-            return;
+            let comp = posRoot.__owl__;
+
+            // Walk up component tree to find env.pos
+            while (comp && !comp.env?.pos) {
+                comp = comp.parent;
+            }
+
+            if (!comp || !comp.env?.pos) {
+                console.log("❌ POS instance not found");
+                return null;
+            }
+
+            return comp.env.pos;
+
+        } catch (err) {
+            console.log("ERROR getting POS:", err);
+            return null;
+        }
+    }
+
+    function handleFastPayClick(event) {
+        const button = event.target.closest(".fast-pay-button");
+
+        if (!button) return;
+
+        console.log("🔥 Fast Pay Click:", button.innerText);
+
+        const pos = getPosInstance();
+
+        if (!pos) return;
+
+        const order = pos.get_order();
+        if (!order) return;
+
+        const customer = order.get_partner();
+
+        console.log("👤 Customer:", customer);
+
+        // 🔴 BLOCK if no customer
+        if (!customer) {
+            console.log("⛔ Blocking payment - No customer");
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            alert("⚠️ Please select a customer before proceeding with payment.");
+
+            return false;
         }
 
-        return super.validateOrder(...arguments);
-    },
-});
+        console.log("✅ Customer found, allow payment");
+    }
+
+    // Attach global click listener
+    document.addEventListener("click", handleFastPayClick);
+
+})();
