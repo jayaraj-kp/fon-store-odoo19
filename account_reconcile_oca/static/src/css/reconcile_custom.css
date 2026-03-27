@@ -11,10 +11,19 @@
     color: inherit;
 }
 
-/* ── Selected card: amount turns blue ── */
-.o_account_reconcile_oca_selector .o_kanban_record.o_current
+/* ── Selected card highlight ── */
+.o_account_reconcile_oca_selector
+    .o_kanban_record_reconcile_oca_selected {
+    border-left: 3px solid #0d6efd !important;
+    background-color: #f0f5ff !important;
+}
+
+/* ── Selected card: amount turns blue (both negative and positive) ── */
+.o_account_reconcile_oca_selector
+    .o_kanban_record_reconcile_oca_selected
     .o_reconcile_amount_negative,
-.o_account_reconcile_oca_selector .o_kanban_record.o_current
+.o_account_reconcile_oca_selector
+    .o_kanban_record_reconcile_oca_selected
     .o_reconcile_amount_positive {
     color: #0d6efd !important;
     font-weight: 700;
