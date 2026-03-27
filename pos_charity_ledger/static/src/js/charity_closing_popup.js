@@ -4,15 +4,15 @@ import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
 
 /**
- * POS Charity — Closing Register Reminder  (Odoo 19 CE)
+ * POS Charity — Closing Register Reminder (Odoo 19 CE)
  *
  * Patches PosStore.closePos() to show a sticky warning notification
- * before the closing dialog opens, telling the cashier how much
- * charity cash to remove from the drawer before counting.
+ * before the closing dialog opens.
  *
- * Correct import path in Odoo 19 CE:
- *   @point_of_sale/app/services/pos_store   ✓
- *   @point_of_sale/app/store/pos_store      ✗  (old path, causes error)
+ * KEY FIX: Because pos_hr also overrides PosStore, `this` inside the
+ * patch may not expose .config / .session directly. We always read
+ * the live POS service from this.env.services.pos which is guaranteed
+ * to be the fully-initialized reactive store instance.
  */
 patch(PosStore.prototype, {
 
@@ -23,18 +23,20 @@ patch(PosStore.prototype, {
 
     async _showCharityCloseReminder() {
         try {
-            if (!this.config || !this.config.charity_enabled) {
+            // Always use env.services.pos — works even with pos_hr override chain
+            const pos = this.env.services.pos;
+            if (!pos) return;
+
+            const config = pos.config;
+            if (!config || !config.charity_enabled) {
                 return;
             }
-        } catch (_) {
-            return;
-        }
 
-        try {
-            const sessionId = this.session?.id;
+            const sessionId = pos.session?.id;
             if (!sessionId) return;
 
-            const result = await this.env.services.orm.call(
+            const orm = this.env.services.orm;
+            const result = await orm.call(
                 "pos.session",
                 "get_charity_totals",
                 [[sessionId]]
@@ -44,7 +46,7 @@ patch(PosStore.prototype, {
                 return;
             }
 
-            const currency = this.currency;
+            const currency = pos.currency;
             const symbol   = currency?.symbol ?? "₹";
             const dp       = currency?.decimal_places ?? 2;
             const total    = result.total.toFixed(dp);
