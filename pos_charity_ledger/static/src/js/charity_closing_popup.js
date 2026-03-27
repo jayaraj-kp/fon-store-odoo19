@@ -1,50 +1,27 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { PosStore } from "@point_of_sale/app/store/pos_store";
+import { PosStore } from "@point_of_sale/app/services/pos_store";
 
 /**
  * POS Charity — Closing Register Reminder  (Odoo 19 CE)
  *
- * WHY we patch PosStore and NOT ClosePosPopup:
- * -----------------------------------------------
- * In Odoo 19 CE the Closing Register dialog (ClosePosPopup) is rendered
- * inside the "point_of_sale._assets_pos_closing" bundle, which is a
- * SEPARATE lazy-loaded bundle.  Any attempt to import it from the main
- * "point_of_sale._assets_pos" bundle causes:
+ * Patches PosStore.closePos() to show a sticky warning notification
+ * before the closing dialog opens, telling the cashier how much
+ * charity cash to remove from the drawer before counting.
  *
- *   "The following modules are needed but have not been defined …
- *    @point_of_sale/app/navbar/closing_popup/closing_popup"
- *
- * PosStore IS part of the main POS bundle and is safe to patch here.
- *
- * WHAT this does:
- * ---------------
- * Before the closing dialog opens we fetch live charity totals via RPC
- * and show a STICKY WARNING notification so the cashier knows:
- *   • How much charity cash was collected this session.
- *   • To remove that amount from the drawer BEFORE counting.
- *
- * The sticky notification stays on screen while the cashier works
- * through the Closing Register dialog — they cannot miss it.
+ * Correct import path in Odoo 19 CE:
+ *   @point_of_sale/app/services/pos_store   ✓
+ *   @point_of_sale/app/store/pos_store      ✗  (old path, causes error)
  */
 patch(PosStore.prototype, {
 
-    /**
-     * Override closePos() to inject the charity reminder BEFORE the
-     * closing dialog is shown.
-     */
     async closePos() {
         await this._showCharityCloseReminder();
         return super.closePos(...arguments);
     },
 
-    /**
-     * Fetch charity totals for the current session via RPC.
-     * Displays a sticky warning notification when total > 0.
-     */
     async _showCharityCloseReminder() {
-        // Skip silently if charity feature is disabled for this POS
         try {
             if (!this.config || !this.config.charity_enabled) {
                 return;
@@ -67,7 +44,6 @@ patch(PosStore.prototype, {
                 return;
             }
 
-            // Format the amount using POS currency settings
             const currency = this.currency;
             const symbol   = currency?.symbol ?? "₹";
             const dp       = currency?.decimal_places ?? 2;
@@ -75,7 +51,6 @@ patch(PosStore.prototype, {
             const count    = result.count || 0;
             const word     = count === 1 ? "donation" : "donations";
 
-            // Sticky notification — stays visible until cashier dismisses it
             this.env.services.notification.add(
                 `❤  Charity collected this session: ${symbol}${total}` +
                 ` (${count} ${word}).` +
@@ -89,7 +64,6 @@ patch(PosStore.prototype, {
             );
 
         } catch (err) {
-            // Non-fatal — log and let normal close flow continue
             console.warn(
                 "[POS Charity] Could not fetch charity totals for close reminder:",
                 err
