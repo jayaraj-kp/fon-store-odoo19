@@ -1,79 +1,96 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { PosStore } from "@point_of_sale/app/store/pos_store";
+import { ClosePosPopup } from "@point_of_sale/app/navbar/closing_popup/closing_popup";
+import { onMounted, useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
 /**
- * POS Charity — Closing Reminder
+ * POS Charity — Closing Register Integration (Odoo 19 CE)
  *
- * We patch PosStore.closePos() so that BEFORE the closing register dialog
- * opens, a sticky warning tells the cashier exactly how much charity cash
- * to physically remove from the drawer before counting.
+ * Patches ClosePosPopup directly so we can:
+ *  1. Inject charityData (total + count) into the component state via RPC.
+ *  2. Expose charityAmountFormatted for the template.
  *
- * Why PosStore instead of ClosePosPopup?
- * ClosePosPopup lives in a different asset bundle in Odoo 19 CE and cannot
- * be imported from the POS session bundle — doing so causes the
- * "module not defined" error. PosStore is part of the core POS session
- * bundle and is safe to patch.
+ * The companion XML (charity_closing_popup.xml) uses t-inherit on
+ * "point_of_sale.ClosePosPopup" to insert the charity section before
+ * the closing-note textarea, reading charityData from the component.
  */
-patch(PosStore.prototype, {
+patch(ClosePosPopup.prototype, {
 
-    /**
-     * Override closePos to inject the charity reminder before
-     * the closing dialog is shown to the cashier.
-     */
-    async closePos() {
-        await this._showCharityCloseReminder();
-        return super.closePos(...arguments);
+    setup() {
+        super.setup(...arguments);
+
+        // Reactive state for charity totals — starts empty/zero
+        this.charityState = useState({
+            total: 0,
+            count: 0,
+            loaded: false,
+        });
+
+        // We need orm service to call the backend
+        this.orm = useService("orm");
+
+        // Load charity totals as soon as the popup mounts
+        onMounted(() => this._loadCharityTotals());
     },
 
     /**
-     * Fetch charity totals for this session via RPC and display
-     * a sticky notification if there are any donations.
-     *
-     * Using an RPC call (rather than cached session data) guarantees
-     * we always show the live total even for donations made after
-     * the session was first loaded.
+     * Fetch live charity totals for the current session from the backend.
+     * Uses the get_charity_totals() method on pos.session.
      */
-    async _showCharityCloseReminder() {
-        // Skip if charity is not enabled for this POS config
-        if (!this.config || !this.config.charity_enabled) {
-            return;
-        }
-
+    async _loadCharityTotals() {
         try {
-            const result = await this.env.services.orm.call(
-                "pos.session",
-                "get_charity_totals",
-                [[this.session.id]]
-            );
-
-            if (!result || !(result.total > 0)) {
+            // Only fetch if charity is enabled on this POS config
+            const pos = this.pos;
+            if (!pos || !pos.config || !pos.config.charity_enabled) {
                 return;
             }
 
-            const currency      = this.currency;
-            const symbol        = (currency && currency.symbol)               || "₹";
-            const dp            = (currency && currency.decimal_places != null)
-                                      ? currency.decimal_places : 2;
-            const total         = result.total.toFixed(dp);
-            const count         = result.count;
-            const donationWord  = count === 1 ? "donation" : "donations";
+            const sessionId = pos.session?.id;
+            if (!sessionId) return;
 
-            this.env.services.notification.add(
-                `❤  Charity collected this session: ${symbol}${total}` +
-                ` (${count} ${donationWord}). ` +
-                `Please remove ${symbol}${total} from the cash drawer before counting.`,
-                {
-                    title:  "Charity Donations — Action Required",
-                    type:   "warning",
-                    sticky: true,   // stays visible until cashier dismisses it
-                }
+            const result = await this.orm.call(
+                "pos.session",
+                "get_charity_totals",
+                [[sessionId]]
             );
 
+            if (result && result.total > 0) {
+                this.charityState.total = result.total;
+                this.charityState.count = result.count;
+            }
+            this.charityState.loaded = true;
+
         } catch (e) {
-            // Non-fatal — log and continue with normal close flow
-            console.warn("[POS Charity] Could not load charity totals for close reminder:", e);
+            console.warn("[POS Charity] Could not load charity totals for closing popup:", e);
+            this.charityState.loaded = true;
         }
+    },
+
+    /**
+     * Expose charityData to the template (mirrors old charityData prop pattern).
+     * Returns null when charity is disabled or no donations found.
+     */
+    get charityData() {
+        if (!this.charityState.loaded || this.charityState.total <= 0) {
+            return null;
+        }
+        return {
+            total: this.charityState.total,
+            count: this.charityState.count,
+        };
+    },
+
+    /**
+     * Formatted charity amount string, e.g. "₹4.00"
+     */
+    get charityAmountFormatted() {
+        const data = this.charityData;
+        if (!data) return "";
+        const pos = this.pos;
+        const symbol = pos?.currency?.symbol || "₹";
+        const dp = pos?.currency?.decimal_places ?? 2;
+        return symbol + data.total.toFixed(dp);
     },
 });
