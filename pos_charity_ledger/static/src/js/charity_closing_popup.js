@@ -1,96 +1,99 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { ClosePosPopup } from "@point_of_sale/app/navbar/closing_popup/closing_popup";
-import { onMounted, useState } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks";
+import { PosStore } from "@point_of_sale/app/store/pos_store";
 
 /**
- * POS Charity — Closing Register Integration (Odoo 19 CE)
+ * POS Charity — Closing Register Reminder  (Odoo 19 CE)
  *
- * Patches ClosePosPopup directly so we can:
- *  1. Inject charityData (total + count) into the component state via RPC.
- *  2. Expose charityAmountFormatted for the template.
+ * WHY we patch PosStore and NOT ClosePosPopup:
+ * -----------------------------------------------
+ * In Odoo 19 CE the Closing Register dialog (ClosePosPopup) is rendered
+ * inside the "point_of_sale._assets_pos_closing" bundle, which is a
+ * SEPARATE lazy-loaded bundle.  Any attempt to import it from the main
+ * "point_of_sale._assets_pos" bundle causes:
  *
- * The companion XML (charity_closing_popup.xml) uses t-inherit on
- * "point_of_sale.ClosePosPopup" to insert the charity section before
- * the closing-note textarea, reading charityData from the component.
+ *   "The following modules are needed but have not been defined …
+ *    @point_of_sale/app/navbar/closing_popup/closing_popup"
+ *
+ * PosStore IS part of the main POS bundle and is safe to patch here.
+ *
+ * WHAT this does:
+ * ---------------
+ * Before the closing dialog opens we fetch live charity totals via RPC
+ * and show a STICKY WARNING notification so the cashier knows:
+ *   • How much charity cash was collected this session.
+ *   • To remove that amount from the drawer BEFORE counting.
+ *
+ * The sticky notification stays on screen while the cashier works
+ * through the Closing Register dialog — they cannot miss it.
  */
-patch(ClosePosPopup.prototype, {
+patch(PosStore.prototype, {
 
-    setup() {
-        super.setup(...arguments);
-
-        // Reactive state for charity totals — starts empty/zero
-        this.charityState = useState({
-            total: 0,
-            count: 0,
-            loaded: false,
-        });
-
-        // We need orm service to call the backend
-        this.orm = useService("orm");
-
-        // Load charity totals as soon as the popup mounts
-        onMounted(() => this._loadCharityTotals());
+    /**
+     * Override closePos() to inject the charity reminder BEFORE the
+     * closing dialog is shown.
+     */
+    async closePos() {
+        await this._showCharityCloseReminder();
+        return super.closePos(...arguments);
     },
 
     /**
-     * Fetch live charity totals for the current session from the backend.
-     * Uses the get_charity_totals() method on pos.session.
+     * Fetch charity totals for the current session via RPC.
+     * Displays a sticky warning notification when total > 0.
      */
-    async _loadCharityTotals() {
+    async _showCharityCloseReminder() {
+        // Skip silently if charity feature is disabled for this POS
         try {
-            // Only fetch if charity is enabled on this POS config
-            const pos = this.pos;
-            if (!pos || !pos.config || !pos.config.charity_enabled) {
+            if (!this.config || !this.config.charity_enabled) {
                 return;
             }
+        } catch (_) {
+            return;
+        }
 
-            const sessionId = pos.session?.id;
+        try {
+            const sessionId = this.session?.id;
             if (!sessionId) return;
 
-            const result = await this.orm.call(
+            const result = await this.env.services.orm.call(
                 "pos.session",
                 "get_charity_totals",
                 [[sessionId]]
             );
 
-            if (result && result.total > 0) {
-                this.charityState.total = result.total;
-                this.charityState.count = result.count;
+            if (!result || !(result.total > 0)) {
+                return;
             }
-            this.charityState.loaded = true;
 
-        } catch (e) {
-            console.warn("[POS Charity] Could not load charity totals for closing popup:", e);
-            this.charityState.loaded = true;
+            // Format the amount using POS currency settings
+            const currency = this.currency;
+            const symbol   = currency?.symbol ?? "₹";
+            const dp       = currency?.decimal_places ?? 2;
+            const total    = result.total.toFixed(dp);
+            const count    = result.count || 0;
+            const word     = count === 1 ? "donation" : "donations";
+
+            // Sticky notification — stays visible until cashier dismisses it
+            this.env.services.notification.add(
+                `❤  Charity collected this session: ${symbol}${total}` +
+                ` (${count} ${word}).` +
+                `  ⚠ Please remove ${symbol}${total} from the cash drawer` +
+                ` before counting cash.`,
+                {
+                    title:  "Charity Donations — Action Required",
+                    type:   "warning",
+                    sticky: true,
+                }
+            );
+
+        } catch (err) {
+            // Non-fatal — log and let normal close flow continue
+            console.warn(
+                "[POS Charity] Could not fetch charity totals for close reminder:",
+                err
+            );
         }
-    },
-
-    /**
-     * Expose charityData to the template (mirrors old charityData prop pattern).
-     * Returns null when charity is disabled or no donations found.
-     */
-    get charityData() {
-        if (!this.charityState.loaded || this.charityState.total <= 0) {
-            return null;
-        }
-        return {
-            total: this.charityState.total,
-            count: this.charityState.count,
-        };
-    },
-
-    /**
-     * Formatted charity amount string, e.g. "₹4.00"
-     */
-    get charityAmountFormatted() {
-        const data = this.charityData;
-        if (!data) return "";
-        const pos = this.pos;
-        const symbol = pos?.currency?.symbol || "₹";
-        const dp = pos?.currency?.decimal_places ?? 2;
-        return symbol + data.total.toFixed(dp);
     },
 });
