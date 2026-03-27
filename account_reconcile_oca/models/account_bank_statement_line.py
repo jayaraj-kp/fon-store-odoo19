@@ -308,7 +308,7 @@ class AccountBankStatementLine(models.Model):
                     "account_id": [account.id, account.display_name],
                     "partner_id": self.partner_id
                     and [self.partner_id.id, self.partner_id.display_name]
-                    or (self.partner_name and (False, self.partner_name))
+                    
                     or False,
                     "date": fields.Date.to_string(self.date),
                     "name": self.payment_ref or self.name,
@@ -445,7 +445,7 @@ class AccountBankStatementLine(models.Model):
             "partner_id": (
                 self.manual_partner_id
                 and [self.manual_partner_id.id, self.manual_partner_id.display_name]
-                or (self.partner_name and (False, self.partner_name))
+                
                 or False
             ),
             "account_id": (
@@ -1220,7 +1220,7 @@ class AccountBankStatementLine(models.Model):
         for vals in new_vals:
             rate = False
             if vals["partner_id"] is False:
-                vals["partner_id"] = (False, self.partner_name)
+                vals["partner_id"] = False
             if vals.get("kind") not in ("suspense", "liquidity"):
                 reconcile_auxiliary_id, rate = self._compute_exchange_rate(
                     vals, line, reconcile_auxiliary_id

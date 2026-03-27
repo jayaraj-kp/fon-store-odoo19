@@ -94,8 +94,8 @@
         >
             <thead>
                 <th>Account</th>
-                <th>Partner</th>
                 <th>Date</th>
+                <th>Partner</th>
                 <th>Label</th>
                 <th class="text-end" t-if="foreignCurrency">
                     Amount in currency
@@ -127,13 +127,13 @@
                                 </a>
                             </div>
                         </td>
+                        <td t-esc="reconcile_line.date_format" />
                         <td>
                             <span
                                 t-esc="reconcile_line.partner_id[1]"
                                 t-if="reconcile_line.partner_id and reconcile_line.partner_id[1]"
                             />
                         </td>
-                        <td t-esc="reconcile_line.date_format" />
                         <td>
                             <span
                                 t-esc="reconcile_line.name"
