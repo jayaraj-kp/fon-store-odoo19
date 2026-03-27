@@ -1208,6 +1208,30 @@ class AccountBankStatementLine(models.Model):
         self.ensure_one()
         self.move_id.write({"checked": True})
 
+    def action_create_reconcile_model(self):
+        self.ensure_one()
+        return {
+                "type": "ir.actions.act_window",
+                "name": "Create Reconciliation Model",
+                "res_model": "account.reconcile.model",
+                "view_mode": "form",
+                "target": "current",
+                "context": {
+                    "default_company_id": self.company_id.id,
+                },
+            }
+
+    def action_view_reconcile_models(self):
+        self.ensure_one()
+        return {
+                "type": "ir.actions.act_window",
+                "name": "Reconciliation Models",
+                "res_model": "account.reconcile.model",
+                "view_mode": "list,form",
+                "target": "current",
+                "domain": [("company_id", "=", self.company_id.id)],
+            }
+
     def _get_reconcile_line(
         self,
         line,

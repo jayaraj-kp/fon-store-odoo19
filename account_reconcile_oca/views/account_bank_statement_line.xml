@@ -204,6 +204,38 @@
                                 string="View move"
                                 class="btn btn-info mx-1"
                         />
+                        <!-- ADD THIS BLOCK at the end -->
+                        <div class="btn-group ms-1">
+                            <button
+                                    type="button"
+                                    class="btn btn-secondary dropdown-toggle"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                    title="Settings"
+                            >
+                                <i class="fa fa-cog"/>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <button
+                                            name="action_create_reconcile_model"
+                                            type="object"
+                                            class="dropdown-item"
+                                    >
+                                        Create model
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                            name="action_view_reconcile_models"
+                                            type="object"
+                                            class="dropdown-item"
+                                    >
+                                        View models
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 <field name="id" invisible="1"/>
