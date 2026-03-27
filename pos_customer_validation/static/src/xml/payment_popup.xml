@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    
+    <t t-name="pos_customer_validation.CustomerValidationPopup" owl="1">
+        <div class="popup-overlay">
+            <div class="validation-popup">
+                <div class="popup-header">
+                    <h3>⚠️ Customer Required</h3>
+                </div>
+                <div class="popup-body">
+                    <p>Please select a customer before proceeding with payment.</p>
+                    <p>This is required for Cash KDTY and Card KDTY payment methods.</p>
+                </div>
+                <div class="popup-footer">
+                    <button class="btn btn-primary" t-on-click="close">OK</button>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>
