@@ -16,12 +16,8 @@
     'installable': True,
     'application': False,
     'assets': {
-        'point_of_sale.assets_prod': [
-            'pos_customer_validation/static/src/js/payment_validation.js',
-            'pos_customer_validation/static/src/xml/payment_popup.xml',
-        ],
-        'web.assets_backend': [
-            'pos_customer_validation/static/src/css/style.css',
-        ],
-    },
+    'point_of_sale.assets': [
+        'pos_customer_validation/static/src/js/payment_validation.js',
+    ],
+},
 }
