@@ -58,6 +58,13 @@ class AccountBankStatementLine(models.Model):
         default=False,
         prefetch=False,
     )
+    manual_tax_ids = fields.Many2many(
+        "account.tax",
+        string="Taxes",
+        store=False,
+        default=False,
+        prefetch=False,
+    )
     analytic_precision = fields.Integer(
         store=False,
         default=lambda self: self.env["decimal.precision"].precision_get(
@@ -345,6 +352,7 @@ class AccountBankStatementLine(models.Model):
             )
             != line.get("partner_id")
             or self.analytic_distribution != line.get("analytic_distribution", False)
+            or self.manual_tax_ids.ids != line.get("tax_ids", [])
         )
 
     def _check_reconcile_data_changed(self):
@@ -386,6 +394,7 @@ class AccountBankStatementLine(models.Model):
             "manual_original_amount": False,
             "manual_currency_id": False,
             "analytic_distribution": False,
+            "manual_tax_ids": False,
         }
 
     def _process_manual_reconcile_from_line(self, line):
@@ -404,6 +413,7 @@ class AccountBankStatementLine(models.Model):
         manual_line = self.env["account.move.line"].browse(line["id"]).exists()
         self.manual_line_id = manual_line
         self.analytic_distribution = line.get("analytic_distribution", {})
+        self.manual_tax_ids = [Command.set(line.get("tax_ids", []))]
         if self.manual_line_id:
             self.manual_move_id = self.manual_line_id.move_id
             self.manual_move_type = self.manual_line_id.move_id.move_type
@@ -457,6 +467,7 @@ class AccountBankStatementLine(models.Model):
             "credit": -self.manual_amount if self.manual_amount < 0 else 0.0,
             "debit": self.manual_amount if self.manual_amount > 0 else 0.0,
             "analytic_distribution": self.analytic_distribution,
+            "tax_ids": self.manual_tax_ids.ids,
             "currency_amount": self.manual_amount_in_currency,
         }
         liquidity_lines, _suspense_lines, _other_lines = self._seek_for_lines()
@@ -480,6 +491,7 @@ class AccountBankStatementLine(models.Model):
         "manual_amount",
         "analytic_distribution",
         "manual_amount_in_currency",
+        "manual_tax_ids",
     )
     def _onchange_manual_reconcile_vals(self):
         self.ensure_one()
