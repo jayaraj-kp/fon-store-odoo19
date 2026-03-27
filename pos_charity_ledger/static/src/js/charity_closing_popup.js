@@ -1,78 +1,85 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { PosStore } from "@point_of_sale/app/services/pos_store";
+import { ClosePosPopup } from "@pos_hr/app/components/popups/closing_popup/closing_popup";
+import { useState, onMounted } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
 /**
- * POS Charity — Closing Register Reminder (Odoo 19 CE)
+ * POS Charity — Closing Register Integration (Odoo 19 CE)
  *
- * Patches PosStore.closePos() to show a sticky warning notification
- * before the closing dialog opens, telling the cashier how much
- * charity cash to remove from the drawer before counting.
+ * We patch pos_hr's ClosePosPopup (which IS in the main POS bundle)
+ * to inject charity totals into the closing register dialog.
  *
- * KEY: We access services via pos.env.services (where pos = the live
- * reactive instance from app.env.services.pos) rather than this.env,
- * because this.env is not reliably set on the prototype when the patch
- * runs through the pos_hr override chain.
+ * The companion XML (charity_closing_popup.xml) extends the
+ * pos_hr closing popup template to render the charity section.
  */
-patch(PosStore.prototype, {
+patch(ClosePosPopup.prototype, {
 
-    async closePos() {
-        await this._showCharityCloseReminder();
-        return super.closePos(...arguments);
+    setup() {
+        super.setup(...arguments);
+
+        this.charityState = useState({
+            total: 0,
+            count: 0,
+            loaded: false,
+        });
+
+        this.orm = useService("orm");
+
+        onMounted(async () => {
+            await this._loadCharityTotals();
+        });
     },
 
-    async _showCharityCloseReminder() {
+    async _loadCharityTotals() {
         try {
-            // Get the live reactive POS store instance from the OWL app
             const app = [...owl.App.apps][0];
             if (!app) return;
 
             const pos = app.env.services.pos;
-            if (!pos) return;
-
-            // Check charity is enabled
-            if (!pos.config?.charity_enabled) return;
+            if (!pos || !pos.config?.charity_enabled) return;
 
             const sessionId = pos.session?.id;
             if (!sessionId) return;
 
-            // Fetch live charity totals from backend
-            const orm = pos.env.services.orm;
-            const result = await orm.call(
+            const result = await this.orm.call(
                 "pos.session",
                 "get_charity_totals",
                 [[sessionId]]
             );
 
-            if (!result || !(result.total > 0)) return;
+            if (result && result.total > 0) {
+                this.charityState.total = result.total;
+                this.charityState.count = result.count;
+            }
+            this.charityState.loaded = true;
 
-            // Format amount
-            const symbol = pos.currency?.symbol ?? "₹";
-            const dp     = pos.currency?.decimal_places ?? 2;
-            const total  = result.total.toFixed(dp);
-            const count  = result.count || 0;
-            const word   = count === 1 ? "donation" : "donations";
+        } catch (e) {
+            console.warn("[POS Charity] Could not load charity totals:", e);
+            this.charityState.loaded = true;
+        }
+    },
 
-            // Show sticky notification — stays visible while cashier
-            // works through the Closing Register dialog
-            pos.env.services.notification.add(
-                `❤  Charity collected this session: ${symbol}${total}` +
-                ` (${count} ${word}).` +
-                `  ⚠ Please remove ${symbol}${total} from the cash drawer` +
-                ` before counting cash.`,
-                {
-                    title:  "Charity Donations — Action Required",
-                    type:   "warning",
-                    sticky: true,
-                }
-            );
+    get charityData() {
+        if (!this.charityState.loaded || this.charityState.total <= 0) {
+            return null;
+        }
+        return {
+            total: this.charityState.total,
+            count: this.charityState.count,
+        };
+    },
 
-        } catch (err) {
-            console.warn(
-                "[POS Charity] Could not fetch charity totals for close reminder:",
-                err
-            );
+    get charityAmountFormatted() {
+        try {
+            const app = [...owl.App.apps][0];
+            const pos = app?.env?.services?.pos;
+            const symbol = pos?.currency?.symbol ?? "₹";
+            const dp = pos?.currency?.decimal_places ?? 2;
+            return symbol + (this.charityState.total || 0).toFixed(dp);
+        } catch (_) {
+            return "₹" + (this.charityState.total || 0).toFixed(2);
         }
     },
 });

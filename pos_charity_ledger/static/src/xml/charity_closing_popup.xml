@@ -2,25 +2,19 @@
 <templates xml:space="preserve">
 
     <!--
-        Extend the Odoo 19 CE Closing Register popup to show charity
-        donations summary above the "Closing note" textarea.
+        Extend pos_hr's ClosePosPopup to show charity donations summary
+        inside the Closing Register dialog, above the closing note textarea.
 
-        Template name in Odoo 19 CE: "point_of_sale.ClosePosPopup"
-        The textarea has class "closing-notes" — we target it via //textarea.
-
-        What the cashier sees when charity total > 0:
-        ┌─────────────────────────────────────────────────────┐
-        │  ❤  Charity Donations              ₹4.00 (1 donation)│
-        │  Physical cash in drawer is ₹4.00 higher.           │
-        │  Remove ₹4.00 from the drawer before counting.      │
-        └─────────────────────────────────────────────────────┘
+        Shows when charity total > 0:
+        ┌──────────────────────────────────────────────────────┐
+        │ ❤  Charity Donations                    ₹4.00 (1)   │
+        │ ⚠ Remove ₹4.00 from drawer before counting cash.    │
+        └──────────────────────────────────────────────────────┘
     -->
-    <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
+    <t t-inherit="pos_hr.ClosePosPopup" t-inherit-mode="extension">
         <xpath expr="//textarea" position="before">
             <t t-if="charityData and charityData.total > 0">
                 <div class="charity-closing-section">
-
-                    <!-- Header row: icon + title + amount badge -->
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="charity-closing-title">
                             <i class="fa fa-heart me-2" style="color:#e74c3c;"/>
@@ -28,25 +22,19 @@
                         </span>
                         <span class="charity-closing-badge">
                             <t t-esc="charityAmountFormatted"/>
-                            &#160;
-                            (<t t-esc="charityData.count"/>
+                            &#160;(<t t-esc="charityData.count"/>
                             <t t-if="charityData.count === 1"> donation</t>
                             <t t-else=""> donations</t>)
                         </span>
                     </div>
-
-                    <!-- Instruction row -->
                     <div class="charity-closing-hint">
                         <i class="fa fa-info-circle me-1"/>
-                        Physical cash in drawer is
+                        Cash drawer contains
                         <strong><t t-esc="charityAmountFormatted"/></strong>
-                        higher than expected.
-                        Please remove
-                        <strong><t t-esc="charityAmountFormatted"/></strong>
-                        from the drawer for charity
-                        <strong>before counting</strong>.
+                        in charity donations.
+                        Please remove <strong><t t-esc="charityAmountFormatted"/></strong>
+                        from the drawer for charity <strong>before counting</strong>.
                     </div>
-
                 </div>
             </t>
         </xpath>
