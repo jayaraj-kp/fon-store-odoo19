@@ -1,56 +1,79 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { ClosePosPopup } from "@point_of_sale/app/screens/closing_popup/closing_popup";
-import { useState, onMounted } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks";
+import { PosStore } from "@point_of_sale/app/store/pos_store";
 
 /**
- * Patch the POS Closing Register popup to show charity donation totals.
+ * POS Charity — Closing Reminder
  *
- * When the cashier opens "Close Register" this patch:
- *  1. Makes an RPC call to pos.session.get_charity_totals() to get the
- *     live total (avoids stale cached values).
- *  2. Exposes charityData (reactive) so the template can render the section.
- *  3. Shows the physical cash hint so the cashier knows to remove the
- *     charity amount before counting the drawer.
+ * We patch PosStore.closePos() so that BEFORE the closing register dialog
+ * opens, a sticky warning tells the cashier exactly how much charity cash
+ * to physically remove from the drawer before counting.
+ *
+ * Why PosStore instead of ClosePosPopup?
+ * ClosePosPopup lives in a different asset bundle in Odoo 19 CE and cannot
+ * be imported from the POS session bundle — doing so causes the
+ * "module not defined" error. PosStore is part of the core POS session
+ * bundle and is safe to patch.
  */
-patch(ClosePosPopup.prototype, {
-    setup() {
-        super.setup();
-        // Separate orm reference to avoid name collisions with existing service refs
-        this._charityOrm = useService("orm");
-        // Reactive state — updates trigger template re-render automatically
-        this.charityData = useState({ total: 0, count: 0, loaded: false });
+patch(PosStore.prototype, {
 
-        onMounted(async () => {
-            try {
-                const sessionId = this.pos.session.id;
-                const result = await this._charityOrm.call(
-                    "pos.session",
-                    "get_charity_totals",
-                    [[sessionId]],
-                );
-                if (result) {
-                    this.charityData.total = result.total || 0;
-                    this.charityData.count = result.count || 0;
-                    this.charityData.loaded = true;
-                }
-            } catch (e) {
-                console.warn("[POS Charity] Could not load charity totals:", e);
-            }
-        });
+    /**
+     * Override closePos to inject the charity reminder before
+     * the closing dialog is shown to the cashier.
+     */
+    async closePos() {
+        await this._showCharityCloseReminder();
+        return super.closePos(...arguments);
     },
 
-    /** Formatted charity total using POS currency settings */
-    get charityAmountFormatted() {
-        const amount = this.charityData ? this.charityData.total : 0;
-        const currency = this.pos.currency;
-        const symbol = (currency && currency.symbol) || "₹";
-        const decimals =
-            currency && currency.decimal_places != null
-                ? currency.decimal_places
-                : 2;
-        return symbol + amount.toFixed(decimals);
+    /**
+     * Fetch charity totals for this session via RPC and display
+     * a sticky notification if there are any donations.
+     *
+     * Using an RPC call (rather than cached session data) guarantees
+     * we always show the live total even for donations made after
+     * the session was first loaded.
+     */
+    async _showCharityCloseReminder() {
+        // Skip if charity is not enabled for this POS config
+        if (!this.config || !this.config.charity_enabled) {
+            return;
+        }
+
+        try {
+            const result = await this.env.services.orm.call(
+                "pos.session",
+                "get_charity_totals",
+                [[this.session.id]]
+            );
+
+            if (!result || !(result.total > 0)) {
+                return;
+            }
+
+            const currency      = this.currency;
+            const symbol        = (currency && currency.symbol)               || "₹";
+            const dp            = (currency && currency.decimal_places != null)
+                                      ? currency.decimal_places : 2;
+            const total         = result.total.toFixed(dp);
+            const count         = result.count;
+            const donationWord  = count === 1 ? "donation" : "donations";
+
+            this.env.services.notification.add(
+                `❤  Charity collected this session: ${symbol}${total}` +
+                ` (${count} ${donationWord}). ` +
+                `Please remove ${symbol}${total} from the cash drawer before counting.`,
+                {
+                    title:  "Charity Donations — Action Required",
+                    type:   "warning",
+                    sticky: true,   // stays visible until cashier dismisses it
+                }
+            );
+
+        } catch (e) {
+            // Non-fatal — log and continue with normal close flow
+            console.warn("[POS Charity] Could not load charity totals for close reminder:", e);
+        }
     },
 });
