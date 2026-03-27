@@ -129,3 +129,38 @@
     background: linear-gradient(135deg, #1e8449, #145a32);
     transform: translateY(-1px);
 }
+
+/* ---- Closing Register Charity Section ---- */
+.charity-closing-section {
+    background: #fdf2f2;
+    border: 1.5px solid #e74c3c;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+}
+
+.charity-closing-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #c0392b;
+}
+
+.charity-closing-badge {
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.charity-closing-hint {
+    font-size: 12px;
+    color: #7d6608;
+    background: #fff9e6;
+    border: 1px solid #f0c040;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 8px;
+    line-height: 1.5;
+}

@@ -54,6 +54,9 @@ from odoo import models, fields, api
 import logging
 
 _logger = logging.getLogger(__name__)
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class PosSession(models.Model):
@@ -70,15 +73,29 @@ class PosSession(models.Model):
         store=True,
     )
 
-    @api.depends('order_ids')
+    @api.depends('order_ids', 'order_ids.charity_donation_amount')
     def _compute_charity_totals(self):
         for session in self:
-            donations = self.env['pos.charity.donation'].search([
-                ('pos_session_id', '=', session.id),
-                ('state', '=', 'confirmed'),
-            ])
-            session.charity_donation_total = sum(donations.mapped('amount'))
-            session.charity_donation_count = len(donations)
+            orders = session.order_ids.filtered(
+                lambda o: o.charity_donation_amount > 0
+            )
+            session.charity_donation_total = sum(
+                orders.mapped('charity_donation_amount')
+            )
+            session.charity_donation_count = len(orders)
+
+    def get_charity_totals(self):
+        """RPC method called by the closing popup to get fresh charity totals.
+        Returns a dict with total and count so the closing register can display
+        the charity donations collected during the session."""
+        self.ensure_one()
+        orders = self.order_ids.filtered(lambda o: o.charity_donation_amount > 0)
+        total = sum(orders.mapped('charity_donation_amount'))
+        count = len(orders)
+        return {
+            'total': total,
+            'count': count,
+        }
 
     # ------------------------------------------------------------------
     # Session closing — create charity journal entries here so they
