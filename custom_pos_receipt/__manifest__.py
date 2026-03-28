@@ -4,7 +4,7 @@
     'summary': 'Advanced POS Receipt with POS Address, Custom GST & Totals',
     'category': 'Point of Sale',
     'author': 'FON Store',
-    'depends': ['point_of_sale','pos_charity_ledger'],
+    'depends': ['point_of_sale',],
     'data': [
         'views/pos_config_view.xml',
     ],
