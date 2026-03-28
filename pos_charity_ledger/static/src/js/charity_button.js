@@ -10,7 +10,7 @@ import { useService } from "@web/core/utils/hooks";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 import { Component } from "@odoo/owl";
 
-// ── PosOrder patch — only serialization, no total/isPaid overrides ────────────
+// ── PosOrder patch ────────────────────────────────────────────────────────────
 patch(PosOrder.prototype, {
     serializeForORM(opts = {}) {
         const data = super.serializeForORM(opts);
@@ -18,19 +18,18 @@ patch(PosOrder.prototype, {
         if (extra > 0) {
             data.charity_donation_amount = extra;
             data.charity_account_id = this._charity_account_id || false;
-            // Correct amount_return: the donated amount is NOT change for the customer.
-            if (typeof data.amount_return === "number" && data.amount_return > 0) {
-                data.amount_return = Math.max(
-                    0,
-                    parseFloat((data.amount_return - extra).toFixed(2))
-                );
-            }
+            // ── DO NOT touch amount_return ────────────────────────────────────
+            // Odoo validates: amount_paid - amount_return == amount_total (exact)
+            //   e.g. 970 - 6 = 964 ✓  (leave it as-is)
+            // Zeroing amount_return → 970 - 0 = 970 ≠ 964 → "not fully paid" ✗
+            // The ₹6 "change" physically goes into the charity box.
+            // The charity journal entry at session close handles the accounting.
         }
         return data;
     },
 });
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function getCurrencySymbol(pos) {
     return pos.currency?.symbol || "₹";
 }
@@ -105,7 +104,6 @@ function clearDonationFromOrder(order) {
     order._charity_account_id     = null;
 }
 
-// ── Core fix: inflate the PAYMENT LINE amount for an existing line ────────────
 function setPaymentLineAmount(line, newAmount) {
     newAmount = parseFloat(newAmount.toFixed(2));
     if (typeof line.update === "function") {
@@ -124,7 +122,7 @@ function getPaymentLineAmount(line) {
     return typeof line.amount === "number" ? line.amount : 0;
 }
 
-// ── Order Screen Charity Button Component ────────────────────────────────────
+// ── Order Screen Charity Button Component ─────────────────────────────────────
 export class CharityOrderButton extends Component {
     static template = "pos_charity_ledger.CharityOrderButton";
     static props = {};
@@ -185,11 +183,10 @@ export class CharityOrderButton extends Component {
     }
 }
 
-// ── Patch PaymentScreen — NO getter syntax inside patch() ────────────────────
-// Odoo 19's esbuild bundler throws "Unexpected token 'get'" when getter
-// shorthand is used inside an object literal passed directly to patch().
-// Solution: keep only regular methods inside patch(), then add getters
-// via Object.defineProperties() on the prototype afterwards.
+// ── Patch PaymentScreen ───────────────────────────────────────────────────────
+// NOTE: getter syntax (get foo() {}) inside patch() causes a SyntaxError in
+// Odoo 19's esbuild bundler. All getters are defined via Object.defineProperties
+// AFTER the patch() call below.
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
@@ -205,7 +202,12 @@ patch(PaymentScreen.prototype, {
         });
     },
 
-    // ── Inflate payment lines to cover the charity donation ──────────────────
+    // ── Inflate payment line so it covers order total + charity ──────────────
+    // Used when cashier sets charity from the ORDER SCREEN before payment.
+    // Example: order = ₹964, charity = ₹6 → inflate payment line from ₹964 → ₹970
+    //          so that: amount_paid=970, amount_return=6, amount_total=964  ✓
+    // When cashier already entered ₹970 on the payment screen the shortfall
+    // is 0 and nothing changes (safe no-op).
     _inflatePaymentLines(order) {
         const extra = order._charity_donation_amount || 0;
         if (extra <= 0) return;
@@ -228,7 +230,6 @@ patch(PaymentScreen.prototype, {
         console.debug(`[Charity] Payment line adjusted +${shortfall} → total ${curAmount + shortfall}`);
     },
 
-    // ── Deflate payment lines when donation is removed ────────────────────────
     _deflatePaymentLines(order, extra) {
         if (extra <= 0) return;
         const lines = order.payment_ids || [];
@@ -268,7 +269,8 @@ patch(PaymentScreen.prototype, {
         const order = this.currentOrder;
         if (!order) return;
         applyDonationToOrder(this.pos, order, amount);
-        this._inflatePaymentLines(order);
+        // No payment line inflation needed: customer already overpaid by this
+        // amount (changeAmount == amount), so payment line is already correct.
         this.charityState.donationAmount = amount;
         this.charityState.isDonating     = true;
         this.notification.add(
@@ -291,6 +293,8 @@ patch(PaymentScreen.prototype, {
     async validateOrder(isForceValidate) {
         const order = this.currentOrder;
         if (order && (order._charity_donation_amount || 0) > 0) {
+            // Inflate only if charity was set from order screen (shortfall > 0).
+            // On the payment screen the change already covers the donation → no-op.
             this._inflatePaymentLines(order);
         }
         const result = await super.validateOrder(isForceValidate);
@@ -300,26 +304,20 @@ patch(PaymentScreen.prototype, {
     },
 });
 
-// ── Define getters on PaymentScreen.prototype OUTSIDE patch() ────────────────
-// This avoids the "Unexpected token 'get'" SyntaxError thrown by Odoo 19's
-// esbuild bundler when getter shorthand appears inside a patch() argument.
+// ── Define getters OUTSIDE patch() ───────────────────────────────────────────
+// Getter shorthand inside patch({}) triggers "Unexpected token 'get'" in
+// Odoo 19's esbuild bundler. Object.defineProperties avoids the issue entirely.
 Object.defineProperties(PaymentScreen.prototype, {
     charityEnabled: {
-        get() {
-            return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
-        },
+        get() { return this.pos.config.charity_enabled && this.pos.config.charity_account_id; },
         configurable: true,
     },
     charityButtonLabel: {
-        get() {
-            return this.pos.config.charity_button_label || "Donate to Charity";
-        },
+        get() { return this.pos.config.charity_button_label || "Donate to Charity"; },
         configurable: true,
     },
     currencySymbol: {
-        get() {
-            return getCurrencySymbol(this.pos);
-        },
+        get() { return getCurrencySymbol(this.pos); },
         configurable: true,
     },
     changeAmount: {

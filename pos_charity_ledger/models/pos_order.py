@@ -233,33 +233,22 @@ class PosOrder(models.Model):
     charity_move_id = fields.Many2one('account.move', string='Charity Journal Entry', readonly=True)
 
     def _process_order(self, order, existing_order):
-        """Override to handle charity donation in the payment validation.
+        """Override to record charity donation after the order is saved.
 
-        Odoo core raises 'Order / is not fully paid' when:
-            round(amount_paid - amount_total, precision) < 0
+        We do NOT touch amount_return here.
 
-        Scenario: product ₹296, customer pays ₹300, ₹4 donated to charity.
-            amount_paid  = 300   (correct — cashier collected ₹300)
-            amount_total = 296   (product total, computed from order lines)
-            amount_return = 4    (core thinks ₹4 is change, but it's charity)
+        Odoo validates orders with an exact-equality check:
+            amount_paid - amount_return == amount_total
+        e.g.  970 - 6 = 964  ✓
 
-        The JS already sends amount_return=0 (corrected in serializeForORM),
-        but as a safety net we also correct it here on the Python side so the
-        order is always considered fully paid.
+        If we zeroed amount_return we'd get 970 - 0 = 970 ≠ 964 → 'not fully paid'.
+
+        The ₹6 "change" physically goes into the charity box.
+        The charity journal entry (created at session close) moves the ₹6 from
+        the cash/card account to the charity GL account — keeping the books clean.
         """
         charity_amount = order.get('charity_donation_amount', 0.0) or 0.0
         charity_account_id = order.get('charity_account_id', False)
-
-        if charity_amount > 0:
-            # Reduce amount_return by the charity donation so core doesn't
-            # treat the donated amount as change to return to the customer.
-            current_return = order.get('amount_return', 0.0) or 0.0
-            corrected_return = current_return - charity_amount
-            order['amount_return'] = max(0.0, round(corrected_return, 2))
-            _logger.info(
-                'Charity donation of %s detected. Adjusting amount_return from %s to %s.',
-                charity_amount, current_return, order['amount_return'],
-            )
 
         order_id = super()._process_order(order, existing_order)
 
