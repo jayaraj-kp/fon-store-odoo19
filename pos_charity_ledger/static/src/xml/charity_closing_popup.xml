@@ -1,40 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
 
-    <!-- ── 1. Standalone component template ── -->
+    <!--
+        CharityClosingSummary — standalone template only.
+        NO t-inherit, NO xpath.
+
+        The JS file (charity_closing_patch.js) injects <CharityClosingSummary/>
+        into ClosePosPopup's raw template string at runtime and adds this class
+        to ClosePosPopup.components — so no XML inheritance is needed here.
+    -->
     <t t-name="pos_charity_ledger.CharityClosingSummary">
         <t t-if="show">
-            <div class="d-flex justify-content-between align-items-center py-1 px-2 mb-2"
-                 style="background:#fdf2f2; border:1.5px solid #e74c3c; border-radius:8px; color:#c0392b; font-weight:700; font-size:14px;">
+            <div class="d-flex justify-content-between align-items-center py-1 px-2 mt-2 mb-1"
+                 style="background:#fdf2f2; border:1.5px solid #e74c3c; border-radius:8px;
+                        color:#c0392b; font-weight:700; font-size:14px;">
                 <span>
                     ❤ Charity Donations
-                    <span t-if="count > 1" style="font-weight:400; font-size:12px;">
+                    <span t-if="count > 1"
+                          style="font-weight:400; font-size:12px; margin-left:4px;">
                         (<t t-esc="count"/> orders)
                     </span>
                 </span>
                 <span>- <t t-esc="symbol"/><t t-esc="total.toFixed(2)"/></span>
             </div>
         </t>
-    </t>
-
-    <!--
-        ── 2. Inherit ClosePosPopup template ──
-
-        We use position="before" on the first <section> OR the first <div>
-        inside the Dialog. The Dialog component in Odoo always wraps content
-        in a default slot. The ClosePosPopup always has at least one top-level
-        element inside that slot.
-
-        We use `//section[1]` as our target — ClosePosPopup in Odoo 16/17/18/19
-        CE wraps its payment-method list in a <section> element.
-        If that fails we fall back to the first top-level element.
-
-        t-inherit-mode="extension" means we only ADD — never replace.
-    -->
-    <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
-        <xpath expr="//section[1]" position="before">
-            <CharityClosingSummary/>
-        </xpath>
     </t>
 
 </templates>
