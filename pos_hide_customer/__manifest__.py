@@ -6,13 +6,8 @@
     'author': 'Custom',
     'depends': ['point_of_sale'],
     'assets': {
-        # Primary bundle for Odoo 19 POS
         'point_of_sale._assets_pos': [
-            'pos_hide_customer/static/src/css/hide_customer_button.css',
-        ],
-        # Fallback for older bundle name
-        'web.assets_backend': [
-            'pos_hide_customer/static/src/css/hide_customer_button.css',
+            'pos_hide_customer/static/src/js/hide_customer_button.js',
         ],
     },
     'installable': True,
