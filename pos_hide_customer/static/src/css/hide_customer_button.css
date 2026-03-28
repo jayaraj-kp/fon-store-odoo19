@@ -1,6 +1,14 @@
-/* Hide Customer button in POS ActionPad */
-.point-of-sale .set-customer,
-.point-of-sale button.set-customer,
-.actionpad .set-customer {
+/* Hide Customer button in POS - Odoo 19 */
+
+/* Class-based selectors */
+.set-customer,
+button.set-customer,
+.o_set_customer,
+button.o_set_customer {
+    display: none !important;
+}
+
+/* Attribute-based selector as fallback */
+button[class*="customer"] {
     display: none !important;
 }
