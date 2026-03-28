@@ -233,31 +233,33 @@ class PosOrder(models.Model):
     charity_move_id = fields.Many2one('account.move', string='Charity Journal Entry', readonly=True)
 
     def _process_order(self, order, existing_order):
-        """Override to allow amount_paid to exceed amount_total by the charity donation.
+        """Override to handle charity donation in the payment validation.
 
         Odoo core raises 'Order / is not fully paid' when:
             round(amount_paid - amount_total, precision) < 0
 
-        When a charity donation is set, the cashier pays (amount_total + donation),
-        so amount_paid = 300 while amount_total = 296 (for a ₹4 donation).
-        We temporarily adjust amount_total in the order dict to include the donation
-        so the core check passes, then restore the real total afterward.
+        Scenario: product ₹296, customer pays ₹300, ₹4 donated to charity.
+            amount_paid  = 300   (correct — cashier collected ₹300)
+            amount_total = 296   (product total, computed from order lines)
+            amount_return = 4    (core thinks ₹4 is change, but it's charity)
+
+        The JS already sends amount_return=0 (corrected in serializeForORM),
+        but as a safety net we also correct it here on the Python side so the
+        order is always considered fully paid.
         """
         charity_amount = order.get('charity_donation_amount', 0.0) or 0.0
         charity_account_id = order.get('charity_account_id', False)
 
-        # If there is a charity donation, inflate amount_total in the dict so
-        # the core "is fully paid" check (amount_paid >= amount_total) passes.
-        # The JS already inflates amount_total in serializeForORM, but core
-        # re-computes it from order lines — we patch it here on the dict level.
         if charity_amount > 0:
-            original_amount_total = order.get('amount_total', 0.0)
-            order['amount_total'] = original_amount_total  # already inflated by JS
-            # Ensure amount_return does NOT include the charity surplus.
-            # The customer donated exactly charity_amount — no change due.
-            if 'amount_return' in order:
-                corrected_return = order['amount_return'] - charity_amount
-                order['amount_return'] = max(0.0, round(corrected_return, 2))
+            # Reduce amount_return by the charity donation so core doesn't
+            # treat the donated amount as change to return to the customer.
+            current_return = order.get('amount_return', 0.0) or 0.0
+            corrected_return = current_return - charity_amount
+            order['amount_return'] = max(0.0, round(corrected_return, 2))
+            _logger.info(
+                'Charity donation of %s detected. Adjusting amount_return from %s to %s.',
+                charity_amount, current_return, order['amount_return'],
+            )
 
         order_id = super()._process_order(order, existing_order)
 
@@ -269,6 +271,7 @@ class PosOrder(models.Model):
                     'charity_account_id': charity_account_id,
                 })
                 pos_order._create_charity_donation()
+
         return order_id
 
     def _create_charity_donation(self):
@@ -303,7 +306,9 @@ class PosOrder(models.Model):
             return
         config = self.config_id
         if not config.charity_gl_account_id:
-            _logger.info('No charity GL account configured, skipping journal entry for order %s', self.name)
+            _logger.info(
+                'No charity GL account configured, skipping journal entry for order %s', self.name
+            )
             return
         try:
             journal = config.charity_journal_id or config.journal_id
@@ -349,7 +354,9 @@ class PosOrder(models.Model):
             move = self.env['account.move'].create(move_vals)
             move.action_post()
             self.charity_move_id = move.id
-            _logger.info('Charity journal entry %s created for order %s', move.name, self.name)
+            _logger.info(
+                'Charity journal entry %s created for order %s', move.name, self.name
+            )
         except Exception as e:
             _logger.error(
                 'Failed to create charity journal entry for order %s: %s', self.name, str(e)
