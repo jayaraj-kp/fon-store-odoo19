@@ -1,0 +1,6 @@
+/* Hide Customer button in POS ActionPad */
+.point-of-sale .set-customer,
+.point-of-sale button.set-customer,
+.actionpad .set-customer {
+    display: none !important;
+}

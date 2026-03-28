@@ -6,8 +6,8 @@
     'author': 'Custom',
     'depends': ['point_of_sale'],
     'assets': {
-        'point_of_sale._assets_pos': [
-            'pos_hide_customer/static/src/xml/hide_customer_button.xml',
+        'point_of_sale.assets_prod': [
+            'pos_hide_customer/static/src/css/hide_customer_button.css',
         ],
     },
     'installable': True,
