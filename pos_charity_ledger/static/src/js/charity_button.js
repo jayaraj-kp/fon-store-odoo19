@@ -12,57 +12,35 @@ import { Component } from "@odoo/owl";
 
 // ── Extend POS Order ─────────────────────────────────────────────────────────
 //
-// Odoo 19 CE: `get_total_with_tax` is NOT a method — it does not exist on
-// PosOrder. The order total is accessed via `order.amount_total` (reactive
-// computed property) or `order.getTotalWithTax()` (may not exist either).
+// Odoo 19 CE: `get_total_with_tax` does NOT exist on PosOrder — do NOT patch it.
 //
-// The only safe getter to patch for the payment screen is `totalDue`.
-// For the "is fully paid" check we patch `isPaid` directly, which is the
-// actual gate that controls whether Validate is allowed.
+// APPROACH:
+//   We do NOT inflate totalDue or isPaid on the order model because doing so
+//   breaks the quick-pay buttons (Cash KDTY / Card KDTY) which auto-add a
+//   payment line for `amount_total` — leading to an under-payment.
 //
-// For the Python backend we send a corrected `amount_return` so the core
-// "not fully paid" check passes (see pos_order.py).
+//   Instead we let the order model stay untouched and handle everything in
+//   the PaymentScreen patch:
+//     • When entering the payment screen, if a donation is pending we add
+//       it to the existing payment line(s) so the correct amount is collected.
+//     • serializeForORM sends charity data + corrects amount_return.
+//     • For quick-pay (one-click from order screen), we intercept at the
+//       ProductScreen / ControlButtons level by navigating to PaymentScreen
+//       first, where the payment line adjustment can happen.
+//
+//   For the Python backend we correct amount_return so core doesn't see
+//   the donated amount as change (see pos_order.py).
 //
 patch(PosOrder.prototype, {
-    // ── Inflate totalDue so payment screen shows & collects (total + donation) ─
-    get totalDue() {
-        const base = super.totalDue;
-        const extra = this._charity_donation_amount || 0;
-        return base + extra;
-    },
-
-    // ── isPaid: order is paid when payment covers (amount_total + donation) ──
-    // Odoo 19 CE: isPaid() checks getTotalPaid() >= amount_total (with rounding).
-    // We override so the inflated payment (₹300) satisfies the check for a
-    // ₹296 order with ₹4 charity.
-    isPaid() {
-        const extra = this._charity_donation_amount || 0;
-        if (extra <= 0) return super.isPaid(...arguments);
-
-        // Total the customer must pay = product total + donation.
-        const required = (this.amount_total || 0) + extra;
-
-        // Sum all payment lines.
-        const paid = (this.payment_ids || []).reduce((sum, line) => {
-            return sum + (typeof line.getAmount === "function" ? line.getAmount() : (line.amount || 0));
-        }, 0);
-
-        // Use Odoo's currency rounding precision (2 decimal places).
-        return Math.round((paid - required) * 100) >= 0;
-    },
-
-    // ── Serialize: send charity data + corrected amount_return to Python ─────
+    // Send charity data to Python backend.
+    // Also correct amount_return: the donated ₹ is NOT change for the customer.
     serializeForORM(opts = {}) {
         const data = super.serializeForORM(opts);
         const extra = this._charity_donation_amount || 0;
         if (extra > 0) {
             data.charity_donation_amount = extra;
             data.charity_account_id = this._charity_account_id || false;
-
-            // The cashier paid (amount_total + extra), e.g. ₹300 for ₹296 + ₹4.
-            // Odoo core computes amount_return = amount_paid - amount_total = ₹4.
-            // But ₹4 is NOT change — it's the donation. Reduce amount_return by
-            // the donation so core gets 0 change and the "fully paid" check passes.
+            // Reduce amount_return so Python doesn't treat donation as change.
             if (typeof data.amount_return === "number" && data.amount_return > 0) {
                 data.amount_return = Math.max(
                     0,
@@ -101,17 +79,13 @@ function sumBaseLines(baseLines) {
             "price_subtotal", "subtotal", "total", "amount",
         ];
         for (const k of fallbackKeys) {
-            if (typeof line[k] === "number" && line[k] > 0) {
-                return sum + line[k];
-            }
+            if (typeof line[k] === "number" && line[k] > 0) return sum + line[k];
         }
         return sum;
     }, 0);
 }
 
 function getRawOrderTotal(order) {
-    // Returns the product-only total (without any charity inflation).
-    // Used for round-off hint on the order screen button.
     for (const p of ["amount_total", "total_with_tax", "totalWithTax", "total"]) {
         const v = order[p];
         if (typeof v === "number" && v > 0) return v;
@@ -128,9 +102,7 @@ function getRawOrderTotal(order) {
     }
     const lines =
         (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
-        order.lines ||
-        order.orderlines ||
-        [];
+        order.lines || order.orderlines || [];
     const arr = Array.isArray(lines) ? lines : [...lines];
     if (arr.length > 0) {
         const lineTotal = arr.reduce((s, l) => {
@@ -168,6 +140,57 @@ function applyDonationToOrder(pos, order, amount) {
 function clearDonationFromOrder(order) {
     order._charity_donation_amount = 0;
     order._charity_account_id = null;
+}
+
+/**
+ * Inflate existing payment lines to cover the charity donation amount.
+ *
+ * When the cashier clicks Cash KDTY / Card KDTY from the order screen,
+ * Odoo auto-adds a payment line for `amount_total` (e.g. ₹397).
+ * But we need ₹400 collected (₹397 product + ₹3 charity).
+ *
+ * This function finds the payment line and increases its amount by the
+ * donation so the order becomes fully paid at the higher amount.
+ *
+ * Called from PaymentScreen.setup() (after payment lines are set)
+ * and from validateOrder() before the core validation runs.
+ */
+function adjustPaymentLinesForCharity(order) {
+    const extra = order._charity_donation_amount || 0;
+    if (extra <= 0) return;
+
+    const paymentLines = order.payment_ids || [];
+    const arr = Array.isArray(paymentLines) ? paymentLines : [...paymentLines];
+    if (arr.length === 0) return;
+
+    // Add the donation to the first (or only) payment line.
+    // This is the line that was auto-created by the quick-pay button.
+    const line = arr[0];
+    const currentAmount = typeof line.getAmount === "function"
+        ? line.getAmount()
+        : (line.amount || 0);
+
+    const requiredTotal = (order.amount_total || 0) + extra;
+    const currentTotal = arr.reduce((s, l) => {
+        return s + (typeof l.getAmount === "function" ? l.getAmount() : (l.amount || 0));
+    }, 0);
+
+    const shortfall = parseFloat((requiredTotal - currentTotal).toFixed(2));
+    if (shortfall <= 0) return; // Already fully covers the donation.
+
+    // Set the line amount to cover the shortfall.
+    const newAmount = parseFloat((currentAmount + shortfall).toFixed(2));
+    if (typeof line.setAmount === "function") {
+        line.setAmount(newAmount);
+    } else {
+        line.amount = newAmount;
+    }
+    _logger_debug(`[Charity] Adjusted payment line from ${currentAmount} to ${newAmount} (shortfall: ${shortfall})`);
+}
+
+function _logger_debug(msg) {
+    // Safe console log wrapper
+    try { console.debug(msg); } catch (_) {}
 }
 
 // ── Order Screen Charity Button Component ────────────────────────────────────
@@ -217,7 +240,6 @@ export class CharityOrderButton extends Component {
         }
 
         const total = getRawOrderTotal(order);
-
         if (total <= 0) {
             this.notification.add("Please add products before donating.", { type: "warning" });
             return;
@@ -259,6 +281,16 @@ patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this.charityState = useState({ donationAmount: 0, isDonating: false });
+
+        // When the PaymentScreen mounts, payment lines already exist
+        // (either from quick-pay or from the user clicking Payment button).
+        // Adjust them immediately so the displayed amount is correct.
+        const order = this.currentOrder;
+        if (order && (order._charity_donation_amount || 0) > 0) {
+            adjustPaymentLinesForCharity(order);
+            this.charityState.donationAmount = order._charity_donation_amount;
+            this.charityState.isDonating = true;
+        }
     },
 
     get charityEnabled() {
@@ -272,6 +304,8 @@ patch(PaymentScreen.prototype, {
     get changeAmount() {
         const order = this.currentOrder;
         if (!order) return 0;
+        // Use the raw order total (not totalDue) to compute change —
+        // the donation is not change for the customer.
         const totalDue = order.totalDue || 0;
         const totalPaid = (order.payment_ids || []).reduce((sum, line) => {
             return sum + (line.getAmount ? line.getAmount() : (line.amount || 0));
@@ -309,6 +343,8 @@ patch(PaymentScreen.prototype, {
         const order = this.currentOrder;
         if (!order) return;
         applyDonationToOrder(this.pos, order, amount);
+        // Immediately adjust existing payment lines to cover the donation.
+        adjustPaymentLinesForCharity(order);
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
         this.notification.add(
@@ -319,12 +355,36 @@ patch(PaymentScreen.prototype, {
 
     removeCharityDonation() {
         const order = this.currentOrder;
-        if (order) clearDonationFromOrder(order);
+        if (order) {
+            const extra = order._charity_donation_amount || 0;
+            clearDonationFromOrder(order);
+            // Undo the payment line adjustment.
+            if (extra > 0) {
+                const paymentLines = order.payment_ids || [];
+                const arr = Array.isArray(paymentLines) ? paymentLines : [...paymentLines];
+                if (arr.length > 0) {
+                    const line = arr[0];
+                    const currentAmount = typeof line.getAmount === "function"
+                        ? line.getAmount() : (line.amount || 0);
+                    const newAmount = Math.max(0, parseFloat((currentAmount - extra).toFixed(2)));
+                    if (typeof line.setAmount === "function") {
+                        line.setAmount(newAmount);
+                    } else {
+                        line.amount = newAmount;
+                    }
+                }
+            }
+        }
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
     },
 
     async validateOrder(isForceValidate) {
+        const order = this.currentOrder;
+        // Final safety net: ensure payment lines are adjusted before validation.
+        if (order && (order._charity_donation_amount || 0) > 0) {
+            adjustPaymentLinesForCharity(order);
+        }
         const result = await super.validateOrder(isForceValidate);
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
