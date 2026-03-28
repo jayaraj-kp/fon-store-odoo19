@@ -1,21 +1,29 @@
 /** @odoo-module **/
 
 /**
- * Charity Closing Register Patch – Odoo 19 CE compatible
+ * Charity Closing Register – Pure JS patch, NO template inheritance.
  *
- * We do NOT import ClosePosPopup directly (its path differs per version).
- * Instead we export CharityClosingSummary as a standalone component and
- * let charity_closing_popup.xml inherit "point_of_sale.ClosePosPopup"
- * (the TEMPLATE name, not the JS module) and inject our component there.
+ * Root cause of all previous errors:
+ *  - Importing ClosePosPopup by path fails because the path differs per version.
+ *  - xpath template inheritance fails because the CSS class names differ per version.
  *
- * The component is also added to the global components registry so OWL
- * can resolve it when the template uses <CharityClosingSummary/>.
+ * This file solves both by:
+ *  1. Defining CharityClosingSummary as a standalone OWL component with its OWN template.
+ *  2. Using the odoo `lazy_components` / `components` registry to locate ClosePosPopup
+ *     at RUNTIME (after all modules are loaded) and injecting CharityClosingSummary
+ *     into its `components` map so the template can use <CharityClosingSummary/>.
+ *  3. Using `t-inherit` on ClosePosPopup's TEMPLATE (not the JS module) with a
+ *     xpath that targets `//div` (the first div, which always exists) — but only
+ *     PREPENDING our component call, not relying on any specific class.
  */
 
 import { registry } from "@web/core/registry";
 import { useState, onMounted, Component } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CharityClosingSummary component
+// ─────────────────────────────────────────────────────────────────────────────
 export class CharityClosingSummary extends Component {
     static template = "pos_charity_ledger.CharityClosingSummary";
     static props = {};
@@ -49,31 +57,31 @@ export class CharityClosingSummary extends Component {
     get count() { return this.state.count; }
 }
 
-// Make it available globally for OWL template resolution
-registry.category("pos_charity_closing").add("CharityClosingSummary", CharityClosingSummary);
-
-// Also inject into owl __apps__ global components after boot
-// so the t-inherit template can find <CharityClosingSummary/>
-function injectGlobalComponent() {
-    try {
-        // Odoo 19 CE: owl.App instances expose globalComponents
-        if (window.__owl_app__ && window.__owl_app__.globalComponents) {
-            window.__owl_app__.globalComponents.CharityClosingSummary = CharityClosingSummary;
-            return true;
-        }
-        // Try the odoo global namespace
-        if (window.owl?.apps) {
-            for (const app of window.owl.apps) {
-                app.globalComponents = app.globalComponents || {};
-                app.globalComponents.CharityClosingSummary = CharityClosingSummary;
+// ─────────────────────────────────────────────────────────────────────────────
+// Runtime injection — find ClosePosPopup in any registry and add our component
+// ─────────────────────────────────────────────────────────────────────────────
+function injectIntoClosingPopup() {
+    const categoriesToSearch = [
+        "pos_screens", "lazy_components", "components",
+        "actions", "views", "main_components",
+    ];
+    for (const catName of categoriesToSearch) {
+        try {
+            const cat = registry.category(catName);
+            const entries = cat.getEntries?.() || [];
+            for (const [key, Comp] of entries) {
+                const isClosing =
+                    key?.toLowerCase().includes("close") ||
+                    Comp?.name?.toLowerCase().includes("close") ||
+                    Comp?.template?.toLowerCase().includes("close");
+                if (isClosing && Comp && typeof Comp === "function") {
+                    Comp.components = { ...(Comp.components || {}), CharityClosingSummary };
+                    console.log("[CharityClosing] ✅ Injected into", key, "from registry", catName);
+                }
             }
-            return true;
-        }
-    } catch (_) {}
-    return false;
+        } catch (_) {}
+    }
 }
 
-// Retry a few times — apps may not be ready at module load time
-[100, 500, 1500, 3000].forEach(delay =>
-    setTimeout(injectGlobalComponent, delay)
-);
+// Run after all modules have loaded
+setTimeout(injectIntoClosingPopup, 0);

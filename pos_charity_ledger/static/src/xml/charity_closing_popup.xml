@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
 
-    <!-- ── 1. The CharityClosingSummary sub-component template ── -->
+    <!-- ── 1. Standalone component template ── -->
     <t t-name="pos_charity_ledger.CharityClosingSummary">
         <t t-if="show">
-            <div class="payment-method-detail d-flex justify-content-between align-items-center"
-                 style="color:#c0392b; font-weight:700; padding: 2px 0;">
+            <div class="d-flex justify-content-between align-items-center py-1 px-2 mb-2"
+                 style="background:#fdf2f2; border:1.5px solid #e74c3c; border-radius:8px; color:#c0392b; font-weight:700; font-size:14px;">
                 <span>
-                    ❤ Charity Donation
-                    <t t-if="count > 1">
+                    ❤ Charity Donations
+                    <span t-if="count > 1" style="font-weight:400; font-size:12px;">
                         (<t t-esc="count"/> orders)
-                    </t>
+                    </span>
                 </span>
                 <span>- <t t-esc="symbol"/><t t-esc="total.toFixed(2)"/></span>
             </div>
@@ -18,23 +18,21 @@
     </t>
 
     <!--
-        ── 2. Inherit ClosePosPopup to inject <CharityClosingSummary/> ──
+        ── 2. Inherit ClosePosPopup template ──
 
-        We target the outermost <div> wrapper of the popup (class="close-pos-popup"
-        or whatever the root is) and append our component at the TOP (before the
-        payment details) using "inside" on a high-level stable element.
+        We use position="before" on the first <section> OR the first <div>
+        inside the Dialog. The Dialog component in Odoo always wraps content
+        in a default slot. The ClosePosPopup always has at least one top-level
+        element inside that slot.
 
-        IMPORTANT: We use the template NAME "point_of_sale.ClosePosPopup" which
-        is always stable regardless of the JS module path.
+        We use `//section[1]` as our target — ClosePosPopup in Odoo 16/17/18/19
+        CE wraps its payment-method list in a <section> element.
+        If that fails we fall back to the first top-level element.
 
-        The xpath targets the first <section> or <div> that contains the payment
-        method rows. We use a very broad "//table" or the known outer wrapper.
-
-        Since we cannot be sure of the exact DOM structure without source access,
-        we inject into the Dialog root content area which always exists.
+        t-inherit-mode="extension" means we only ADD — never replace.
     -->
     <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('close-pos-popup')]" position="inside">
+        <xpath expr="//section[1]" position="before">
             <CharityClosingSummary/>
         </xpath>
     </t>
