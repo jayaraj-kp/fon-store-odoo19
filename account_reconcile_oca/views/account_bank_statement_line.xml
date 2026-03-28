@@ -36,23 +36,27 @@
                             <div class="col-8">
                                 <field name="date"/>
                             </div>
-                            <div class="col-4" style="text-align:right">
-                                <span
+                            <!-- WITH THIS: -->
+                            <div
+                                    class="col-4"
+                                    style="text-align:right"
+                                    t-attf-class="col-4 #{
+        (!record.foreign_currency_id.raw_value and record.amount.raw_value &lt; 0) or
+        (record.foreign_currency_id.raw_value and record.amount_currency.raw_value &lt; 0)
+        ? 'o_reconcile_amount_negative'
+        : 'o_reconcile_amount_positive'
+    }"
+                            >
+                                <field
+                                        name="amount"
                                         t-if="!record.foreign_currency_id.raw_value"
-                                        t-att-class="record.amount.raw_value &lt; 0 ? 'o_reconcile_amount_negative' : 'o_reconcile_amount_positive'"
-                                >
-                                    <field name="amount"/>
-                                </span>
-                                <span
+                                />
+                                <field
+                                        name="amount_currency"
                                         t-if="record.foreign_currency_id.raw_value"
-                                        t-att-class="record.amount_currency.raw_value &lt; 0 ? 'o_reconcile_amount_negative' : 'o_reconcile_amount_positive'"
-                                >
-                                    <field
-                                            name="amount_currency"
-                                            widget="monetary"
-                                            options="{'currency_field': 'foreign_currency_id'}"
-                                    />
-                                </span>
+                                        widget="monetary"
+                                        options="{'currency_field': 'foreign_currency_id'}"
+                                />
                             </div>
                         </div>
 
