@@ -9,6 +9,7 @@ export class ReconcileRenderer extends KanbanRenderer {
         this.action = useService("action");
         this.orm = useService("orm");
     }
+
     getAggregates() {
         if (
             this.env.parentController.props.resModel !== "account.bank.statement.line"
@@ -36,14 +37,13 @@ export class ReconcileRenderer extends KanbanRenderer {
         }
         return aggregates;
     }
+
     async onClickStatement(statementId) {
         const action = await this.orm.call(
             "account.bank.statement",
             "action_open_statement",
             [[statementId]],
-            {
-                context: this.props.context,
-            }
+            {context: this.props.context}
         );
         const model = this.props.list.model;
         this.action.doAction(action, {

@@ -7,9 +7,11 @@ import {router} from "@web/core/browser/router";
 import {useSetupAction} from "@web/search/action_hook";
 
 export class ReconcileController extends KanbanController {
-        setup() {
+    setup() {
         super.setup();
         this.initialLoad = true;
+        this.rainbowShown = false;
+        this.hasSeenUnreconciled = false;
         this.state = useState({
             selectedRecordId: this.props.state?.selectedRecordId,
             journalBalance: 0,
@@ -40,12 +42,14 @@ export class ReconcileController extends KanbanController {
             this.selectRecord();
         });
     }
+
     get journalId() {
         if (this.props.context.active_model === "account.journal") {
             return this.props.context.active_id;
         }
         return false;
     }
+
     async updateJournalInfo() {
         var journalId = this.journalId;
         if (!journalId) {
@@ -59,6 +63,7 @@ export class ReconcileController extends KanbanController {
         this.state.currency = (result[0].currency_id ||
             result[0].company_currency_id)[0];
     }
+
     get journalBalanceStr() {
         if (!this.state.journalBalance) {
             return "";
@@ -67,9 +72,11 @@ export class ReconcileController extends KanbanController {
             currencyId: this.state.currency,
         });
     }
+
     exposeController(controller) {
         this.form_controller = controller;
     }
+
     async onClickNewButton() {
         const action = await this.orm.call(this.props.resModel, "action_new_line", [], {
             context: this.props.context,
@@ -82,12 +89,14 @@ export class ReconcileController extends KanbanController {
             },
         });
     }
+
     async setRainbowMan(message) {
         this.effect.add({
             message,
             type: "rainbow_man",
         });
     }
+
     get viewReconcileInfo() {
         return {
             resId: this.state.selectedRecordId,
@@ -101,12 +110,29 @@ export class ReconcileController extends KanbanController {
             resModel: this.props.resModel,
         };
     }
+
+    async _countUnreconciled() {
+        const domain = [["is_reconciled", "=", false]];
+        if (this.journalId) {
+            domain.push(["journal_id", "=", this.journalId]);
+        }
+        return await this.orm.call(
+            "account.bank.statement.line",
+            "search_count",
+            [domain]
+        );
+    }
+
     async selectRecord(record) {
+        // Set initialLoad = false FIRST before any checks
+        const wasInitialLoad = this.initialLoad;
+        this.initialLoad = false;
+
         var resId = false;
         if (record === undefined && this.props.resId) {
             resId = this.props.resId;
         } else if (
-            this.initialLoad &&
+            wasInitialLoad &&
             record === undefined &&
             this.state.selectedRecordId
         ) {
@@ -116,7 +142,26 @@ export class ReconcileController extends KanbanController {
                 (modelRecord) =>
                     !modelRecord.data.is_reconciled || modelRecord.data.to_check
             );
-            if (records.length === 0) {
+            if (records.length > 0) {
+                // There are still unreconciled records — mark that we've seen them
+                this.hasSeenUnreconciled = true;
+                this.rainbowShown = false;
+            } else {
+                // No unreconciled records in current view
+                // Only show rainbow if:
+                // 1. Not the initial page load
+                // 2. User actually reconciled something (hasSeenUnreconciled)
+                // 3. Haven't shown rainbow yet
+                if (!wasInitialLoad && this.hasSeenUnreconciled && !this.rainbowShown) {
+                    const unreconciledCount = await this._countUnreconciled();
+                    if (unreconciledCount === 0) {
+                        this.rainbowShown = true;
+                        this.hasSeenUnreconciled = false;
+                        await this.setRainbowMan(
+                            "Well done! Everything has been reconciled."
+                        );
+                    }
+                }
                 records = this.model.root.records;
                 if (records.length === 0) {
                     this.state.selectedRecordId = false;
@@ -127,7 +172,7 @@ export class ReconcileController extends KanbanController {
         } else {
             resId = record.resId;
         }
-        this.initialLoad = false;
+
         if (this.state.selectedRecordId && this.state.selectedRecordId !== resId) {
             if (this.form_controller && this.form_controller?.model?.root?.isDirty) {
                 await this.form_controller.model.root.save({
@@ -144,9 +189,11 @@ export class ReconcileController extends KanbanController {
         }
         this.updateURL(resId);
     }
+
     async openRecord(record) {
         this.selectRecord(record);
     }
+
     updateURL(resId) {
         router.pushState({id: resId});
     }
