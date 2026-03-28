@@ -1,14 +1,7 @@
 /* Hide Customer button in POS - Odoo 19 */
 
-/* Class-based selectors */
-.set-customer,
-button.set-customer,
-.o_set_customer,
-button.o_set_customer {
-    display: none !important;
-}
-
-/* Attribute-based selector as fallback */
-button[class*="customer"] {
+/* Correct class name in Odoo 19 is 'set-partner', not 'set-customer' */
+.set-partner,
+button.set-partner {
     display: none !important;
 }
