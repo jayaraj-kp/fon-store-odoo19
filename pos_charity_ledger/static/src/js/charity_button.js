@@ -106,23 +106,14 @@ function clearDonationFromOrder(order) {
 }
 
 // ── Core fix: inflate the PAYMENT LINE amount for an existing line ────────────
-//
-// Odoo 19 CE PaymentLine stores amount in `payment_line.amount` and the model
-// field is reactive. We update it via the model's `update()` method which
-// triggers reactivity, or fall back to direct property assignment + triggering
-// the order's recompute.
-//
 function setPaymentLineAmount(line, newAmount) {
     newAmount = parseFloat(newAmount.toFixed(2));
-    // Strategy 1: model update() — Odoo 17/18/19 reactive models
     if (typeof line.update === "function") {
         try { line.update({ amount: newAmount }); return; } catch (_) {}
     }
-    // Strategy 2: setAmount() method
     if (typeof line.setAmount === "function") {
         try { line.setAmount(newAmount); return; } catch (_) {}
     }
-    // Strategy 3: direct property (triggers OWL reactivity via Proxy)
     line.amount = newAmount;
 }
 
@@ -140,7 +131,7 @@ export class CharityOrderButton extends Component {
 
     setup() {
         try { this.pos = useService("pos"); } catch (_) { this.pos = this.env.pos; }
-        this.dialog      = useService("dialog");
+        this.dialog       = useService("dialog");
         this.notification = useService("notification");
         this.charityState = useState({ donationAmount: 0, isDonating: false });
     }
@@ -194,15 +185,16 @@ export class CharityOrderButton extends Component {
     }
 }
 
-// ── Patch PaymentScreen ───────────────────────────────────────────────────────
+// ── Patch PaymentScreen — NO getter syntax inside patch() ────────────────────
+// Odoo 19's esbuild bundler throws "Unexpected token 'get'" when getter
+// shorthand is used inside an object literal passed directly to patch().
+// Solution: keep only regular methods inside patch(), then add getters
+// via Object.defineProperties() on the prototype afterwards.
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this.charityState = useState({ donationAmount: 0, isDonating: false });
 
-        // onMounted: fires AFTER OWL renders and payment lines are populated.
-        // This is the correct hook to adjust the auto-created payment line
-        // that Odoo adds when the cashier clicks Cash KDTY / Card KDTY.
         onMounted(() => {
             const order = this.currentOrder;
             if (order && (order._charity_donation_amount || 0) > 0) {
@@ -213,9 +205,7 @@ patch(PaymentScreen.prototype, {
         });
     },
 
-    // ── Inflate payment lines to cover the charity donation ─────────────────
-    // Adds the donation amount to the first (and usually only) payment line.
-    // Called after mount (quick-pay) and when donation is applied manually.
+    // ── Inflate payment lines to cover the charity donation ──────────────────
     _inflatePaymentLines(order) {
         const extra = order._charity_donation_amount || 0;
         if (extra <= 0) return;
@@ -227,12 +217,10 @@ patch(PaymentScreen.prototype, {
         const arr   = Array.isArray(lines) ? lines : [...lines];
         if (arr.length === 0) return;
 
-        // Total currently in all payment lines
         const currentPaid = arr.reduce((s, l) => s + getPaymentLineAmount(l), 0);
         const shortfall   = parseFloat((required - currentPaid).toFixed(2));
-        if (shortfall <= 0.001) return; // Already correct
+        if (shortfall <= 0.001) return;
 
-        // Add shortfall to the first payment line
         const line      = arr[0];
         const curAmount = getPaymentLineAmount(line);
         setPaymentLineAmount(line, curAmount + shortfall);
@@ -240,7 +228,7 @@ patch(PaymentScreen.prototype, {
         console.debug(`[Charity] Payment line adjusted +${shortfall} → total ${curAmount + shortfall}`);
     },
 
-    // ── Deflate payment lines when donation is removed ───────────────────────
+    // ── Deflate payment lines when donation is removed ────────────────────────
     _deflatePaymentLines(order, extra) {
         if (extra <= 0) return;
         const lines = order.payment_ids || [];
@@ -253,21 +241,6 @@ patch(PaymentScreen.prototype, {
         setPaymentLineAmount(line, newAmount);
 
         console.debug(`[Charity] Payment line deflated -${extra} → total ${newAmount}`);
-    },
-
-    get charityEnabled()    { return this.pos.config.charity_enabled && this.pos.config.charity_account_id; }
-    get charityButtonLabel(){ return this.pos.config.charity_button_label || "Donate to Charity"; }
-    get currencySymbol()    { return getCurrencySymbol(this.pos); }
-
-    get changeAmount() {
-        const order = this.currentOrder;
-        if (!order) return 0;
-        const totalDue  = order.totalDue || 0;
-        const totalPaid = (order.payment_ids || []).reduce(
-            (s, l) => s + getPaymentLineAmount(l), 0
-        );
-        const change = totalPaid - totalDue;
-        return change > 0 ? parseFloat(change.toFixed(2)) : 0;
     },
 
     async openCharityPopup() {
@@ -316,7 +289,6 @@ patch(PaymentScreen.prototype, {
     },
 
     async validateOrder(isForceValidate) {
-        // Final safety net before validation
         const order = this.currentOrder;
         if (order && (order._charity_donation_amount || 0) > 0) {
             this._inflatePaymentLines(order);
@@ -325,5 +297,42 @@ patch(PaymentScreen.prototype, {
         this.charityState.donationAmount = 0;
         this.charityState.isDonating     = false;
         return result;
+    },
+});
+
+// ── Define getters on PaymentScreen.prototype OUTSIDE patch() ────────────────
+// This avoids the "Unexpected token 'get'" SyntaxError thrown by Odoo 19's
+// esbuild bundler when getter shorthand appears inside a patch() argument.
+Object.defineProperties(PaymentScreen.prototype, {
+    charityEnabled: {
+        get() {
+            return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
+        },
+        configurable: true,
+    },
+    charityButtonLabel: {
+        get() {
+            return this.pos.config.charity_button_label || "Donate to Charity";
+        },
+        configurable: true,
+    },
+    currencySymbol: {
+        get() {
+            return getCurrencySymbol(this.pos);
+        },
+        configurable: true,
+    },
+    changeAmount: {
+        get() {
+            const order = this.currentOrder;
+            if (!order) return 0;
+            const totalDue  = order.totalDue || 0;
+            const totalPaid = (order.payment_ids || []).reduce(
+                (s, l) => s + getPaymentLineAmount(l), 0
+            );
+            const change = totalPaid - totalDue;
+            return change > 0 ? parseFloat(change.toFixed(2)) : 0;
+        },
+        configurable: true,
     },
 });
