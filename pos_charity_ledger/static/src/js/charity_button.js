@@ -10,32 +10,68 @@ import { useService } from "@web/core/utils/hooks";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 import { Component } from "@odoo/owl";
 
-// ═══════════════════════════════════════════════════════════════════════
-// DESIGN — How charity works in Odoo 19 CE
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// HOW IT WORKS — Odoo 19 CE
+// ═══════════════════════════════════════════════════════════════════════════
 //
-// SCENARIO A – Donation from ORDER SCREEN (before payment):
-//   Order total = ₹467, charity = ₹3
-//   Cashier enters ₹467 cash → amount_paid=467, amount_return=0, total=467 ✓
-//   We NEVER touch the payment line.
-//   serializeForORM sends: charity_donation_amount=3, charity_account_id=X
-//   Backend saves the donation on the order record.
-//   At session close a journal entry moves ₹3 from cash GL → charity GL.
+// SCENARIO A — Charity set from ORDER SCREEN (before tapping a payment method)
+//   Order = ₹297, charity = ₹3
+//   → getDue() / get_due() returns ₹300 (patched below)
+//   → Cashier taps "Cash KDTY" → Odoo auto-fills line = ₹300
+//   → Payment screen shows: Cash ₹300, Change ₹3  ✓
+//   → ₹3 "change" physically goes into the charity box
+//   → amount_paid=300, amount_return=3, amount_total=297  ✓
 //
-// SCENARIO B – Donation from PAYMENT SCREEN (customer overpaid):
-//   Order total = ₹467, customer pays ₹470
-//   amount_paid=470, amount_return=3 (Odoo computes automatically)
-//   Cashier clicks "Donate ₹3" → charity = ₹3
-//   We NEVER touch the payment line.
-//   Backend: 470 - 3 = 467 ✓ — standard Odoo validation passes.
+// SCENARIO B — Charity set from PAYMENT SCREEN (customer already overpaid)
+//   Order = ₹297, cashier enters ₹300 → change = ₹3
+//   → Cashier clicks "Donate ₹3" → charity recorded, nothing else changes
+//   → amount_paid=300, amount_return=3  ✓
 //
-// KEY INSIGHT: We NEVER inflate/deflate payment lines.
-// The ₹3 charity is stored only as charity_donation_amount on the order.
-// Odoo's standard amount_paid / amount_return logic handles the rest.
-// ═══════════════════════════════════════════════════════════════════════
+// The key is patching BOTH getDue() and get_due() because Odoo 19 CE
+// uses getDue() internally but some paths still call get_due().
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ── PosOrder patch ────────────────────────────────────────────────────────────
+// ── PosOrder patches ──────────────────────────────────────────────────────────
 patch(PosOrder.prototype, {
+
+    /**
+     * Odoo 19 CE calls getDue() to know how much the customer still owes.
+     * By adding the charity amount here, when the cashier taps "Cash KDTY"
+     * the payment line auto-fills to ₹300 instead of ₹297.
+     * The ₹3 difference shows as "Change" — which goes into the charity box.
+     */
+    getDue(paymentLine) {
+        const base = super.getDue(paymentLine);
+        // Only add charity to the total-due (no paymentLine arg),
+        // not to the per-line calculation (paymentLine arg present).
+        if (!paymentLine) {
+            return base + (this._charity_donation_amount || 0);
+        }
+        return base;
+    },
+
+    /**
+     * Older code paths in Odoo 19 CE may still call get_due().
+     * Mirror the patch here for safety.
+     */
+    get_due(paymentLine) {
+        if (typeof super.get_due === "function") {
+            const base = super.get_due(paymentLine);
+            if (!paymentLine) {
+                return base + (this._charity_donation_amount || 0);
+            }
+            return base;
+        }
+        // Fallback: compute manually
+        const charity = !paymentLine ? (this._charity_donation_amount || 0) : 0;
+        const total = this.amount_total || 0;
+        const paid = (this.payment_ids || []).reduce((s, l) => {
+            if (l === paymentLine) return s;
+            return s + (typeof l.amount === "number" ? l.amount : 0);
+        }, 0);
+        return total - paid + charity;
+    },
+
     serializeForORM(opts = {}) {
         const data = super.serializeForORM(opts);
         const extra = this._charity_donation_amount || 0;
@@ -75,7 +111,9 @@ function getRawOrderTotal(order) {
         const byP = l.price_subtotal_incl || l.price_with_tax || 0;
         if (typeof byP === "number" && byP > 0) return s + byP;
         const pu = typeof l.price_unit === "number" ? l.price_unit : 0;
-        const qty = typeof l.qty === "number" ? l.qty : (typeof l.quantity === "number" ? l.quantity : 1);
+        const qty =
+            typeof l.qty === "number" ? l.qty :
+            typeof l.quantity === "number" ? l.quantity : 1;
         const disc = typeof l.discount === "number" ? l.discount : 0;
         return s + pu * qty * (1 - disc / 100);
     }, 0);
@@ -155,7 +193,7 @@ export class CharityOrderButton extends Component {
         }
 
         const roundOff = computeRoundOff(total);
-        // No payment line exists yet on order screen → no cap.
+        // No payment yet on order screen → no hard cap on donation amount.
         const maxDonate = roundOff > 0 ? roundOff : Infinity;
         const ceilAmount = roundOff > 0 ? roundOff : 10;
 
@@ -197,7 +235,7 @@ patch(PaymentScreen.prototype, {
 
         onMounted(() => {
             // Restore badge if cashier navigated back to payment screen
-            // after having set charity from the order screen.
+            // after setting charity from the order screen.
             const order = this.currentOrder;
             if (order && (order._charity_donation_amount || 0) > 0) {
                 this.charityState.donationAmount = order._charity_donation_amount;
@@ -206,11 +244,9 @@ patch(PaymentScreen.prototype, {
         });
     },
 
-    // ─────────────────────────────────────────────────────────────────
-    // openCharityPopup — payment screen button (SCENARIO B only).
-    // The customer has already overpaid. The change amount equals the
-    // donation we record. No payment line changes are made.
-    // ─────────────────────────────────────────────────────────────────
+    // ── Payment screen "Donate Change" button (SCENARIO B only) ──────────────
+    // Shown when the customer has already overpaid.
+    // Example: total=₹297, customer paid ₹300 → change=₹3 → donate ₹3.
     async openCharityPopup() {
         if (!this.charityEnabled) return;
 
@@ -239,6 +275,8 @@ patch(PaymentScreen.prototype, {
         const order = this.currentOrder;
         if (!order) return;
         applyDonationToOrder(this.pos, order, amount);
+        // Customer already paid ₹300 for ₹297 order — payment line is correct.
+        // No line changes needed.
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
         this.notification.add(
@@ -255,9 +293,8 @@ patch(PaymentScreen.prototype, {
     },
 
     async validateOrder(isForceValidate) {
-        // No payment line manipulation needed.
-        // serializeForORM (patched on PosOrder above) sends the charity fields
-        // to the backend, which saves them via _process_order in pos_order.py.
+        // getDue() / get_due() is already patched to include charity.
+        // Odoo's standard validation handles amount_paid / amount_return normally.
         const result = await super.validateOrder(isForceValidate);
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
@@ -283,13 +320,14 @@ Object.defineProperties(PaymentScreen.prototype, {
         get() { return getCurrencySymbol(this.pos); },
         configurable: true,
     },
-    // changeAmount: how much the customer has overpaid right now.
-    // Only used for Scenario B (payment screen donation button).
+    // changeAmount: how much the customer has overpaid RIGHT NOW.
+    // Measured against raw order total (not getDue) so it correctly reflects
+    // real overpayment even when getDue() includes charity.
     changeAmount: {
         get() {
             const order = this.currentOrder;
             if (!order) return 0;
-            const totalDue = order.amount_total || order.totalDue || 0;
+            const totalDue = getRawOrderTotal(order) || order.amount_total || 0;
             const totalPaid = getPaymentLines(order).reduce(
                 (s, l) => s + getPaymentLineAmount(l), 0
             );
