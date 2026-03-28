@@ -24,18 +24,17 @@ patch(PosOrder.prototype, {
         return data;
     },
 
-    // ✅ Add donation into total (SAFE METHOD)
+    // ✅ Add donation into total
     get_total_with_tax() {
         const baseTotal = super.get_total_with_tax(...arguments);
         return baseTotal + (this._charity_donation_amount || 0);
     },
 
-    // ✅ IMPORTANT: Force UI refresh
+    // ✅ Force UI update (VERY IMPORTANT)
     set_charity_amount(amount, accountId) {
         this._charity_donation_amount = amount;
         this._charity_account_id = accountId;
 
-        // 🔥 Required for Odoo 19 reactive UI
         if (this._recomputePrices) {
             this._recomputePrices();
         } else if (this.trigger) {
@@ -64,6 +63,7 @@ function getCurrentOrder(pos) {
 
 export class CharityOrderButton extends Component {
     static template = "pos_charity_ledger.CharityOrderButton";
+    static props = {};   // 🔥 REQUIRED in Odoo 19
 
     setup() {
         this.pos = useService("pos");
