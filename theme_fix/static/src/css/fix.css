@@ -1,0 +1,9 @@
+.o_list_renderer thead th.w-print-0.p-print-0 {
+    visibility: visible !important;
+}
+.o_list_renderer td.o_list_record_open_form_view {
+    visibility: visible !important;
+}
+.o_list_renderer td.w-print-0.p-print-0 {
+    visibility: visible !important;
+}
