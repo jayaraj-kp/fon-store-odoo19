@@ -17,6 +17,7 @@ import { Component } from "@odoo/owl";
 // SCENARIO A — Charity set from ORDER SCREEN (before tapping a payment method)
 //   Order = ₹297, charity = ₹3
 //   → getDue() / get_due() returns ₹300 (patched below)
+//   → ORDER SCREEN total badge updates to show "₹300 (incl. ₹3 donation)"
 //   → Cashier taps "Cash KDTY" → Odoo auto-fills line = ₹300
 //   → Payment screen shows: Cash ₹300, Change ₹3  ✓
 //   → ₹3 "change" physically goes into the charity box
@@ -27,8 +28,9 @@ import { Component } from "@odoo/owl";
 //   → Cashier clicks "Donate ₹3" → charity recorded, nothing else changes
 //   → amount_paid=300, amount_return=3  ✓
 //
-// The key is patching BOTH getDue() and get_due() because Odoo 19 CE
-// uses getDue() internally but some paths still call get_due().
+// KEY: getDue() is patched so that:
+//   - When called with NO paymentLine arg → adds charity (total due increases)
+//   - When called WITH a paymentLine arg  → base behaviour (no double-add)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── PosOrder patches ──────────────────────────────────────────────────────────
@@ -42,8 +44,6 @@ patch(PosOrder.prototype, {
      */
     getDue(paymentLine) {
         const base = super.getDue(paymentLine);
-        // Only add charity to the total-due (no paymentLine arg),
-        // not to the per-line calculation (paymentLine arg present).
         if (!paymentLine) {
             return base + (this._charity_donation_amount || 0);
         }
@@ -62,7 +62,6 @@ patch(PosOrder.prototype, {
             }
             return base;
         }
-        // Fallback: compute manually
         const charity = !paymentLine ? (this._charity_donation_amount || 0) : 0;
         const total = this.amount_total || 0;
         const paid = (this.payment_ids || []).reduce((s, l) => {
@@ -146,11 +145,19 @@ function applyDonationToOrder(pos, order, amount) {
         : pos.config.charity_account_id;
     order._charity_donation_amount = amount;
     order._charity_account_id = accountId;
+    // Trigger OWL reactivity — notify the order that its state changed
+    // so computed displays (order total badge, due amount) re-render.
+    if (typeof order.trigger === "function") {
+        order.trigger("change");
+    }
 }
 
 function clearDonationFromOrder(order) {
     order._charity_donation_amount = 0;
     order._charity_account_id = null;
+    if (typeof order.trigger === "function") {
+        order.trigger("change");
+    }
 }
 
 // ── Order Screen Charity Button Component ─────────────────────────────────────
@@ -179,6 +186,31 @@ export class CharityOrderButton extends Component {
         return order ? computeRoundOff(getRawOrderTotal(order)) : 0;
     }
 
+    /**
+     * One-tap handler for when a round-off amount is available.
+     * Instantly applies the donation without opening the popup.
+     * The order total display updates to show the new due amount (e.g. ₹300).
+     */
+    quickDonateRoundOff() {
+        if (!this.charityEnabled) return;
+        const order = this.currentOrder;
+        if (!order) return;
+        const roundOff = this.orderRoundOffAmount;
+        if (roundOff <= 0) return;
+
+        applyDonationToOrder(this.pos, order, roundOff);
+        this.charityState.donationAmount = roundOff;
+        this.charityState.isDonating = true;
+        this.notification.add(
+            `❤ ₹${roundOff.toFixed(2)} will be donated to charity. Total updated to ₹${(getRawOrderTotal(order) + roundOff).toFixed(2)}`,
+            { type: "success", sticky: false }
+        );
+    }
+
+    /**
+     * Full popup flow — used when there is NO round-off (whole number totals)
+     * or the cashier wants to enter a custom amount.
+     */
     async openOrderCharityPopup() {
         if (!this.charityEnabled) return;
         const order = this.currentOrder;
@@ -193,7 +225,6 @@ export class CharityOrderButton extends Component {
         }
 
         const roundOff = computeRoundOff(total);
-        // No payment yet on order screen → no hard cap on donation amount.
         const maxDonate = roundOff > 0 ? roundOff : Infinity;
         const ceilAmount = roundOff > 0 ? roundOff : 10;
 
@@ -209,8 +240,9 @@ export class CharityOrderButton extends Component {
             applyDonationToOrder(this.pos, order, result.amount);
             this.charityState.donationAmount = result.amount;
             this.charityState.isDonating = true;
+            const newTotal = getRawOrderTotal(order) + result.amount;
             this.notification.add(
-                `${this.currencySymbol}${result.amount.toFixed(2)} will be donated to charity. Thank you!`,
+                `❤ ${this.currencySymbol}${result.amount.toFixed(2)} will be donated. Total updated to ${this.currencySymbol}${newTotal.toFixed(2)}`,
                 { type: "success", sticky: false }
             );
         }
@@ -222,20 +254,23 @@ export class CharityOrderButton extends Component {
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
     }
+
+    /**
+     * Exposed to the OWL template so the XML can call
+     * getRawOrderTotal(currentOrder) to display the updated total.
+     */
+    getRawOrderTotal(order) {
+        return order ? getRawOrderTotal(order) : 0;
+    }
 }
 
 // ── Patch PaymentScreen ───────────────────────────────────────────────────────
-// NOTE: getter syntax (get foo() {}) inside patch() causes a SyntaxError in
-// Odoo 19's esbuild bundler. All getters are defined via Object.defineProperties
-// AFTER the patch() call below.
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this.charityState = useState({ donationAmount: 0, isDonating: false });
 
         onMounted(() => {
-            // Restore badge if cashier navigated back to payment screen
-            // after setting charity from the order screen.
             const order = this.currentOrder;
             if (order && (order._charity_donation_amount || 0) > 0) {
                 this.charityState.donationAmount = order._charity_donation_amount;
@@ -244,9 +279,6 @@ patch(PaymentScreen.prototype, {
         });
     },
 
-    // ── Payment screen "Donate Change" button (SCENARIO B only) ──────────────
-    // Shown when the customer has already overpaid.
-    // Example: total=₹297, customer paid ₹300 → change=₹3 → donate ₹3.
     async openCharityPopup() {
         if (!this.charityEnabled) return;
 
@@ -275,8 +307,6 @@ patch(PaymentScreen.prototype, {
         const order = this.currentOrder;
         if (!order) return;
         applyDonationToOrder(this.pos, order, amount);
-        // Customer already paid ₹300 for ₹297 order — payment line is correct.
-        // No line changes needed.
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
         this.notification.add(
@@ -293,8 +323,6 @@ patch(PaymentScreen.prototype, {
     },
 
     async validateOrder(isForceValidate) {
-        // getDue() / get_due() is already patched to include charity.
-        // Odoo's standard validation handles amount_paid / amount_return normally.
         const result = await super.validateOrder(isForceValidate);
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
@@ -320,9 +348,6 @@ Object.defineProperties(PaymentScreen.prototype, {
         get() { return getCurrencySymbol(this.pos); },
         configurable: true,
     },
-    // changeAmount: how much the customer has overpaid RIGHT NOW.
-    // Measured against raw order total (not getDue) so it correctly reflects
-    // real overpayment even when getDue() includes charity.
     changeAmount: {
         get() {
             const order = this.currentOrder;
