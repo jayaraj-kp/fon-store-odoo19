@@ -1,46 +1,361 @@
+/////** @odoo-module **/
+//
+//import { patch } from "@web/core/utils/patch";
+//import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
+//import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
+//import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+//import { CharityDonationPopup } from "@pos_charity_ledger/js/charity_popup";
+//import { useState } from "@odoo/owl";
+//import { useService } from "@web/core/utils/hooks";
+//import { PosOrder } from "@point_of_sale/app/models/pos_order";
+//import { Component } from "@odoo/owl";
+//
+//// ── Extend POS Order serialization ──────────────────────────────────────────
+//patch(PosOrder.prototype, {
+//    serializeForORM(opts = {}) {
+//        const data = super.serializeForORM(opts);
+//        if (this._charity_donation_amount && this._charity_donation_amount > 0) {
+//            data.charity_donation_amount = this._charity_donation_amount;
+//            data.charity_account_id = this._charity_account_id || false;
+//        }
+//        return data;
+//    },
+//});
+//
+//// ── Helpers ──────────────────────────────────────────────────────────────────
+//function getCurrencySymbol(pos) {
+//    return pos.currency?.symbol || "₹";
+//}
+//
+//function computeRoundOff(total) {
+//    const ceil = Math.ceil(total);
+//    const diff = parseFloat((ceil - total).toFixed(2));
+//    return diff > 0 ? diff : 0;
+//}
+//
+///**
+// * Compute total from Odoo 19 CE baseLines.
+// *
+// * In Odoo 19 CE, _prices.original.baseLines contains RAW line data:
+// *   { price_unit, quantity, discount, tax_ids, currency_id, ... }
+// *
+// * There is NO pre-computed subtotal key — we must calculate it ourselves:
+// *   line_total = price_unit * quantity * (1 - discount / 100)
+// *
+// * Tax handling: since tax_ids is an array (not computed tax amounts here),
+// * we compute the tax-exclusive subtotal. For the purpose of round-off
+// * calculation (which only needs the order magnitude), this is sufficient.
+// * If taxes are included in price_unit (tax-inclusive products), this is exact.
+// */
+//function sumBaseLines(baseLines) {
+//    if (!Array.isArray(baseLines) || baseLines.length === 0) return 0;
+//    return baseLines.reduce((sum, line) => {
+//        const priceUnit = typeof line.price_unit === "number" ? line.price_unit : 0;
+//        const qty = typeof line.quantity === "number" ? line.quantity : 1;
+//        const discount = typeof line.discount === "number" ? line.discount : 0;
+//        if (priceUnit > 0) {
+//            return sum + priceUnit * qty * (1 - discount / 100);
+//        }
+//        // Fallback: try any pre-computed total key (older Odoo versions)
+//        const fallbackKeys = [
+//            "priceSubtotalIncl", "price_subtotal_incl",
+//            "priceIncludingTax", "totalIncludingTax",
+//            "subtotal_incl", "priceSubtotal",
+//            "price_subtotal", "subtotal", "total", "amount",
+//        ];
+//        for (const k of fallbackKeys) {
+//            if (typeof line[k] === "number" && line[k] > 0) {
+//                return sum + line[k];
+//            }
+//        }
+//        return sum;
+//    }, 0);
+//}
+//
+///**
+// * Get the order total for Odoo 19 CE.
+// *
+// * Strategy (in priority order):
+// * 1. order.get_total_with_tax() — Odoo 19 CE PosOrder method (most accurate)
+// * 2. order.getTotalWithTax()    — camelCase variant
+// * 3. order.amount_total         — reactive computed field on PosOrder model
+// * 4. order._prices.original.baseLines — compute from raw line data (our fix)
+// * 5. order._prices.unit.baseLines     — fallback baseLine set
+// * 6. Sum order lines directly         — last resort
+// */
+//function getOrderTotal(order) {
+//    // ── Strategy 1 & 2: PosOrder method calls (Odoo 16/17/18/19) ────────────
+//    for (const m of ["get_total_with_tax", "getTotalWithTax", "getTotal", "get_total"]) {
+//        try {
+//            if (typeof order[m] === "function") {
+//                const v = order[m]();
+//                if (typeof v === "number" && v > 0) return v;
+//            }
+//        } catch (_) {}
+//    }
+//
+//    // ── Strategy 3: Direct reactive property (Odoo 19 CE model) ─────────────
+//    // Odoo 19 CE PosOrder exposes computed totals as plain properties
+//    for (const p of ["amount_total", "total_with_tax", "totalWithTax", "total"]) {
+//        if (typeof order[p] === "number" && order[p] > 0) return order[p];
+//    }
+//
+//    // ── Strategy 4: _prices.original.baseLines — compute from raw data ───────
+//    // THIS IS THE KEY FIX: Odoo 19 CE baseLines have price_unit/quantity/discount
+//    const original = order._prices?.original;
+//    if (original?.baseLines) {
+//        const v = sumBaseLines(original.baseLines);
+//        if (v > 0) return v;
+//    }
+//
+//    // ── Strategy 5: _prices.unit.baseLines ───────────────────────────────────
+//    const unit = order._prices?.unit;
+//    if (unit?.baseLines) {
+//        const v = sumBaseLines(unit.baseLines);
+//        if (v > 0) return v;
+//    }
+//
+//    // ── Strategy 6: Sum order lines directly ─────────────────────────────────
+//    const lines =
+//        (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
+//        order.lines ||
+//        order.orderlines ||
+//        [];
+//    const arr = Array.isArray(lines) ? lines : [...lines];
+//    if (arr.length > 0) {
+//        const lineTotal = arr.reduce((s, l) => {
+//            // Try method first
+//            const byMethod =
+//                (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
+//                (typeof l.getPriceWithTax === "function" && l.getPriceWithTax());
+//            if (typeof byMethod === "number" && byMethod > 0) return s + byMethod;
+//            // Try properties
+//            const byProp = l.price_subtotal_incl || l.price_with_tax || 0;
+//            if (typeof byProp === "number" && byProp > 0) return s + byProp;
+//            // Compute from raw fields on the line itself
+//            const pu = typeof l.price_unit === "number" ? l.price_unit : 0;
+//            const qty = typeof l.qty === "number" ? l.qty : (typeof l.quantity === "number" ? l.quantity : 1);
+//            const disc = typeof l.discount === "number" ? l.discount : 0;
+//            return s + pu * qty * (1 - disc / 100);
+//        }, 0);
+//        if (lineTotal > 0) return lineTotal;
+//    }
+//
+//    return 0;
+//}
+//
+//function getCurrentOrder(pos) {
+//    try { const o = pos.get_order?.(); if (o) return o; } catch (_) {}
+//    try { const o = pos.getCurrentOrder?.(); if (o) return o; } catch (_) {}
+//    return pos.selectedOrder || null;
+//}
+//
+//// ── Order Screen Charity Button Component ────────────────────────────────────
+//export class CharityOrderButton extends Component {
+//    static template = "pos_charity_ledger.CharityOrderButton";
+//    static props = {};
+//
+//    setup() {
+//        try {
+//            this.pos = useService("pos");
+//        } catch (_) {
+//            this.pos = this.env.pos;
+//        }
+//        this.dialog = useService("dialog");
+//        this.notification = useService("notification");
+//        this.charityState = useState({ donationAmount: 0, isDonating: false });
+//    }
+//
+//    get charityEnabled() {
+//        return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
+//    }
+//
+//    get charityButtonLabel() {
+//        return this.pos.config.charity_button_label || "Donate to Charity";
+//    }
+//
+//    get currencySymbol() {
+//        return getCurrencySymbol(this.pos);
+//    }
+//
+//    get currentOrder() {
+//        return getCurrentOrder(this.pos);
+//    }
+//
+//    get orderRoundOffAmount() {
+//        const order = this.currentOrder;
+//        if (!order) return 0;
+//        return computeRoundOff(getOrderTotal(order));
+//    }
+//
+//    async openOrderCharityPopup() {
+//        if (!this.charityEnabled) return;
+//        const order = this.currentOrder;
+//        if (!order) {
+//            this.notification.add("No active order found.", { type: "warning" });
+//            return;
+//        }
+//
+//        const total = getOrderTotal(order);
+//
+//        // Diagnostic logs — safe to keep for debugging
+//        const bl = order._prices?.original?.baseLines || [];
+//        console.log("[CharityButton] baseLines[0]:", bl[0] ? JSON.parse(JSON.stringify(bl[0])) : "empty");
+//        console.log("[CharityButton] resolved total:", total);
+//        console.log("[CharityButton] order.amount_total:", order.amount_total);
+//
+//        if (total <= 0) {
+//            this.notification.add("Please add products before donating.", { type: "warning" });
+//            return;
+//        }
+//
+//        const roundOff = computeRoundOff(total);
+//        // If there is a round-off amount, cap donations to it.
+//        // If the total is already a whole number (no round-off), allow any amount — no cap.
+//        const maxDonate = roundOff > 0 ? roundOff : Infinity;
+//
+//        const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
+//            title: this.charityButtonLabel,
+//            changeAmount: maxDonate,
+//            roundOffAmount: roundOff,
+//            currencySymbol: this.currencySymbol,
+//        });
+//
+//        if (result && result.confirmed && result.amount > 0) {
+//            const accountId = Array.isArray(this.pos.config.charity_account_id)
+//                ? this.pos.config.charity_account_id[0]
+//                : this.pos.config.charity_account_id;
+//            order._charity_donation_amount = result.amount;
+//            order._charity_account_id = accountId;
+//            this.charityState.donationAmount = result.amount;
+//            this.charityState.isDonating = true;
+//            this.notification.add(
+//                this.currencySymbol + result.amount.toFixed(2) + " will be donated to charity. Thank you!",
+//                { type: "success", sticky: false }
+//            );
+//        }
+//    }
+//
+//    removeOrderCharityDonation() {
+//        const order = this.currentOrder;
+//        if (order) {
+//            order._charity_donation_amount = 0;
+//            order._charity_account_id = null;
+//        }
+//        this.charityState.donationAmount = 0;
+//        this.charityState.isDonating = false;
+//    }
+//}
+//
+//// ── Patch PaymentScreen ───────────────────────────────────────────────────────
+//patch(PaymentScreen.prototype, {
+//    setup() {
+//        super.setup(...arguments);
+//        this.charityState = useState({ donationAmount: 0, isDonating: false });
+//    },
+//
+//    get charityEnabled() {
+//        return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
+//    },
+//
+//    get charityButtonLabel() {
+//        return this.pos.config.charity_button_label || "Donate to Charity";
+//    },
+//
+//    get changeAmount() {
+//        const order = this.currentOrder;
+//        if (!order) return 0;
+//        const totalDue = order.totalDue || 0;
+//        const totalPaid = (order.payment_ids || []).reduce((sum, line) => {
+//            return sum + (line.getAmount ? line.getAmount() : (line.amount || 0));
+//        }, 0);
+//        const change = totalPaid - totalDue;
+//        return change > 0 ? parseFloat(change.toFixed(2)) : 0;
+//    },
+//
+//    get currencySymbol() {
+//        return getCurrencySymbol(this.pos);
+//    },
+//
+//    async openCharityPopup() {
+//        if (!this.charityEnabled) return;
+//        const changeAmt = this.changeAmount;
+//        if (changeAmt <= 0) {
+//            this.dialog.add(AlertDialog, {
+//                title: "No Change Available",
+//                body: "There is no change to donate. Please ensure the customer has overpaid.",
+//            });
+//            return;
+//        }
+//        const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
+//            title: this.charityButtonLabel,
+//            changeAmount: changeAmt,
+//            roundOffAmount: 0,
+//            currencySymbol: this.currencySymbol,
+//        });
+//        if (result && result.confirmed && result.amount > 0) {
+//            this._applyCharityDonation(result.amount);
+//        }
+//    },
+//
+//    _applyCharityDonation(amount) {
+//        const order = this.currentOrder;
+//        if (!order) return;
+//        const accountId = Array.isArray(this.pos.config.charity_account_id)
+//            ? this.pos.config.charity_account_id[0]
+//            : this.pos.config.charity_account_id;
+//        order._charity_donation_amount = amount;
+//        order._charity_account_id = accountId;
+//        this.charityState.donationAmount = amount;
+//        this.charityState.isDonating = true;
+//        this.notification.add(
+//            this.currencySymbol + amount.toFixed(2) + " will be donated to charity. Thank you!",
+//            { type: "success", sticky: false }
+//        );
+//    },
+//
+//    removeCharityDonation() {
+//        const order = this.currentOrder;
+//        if (order) {
+//            order._charity_donation_amount = 0;
+//            order._charity_account_id = null;
+//        }
+//        this.charityState.donationAmount = 0;
+//        this.charityState.isDonating = false;
+//    },
+//
+//    async validateOrder(isForceValidate) {
+//        const result = await super.validateOrder(isForceValidate);
+//        this.charityState.donationAmount = 0;
+//        this.charityState.isDonating = false;
+//        return result;
+//    },
+//});
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { reactive } from "@odoo/owl";
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { CharityDonationPopup } from "@pos_charity_ledger/js/charity_popup";
-import { useState, onMounted, Component } from "@odoo/owl";
+import { useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
+import { Component } from "@odoo/owl";
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MODULE-LEVEL REACTIVE STORE
-// ═══════════════════════════════════════════════════════════════════════════
-// OWL reactive() creates a proxy that automatically notifies EVERY component
-// that reads from it whenever any key changes.
-//
-// We key by order.uid (stable per session).  When charityStore[uid] is set,
-// Odoo's own PaymentScreen template (which reads getDue() → charityStore)
-// re-renders automatically and the big ₹297 display becomes ₹300.
-// ═══════════════════════════════════════════════════════════════════════════
-const charityStore = reactive({});
+// ── Extend POS Order serialization ──────────────────────────────────────────
+patch(PosOrder.prototype, {
+    serializeForORM(opts = {}) {
+        const data = super.serializeForORM(opts);
+        if (this._charity_donation_amount && this._charity_donation_amount > 0) {
+            data.charity_donation_amount = this._charity_donation_amount;
+            data.charity_account_id = this._charity_account_id || false;
+        }
+        return data;
+    },
+});
 
-function _orderKey(order) {
-    return String(order.uid || order.id || order.name || "unknown");
-}
-
-function getCharityData(order) {
-    return charityStore[_orderKey(order)] || { amount: 0, accountId: null };
-}
-
-function setCharityData(order, amount, accountId) {
-    // Writing a key on the reactive object triggers re-render in all
-    // components that have read this key (payment screen, order screen badge).
-    charityStore[_orderKey(order)] = { amount, accountId };
-}
-
-function clearCharityData(order) {
-    charityStore[_orderKey(order)] = { amount: 0, accountId: null };
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function getCurrencySymbol(pos) {
     return pos.currency?.symbol || "₹";
 }
@@ -51,44 +366,115 @@ function computeRoundOff(total) {
     return diff > 0 ? diff : 0;
 }
 
-function getRawOrderTotal(order) {
-    for (const p of ["amount_total", "total_with_tax", "totalWithTax", "total"]) {
-        const v = order[p];
-        if (typeof v === "number" && v > 0) return v;
-    }
-    const lines =
-        (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
-        order.lines || order.orderlines || [];
-    const arr = Array.isArray(lines) ? lines : [...lines];
-    return arr.reduce((s, l) => {
-        const byM =
-            (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
-            (typeof l.getPriceWithTax === "function" && l.getPriceWithTax());
-        if (typeof byM === "number" && byM > 0) return s + byM;
-        const byP = l.price_subtotal_incl || l.price_with_tax || 0;
-        if (typeof byP === "number" && byP > 0) return s + byP;
-        const pu = typeof l.price_unit === "number" ? l.price_unit : 0;
-        const qty =
-            typeof l.qty === "number" ? l.qty :
-            typeof l.quantity === "number" ? l.quantity : 1;
-        const disc = typeof l.discount === "number" ? l.discount : 0;
-        return s + pu * qty * (1 - disc / 100);
+/**
+ * Compute total from Odoo 19 CE baseLines.
+ *
+ * In Odoo 19 CE, _prices.original.baseLines contains RAW line data:
+ *   { price_unit, quantity, discount, tax_ids, currency_id, ... }
+ *
+ * There is NO pre-computed subtotal key — we must calculate it ourselves:
+ *   line_total = price_unit * quantity * (1 - discount / 100)
+ *
+ * Tax handling: since tax_ids is an array (not computed tax amounts here),
+ * we compute the tax-exclusive subtotal. For the purpose of round-off
+ * calculation (which only needs the order magnitude), this is sufficient.
+ * If taxes are included in price_unit (tax-inclusive products), this is exact.
+ */
+function sumBaseLines(baseLines) {
+    if (!Array.isArray(baseLines) || baseLines.length === 0) return 0;
+    return baseLines.reduce((sum, line) => {
+        const priceUnit = typeof line.price_unit === "number" ? line.price_unit : 0;
+        const qty = typeof line.quantity === "number" ? line.quantity : 1;
+        const discount = typeof line.discount === "number" ? line.discount : 0;
+        if (priceUnit > 0) {
+            return sum + priceUnit * qty * (1 - discount / 100);
+        }
+        // Fallback: try any pre-computed total key (older Odoo versions)
+        const fallbackKeys = [
+            "priceSubtotalIncl", "price_subtotal_incl",
+            "priceIncludingTax", "totalIncludingTax",
+            "subtotal_incl", "priceSubtotal",
+            "price_subtotal", "subtotal", "total", "amount",
+        ];
+        for (const k of fallbackKeys) {
+            if (typeof line[k] === "number" && line[k] > 0) {
+                return sum + line[k];
+            }
+        }
+        return sum;
     }, 0);
 }
 
-function getPaymentLineAmount(line) {
-    if (typeof line.getAmount === "function") {
-        try { return line.getAmount(); } catch (_) {}
+/**
+ * Get the order total for Odoo 19 CE.
+ *
+ * Strategy (in priority order):
+ * 1. order.get_total_with_tax() — Odoo 19 CE PosOrder method (most accurate)
+ * 2. order.getTotalWithTax()    — camelCase variant
+ * 3. order.amount_total         — reactive computed field on PosOrder model
+ * 4. order._prices.original.baseLines — compute from raw line data (our fix)
+ * 5. order._prices.unit.baseLines     — fallback baseLine set
+ * 6. Sum order lines directly         — last resort
+ */
+function getOrderTotal(order) {
+    // ── Strategy 1 & 2: PosOrder method calls (Odoo 16/17/18/19) ────────────
+    for (const m of ["get_total_with_tax", "getTotalWithTax", "getTotal", "get_total"]) {
+        try {
+            if (typeof order[m] === "function") {
+                const v = order[m]();
+                if (typeof v === "number" && v > 0) return v;
+            }
+        } catch (_) {}
     }
-    if (typeof line.get_amount === "function") {
-        try { return line.get_amount(); } catch (_) {}
-    }
-    return typeof line.amount === "number" ? line.amount : 0;
-}
 
-function getPaymentLines(order) {
-    const raw = order.payment_ids || order.paymentlines || [];
-    return Array.isArray(raw) ? raw : [...raw];
+    // ── Strategy 3: Direct reactive property (Odoo 19 CE model) ─────────────
+    // Odoo 19 CE PosOrder exposes computed totals as plain properties
+    for (const p of ["amount_total", "total_with_tax", "totalWithTax", "total"]) {
+        if (typeof order[p] === "number" && order[p] > 0) return order[p];
+    }
+
+    // ── Strategy 4: _prices.original.baseLines — compute from raw data ───────
+    // THIS IS THE KEY FIX: Odoo 19 CE baseLines have price_unit/quantity/discount
+    const original = order._prices?.original;
+    if (original?.baseLines) {
+        const v = sumBaseLines(original.baseLines);
+        if (v > 0) return v;
+    }
+
+    // ── Strategy 5: _prices.unit.baseLines ───────────────────────────────────
+    const unit = order._prices?.unit;
+    if (unit?.baseLines) {
+        const v = sumBaseLines(unit.baseLines);
+        if (v > 0) return v;
+    }
+
+    // ── Strategy 6: Sum order lines directly ─────────────────────────────────
+    const lines =
+        (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
+        order.lines ||
+        order.orderlines ||
+        [];
+    const arr = Array.isArray(lines) ? lines : [...lines];
+    if (arr.length > 0) {
+        const lineTotal = arr.reduce((s, l) => {
+            // Try method first
+            const byMethod =
+                (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
+                (typeof l.getPriceWithTax === "function" && l.getPriceWithTax());
+            if (typeof byMethod === "number" && byMethod > 0) return s + byMethod;
+            // Try properties
+            const byProp = l.price_subtotal_incl || l.price_with_tax || 0;
+            if (typeof byProp === "number" && byProp > 0) return s + byProp;
+            // Compute from raw fields on the line itself
+            const pu = typeof l.price_unit === "number" ? l.price_unit : 0;
+            const qty = typeof l.qty === "number" ? l.qty : (typeof l.quantity === "number" ? l.quantity : 1);
+            const disc = typeof l.discount === "number" ? l.discount : 0;
+            return s + pu * qty * (1 - disc / 100);
+        }, 0);
+        if (lineTotal > 0) return lineTotal;
+    }
+
+    return 0;
 }
 
 function getCurrentOrder(pos) {
@@ -97,64 +483,17 @@ function getCurrentOrder(pos) {
     return pos.selectedOrder || null;
 }
 
-function getConfigAccountId(pos) {
-    return Array.isArray(pos.config.charity_account_id)
-        ? pos.config.charity_account_id[0]
-        : pos.config.charity_account_id;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PosOrder patch
-// getDue() reads from charityStore so the reactive dependency is registered.
-// When charityStore changes → all components that called getDue() re-render.
-// ═══════════════════════════════════════════════════════════════════════════
-patch(PosOrder.prototype, {
-    getDue(paymentLine) {
-        const base = super.getDue(paymentLine);
-        if (!paymentLine) {
-            // Reading charityStore here registers the reactive dependency.
-            return base + (getCharityData(this).amount || 0);
-        }
-        return base;
-    },
-
-    get_due(paymentLine) {
-        if (typeof super.get_due === "function") {
-            const base = super.get_due(paymentLine);
-            if (!paymentLine) {
-                return base + (getCharityData(this).amount || 0);
-            }
-            return base;
-        }
-        const charity = !paymentLine ? (getCharityData(this).amount || 0) : 0;
-        const total = this.amount_total || 0;
-        const paid = (this.payment_ids || []).reduce((s, l) => {
-            if (l === paymentLine) return s;
-            return s + (typeof l.amount === "number" ? l.amount : 0);
-        }, 0);
-        return total - paid + charity;
-    },
-
-    serializeForORM(opts = {}) {
-        const data = super.serializeForORM(opts);
-        const { amount, accountId } = getCharityData(this);
-        if (amount > 0) {
-            data.charity_donation_amount = amount;
-            data.charity_account_id = accountId || false;
-        }
-        return data;
-    },
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Order Screen Charity Button Component
-// ═══════════════════════════════════════════════════════════════════════════
+// ── Order Screen Charity Button Component ────────────────────────────────────
 export class CharityOrderButton extends Component {
     static template = "pos_charity_ledger.CharityOrderButton";
     static props = {};
 
     setup() {
-        try { this.pos = useService("pos"); } catch (_) { this.pos = this.env.pos; }
+        try {
+            this.pos = useService("pos");
+        } catch (_) {
+            this.pos = this.env.pos;
+        }
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.charityState = useState({ donationAmount: 0, isDonating: false });
@@ -163,45 +502,25 @@ export class CharityOrderButton extends Component {
     get charityEnabled() {
         return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
     }
+
     get charityButtonLabel() {
         return this.pos.config.charity_button_label || "Donate to Charity";
     }
-    get currencySymbol() { return getCurrencySymbol(this.pos); }
-    get currentOrder()   { return getCurrentOrder(this.pos); }
 
-    get orderRawTotal() {
-        const o = this.currentOrder;
-        return o ? getRawOrderTotal(o) : 0;
+    get currencySymbol() {
+        return getCurrencySymbol(this.pos);
     }
+
+    get currentOrder() {
+        return getCurrentOrder(this.pos);
+    }
+
     get orderRoundOffAmount() {
-        return computeRoundOff(this.orderRawTotal);
-    }
-
-    /** Called from XML template to compute displayed total */
-    getRawOrderTotal(order) {
-        return order ? getRawOrderTotal(order) : 0;
-    }
-
-    // ── ONE-TAP: instantly donate the round-off, no popup ─────────────────
-    quickDonateRoundOff() {
-        if (!this.charityEnabled) return;
         const order = this.currentOrder;
-        if (!order) return;
-        const roundOff = this.orderRoundOffAmount;
-        if (roundOff <= 0) return;
-
-        setCharityData(order, roundOff, getConfigAccountId(this.pos));
-        this.charityState.donationAmount = roundOff;
-        this.charityState.isDonating = true;
-
-        const sym = this.currencySymbol;
-        this.notification.add(
-            `❤ ${sym}${roundOff.toFixed(2)} donated — Total: ${sym}${(this.orderRawTotal + roundOff).toFixed(2)}`,
-            { type: "success", sticky: false }
-        );
+        if (!order) return 0;
+        return computeRoundOff(getOrderTotal(order));
     }
 
-    // ── POPUP flow: for whole-number totals or custom amounts ──────────────
     async openOrderCharityPopup() {
         if (!this.charityEnabled) return;
         const order = this.currentOrder;
@@ -209,30 +528,46 @@ export class CharityOrderButton extends Component {
             this.notification.add("No active order found.", { type: "warning" });
             return;
         }
-        const total = this.orderRawTotal;
+
+        const total = getOrderTotal(order);
+
+        // Diagnostic logs — safe to keep for debugging
+        const bl = order._prices?.original?.baseLines || [];
+        console.log("[CharityButton] baseLines[0]:", bl[0] ? JSON.parse(JSON.stringify(bl[0])) : "empty");
+        console.log("[CharityButton] resolved total:", total);
+        console.log("[CharityButton] order.amount_total:", order.amount_total);
+
         if (total <= 0) {
             this.notification.add("Please add products before donating.", { type: "warning" });
             return;
         }
-        const roundOff  = computeRoundOff(total);
+
+        const roundOff = computeRoundOff(total);
+        // If there is a round-off amount, cap donations to it.
+        // If the total is already a whole number (no round-off), allow any amount — no cap.
         const maxDonate = roundOff > 0 ? roundOff : Infinity;
+        // ceilAmount: the difference to the next whole number (e.g. ₹999 → 1, ₹693.45 → 0.55)
+        // Used for the "Full Change" one-tap button when total is whole.
         const ceilAmount = roundOff > 0 ? roundOff : 10;
 
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
             title: this.charityButtonLabel,
             changeAmount: maxDonate,
             roundOffAmount: roundOff,
-            ceilAmount,
+            ceilAmount: ceilAmount,
             currencySymbol: this.currencySymbol,
         });
 
-        if (result?.confirmed && result.amount > 0) {
-            setCharityData(order, result.amount, getConfigAccountId(this.pos));
+        if (result && result.confirmed && result.amount > 0) {
+            const accountId = Array.isArray(this.pos.config.charity_account_id)
+                ? this.pos.config.charity_account_id[0]
+                : this.pos.config.charity_account_id;
+            order._charity_donation_amount = result.amount;
+            order._charity_account_id = accountId;
             this.charityState.donationAmount = result.amount;
             this.charityState.isDonating = true;
-            const sym = this.currencySymbol;
             this.notification.add(
-                `❤ ${sym}${result.amount.toFixed(2)} will be donated — Total: ${sym}${(total + result.amount).toFixed(2)}`,
+                this.currencySymbol + result.amount.toFixed(2) + " will be donated to charity. Thank you!",
                 { type: "success", sticky: false }
             );
         }
@@ -240,37 +575,47 @@ export class CharityOrderButton extends Component {
 
     removeOrderCharityDonation() {
         const order = this.currentOrder;
-        if (order) clearCharityData(order);
+        if (order) {
+            order._charity_donation_amount = 0;
+            order._charity_account_id = null;
+        }
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PaymentScreen patch
-// ═══════════════════════════════════════════════════════════════════════════
+// ── Patch PaymentScreen ───────────────────────────────────────────────────────
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this.charityState = useState({ donationAmount: 0, isDonating: false });
-
-        onMounted(() => {
-            // Restore badge if cashier navigated back to the payment screen.
-            const order = this.currentOrder;
-            if (order) {
-                const { amount } = getCharityData(order);
-                if (amount > 0) {
-                    this.charityState.donationAmount = amount;
-                    this.charityState.isDonating = true;
-                }
-            }
-        });
     },
 
-    // ── Payment screen "Donate Change" button (Scenario B — customer overpaid) ─
+    get charityEnabled() {
+        return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
+    },
+
+    get charityButtonLabel() {
+        return this.pos.config.charity_button_label || "Donate to Charity";
+    },
+
+    get changeAmount() {
+        const order = this.currentOrder;
+        if (!order) return 0;
+        const totalDue = order.totalDue || 0;
+        const totalPaid = (order.payment_ids || []).reduce((sum, line) => {
+            return sum + (line.getAmount ? line.getAmount() : (line.amount || 0));
+        }, 0);
+        const change = totalPaid - totalDue;
+        return change > 0 ? parseFloat(change.toFixed(2)) : 0;
+    },
+
+    get currencySymbol() {
+        return getCurrencySymbol(this.pos);
+    },
+
     async openCharityPopup() {
         if (!this.charityEnabled) return;
-
         const changeAmt = this.changeAmount;
         if (changeAmt <= 0) {
             this.dialog.add(AlertDialog, {
@@ -279,15 +624,13 @@ patch(PaymentScreen.prototype, {
             });
             return;
         }
-
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
             title: this.charityButtonLabel,
             changeAmount: changeAmt,
             roundOffAmount: 0,
             currencySymbol: this.currencySymbol,
         });
-
-        if (result?.confirmed && result.amount > 0) {
+        if (result && result.confirmed && result.amount > 0) {
             this._applyCharityDonation(result.amount);
         }
     },
@@ -295,18 +638,25 @@ patch(PaymentScreen.prototype, {
     _applyCharityDonation(amount) {
         const order = this.currentOrder;
         if (!order) return;
-        setCharityData(order, amount, getConfigAccountId(this.pos));
+        const accountId = Array.isArray(this.pos.config.charity_account_id)
+            ? this.pos.config.charity_account_id[0]
+            : this.pos.config.charity_account_id;
+        order._charity_donation_amount = amount;
+        order._charity_account_id = accountId;
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
         this.notification.add(
-            `${this.currencySymbol}${amount.toFixed(2)} will be donated to charity. Thank you!`,
+            this.currencySymbol + amount.toFixed(2) + " will be donated to charity. Thank you!",
             { type: "success", sticky: false }
         );
     },
 
     removeCharityDonation() {
         const order = this.currentOrder;
-        if (order) clearCharityData(order);
+        if (order) {
+            order._charity_donation_amount = 0;
+            order._charity_account_id = null;
+        }
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
     },
@@ -316,48 +666,5 @@ patch(PaymentScreen.prototype, {
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
         return result;
-    },
-});
-
-// ── Define getters OUTSIDE patch() (esbuild/getter-syntax workaround) ─────
-Object.defineProperties(PaymentScreen.prototype, {
-    charityEnabled: {
-        get() {
-            return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
-        },
-        configurable: true,
-    },
-    charityButtonLabel: {
-        get() {
-            return this.pos.config.charity_button_label || "Donate to Charity";
-        },
-        configurable: true,
-    },
-    currencySymbol: {
-        get() { return getCurrencySymbol(this.pos); },
-        configurable: true,
-    },
-    // charityDonationAmount: reads charityStore (reactive) so the payment
-    // screen template re-renders when charity is set from the order screen.
-    charityDonationAmount: {
-        get() {
-            const order = this.currentOrder;
-            return order ? (getCharityData(order).amount || 0) : 0;
-        },
-        configurable: true,
-    },
-    // changeAmount: measures real overpayment vs RAW total (not getDue).
-    changeAmount: {
-        get() {
-            const order = this.currentOrder;
-            if (!order) return 0;
-            const totalDue = getRawOrderTotal(order) || order.amount_total || 0;
-            const totalPaid = getPaymentLines(order).reduce(
-                (s, l) => s + getPaymentLineAmount(l), 0
-            );
-            const change = parseFloat((totalPaid - totalDue).toFixed(2));
-            return change > 0 ? change : 0;
-        },
-        configurable: true,
     },
 });

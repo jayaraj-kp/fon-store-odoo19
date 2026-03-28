@@ -7,40 +7,26 @@
     ════════════════════════════════════════════════════════════════ -->
     <t t-name="pos_charity_ledger.CharityOrderButton">
         <div t-if="charityEnabled" class="charity-order-section w-100">
-
-            <!-- NOT yet donating -->
             <t t-if="!charityState.isDonating">
-
-                <!-- CASE 1: Round-off exists (e.g. ₹297 → gap ₹3)
-                     ONE-TAP: instantly records donation and updates total to ₹300. -->
-                <t t-if="orderRoundOffAmount > 0">
-                    <button class="btn btn-charity btn-charity-order w-100"
-                        t-on-click="quickDonateRoundOff">
-                        <span>❤ <t t-esc="charityButtonLabel"/></span>
+                <button class="btn btn-charity btn-charity-order w-100"
+                    t-on-click="openOrderCharityPopup">
+                    <span>❤ <t t-esc="charityButtonLabel"/></span>
+                    <t t-if="orderRoundOffAmount > 0">
                         <span class="charity-roundoff-hint ms-1">
-                            (Round off <t t-esc="currencySymbol"/><t t-esc="orderRoundOffAmount.toFixed(2)"/>
-                            → Total <t t-esc="currencySymbol"/><t t-esc="(orderRawTotal + orderRoundOffAmount).toFixed(2)"/>)
+                            (Round off <t t-esc="currencySymbol"/><t t-esc="orderRoundOffAmount.toFixed(2)"/>)
                         </span>
-                    </button>
-                </t>
-
-                <!-- CASE 2: Whole-number total → open popup for custom amount -->
-                <t t-else="">
-                    <button class="btn btn-charity btn-charity-order w-100"
-                        t-on-click="openOrderCharityPopup">
-                        <span>❤ <t t-esc="charityButtonLabel"/></span>
-                    </button>
-                </t>
+                    </t>
+                </button>
             </t>
-
-            <!-- Already donating — show badge with donation and new total -->
             <t t-else="">
                 <div class="charity-active-donation d-flex align-items-center justify-content-between w-100 px-3 py-2">
                     <span>
                         ❤ Donating
-                        <strong><t t-esc="currencySymbol"/><t t-esc="charityState.donationAmount.toFixed(2)"/></strong>
-                        · New Total:
-                        <strong><t t-esc="currencySymbol"/><t t-esc="(orderRawTotal + charityState.donationAmount).toFixed(2)"/></strong>
+                        <strong>
+                            <t t-esc="currencySymbol"/>
+                            <t t-esc="charityState.donationAmount.toFixed(2)"/>
+                        </strong>
+                        to Charity
                     </span>
                     <button class="btn btn-sm btn-charity-remove" t-on-click="removeOrderCharityDonation">
                         ✕ Remove
@@ -58,40 +44,8 @@
     </t>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         Payment Screen – override the big order total display
-         so it shows ₹300 (not ₹297) when a charity donation is active.
-         Also inject the Donate/Remove badge below the payment buttons.
+         Payment Screen – Charity button (below payment method buttons)
     ════════════════════════════════════════════════════════════════ -->
-
-    <!--
-        Patch the payment screen's order total display.
-        Odoo 19 CE renders the big amount in:
-            point_of_sale.PaymentScreenStatus  (the right-side panel header)
-        We override it to show total + charity when charityDonationAmount > 0.
-    -->
-    <t t-inherit="point_of_sale.PaymentScreenStatus" t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('total')]" position="replace">
-            <div class="total">
-                <t t-if="charityDonationAmount and charityDonationAmount > 0">
-                    <!-- Charity active: show the charity-inclusive total prominently -->
-                    <div class="charity-payment-total" style="text-align:center;">
-                        <div style="font-size: 2.5rem; font-weight: 700; color: #c0392b; line-height:1.1;">
-                            <t t-esc="env.utils.formatCurrency(currentOrder.getDue())"/>
-                        </div>
-                        <div style="font-size: 0.85rem; color: #555; margin-top: 2px;">
-                            ❤ incl. <t t-esc="env.utils.formatCurrency(charityDonationAmount)"/> charity donation
-                        </div>
-                    </div>
-                </t>
-                <t t-else="">
-                    <!-- Normal display when no charity -->
-                    <t t-esc="env.utils.formatCurrency(currentOrder.getDue())"/>
-                </t>
-            </div>
-        </xpath>
-    </t>
-
-    <!-- Payment screen: Donate / Remove badge below payment method buttons -->
     <t t-inherit="point_of_sale.PaymentScreenButtons" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('payment-buttons')]" position="inside">
             <div t-if="charityEnabled" class="charity-donation-section d-flex flex-column gap-1 w-100 mt-1">
@@ -105,7 +59,10 @@
                     <div class="charity-active-donation d-flex align-items-center justify-content-between w-100 px-3 py-2">
                         <span>
                             ❤ Donating
-                            <strong><t t-esc="currencySymbol"/><t t-esc="charityState.donationAmount.toFixed(2)"/></strong>
+                            <strong>
+                                <t t-esc="currencySymbol"/>
+                                <t t-esc="charityState.donationAmount.toFixed(2)"/>
+                            </strong>
                             to Charity
                         </span>
                         <button class="btn btn-sm btn-charity-remove" t-on-click="removeCharityDonation">
