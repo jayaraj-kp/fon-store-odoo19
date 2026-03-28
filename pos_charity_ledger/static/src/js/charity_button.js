@@ -1,88 +1,46 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
+import { reactive } from "@odoo/owl";
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { CharityDonationPopup } from "@pos_charity_ledger/js/charity_popup";
-import { useState, onMounted } from "@odoo/owl";
+import { useState, onMounted, Component } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
-import { Component } from "@odoo/owl";
 
 // ═══════════════════════════════════════════════════════════════════════════
-// HOW IT WORKS — Odoo 19 CE
+// MODULE-LEVEL REACTIVE STORE
 // ═══════════════════════════════════════════════════════════════════════════
+// OWL reactive() creates a proxy that automatically notifies EVERY component
+// that reads from it whenever any key changes.
 //
-// SCENARIO A — Charity set from ORDER SCREEN (before tapping a payment method)
-//   Order = ₹297, charity = ₹3
-//   → getDue() / get_due() returns ₹300 (patched below)
-//   → ORDER SCREEN total badge updates to show "₹300 (incl. ₹3 donation)"
-//   → Cashier taps "Cash KDTY" → Odoo auto-fills line = ₹300
-//   → Payment screen shows: Cash ₹300, Change ₹3  ✓
-//   → ₹3 "change" physically goes into the charity box
-//   → amount_paid=300, amount_return=3, amount_total=297  ✓
-//
-// SCENARIO B — Charity set from PAYMENT SCREEN (customer already overpaid)
-//   Order = ₹297, cashier enters ₹300 → change = ₹3
-//   → Cashier clicks "Donate ₹3" → charity recorded, nothing else changes
-//   → amount_paid=300, amount_return=3  ✓
-//
-// KEY: getDue() is patched so that:
-//   - When called with NO paymentLine arg → adds charity (total due increases)
-//   - When called WITH a paymentLine arg  → base behaviour (no double-add)
+// We key by order.uid (stable per session).  When charityStore[uid] is set,
+// Odoo's own PaymentScreen template (which reads getDue() → charityStore)
+// re-renders automatically and the big ₹297 display becomes ₹300.
 // ═══════════════════════════════════════════════════════════════════════════
+const charityStore = reactive({});
 
-// ── PosOrder patches ──────────────────────────────────────────────────────────
-patch(PosOrder.prototype, {
+function _orderKey(order) {
+    return String(order.uid || order.id || order.name || "unknown");
+}
 
-    /**
-     * Odoo 19 CE calls getDue() to know how much the customer still owes.
-     * By adding the charity amount here, when the cashier taps "Cash KDTY"
-     * the payment line auto-fills to ₹300 instead of ₹297.
-     * The ₹3 difference shows as "Change" — which goes into the charity box.
-     */
-    getDue(paymentLine) {
-        const base = super.getDue(paymentLine);
-        if (!paymentLine) {
-            return base + (this._charity_donation_amount || 0);
-        }
-        return base;
-    },
+function getCharityData(order) {
+    return charityStore[_orderKey(order)] || { amount: 0, accountId: null };
+}
 
-    /**
-     * Older code paths in Odoo 19 CE may still call get_due().
-     * Mirror the patch here for safety.
-     */
-    get_due(paymentLine) {
-        if (typeof super.get_due === "function") {
-            const base = super.get_due(paymentLine);
-            if (!paymentLine) {
-                return base + (this._charity_donation_amount || 0);
-            }
-            return base;
-        }
-        const charity = !paymentLine ? (this._charity_donation_amount || 0) : 0;
-        const total = this.amount_total || 0;
-        const paid = (this.payment_ids || []).reduce((s, l) => {
-            if (l === paymentLine) return s;
-            return s + (typeof l.amount === "number" ? l.amount : 0);
-        }, 0);
-        return total - paid + charity;
-    },
+function setCharityData(order, amount, accountId) {
+    // Writing a key on the reactive object triggers re-render in all
+    // components that have read this key (payment screen, order screen badge).
+    charityStore[_orderKey(order)] = { amount, accountId };
+}
 
-    serializeForORM(opts = {}) {
-        const data = super.serializeForORM(opts);
-        const extra = this._charity_donation_amount || 0;
-        if (extra > 0) {
-            data.charity_donation_amount = extra;
-            data.charity_account_id = this._charity_account_id || false;
-        }
-        return data;
-    },
-});
+function clearCharityData(order) {
+    charityStore[_orderKey(order)] = { amount: 0, accountId: null };
+}
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 function getCurrencySymbol(pos) {
     return pos.currency?.symbol || "₹";
 }
@@ -139,28 +97,58 @@ function getCurrentOrder(pos) {
     return pos.selectedOrder || null;
 }
 
-function applyDonationToOrder(pos, order, amount) {
-    const accountId = Array.isArray(pos.config.charity_account_id)
+function getConfigAccountId(pos) {
+    return Array.isArray(pos.config.charity_account_id)
         ? pos.config.charity_account_id[0]
         : pos.config.charity_account_id;
-    order._charity_donation_amount = amount;
-    order._charity_account_id = accountId;
-    // Trigger OWL reactivity — notify the order that its state changed
-    // so computed displays (order total badge, due amount) re-render.
-    if (typeof order.trigger === "function") {
-        order.trigger("change");
-    }
 }
 
-function clearDonationFromOrder(order) {
-    order._charity_donation_amount = 0;
-    order._charity_account_id = null;
-    if (typeof order.trigger === "function") {
-        order.trigger("change");
-    }
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// PosOrder patch
+// getDue() reads from charityStore so the reactive dependency is registered.
+// When charityStore changes → all components that called getDue() re-render.
+// ═══════════════════════════════════════════════════════════════════════════
+patch(PosOrder.prototype, {
+    getDue(paymentLine) {
+        const base = super.getDue(paymentLine);
+        if (!paymentLine) {
+            // Reading charityStore here registers the reactive dependency.
+            return base + (getCharityData(this).amount || 0);
+        }
+        return base;
+    },
 
-// ── Order Screen Charity Button Component ─────────────────────────────────────
+    get_due(paymentLine) {
+        if (typeof super.get_due === "function") {
+            const base = super.get_due(paymentLine);
+            if (!paymentLine) {
+                return base + (getCharityData(this).amount || 0);
+            }
+            return base;
+        }
+        const charity = !paymentLine ? (getCharityData(this).amount || 0) : 0;
+        const total = this.amount_total || 0;
+        const paid = (this.payment_ids || []).reduce((s, l) => {
+            if (l === paymentLine) return s;
+            return s + (typeof l.amount === "number" ? l.amount : 0);
+        }, 0);
+        return total - paid + charity;
+    },
+
+    serializeForORM(opts = {}) {
+        const data = super.serializeForORM(opts);
+        const { amount, accountId } = getCharityData(this);
+        if (amount > 0) {
+            data.charity_donation_amount = amount;
+            data.charity_account_id = accountId || false;
+        }
+        return data;
+    },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Order Screen Charity Button Component
+// ═══════════════════════════════════════════════════════════════════════════
 export class CharityOrderButton extends Component {
     static template = "pos_charity_ledger.CharityOrderButton";
     static props = {};
@@ -179,18 +167,22 @@ export class CharityOrderButton extends Component {
         return this.pos.config.charity_button_label || "Donate to Charity";
     }
     get currencySymbol() { return getCurrencySymbol(this.pos); }
-    get currentOrder() { return getCurrentOrder(this.pos); }
+    get currentOrder()   { return getCurrentOrder(this.pos); }
 
+    get orderRawTotal() {
+        const o = this.currentOrder;
+        return o ? getRawOrderTotal(o) : 0;
+    }
     get orderRoundOffAmount() {
-        const order = this.currentOrder;
-        return order ? computeRoundOff(getRawOrderTotal(order)) : 0;
+        return computeRoundOff(this.orderRawTotal);
     }
 
-    /**
-     * One-tap handler for when a round-off amount is available.
-     * Instantly applies the donation without opening the popup.
-     * The order total display updates to show the new due amount (e.g. ₹300).
-     */
+    /** Called from XML template to compute displayed total */
+    getRawOrderTotal(order) {
+        return order ? getRawOrderTotal(order) : 0;
+    }
+
+    // ── ONE-TAP: instantly donate the round-off, no popup ─────────────────
     quickDonateRoundOff() {
         if (!this.charityEnabled) return;
         const order = this.currentOrder;
@@ -198,19 +190,18 @@ export class CharityOrderButton extends Component {
         const roundOff = this.orderRoundOffAmount;
         if (roundOff <= 0) return;
 
-        applyDonationToOrder(this.pos, order, roundOff);
+        setCharityData(order, roundOff, getConfigAccountId(this.pos));
         this.charityState.donationAmount = roundOff;
         this.charityState.isDonating = true;
+
+        const sym = this.currencySymbol;
         this.notification.add(
-            `❤ ₹${roundOff.toFixed(2)} will be donated to charity. Total updated to ₹${(getRawOrderTotal(order) + roundOff).toFixed(2)}`,
+            `❤ ${sym}${roundOff.toFixed(2)} donated — Total: ${sym}${(this.orderRawTotal + roundOff).toFixed(2)}`,
             { type: "success", sticky: false }
         );
     }
 
-    /**
-     * Full popup flow — used when there is NO round-off (whole number totals)
-     * or the cashier wants to enter a custom amount.
-     */
+    // ── POPUP flow: for whole-number totals or custom amounts ──────────────
     async openOrderCharityPopup() {
         if (!this.charityEnabled) return;
         const order = this.currentOrder;
@@ -218,13 +209,12 @@ export class CharityOrderButton extends Component {
             this.notification.add("No active order found.", { type: "warning" });
             return;
         }
-        const total = getRawOrderTotal(order);
+        const total = this.orderRawTotal;
         if (total <= 0) {
             this.notification.add("Please add products before donating.", { type: "warning" });
             return;
         }
-
-        const roundOff = computeRoundOff(total);
+        const roundOff  = computeRoundOff(total);
         const maxDonate = roundOff > 0 ? roundOff : Infinity;
         const ceilAmount = roundOff > 0 ? roundOff : 10;
 
@@ -237,12 +227,12 @@ export class CharityOrderButton extends Component {
         });
 
         if (result?.confirmed && result.amount > 0) {
-            applyDonationToOrder(this.pos, order, result.amount);
+            setCharityData(order, result.amount, getConfigAccountId(this.pos));
             this.charityState.donationAmount = result.amount;
             this.charityState.isDonating = true;
-            const newTotal = getRawOrderTotal(order) + result.amount;
+            const sym = this.currencySymbol;
             this.notification.add(
-                `❤ ${this.currencySymbol}${result.amount.toFixed(2)} will be donated. Total updated to ${this.currencySymbol}${newTotal.toFixed(2)}`,
+                `❤ ${sym}${result.amount.toFixed(2)} will be donated — Total: ${sym}${(total + result.amount).toFixed(2)}`,
                 { type: "success", sticky: false }
             );
         }
@@ -250,35 +240,34 @@ export class CharityOrderButton extends Component {
 
     removeOrderCharityDonation() {
         const order = this.currentOrder;
-        if (order) clearDonationFromOrder(order);
+        if (order) clearCharityData(order);
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
     }
-
-    /**
-     * Exposed to the OWL template so the XML can call
-     * getRawOrderTotal(currentOrder) to display the updated total.
-     */
-    getRawOrderTotal(order) {
-        return order ? getRawOrderTotal(order) : 0;
-    }
 }
 
-// ── Patch PaymentScreen ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// PaymentScreen patch
+// ═══════════════════════════════════════════════════════════════════════════
 patch(PaymentScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this.charityState = useState({ donationAmount: 0, isDonating: false });
 
         onMounted(() => {
+            // Restore badge if cashier navigated back to the payment screen.
             const order = this.currentOrder;
-            if (order && (order._charity_donation_amount || 0) > 0) {
-                this.charityState.donationAmount = order._charity_donation_amount;
-                this.charityState.isDonating = true;
+            if (order) {
+                const { amount } = getCharityData(order);
+                if (amount > 0) {
+                    this.charityState.donationAmount = amount;
+                    this.charityState.isDonating = true;
+                }
             }
         });
     },
 
+    // ── Payment screen "Donate Change" button (Scenario B — customer overpaid) ─
     async openCharityPopup() {
         if (!this.charityEnabled) return;
 
@@ -306,7 +295,7 @@ patch(PaymentScreen.prototype, {
     _applyCharityDonation(amount) {
         const order = this.currentOrder;
         if (!order) return;
-        applyDonationToOrder(this.pos, order, amount);
+        setCharityData(order, amount, getConfigAccountId(this.pos));
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
         this.notification.add(
@@ -317,7 +306,7 @@ patch(PaymentScreen.prototype, {
 
     removeCharityDonation() {
         const order = this.currentOrder;
-        if (order) clearDonationFromOrder(order);
+        if (order) clearCharityData(order);
         this.charityState.donationAmount = 0;
         this.charityState.isDonating = false;
     },
@@ -330,7 +319,7 @@ patch(PaymentScreen.prototype, {
     },
 });
 
-// ── Define getters OUTSIDE patch() ───────────────────────────────────────────
+// ── Define getters OUTSIDE patch() (esbuild/getter-syntax workaround) ─────
 Object.defineProperties(PaymentScreen.prototype, {
     charityEnabled: {
         get() {
@@ -348,6 +337,16 @@ Object.defineProperties(PaymentScreen.prototype, {
         get() { return getCurrencySymbol(this.pos); },
         configurable: true,
     },
+    // charityDonationAmount: reads charityStore (reactive) so the payment
+    // screen template re-renders when charity is set from the order screen.
+    charityDonationAmount: {
+        get() {
+            const order = this.currentOrder;
+            return order ? (getCharityData(order).amount || 0) : 0;
+        },
+        configurable: true,
+    },
+    // changeAmount: measures real overpayment vs RAW total (not getDue).
     changeAmount: {
         get() {
             const order = this.currentOrder;
