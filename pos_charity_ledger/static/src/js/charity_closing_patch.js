@@ -1,77 +1,79 @@
 /** @odoo-module **/
 
-import { patch } from "@web/core/utils/patch";
-import { ClosePosPopup } from "@point_of_sale/app/screens/close_pos_popup/close_pos_popup";
-import { useState, onMounted } from "@odoo/owl";
+/**
+ * Charity Closing Register Patch – Odoo 19 CE compatible
+ *
+ * We do NOT import ClosePosPopup directly (its path differs per version).
+ * Instead we export CharityClosingSummary as a standalone component and
+ * let charity_closing_popup.xml inherit "point_of_sale.ClosePosPopup"
+ * (the TEMPLATE name, not the JS module) and inject our component there.
+ *
+ * The component is also added to the global components registry so OWL
+ * can resolve it when the template uses <CharityClosingSummary/>.
+ */
+
+import { registry } from "@web/core/registry";
+import { useState, onMounted, Component } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
-patch(ClosePosPopup.prototype, {
+export class CharityClosingSummary extends Component {
+    static template = "pos_charity_ledger.CharityClosingSummary";
+    static props = {};
+
     setup() {
-        super.setup(...arguments);
+        try { this.pos = useService("pos"); } catch (_) { this.pos = this.env?.pos || null; }
+        this.state = useState({ total: 0, count: 0, loaded: false });
+        onMounted(async () => { await this._load(); });
+    }
 
-        // Try to get services safely — ClosePosPopup may use env.pos or the service
+    async _load() {
         try {
-            this._charityPos = useService("pos");
-        } catch (_) {
-            this._charityPos = this.env?.pos || null;
-        }
-
-        this.charityClosingState = useState({
-            total: 0,
-            count: 0,
-            loaded: false,
-        });
-
-        onMounted(async () => {
-            await this._loadCharityTotals();
-        });
-    },
-
-    async _loadCharityTotals() {
-        try {
-            const pos = this._charityPos || this.env?.pos;
-            if (!pos) return;
-
-            // Only proceed if charity is enabled on this POS config
-            if (!pos.config?.charity_enabled) return;
-
+            const pos = this.pos || this.env?.pos;
+            if (!pos?.config?.charity_enabled) return;
             const sessionId = pos.session?.id;
             if (!sessionId) return;
-
-            // Call the server RPC to get fresh charity totals
-            const result = await pos.orm.call(
-                "pos.session",
-                "get_charity_totals",
-                [sessionId],
-            );
-
-            if (result && typeof result.total === "number") {
-                this.charityClosingState.total = result.total;
-                this.charityClosingState.count = result.count || 0;
-                this.charityClosingState.loaded = true;
+            const result = await pos.orm.call("pos.session", "get_charity_totals", [sessionId]);
+            if (result && typeof result.total === "number" && result.total > 0) {
+                this.state.total = result.total;
+                this.state.count = result.count || 0;
+                this.state.loaded = true;
             }
         } catch (e) {
-            // Silently fail — charity info is informational, not critical
-            console.warn("[CharityClosing] Could not load charity totals:", e);
+            console.warn("[CharityClosing] Could not load totals:", e);
         }
-    },
+    }
 
-    /** Expose to template */
-    get charityEnabled() {
-        const pos = this._charityPos || this.env?.pos;
-        return !!(pos?.config?.charity_enabled && this.charityClosingState.loaded && this.charityClosingState.total > 0);
-    },
+    get show() { return this.state.loaded && this.state.total > 0; }
+    get symbol() { return (this.pos || this.env?.pos)?.currency?.symbol || "₹"; }
+    get total() { return this.state.total; }
+    get count() { return this.state.count; }
+}
 
-    get charityTotal() {
-        return this.charityClosingState.total || 0;
-    },
+// Make it available globally for OWL template resolution
+registry.category("pos_charity_closing").add("CharityClosingSummary", CharityClosingSummary);
 
-    get charityCount() {
-        return this.charityClosingState.count || 0;
-    },
+// Also inject into owl __apps__ global components after boot
+// so the t-inherit template can find <CharityClosingSummary/>
+function injectGlobalComponent() {
+    try {
+        // Odoo 19 CE: owl.App instances expose globalComponents
+        if (window.__owl_app__ && window.__owl_app__.globalComponents) {
+            window.__owl_app__.globalComponents.CharityClosingSummary = CharityClosingSummary;
+            return true;
+        }
+        // Try the odoo global namespace
+        if (window.owl?.apps) {
+            for (const app of window.owl.apps) {
+                app.globalComponents = app.globalComponents || {};
+                app.globalComponents.CharityClosingSummary = CharityClosingSummary;
+            }
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
 
-    get charityCurrencySymbol() {
-        const pos = this._charityPos || this.env?.pos;
-        return pos?.currency?.symbol || "₹";
-    },
-});
+// Retry a few times — apps may not be ready at module load time
+[100, 500, 1500, 3000].forEach(delay =>
+    setTimeout(injectGlobalComponent, delay)
+);

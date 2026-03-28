@@ -1,39 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates xml:space="preserve">
 
+    <!-- ── 1. The CharityClosingSummary sub-component template ── -->
+    <t t-name="pos_charity_ledger.CharityClosingSummary">
+        <t t-if="show">
+            <div class="payment-method-detail d-flex justify-content-between align-items-center"
+                 style="color:#c0392b; font-weight:700; padding: 2px 0;">
+                <span>
+                    ❤ Charity Donation
+                    <t t-if="count > 1">
+                        (<t t-esc="count"/> orders)
+                    </t>
+                </span>
+                <span>- <t t-esc="symbol"/><t t-esc="total.toFixed(2)"/></span>
+            </div>
+        </t>
+    </t>
+
     <!--
-        Inherit the ClosePosPopup template to inject a charity donation summary
-        line inside each payment method section, right after "Payments in Cash KDTY".
+        ── 2. Inherit ClosePosPopup to inject <CharityClosingSummary/> ──
 
-        In Odoo 19 CE the closing register renders each payment method inside
-        a <t t-foreach="..."> loop. We use t-inherit + xpath to insert our block
-        right below the "Payments in …" row that already exists in the template.
+        We target the outermost <div> wrapper of the popup (class="close-pos-popup"
+        or whatever the root is) and append our component at the TOP (before the
+        payment details) using "inside" on a high-level stable element.
 
-        The charity line is only rendered when:
-          - charity_enabled is true on the POS config
-          - at least one donation was made in this session (charityTotal > 0)
+        IMPORTANT: We use the template NAME "point_of_sale.ClosePosPopup" which
+        is always stable regardless of the JS module path.
+
+        The xpath targets the first <section> or <div> that contains the payment
+        method rows. We use a very broad "//table" or the known outer wrapper.
+
+        Since we cannot be sure of the exact DOM structure without source access,
+        we inject into the Dialog root content area which always exists.
     -->
     <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
-        <!--
-            Insert charity donation block after the last detail row inside the
-            payment-method section. We target the wrapper div that holds all
-            the detail rows (opening, payments, cash-in/out, counted, difference).
-        -->
-        <xpath expr="//div[hasclass('payment-method-details')]" position="inside">
-            <t t-if="charityEnabled">
-                <div class="payment-method-detail charity-closing-detail d-flex justify-content-between"
-                     style="color:#c0392b; font-weight:600;">
-                    <span>
-                        ❤ Charity Donation
-                        <t t-if="charityCount > 1">
-                            (<t t-esc="charityCount"/> orders)
-                        </t>
-                    </span>
-                    <span style="color:#c0392b;">
-                        - <t t-esc="charityCurrencySymbol"/><t t-esc="charityTotal.toFixed(2)"/>
-                    </span>
-                </div>
-            </t>
+        <xpath expr="//div[hasclass('close-pos-popup')]" position="inside">
+            <CharityClosingSummary/>
         </xpath>
     </t>
 
