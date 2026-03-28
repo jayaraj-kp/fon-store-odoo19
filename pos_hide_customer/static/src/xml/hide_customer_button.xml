@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <!-- Hide Customer button in POS ActionpadWidget -->
+    <t t-name="point_of_sale.ActionpadWidget" t-inherit="point_of_sale.ActionpadWidget" t-inherit-mode="extension">
+        <xpath expr="//button[hasclass('set-customer')]" position="attributes">
+            <attribute name="style">display: none !important;</attribute>
+        </xpath>
+    </t>
+
+</templates>
