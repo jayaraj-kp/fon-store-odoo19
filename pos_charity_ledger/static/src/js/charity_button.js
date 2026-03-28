@@ -12,26 +12,54 @@ import { Component } from "@odoo/owl";
 
 // ── Extend POS Order ─────────────────────────────────────────────────────────
 //
-// KEY CHANGE: Override `totalDue` so that when a charity donation is set,
-// the payment screen shows (and collects) the original total PLUS the donation.
+// STRATEGY:
+//   Product total = ₹296, charity donation = ₹4.
+//   We want the cashier to collect ₹300 and the order to validate cleanly.
 //
-// Example: product ₹296, donation ₹4 → totalDue becomes ₹300.
-// The cashier collects ₹300; the ₹4 surplus is recorded as charity, not change.
+//   Odoo 19 CE validation path (JS → Python):
+//     JS:  isPaid()  →  getTotalPaid() >= get_total_with_tax()
+//     PY:  _process_order  →  amount_paid >= amount_total  (with tolerance)
+//
+//   We patch THREE things:
+//   1. `get_total_with_tax` / `getTotalWithTax` — JS payment sufficiency check
+//   2. `totalDue` getter — payment screen "amount due" display
+//   3. `serializeForORM` — sends inflated `amount_total` to Python backend
+//      so the Python check also passes.
 //
 patch(PosOrder.prototype, {
-    // Odoo 19 CE exposes totalDue as a getter on PosOrder.
-    // We wrap it to add the charity donation so the payment screen demands
-    // the correct (rounded-up) amount from the customer.
+    // ── 1. Inflate the order total used by JS validation ────────────────────
+    // Odoo 19 CE PosOrder uses get_total_with_tax() in isPaid().
+    // By inflating it, isPaid() will correctly require the full ₹300.
+    get_total_with_tax() {
+        const base = super.get_total_with_tax(...arguments);
+        const extra = this._charity_donation_amount || 0;
+        return base + extra;
+    },
+
+    // Some Odoo 19 builds use camelCase variant — patch both to be safe.
+    getTotalWithTax() {
+        const base = super.getTotalWithTax(...arguments);
+        const extra = this._charity_donation_amount || 0;
+        return base + extra;
+    },
+
+    // ── 2. Inflate totalDue for the payment screen display ──────────────────
     get totalDue() {
         const base = super.totalDue;
         const extra = this._charity_donation_amount || 0;
         return base + extra;
     },
 
+    // ── 3. Send inflated amount_total to Python so backend validation passes ─
     serializeForORM(opts = {}) {
         const data = super.serializeForORM(opts);
-        if (this._charity_donation_amount && this._charity_donation_amount > 0) {
-            data.charity_donation_amount = this._charity_donation_amount;
+        const extra = this._charity_donation_amount || 0;
+        if (extra > 0) {
+            // Inflate amount_total so Python's amount_paid >= amount_total check passes.
+            if (typeof data.amount_total === "number") {
+                data.amount_total = parseFloat((data.amount_total + extra).toFixed(2));
+            }
+            data.charity_donation_amount = extra;
             data.charity_account_id = this._charity_account_id || false;
         }
         return data;
@@ -74,16 +102,21 @@ function sumBaseLines(baseLines) {
 }
 
 function getOrderTotal(order) {
+    // Return the RAW product total WITHOUT the charity amount.
+    // Used for round-off hint calculation in the order screen button.
+    const charity = order._charity_donation_amount || 0;
+
+    // Try PosOrder methods — subtract charity to get raw total.
     for (const m of ["get_total_with_tax", "getTotalWithTax", "getTotal", "get_total"]) {
         try {
             if (typeof order[m] === "function") {
                 const v = order[m]();
-                if (typeof v === "number" && v > 0) return v;
+                if (typeof v === "number" && v > 0) return v - charity;
             }
         } catch (_) {}
     }
     for (const p of ["amount_total", "total_with_tax", "totalWithTax", "total"]) {
-        if (typeof order[p] === "number" && order[p] > 0) return order[p];
+        if (typeof order[p] === "number" && order[p] > 0) return order[p] - charity;
     }
     const original = order._prices?.original;
     if (original?.baseLines) {
@@ -125,10 +158,6 @@ function getCurrentOrder(pos) {
     return pos.selectedOrder || null;
 }
 
-// ── Helper: apply donation to order ─────────────────────────────────────────
-// Sets _charity_donation_amount and _charity_account_id on the order.
-// Because totalDue is now patched to include the charity amount, the payment
-// screen will automatically request the higher amount from the customer.
 function applyDonationToOrder(pos, order, amount) {
     const accountId = Array.isArray(pos.config.charity_account_id)
         ? pos.config.charity_account_id[0]
@@ -208,8 +237,6 @@ export class CharityOrderButton extends Component {
         });
 
         if (result && result.confirmed && result.amount > 0) {
-            // Apply donation — totalDue on the order will automatically increase
-            // by result.amount, so the payment screen shows the rounded-up total.
             applyDonationToOrder(this.pos, order, result.amount);
             this.charityState.donationAmount = result.amount;
             this.charityState.isDonating = true;
@@ -243,10 +270,6 @@ patch(PaymentScreen.prototype, {
         return this.pos.config.charity_button_label || "Donate to Charity";
     },
 
-    // changeAmount is now the overpayment ABOVE the (already-inflated) totalDue.
-    // When the customer hasn't paid yet, this will typically be 0.
-    // The donation is baked into totalDue, so the cashier just needs to collect
-    // the displayed amount — no separate change calculation needed.
     get changeAmount() {
         const order = this.currentOrder;
         if (!order) return 0;
@@ -286,7 +309,6 @@ patch(PaymentScreen.prototype, {
     _applyCharityDonation(amount) {
         const order = this.currentOrder;
         if (!order) return;
-        // Apply donation — totalDue will increase by `amount` automatically via the patch.
         applyDonationToOrder(this.pos, order, amount);
         this.charityState.donationAmount = amount;
         this.charityState.isDonating = true;
