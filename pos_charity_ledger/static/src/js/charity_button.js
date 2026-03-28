@@ -10,6 +10,30 @@ import { useService } from "@web/core/utils/hooks";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 import { Component } from "@odoo/owl";
 
+// ═══════════════════════════════════════════════════════════════════════
+// DESIGN — How charity works in Odoo 19 CE
+// ═══════════════════════════════════════════════════════════════════════
+//
+// SCENARIO A – Donation from ORDER SCREEN (before payment):
+//   Order total = ₹467, charity = ₹3
+//   Cashier enters ₹467 cash → amount_paid=467, amount_return=0, total=467 ✓
+//   We NEVER touch the payment line.
+//   serializeForORM sends: charity_donation_amount=3, charity_account_id=X
+//   Backend saves the donation on the order record.
+//   At session close a journal entry moves ₹3 from cash GL → charity GL.
+//
+// SCENARIO B – Donation from PAYMENT SCREEN (customer overpaid):
+//   Order total = ₹467, customer pays ₹470
+//   amount_paid=470, amount_return=3 (Odoo computes automatically)
+//   Cashier clicks "Donate ₹3" → charity = ₹3
+//   We NEVER touch the payment line.
+//   Backend: 470 - 3 = 467 ✓ — standard Odoo validation passes.
+//
+// KEY INSIGHT: We NEVER inflate/deflate payment lines.
+// The ₹3 charity is stored only as charity_donation_amount on the order.
+// Odoo's standard amount_paid / amount_return logic handles the rest.
+// ═══════════════════════════════════════════════════════════════════════
+
 // ── PosOrder patch ────────────────────────────────────────────────────────────
 patch(PosOrder.prototype, {
     serializeForORM(opts = {}) {
@@ -18,12 +42,6 @@ patch(PosOrder.prototype, {
         if (extra > 0) {
             data.charity_donation_amount = extra;
             data.charity_account_id = this._charity_account_id || false;
-            // ── DO NOT touch amount_return ────────────────────────────────────
-            // Odoo validates: amount_paid - amount_return == amount_total (exact)
-            //   e.g. 970 - 6 = 964 ✓  (leave it as-is)
-            // Zeroing amount_return → 970 - 0 = 970 ≠ 964 → "not fully paid" ✗
-            // The ₹6 "change" physically goes into the charity box.
-            // The charity journal entry at session close handles the accounting.
         }
         return data;
     },
@@ -40,53 +58,46 @@ function computeRoundOff(total) {
     return diff > 0 ? diff : 0;
 }
 
-function sumBaseLines(baseLines) {
-    if (!Array.isArray(baseLines) || baseLines.length === 0) return 0;
-    return baseLines.reduce((sum, line) => {
-        const priceUnit = typeof line.price_unit === "number" ? line.price_unit : 0;
-        const qty      = typeof line.quantity  === "number" ? line.quantity  : 1;
-        const discount = typeof line.discount  === "number" ? line.discount  : 0;
-        if (priceUnit > 0) return sum + priceUnit * qty * (1 - discount / 100);
-        const fallback = [
-            "priceSubtotalIncl","price_subtotal_incl","priceIncludingTax",
-            "totalIncludingTax","subtotal_incl","priceSubtotal",
-            "price_subtotal","subtotal","total","amount",
-        ];
-        for (const k of fallback) {
-            if (typeof line[k] === "number" && line[k] > 0) return sum + line[k];
-        }
-        return sum;
-    }, 0);
-}
-
 function getRawOrderTotal(order) {
-    for (const p of ["amount_total","total_with_tax","totalWithTax","total"]) {
+    for (const p of ["amount_total", "total_with_tax", "totalWithTax", "total"]) {
         const v = order[p];
         if (typeof v === "number" && v > 0) return v;
     }
-    const orig = order._prices?.original;
-    if (orig?.baseLines) { const v = sumBaseLines(orig.baseLines); if (v > 0) return v; }
-    const unit = order._prices?.unit;
-    if (unit?.baseLines) { const v = sumBaseLines(unit.baseLines); if (v > 0) return v; }
     const lines =
         (typeof order.get_orderlines === "function" && order.get_orderlines()) ||
         order.lines || order.orderlines || [];
     const arr = Array.isArray(lines) ? lines : [...lines];
     return arr.reduce((s, l) => {
-        const byM = (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
-                    (typeof l.getPriceWithTax    === "function" && l.getPriceWithTax());
+        const byM =
+            (typeof l.get_price_with_tax === "function" && l.get_price_with_tax()) ||
+            (typeof l.getPriceWithTax === "function" && l.getPriceWithTax());
         if (typeof byM === "number" && byM > 0) return s + byM;
         const byP = l.price_subtotal_incl || l.price_with_tax || 0;
         if (typeof byP === "number" && byP > 0) return s + byP;
-        const pu   = typeof l.price_unit === "number" ? l.price_unit : 0;
-        const qty  = typeof l.qty === "number" ? l.qty : (typeof l.quantity === "number" ? l.quantity : 1);
+        const pu = typeof l.price_unit === "number" ? l.price_unit : 0;
+        const qty = typeof l.qty === "number" ? l.qty : (typeof l.quantity === "number" ? l.quantity : 1);
         const disc = typeof l.discount === "number" ? l.discount : 0;
         return s + pu * qty * (1 - disc / 100);
     }, 0);
 }
 
+function getPaymentLineAmount(line) {
+    if (typeof line.getAmount === "function") {
+        try { return line.getAmount(); } catch (_) {}
+    }
+    if (typeof line.get_amount === "function") {
+        try { return line.get_amount(); } catch (_) {}
+    }
+    return typeof line.amount === "number" ? line.amount : 0;
+}
+
+function getPaymentLines(order) {
+    const raw = order.payment_ids || order.paymentlines || [];
+    return Array.isArray(raw) ? raw : [...raw];
+}
+
 function getCurrentOrder(pos) {
-    try { const o = pos.get_order?.();       if (o) return o; } catch (_) {}
+    try { const o = pos.get_order?.(); if (o) return o; } catch (_) {}
     try { const o = pos.getCurrentOrder?.(); if (o) return o; } catch (_) {}
     return pos.selectedOrder || null;
 }
@@ -96,30 +107,12 @@ function applyDonationToOrder(pos, order, amount) {
         ? pos.config.charity_account_id[0]
         : pos.config.charity_account_id;
     order._charity_donation_amount = amount;
-    order._charity_account_id     = accountId;
+    order._charity_account_id = accountId;
 }
 
 function clearDonationFromOrder(order) {
     order._charity_donation_amount = 0;
-    order._charity_account_id     = null;
-}
-
-function setPaymentLineAmount(line, newAmount) {
-    newAmount = parseFloat(newAmount.toFixed(2));
-    if (typeof line.update === "function") {
-        try { line.update({ amount: newAmount }); return; } catch (_) {}
-    }
-    if (typeof line.setAmount === "function") {
-        try { line.setAmount(newAmount); return; } catch (_) {}
-    }
-    line.amount = newAmount;
-}
-
-function getPaymentLineAmount(line) {
-    if (typeof line.getAmount === "function") {
-        try { return line.getAmount(); } catch (_) {}
-    }
-    return typeof line.amount === "number" ? line.amount : 0;
+    order._charity_account_id = null;
 }
 
 // ── Order Screen Charity Button Component ─────────────────────────────────────
@@ -129,15 +122,19 @@ export class CharityOrderButton extends Component {
 
     setup() {
         try { this.pos = useService("pos"); } catch (_) { this.pos = this.env.pos; }
-        this.dialog       = useService("dialog");
+        this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.charityState = useState({ donationAmount: 0, isDonating: false });
     }
 
-    get charityEnabled()    { return this.pos.config.charity_enabled && this.pos.config.charity_account_id; }
-    get charityButtonLabel(){ return this.pos.config.charity_button_label || "Donate to Charity"; }
-    get currencySymbol()    { return getCurrencySymbol(this.pos); }
-    get currentOrder()      { return getCurrentOrder(this.pos); }
+    get charityEnabled() {
+        return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
+    }
+    get charityButtonLabel() {
+        return this.pos.config.charity_button_label || "Donate to Charity";
+    }
+    get currencySymbol() { return getCurrencySymbol(this.pos); }
+    get currentOrder() { return getCurrentOrder(this.pos); }
 
     get orderRoundOffAmount() {
         const order = this.currentOrder;
@@ -147,13 +144,19 @@ export class CharityOrderButton extends Component {
     async openOrderCharityPopup() {
         if (!this.charityEnabled) return;
         const order = this.currentOrder;
-        if (!order) { this.notification.add("No active order found.", { type: "warning" }); return; }
-
+        if (!order) {
+            this.notification.add("No active order found.", { type: "warning" });
+            return;
+        }
         const total = getRawOrderTotal(order);
-        if (total <= 0) { this.notification.add("Please add products before donating.", { type: "warning" }); return; }
+        if (total <= 0) {
+            this.notification.add("Please add products before donating.", { type: "warning" });
+            return;
+        }
 
-        const roundOff   = computeRoundOff(total);
-        const maxDonate  = roundOff > 0 ? roundOff : Infinity;
+        const roundOff = computeRoundOff(total);
+        // No payment line exists yet on order screen → no cap.
+        const maxDonate = roundOff > 0 ? roundOff : Infinity;
         const ceilAmount = roundOff > 0 ? roundOff : 10;
 
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
@@ -167,7 +170,7 @@ export class CharityOrderButton extends Component {
         if (result?.confirmed && result.amount > 0) {
             applyDonationToOrder(this.pos, order, result.amount);
             this.charityState.donationAmount = result.amount;
-            this.charityState.isDonating     = true;
+            this.charityState.isDonating = true;
             this.notification.add(
                 `${this.currencySymbol}${result.amount.toFixed(2)} will be donated to charity. Thank you!`,
                 { type: "success", sticky: false }
@@ -179,7 +182,7 @@ export class CharityOrderButton extends Component {
         const order = this.currentOrder;
         if (order) clearDonationFromOrder(order);
         this.charityState.donationAmount = 0;
-        this.charityState.isDonating     = false;
+        this.charityState.isDonating = false;
     }
 }
 
@@ -193,59 +196,24 @@ patch(PaymentScreen.prototype, {
         this.charityState = useState({ donationAmount: 0, isDonating: false });
 
         onMounted(() => {
+            // Restore badge if cashier navigated back to payment screen
+            // after having set charity from the order screen.
             const order = this.currentOrder;
             if (order && (order._charity_donation_amount || 0) > 0) {
-                this._inflatePaymentLines(order);
                 this.charityState.donationAmount = order._charity_donation_amount;
-                this.charityState.isDonating     = true;
+                this.charityState.isDonating = true;
             }
         });
     },
 
-    // ── Inflate payment line so it covers order total + charity ──────────────
-    // Used when cashier sets charity from the ORDER SCREEN before payment.
-    // Example: order = ₹964, charity = ₹6 → inflate payment line from ₹964 → ₹970
-    //          so that: amount_paid=970, amount_return=6, amount_total=964  ✓
-    // When cashier already entered ₹970 on the payment screen the shortfall
-    // is 0 and nothing changes (safe no-op).
-    _inflatePaymentLines(order) {
-        const extra = order._charity_donation_amount || 0;
-        if (extra <= 0) return;
-
-        const rawTotal = getRawOrderTotal(order);
-        const required = parseFloat((rawTotal + extra).toFixed(2));
-
-        const lines = order.payment_ids || [];
-        const arr   = Array.isArray(lines) ? lines : [...lines];
-        if (arr.length === 0) return;
-
-        const currentPaid = arr.reduce((s, l) => s + getPaymentLineAmount(l), 0);
-        const shortfall   = parseFloat((required - currentPaid).toFixed(2));
-        if (shortfall <= 0.001) return;
-
-        const line      = arr[0];
-        const curAmount = getPaymentLineAmount(line);
-        setPaymentLineAmount(line, curAmount + shortfall);
-
-        console.debug(`[Charity] Payment line adjusted +${shortfall} → total ${curAmount + shortfall}`);
-    },
-
-    _deflatePaymentLines(order, extra) {
-        if (extra <= 0) return;
-        const lines = order.payment_ids || [];
-        const arr   = Array.isArray(lines) ? lines : [...lines];
-        if (arr.length === 0) return;
-
-        const line      = arr[0];
-        const curAmount = getPaymentLineAmount(line);
-        const newAmount = Math.max(0, parseFloat((curAmount - extra).toFixed(2)));
-        setPaymentLineAmount(line, newAmount);
-
-        console.debug(`[Charity] Payment line deflated -${extra} → total ${newAmount}`);
-    },
-
+    // ─────────────────────────────────────────────────────────────────
+    // openCharityPopup — payment screen button (SCENARIO B only).
+    // The customer has already overpaid. The change amount equals the
+    // donation we record. No payment line changes are made.
+    // ─────────────────────────────────────────────────────────────────
     async openCharityPopup() {
         if (!this.charityEnabled) return;
+
         const changeAmt = this.changeAmount;
         if (changeAmt <= 0) {
             this.dialog.add(AlertDialog, {
@@ -254,12 +222,14 @@ patch(PaymentScreen.prototype, {
             });
             return;
         }
+
         const result = await makeAwaitable(this.dialog, CharityDonationPopup, {
             title: this.charityButtonLabel,
             changeAmount: changeAmt,
             roundOffAmount: 0,
             currencySymbol: this.currencySymbol,
         });
+
         if (result?.confirmed && result.amount > 0) {
             this._applyCharityDonation(result.amount);
         }
@@ -269,10 +239,8 @@ patch(PaymentScreen.prototype, {
         const order = this.currentOrder;
         if (!order) return;
         applyDonationToOrder(this.pos, order, amount);
-        // No payment line inflation needed: customer already overpaid by this
-        // amount (changeAmount == amount), so payment line is already correct.
         this.charityState.donationAmount = amount;
-        this.charityState.isDonating     = true;
+        this.charityState.isDonating = true;
         this.notification.add(
             `${this.currencySymbol}${amount.toFixed(2)} will be donated to charity. Thank you!`,
             { type: "success", sticky: false }
@@ -281,55 +249,52 @@ patch(PaymentScreen.prototype, {
 
     removeCharityDonation() {
         const order = this.currentOrder;
-        if (order) {
-            const extra = order._charity_donation_amount || 0;
-            clearDonationFromOrder(order);
-            this._deflatePaymentLines(order, extra);
-        }
+        if (order) clearDonationFromOrder(order);
         this.charityState.donationAmount = 0;
-        this.charityState.isDonating     = false;
+        this.charityState.isDonating = false;
     },
 
     async validateOrder(isForceValidate) {
-        const order = this.currentOrder;
-        if (order && (order._charity_donation_amount || 0) > 0) {
-            // Inflate only if charity was set from order screen (shortfall > 0).
-            // On the payment screen the change already covers the donation → no-op.
-            this._inflatePaymentLines(order);
-        }
+        // No payment line manipulation needed.
+        // serializeForORM (patched on PosOrder above) sends the charity fields
+        // to the backend, which saves them via _process_order in pos_order.py.
         const result = await super.validateOrder(isForceValidate);
         this.charityState.donationAmount = 0;
-        this.charityState.isDonating     = false;
+        this.charityState.isDonating = false;
         return result;
     },
 });
 
 // ── Define getters OUTSIDE patch() ───────────────────────────────────────────
-// Getter shorthand inside patch({}) triggers "Unexpected token 'get'" in
-// Odoo 19's esbuild bundler. Object.defineProperties avoids the issue entirely.
 Object.defineProperties(PaymentScreen.prototype, {
     charityEnabled: {
-        get() { return this.pos.config.charity_enabled && this.pos.config.charity_account_id; },
+        get() {
+            return this.pos.config.charity_enabled && this.pos.config.charity_account_id;
+        },
         configurable: true,
     },
     charityButtonLabel: {
-        get() { return this.pos.config.charity_button_label || "Donate to Charity"; },
+        get() {
+            return this.pos.config.charity_button_label || "Donate to Charity";
+        },
         configurable: true,
     },
     currencySymbol: {
         get() { return getCurrencySymbol(this.pos); },
         configurable: true,
     },
+    // changeAmount: how much the customer has overpaid right now.
+    // Only used for Scenario B (payment screen donation button).
     changeAmount: {
         get() {
             const order = this.currentOrder;
             if (!order) return 0;
-            const totalDue  = order.totalDue || 0;
-            const totalPaid = (order.payment_ids || []).reduce(
+            const totalDue = order.amount_total || order.totalDue || 0;
+            const totalPaid = getPaymentLines(order).reduce(
                 (s, l) => s + getPaymentLineAmount(l), 0
             );
-            const change = totalPaid - totalDue;
-            return change > 0 ? parseFloat(change.toFixed(2)) : 0;
+            const change = parseFloat((totalPaid - totalDue).toFixed(2));
+            return change > 0 ? change : 0;
         },
         configurable: true,
     },
