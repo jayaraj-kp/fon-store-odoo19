@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!--
+        Inherit the ClosePosPopup template to inject a charity donation summary
+        line inside each payment method section, right after "Payments in Cash KDTY".
+
+        In Odoo 19 CE the closing register renders each payment method inside
+        a <t t-foreach="..."> loop. We use t-inherit + xpath to insert our block
+        right below the "Payments in …" row that already exists in the template.
+
+        The charity line is only rendered when:
+          - charity_enabled is true on the POS config
+          - at least one donation was made in this session (charityTotal > 0)
+    -->
+    <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
+        <!--
+            Insert charity donation block after the last detail row inside the
+            payment-method section. We target the wrapper div that holds all
+            the detail rows (opening, payments, cash-in/out, counted, difference).
+        -->
+        <xpath expr="//div[hasclass('payment-method-details')]" position="inside">
+            <t t-if="charityEnabled">
+                <div class="payment-method-detail charity-closing-detail d-flex justify-content-between"
+                     style="color:#c0392b; font-weight:600;">
+                    <span>
+                        ❤ Charity Donation
+                        <t t-if="charityCount > 1">
+                            (<t t-esc="charityCount"/> orders)
+                        </t>
+                    </span>
+                    <span style="color:#c0392b;">
+                        - <t t-esc="charityCurrencySymbol"/><t t-esc="charityTotal.toFixed(2)"/>
+                    </span>
+                </div>
+            </t>
+        </xpath>
+    </t>
+
+</templates>
