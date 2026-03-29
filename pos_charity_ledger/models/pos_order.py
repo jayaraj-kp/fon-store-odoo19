@@ -1,109 +1,5 @@
-# # -*- coding: utf-8 -*-
-# from odoo import models, fields, api, _
-# import logging
-#
-# _logger = logging.getLogger(__name__)
-#
-#
-# class PosOrder(models.Model):
-#     _inherit = 'pos.order'
-#
-#     charity_donation_amount = fields.Float(string='Charity Donation', default=0.0)
-#     charity_account_id = fields.Many2one('pos.charity.account', string='Charity Account')
-#     charity_donation_id = fields.Many2one('pos.charity.donation', string='Donation Record', readonly=True)
-#     charity_move_id = fields.Many2one('account.move', string='Charity Journal Entry', readonly=True)
-#
-#     def _process_order(self, order, existing_order):
-#         charity_amount = order.get('charity_donation_amount', 0.0) or 0.0
-#         charity_account_id = order.get('charity_account_id', False)
-#         order_id = super()._process_order(order, existing_order)
-#         if charity_amount > 0 and charity_account_id:
-#             pos_order = self.browse(order_id)
-#             if pos_order.exists():
-#                 pos_order.write({
-#                     'charity_donation_amount': charity_amount,
-#                     'charity_account_id': charity_account_id,
-#                 })
-#                 pos_order._create_charity_donation()
-#         return order_id
-#
-#     def _create_charity_donation(self):
-#         self.ensure_one()
-#         if not (self.charity_donation_amount > 0 and self.charity_account_id):
-#             return
-#         try:
-#             donation = self.env['pos.charity.donation'].create({
-#                 'charity_account_id': self.charity_account_id.id,
-#                 'pos_session_id': self.session_id.id,
-#                 'pos_order_id': self.id,
-#                 'amount': self.charity_donation_amount,
-#                 'cashier_id': self.user_id.id,
-#                 'state': 'confirmed',
-#                 'note': 'Donation from POS Order %s' % self.name,
-#             })
-#             self.charity_donation_id = donation.id
-#             _logger.info('Charity donation of %s created for order %s',
-#                          self.charity_donation_amount, self.name)
-#         except Exception as e:
-#             _logger.error('Failed to create charity donation record: %s', str(e))
-#             return
-#         self._create_charity_journal_entry()
-#
-#     def _create_charity_journal_entry(self):
-#         self.ensure_one()
-#         config = self.config_id
-#         if not config.charity_gl_account_id:
-#             _logger.info('No charity GL account configured, skipping journal entry')
-#             return
-#         try:
-#             journal = config.charity_journal_id or config.journal_id
-#             if not journal:
-#                 _logger.error('No journal found for charity entry on order %s', self.name)
-#                 return
-#             debit_account = False
-#             for payment in self.payment_ids:
-#                 if payment.payment_method_id and payment.payment_method_id.journal_id:
-#                     pj = payment.payment_method_id.journal_id
-#                     debit_account = pj.default_account_id or pj.payment_debit_account_id
-#                     if debit_account:
-#                         break
-#             if not debit_account:
-#                 debit_account = journal.default_account_id
-#             if not debit_account:
-#                 _logger.error('Could not determine debit account for order %s', self.name)
-#                 return
-#             credit_account = config.charity_gl_account_id
-#             amount = self.charity_donation_amount
-#             currency = self.currency_id or self.env.company.currency_id
-#             move_vals = {
-#                 'journal_id': journal.id,
-#                 'date': self.date_order.date() if self.date_order else fields.Date.today(),
-#                 'ref': 'Charity Donation - %s' % self.name,
-#                 'line_ids': [
-#                     (0, 0, {
-#                         'name': 'Charity Donation - %s' % self.name,
-#                         'account_id': debit_account.id,
-#                         'debit': amount,
-#                         'credit': 0.0,
-#                         'currency_id': currency.id,
-#                     }),
-#                     (0, 0, {
-#                         'name': 'Charity Donation - %s' % self.name,
-#                         'account_id': credit_account.id,
-#                         'debit': 0.0,
-#                         'credit': amount,
-#                         'currency_id': currency.id,
-#                     }),
-#                 ],
-#             }
-#             move = self.env['account.move'].create(move_vals)
-#             move.action_post()
-#             self.charity_move_id = move.id
-#             _logger.info('Charity journal entry %s created for order %s', move.name, self.name)
-#         except Exception as e:
-#             _logger.error('Failed to create charity journal entry for order %s: %s', self.name, str(e))
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api, _
+from odoo import models, fields
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -118,101 +14,144 @@ class PosOrder(models.Model):
     charity_move_id = fields.Many2one('account.move', string='Charity Journal Entry', readonly=True)
 
     def _process_order(self, order, existing_order):
-        charity_amount = order.get('charity_donation_amount', 0.0) or 0.0
-        charity_account_id = order.get('charity_account_id', False)
-        order_id = super()._process_order(order, existing_order)
+        """
+        Intercept charity metadata sent from the frontend before calling super().
+
+        The frontend sends:
+          order['charity_donation_amount']  — e.g. 3.0
+          order['charity_account_id']       — e.g. 1
+
+        The order total already includes the donation (because the JS bumped
+        the line price_unit via setUnitPrice before serialising), so the normal
+        POS accounting entries will naturally cover the full ₹300.
+        We only need to record the ₹3 split separately for the charity ledger
+        and create the charity journal entry at session close.
+        """
+        charity_amount     = float(order.get('charity_donation_amount') or 0.0)
+        charity_account_id = order.get('charity_account_id') or False
+
+        order_id  = super()._process_order(order, existing_order)
+        pos_order = self.browse(order_id)
+
+        if not pos_order.exists():
+            return order_id
+
+        # Fall back to the POS config's default charity account if none sent
+        if not charity_account_id and pos_order.config_id.charity_account_id:
+            charity_account_id = pos_order.config_id.charity_account_id.id
+
         if charity_amount > 0 and charity_account_id:
-            pos_order = self.browse(order_id)
-            if pos_order.exists():
-                pos_order.write({
-                    'charity_donation_amount': charity_amount,
-                    'charity_account_id': charity_account_id,
-                })
-                pos_order._create_charity_donation()
+            pos_order.write({
+                'charity_donation_amount': charity_amount,
+                'charity_account_id':      charity_account_id,
+            })
+            pos_order._create_charity_donation()
+
         return order_id
 
     def _create_charity_donation(self):
-        """Create the donation ledger record only.
-        Journal entry is intentionally deferred to session close,
-        so it appears together with the other POS session entries."""
+        """
+        Create the donation ledger record (pos.charity.donation).
+
+        Journal entry is deferred to session close so it groups with the
+        rest of the POS closing entries — exactly like standard Odoo POS.
+        """
         self.ensure_one()
         if not (self.charity_donation_amount > 0 and self.charity_account_id):
             return
+        if self.charity_donation_id:
+            return  # already created (re-validation guard)
         try:
             donation = self.env['pos.charity.donation'].create({
                 'charity_account_id': self.charity_account_id.id,
-                'pos_session_id': self.session_id.id,
-                'pos_order_id': self.id,
-                'amount': self.charity_donation_amount,
-                'cashier_id': self.user_id.id,
-                'state': 'confirmed',
-                'note': 'Donation from POS Order %s' % self.name,
+                'pos_session_id':     self.session_id.id,
+                'pos_order_id':       self.id,
+                'amount':             self.charity_donation_amount,
+                'cashier_id':         self.user_id.id,
+                'state':              'confirmed',
+                'note':               'Donation from POS Order %s' % self.name,
             })
             self.charity_donation_id = donation.id
             _logger.info(
-                'Charity donation of %s created for order %s (journal entry pending session close)',
+                'Charity donation %.2f recorded for order %s (journal entry pending session close)',
                 self.charity_donation_amount, self.name,
             )
         except Exception as e:
-            _logger.error('Failed to create charity donation record: %s', str(e))
+            _logger.error('Failed to create charity donation record: %s', e)
 
     def _create_charity_journal_entry(self):
-        """Create and post the charity journal entry.
-        Called by pos.session at closing time, not during order processing."""
+        """
+        Post the charity journal entry at session closing time.
+
+        Accounting split for a ₹300 order with ₹3 charity:
+          ₹297 → handled by the normal POS sales journal entry (product revenue)
+          ₹3   → this entry:
+                   DEBIT  cash/payment account  ₹3   (money physically in the till)
+                   CREDIT charity GL account    ₹3   (designated charity liability)
+        """
         self.ensure_one()
         if self.charity_move_id:
-            # Already created (e.g. session re-validate), skip.
-            return
+            return  # already posted, skip re-validation
+
         config = self.config_id
         if not config.charity_gl_account_id:
-            _logger.info('No charity GL account configured, skipping journal entry for order %s', self.name)
+            _logger.info(
+                'No charity GL account on POS config — skipping journal entry for order %s',
+                self.name,
+            )
             return
+
         try:
             journal = config.charity_journal_id or config.journal_id
             if not journal:
                 _logger.error('No journal found for charity entry on order %s', self.name)
                 return
+
+            # Debit side: the payment account (cash drawer / card terminal)
             debit_account = False
             for payment in self.payment_ids:
-                if payment.payment_method_id and payment.payment_method_id.journal_id:
-                    pj = payment.payment_method_id.journal_id
+                pj = payment.payment_method_id.journal_id
+                if pj:
                     debit_account = pj.default_account_id or pj.payment_debit_account_id
                     if debit_account:
                         break
             if not debit_account:
                 debit_account = journal.default_account_id
             if not debit_account:
-                _logger.error('Could not determine debit account for order %s', self.name)
+                _logger.error('Cannot determine debit account for order %s', self.name)
                 return
-            credit_account = config.charity_gl_account_id
-            amount = self.charity_donation_amount
+
+            amount   = self.charity_donation_amount
             currency = self.currency_id or self.env.company.currency_id
-            move_vals = {
+
+            move = self.env['account.move'].create({
                 'journal_id': journal.id,
-                'date': self.date_order.date() if self.date_order else fields.Date.today(),
-                'ref': 'Charity Donation - %s' % self.name,
+                'date':       self.date_order.date() if self.date_order else fields.Date.today(),
+                'ref':        'Charity Donation - %s' % self.name,
                 'line_ids': [
                     (0, 0, {
-                        'name': 'Charity Donation - %s' % self.name,
-                        'account_id': debit_account.id,
-                        'debit': amount,
-                        'credit': 0.0,
+                        'name':        'Charity Donation - %s' % self.name,
+                        'account_id':  debit_account.id,
+                        'debit':       amount,
+                        'credit':      0.0,
                         'currency_id': currency.id,
                     }),
                     (0, 0, {
-                        'name': 'Charity Donation - %s' % self.name,
-                        'account_id': credit_account.id,
-                        'debit': 0.0,
-                        'credit': amount,
+                        'name':        'Charity Donation - %s' % self.name,
+                        'account_id':  config.charity_gl_account_id.id,
+                        'debit':       0.0,
+                        'credit':      amount,
                         'currency_id': currency.id,
                     }),
                 ],
-            }
-            move = self.env['account.move'].create(move_vals)
+            })
             move.action_post()
             self.charity_move_id = move.id
-            _logger.info('Charity journal entry %s created for order %s', move.name, self.name)
+            _logger.info(
+                'Charity journal entry %s (%.2f) posted for order %s',
+                move.name, amount, self.name,
+            )
         except Exception as e:
             _logger.error(
-                'Failed to create charity journal entry for order %s: %s', self.name, str(e)
+                'Failed to create charity journal entry for order %s: %s', self.name, e
             )
