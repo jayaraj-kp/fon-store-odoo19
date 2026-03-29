@@ -1,4 +1,3 @@
-
 //
 ///** @odoo-module **/
 //
@@ -492,6 +491,7 @@ export class PhoneCustomerBar extends Component {
             showDropdown: false,
             selectedName: "",
             found: false,
+            activeIndex: -1,
         });
         console.log("🔵 PhoneCustomerBar initialized");
     }
@@ -542,11 +542,65 @@ export class PhoneCustomerBar extends Component {
             .slice(0, 8);
     }
 
+    onKeyDown(ev) {
+        if (!this.state.showDropdown) return;
+
+        // Build full list: suggestions + "Create" + "Create and edit"
+        const totalItems = this.state.suggestions.length + 2;
+
+        if (ev.key === "ArrowDown") {
+            ev.preventDefault();
+            ev.stopPropagation();
+            this.state.activeIndex = (this.state.activeIndex + 1) % totalItems;
+            this._scrollActiveIntoView();
+        } else if (ev.key === "ArrowUp") {
+            ev.preventDefault();
+            ev.stopPropagation();
+            this.state.activeIndex = (this.state.activeIndex - 1 + totalItems) % totalItems;
+            this._scrollActiveIntoView();
+        } else if (ev.key === "Enter") {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const idx = this.state.activeIndex;
+            if (idx >= 0 && idx < this.state.suggestions.length) {
+                // Select a suggestion
+                const partner = this.state.suggestions[idx];
+                this.onSelectSuggestion(ev, partner);
+            } else if (idx === this.state.suggestions.length) {
+                // "Create [query]"
+                this.onQuickCreate();
+            } else if (idx === this.state.suggestions.length + 1) {
+                // "Create and edit..."
+                this.onCreateAndEdit();
+            } else if (this.state.suggestions.length === 1) {
+                // If nothing highlighted but only one result, select it
+                this.onSelectSuggestion(ev, this.state.suggestions[0]);
+            }
+        } else {
+            // For any other key, let it pass but stop POS from intercepting
+            ev.stopPropagation();
+        }
+    }
+
+    _scrollActiveIntoView() {
+        // Use setTimeout to let OWL re-render first
+        setTimeout(() => {
+            const dropdown = document.querySelector(".pcb-dropdown");
+            if (!dropdown) return;
+            const items = dropdown.querySelectorAll(".pcb-dropdown-item, .pcb-create-row");
+            const active = items[this.state.activeIndex];
+            if (active) {
+                active.scrollIntoView({ block: "nearest" });
+            }
+        }, 0);
+    }
+
     onInput(ev) {
         const query = ev.target.value;
         this.state.query = query;
         this.state.found = false;
         this.state.selectedName = "";
+        this.state.activeIndex = -1;
 
         if (!query) {
             this.pos.getOrder().setPartner(false);
@@ -579,6 +633,7 @@ export class PhoneCustomerBar extends Component {
         this.state.found = true;
         this.state.showDropdown = false;
         this.state.suggestions = [];
+        this.state.activeIndex = -1;
     }
 
     onClear() {
@@ -587,6 +642,7 @@ export class PhoneCustomerBar extends Component {
         this.state.selectedName = "";
         this.state.suggestions = [];
         this.state.showDropdown = false;
+        this.state.activeIndex = -1;
         this.pos.getOrder().setPartner(false);
     }
 

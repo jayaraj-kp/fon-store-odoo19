@@ -51,6 +51,7 @@
 }
 .pcb-dropdown-item:last-child { border-bottom: none; }
 .pcb-dropdown-item:hover { background: #eef2ff; }
+.pcb-item-active { background: #e0e7ff !important; outline: none; }
 
 .pcb-item-name {
     font-size: 13px; font-weight: 600; color: #1e293b;
