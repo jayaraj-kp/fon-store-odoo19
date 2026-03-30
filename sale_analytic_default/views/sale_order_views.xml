@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Make Analytic Distribution ALWAYS VISIBLE in Sale Order Lines
+         Odoo 19 CE
+
+         By default, analytic_distribution has optional="show" which means
+         it is visible but users can hide it via the column toggle button.
+
+         This view inheritance removes the optional attribute entirely so
+         the column is permanently shown with no toggle option.
+
+         To allow toggling but default to visible, set optional="show".
+         To remove column from toggle entirely, remove optional attribute.
+    ============================================================ -->
+
+    <record id="view_order_form_analytic_always_visible" model="ir.ui.view">
+        <field name="name">sale.order.form.analytic.always.visible</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+
+            <!--
+                XPath targets the analytic_distribution field inside the
+                order_line One2many list view embedded in the form.
+                Setting optional="" (empty string) removes the attribute,
+                making the column always visible and non-toggleable.
+            -->
+            <xpath expr="//field[@name='order_line']//field[@name='analytic_distribution']" position="attributes">
+                <attribute name="optional"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
