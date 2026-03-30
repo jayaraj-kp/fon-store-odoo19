@@ -26,19 +26,8 @@
         </field>
     </record>
 
-    <!-- Strategy 2: Also patch the standalone order line list view -->
-    <record id="view_order_line_analytic_always_visible" model="ir.ui.view">
-        <field name="name">sale.order.line.analytic.always.visible</field>
-        <field name="model">sale.order.line</field>
-        <field name="inherit_id" ref="sale.view_order_line_tree_with_onchange"/>
-        <field name="priority">99</field>
-        <field name="arch" type="xml">
-
-            <xpath expr="//list//field[@name='analytic_distribution']" position="attributes">
-                <attribute name="optional"/>
-            </xpath>
-
-        </field>
-    </record>
+    <!-- Note: sale.view_order_line_tree_with_onchange was removed in Odoo 19.
+         The Python _get_view() override in models/sale_order_line.py handles
+         the runtime removal of the optional attribute instead. -->
 
 </odoo>
