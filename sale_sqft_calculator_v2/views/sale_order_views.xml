@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_form_sqft_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.sqft.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!--
+                Show ONLY the 📐 icon button next to the product.
+                No inline columns — width/height/sqft are entered inside the popup wizard.
+            -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']"
+                   position="after">
+                <button
+                    name="action_open_sqft_wizard"
+                    type="object"
+                    icon="fa-calculator"
+                    title="📐 Open Sq.Ft Calculator"
+                    string=""
+                    class="btn btn-sm btn-link text-primary"
+                    invisible="not product_id"
+                />
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
