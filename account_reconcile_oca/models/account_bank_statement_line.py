@@ -47,7 +47,8 @@ class AccountBankStatementLine(models.Model):
     )
     manual_partner_id = fields.Many2one(
         "res.partner",
-        domain=[("parent_id", "=", False)],
+        # MODIFIED: only customers, no internal users
+        domain=[("parent_id", "=", False), ("customer_rank", ">", 0)],
         check_company=True,
         store=False,
         default=False,
@@ -407,7 +408,11 @@ class AccountBankStatementLine(models.Model):
         ] != line.get("line_currency_id")
         self.manual_amount_in_currency = line.get("currency_amount")
         self.previous_manual_amount_in_currency = line.get("currency_amount")
-        self.manual_name = line["name"]
+        # MODIFIED: strip "Session XXX-out-" prefix, show only the last part
+        raw_name = line["name"] or ""
+        if "-out-" in raw_name:
+            raw_name = raw_name.split("-out-")[-1]
+        self.manual_name = raw_name
         self.manual_exchange_counterpart = line.get("is_exchange_counterpart", False)
         self.manual_partner_id = line.get("partner_id") and line["partner_id"][0]
         manual_line = self.env["account.move.line"].browse(line["id"]).exists()
@@ -419,6 +424,28 @@ class AccountBankStatementLine(models.Model):
             self.manual_move_type = self.manual_line_id.move_id.move_type
         self.manual_kind = line["kind"]
         self.manual_original_amount = line.get("original_amount", 0.0)
+    # def _process_manual_reconcile_from_line(self, line):
+    #     self.manual_account_id = line["account_id"][0]
+    #     self.manual_amount = line["amount"]
+    #     self.manual_currency_id = line["currency_id"]
+    #     self.manual_in_currency_id = line.get("line_currency_id")
+    #     self.manual_in_currency = line.get("line_currency_id") and line[
+    #         "currency_id"
+    #     ] != line.get("line_currency_id")
+    #     self.manual_amount_in_currency = line.get("currency_amount")
+    #     self.previous_manual_amount_in_currency = line.get("currency_amount")
+    #     self.manual_name = line["name"]
+    #     self.manual_exchange_counterpart = line.get("is_exchange_counterpart", False)
+    #     self.manual_partner_id = line.get("partner_id") and line["partner_id"][0]
+    #     manual_line = self.env["account.move.line"].browse(line["id"]).exists()
+    #     self.manual_line_id = manual_line
+    #     self.analytic_distribution = line.get("analytic_distribution", {})
+    #     self.manual_tax_ids = [Command.set(line.get("tax_ids", []))]
+    #     if self.manual_line_id:
+    #         self.manual_move_id = self.manual_line_id.move_id
+    #         self.manual_move_type = self.manual_line_id.move_id.move_type
+    #     self.manual_kind = line["kind"]
+    #     self.manual_original_amount = line.get("original_amount", 0.0)
 
     @api.onchange("manual_reference", "manual_delete")
     def _onchange_manual_reconcile_reference(self):

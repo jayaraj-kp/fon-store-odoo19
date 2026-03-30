@@ -309,6 +309,7 @@
                                 <field
                                         name="manual_partner_id"
                                         string="Partner"
+                                        domain="[('parent_id', '=', False), ('customer_rank', '&gt;', 0)]"
                                         modifiers="{'readonly': ['|', '|', '|', ('manual_exchange_counterpart', '=', True),('manual_reference', '=', False), ('is_reconciled', '=', True), '&amp;', ('manual_line_id', '!=', False), ('manual_kind', '!=', 'liquidity')]}"
                                 />
                                 <field
