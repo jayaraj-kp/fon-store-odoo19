@@ -60,7 +60,6 @@
             'pos_charity_ledger/static/src/xml/charity_button.xml',
             'pos_charity_ledger/static/src/xml/charity_popup.xml',
             'pos_charity_ledger/static/src/xml/charity_closing_popup.xml',
-            'pos_charity_ledger/static/src/xml/charity_account_data.xml',
             'pos_charity_ledger/static/src/css/charity.css',
         ],
     },
