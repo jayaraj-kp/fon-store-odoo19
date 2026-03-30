@@ -363,6 +363,7 @@
 //    },
 //});
 /** @odoo-module **/
+/** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
@@ -610,9 +611,9 @@ const EXACT_FIELDS = new Set(["AMOUNT"]);
 
 function sortOrders(orders, ascending = false) {
     return orders.sort((a, b) => {
-        const dateA = a.date_order;
-        const dateB = b.date_order;
-        if (!dateA.equals(dateB)) return ascending ? dateA - dateB : dateB - dateA;
+        const dateA = a.date_order ? new Date(a.date_order) : new Date(0);
+        const dateB = b.date_order ? new Date(b.date_order) : new Date(0);
+        if (dateA.getTime() !== dateB.getTime()) return ascending ? dateA - dateB : dateB - dateA;
         const nameA = parseInt(a.pos_reference?.replace(/\D/g, "")) || 0;
         const nameB = parseInt(b.pos_reference?.replace(/\D/g, "")) || 0;
         return ascending ? nameA - nameB : nameB - nameA;
@@ -654,16 +655,24 @@ patch(TicketScreen.prototype, {
             if (result && result.value !== "") {
                 this._customFilter = result;
                 this.state.filter = "CUSTOM_FILTER";
-                // Fix typo: ticketSCreen -> ticketScreen, and guard with optional chaining
+                // Fix typo ticketSCreen -> ticketScreen, guard with optional chaining
                 if (this.pos.screenState?.ticketScreen) {
                     this.pos.screenState.ticketScreen.totalCount = 0;
                     this.pos.screenState.ticketScreen.offsetByDomain = {};
                 }
-                // Use empty searchTerm only — do NOT reassign state.search object
-                // as it breaks SearchBar's internal reactive state in Odoo 19
-                if (this.state.search) {
-                    this.state.search.searchTerm = "";
-                }
+                // *** CRITICAL FIX ***
+                // DO NOT reassign this.state.search — SearchBar owns its own
+                // reactive state object. Replacing it from outside destroys the
+                // reactive reference and causes:
+                //   TypeError: Cannot read properties of undefined (reading 'text')
+                //
+                // Instead: call super.onSearch() with the first real search field
+                // (e.g. RECEIPT_NUMBER) and an empty term. This lets SearchBar
+                // reset itself cleanly through its own normal code path.
+                const fields = this.getSearchFields ? this.getSearchFields() : (this._getSearchFields ? this._getSearchFields() : {});
+                // Pick the first non-custom field as the safe reset target
+                const safeField = Object.keys(fields).find((k) => k !== "CUSTOM_FILTER") || "RECEIPT_NUMBER";
+                await super.onSearch({ fieldName: safeField, searchTerm: "" });
             }
             return;
         }
