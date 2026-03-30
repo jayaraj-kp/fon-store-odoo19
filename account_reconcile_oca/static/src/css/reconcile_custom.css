@@ -11,11 +11,11 @@
     color: inherit;
 }
 
-/* ── Selected card: left blue border + background ── */
+/* ── Selected card: full blue background like image 2 ── */
 .o_account_reconcile_oca_selector
     .o_kanban_record_reconcile_oca_selected {
+    background-color: #cfe2ff !important;
     border-left: 3px solid #0d6efd !important;
-    background-color: #f0f5ff !important;
 }
 
 /* ── Selected card: amount turns blue ── */
@@ -27,4 +27,10 @@
     .o_reconcile_amount_positive {
     color: #0d6efd !important;
     font-weight: 700;
+}
+
+/* ── Selected card: text also in dark blue ── */
+.o_account_reconcile_oca_selector
+    .o_kanban_record_reconcile_oca_selected {
+    color: #0a3d7a !important;
 }
