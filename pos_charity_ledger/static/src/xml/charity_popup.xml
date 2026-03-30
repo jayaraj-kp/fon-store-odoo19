@@ -4,86 +4,80 @@
         <Dialog title="props.title" size="'md'">
             <div class="charity-popup-body">
 
-                <!-- Show available cap only when there is a finite max (round-off scenario) -->
-                <t t-if="!hasNoMax">
-                    <p class="text-center mb-3" style="font-size:15px;">
-                        Available Change: <strong style="color:#2ecc71;font-size:18px;">
-                            <t t-esc="symbol"/><t t-esc="maxAmount.toFixed(2)"/>
-                        </strong>
-                    </p>
-                </t>
+                <!-- ── ONE-TAP GREEN ROUND-UP BUTTON ──────────────────────────
+                     Always shown at the top.
+                     Shows the exact round-up amount (e.g. ₹3 for total ₹997).
+                     Clicking it confirms IMMEDIATELY — no need to press Donate.
+                ──────────────────────────────────────────────────────────── -->
+                <div class="mb-3">
+                    <button class="btn btn-charity-roundoff w-100"
+                        t-on-click="confirmRoundOff"
+                        style="font-size:16px; padding:14px;">
+                        ❤ Donate <t t-esc="symbol"/><t t-esc="roundOff"/> to Round Up
+                        <span class="ms-2" style="font-size:12px;opacity:0.85;">
+                            (one tap — no confirmation needed)
+                        </span>
+                    </button>
+                </div>
 
-                <!-- ONE-TAP Full Change button — only when total is a whole number.
-                     e.g. ₹999 total → "Donate ₹1.00 to Round Up" — confirms instantly. -->
-                <t t-if="hasNoMax">
-                    <div class="mb-3">
-                        <button class="btn btn-charity-roundoff w-100" t-on-click="confirmFullChange"
-                            style="font-size:16px; padding:14px;">
-                            ❤ Donate <t t-esc="symbol"/><t t-esc="ceilAmount.toFixed(2)"/> to Round Up
-                            <span class="ms-2" style="font-size:12px;opacity:0.85;">(one tap — no confirmation needed)</span>
-                        </button>
-                    </div>
-                </t>
-
-                <!-- Quick fixed amount buttons:
-                     Only show ₹1/₹2/₹5 that are STRICTLY LESS THAN the cap.
-                     When cap is Infinity (whole number total) all three show.
-                     When cap is e.g. ₹0.55, none show (they all exceed it).
-                     Full Change only shown when there is a finite cap. -->
-                <t t-if="hasNoMax or maxAmount > 1">
+                <!-- ── QUICK FIXED AMOUNT BUTTONS ─────────────────────────────
+                     Show ₹1 / ₹2 / ₹5 only when they are LESS THAN the cap.
+                     Cap = roundOff (next multiple of 5).
+                     e.g. roundOff=3 → show ₹1, ₹2 (not ₹5 since 5 > 3)
+                          roundOff=5 → show ₹1, ₹2, ₹5
+                          roundOff=1 → show nothing (all > 1)
+                ──────────────────────────────────────────────────────────── -->
+                <t t-if="maxAmount > 1">
                     <div class="d-flex gap-2 mb-3 flex-wrap">
-                        <t t-if="hasNoMax or maxAmount > 1">
-                            <button class="btn btn-outline-danger flex-fill"
-                                t-on-click="() => this.setAmount(1)">
-                                <t t-esc="symbol"/>1
-                            </button>
-                        </t>
-                        <t t-if="hasNoMax or maxAmount > 2">
+                        <button class="btn btn-outline-danger flex-fill"
+                            t-on-click="() => this.setAmount(1)">
+                            <t t-esc="symbol"/>1
+                        </button>
+                        <t t-if="maxAmount > 2">
                             <button class="btn btn-outline-danger flex-fill"
                                 t-on-click="() => this.setAmount(2)">
                                 <t t-esc="symbol"/>2
                             </button>
                         </t>
-                        <t t-if="hasNoMax or maxAmount > 5">
+                        <t t-if="maxAmount > 3">
+                            <button class="btn btn-outline-danger flex-fill"
+                                t-on-click="() => this.setAmount(3)">
+                                <t t-esc="symbol"/>3
+                            </button>
+                        </t>
+                        <t t-if="maxAmount > 4">
+                            <button class="btn btn-outline-danger flex-fill"
+                                t-on-click="() => this.setAmount(4)">
+                                <t t-esc="symbol"/>4
+                            </button>
+                        </t>
+                        <t t-if="maxAmount >= 5">
                             <button class="btn btn-outline-danger flex-fill"
                                 t-on-click="() => this.setAmount(5)">
                                 <t t-esc="symbol"/>5
                             </button>
                         </t>
-                        <!-- Full Change button only when there is a finite cap -->
-                        <t t-if="!hasNoMax">
-                            <button class="btn btn-danger flex-fill" t-on-click="setFullChange">
-                                Full Change
-                            </button>
-                        </t>
                     </div>
                 </t>
 
-                <!-- Round Off button: one-tap confirm — no need to press Donate after -->
-                <t t-if="roundOff > 0">
-                    <div class="mb-3">
-                        <button class="btn btn-charity-roundoff w-100" t-on-click="confirmRoundOff"
-                            style="font-size:16px; padding:14px;">
-                            ↑ Round Off
-                            <strong class="ms-1"><t t-esc="symbol"/><t t-esc="roundOff.toFixed(2)"/></strong>
-                            <span class="ms-1" style="font-size:12px;opacity:0.85;">(one tap — no confirmation needed)</span>
-                        </button>
-                    </div>
-                </t>
-
-                <!-- Manual amount input -->
+                <!-- ── MANUAL AMOUNT INPUT ────────────────────────────────── -->
                 <div class="input-group mb-2">
-                    <span class="input-group-text" style="font-size:20px;"><t t-esc="symbol"/></span>
+                    <span class="input-group-text" style="font-size:20px;">
+                        <t t-esc="symbol"/>
+                    </span>
                     <input type="number" class="form-control form-control-lg text-end"
-                        t-att-value="state.inputAmount" t-on-input="onInputChange"
+                        t-att-value="state.inputAmount"
+                        t-on-input="onInputChange"
                         placeholder="0.00" min="0" step="0.01"/>
                 </div>
 
-                <div t-if="state.error" class="text-danger text-center mb-2" t-esc="state.error"/>
+                <div t-if="state.error" class="text-danger text-center mb-2"
+                    t-esc="state.error"/>
 
-                <!-- Numpad -->
+                <!-- ── NUMPAD ─────────────────────────────────────────────── -->
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">
-                    <t t-foreach="['1','2','3','4','5','6','7','8','9','.','0','⌫']" t-as="key" t-key="key">
+                    <t t-foreach="['1','2','3','4','5','6','7','8','9','.','0','⌫']"
+                        t-as="key" t-key="key">
                         <button class="btn btn-light btn-lg"
                             style="font-size:20px;font-weight:600;"
                             t-on-click="() => this.pressKey(key)">
@@ -91,18 +85,27 @@
                         </button>
                     </t>
                 </div>
+
             </div>
+
+            <!-- Footer: Cancel + Donate -->
             <t t-set-slot="footer">
                 <div class="d-flex gap-2 w-100">
-                    <button class="btn btn-secondary btn-lg flex-fill" t-on-click="cancel">Cancel</button>
-                    <button class="btn btn-danger btn-lg flex-fill" t-on-click="confirm">
-                        ❤ Donate<t t-if="displayAmount"> <t t-esc="symbol"/><t t-esc="displayAmount"/></t>
+                    <button class="btn btn-secondary btn-lg flex-fill"
+                        t-on-click="cancel">Cancel</button>
+                    <button class="btn btn-danger btn-lg flex-fill"
+                        t-on-click="confirm">
+                        ❤ Donate
+                        <t t-if="displayAmount">
+                            <t t-esc="symbol"/><t t-esc="displayAmount"/>
+                        </t>
                     </button>
                 </div>
             </t>
         </Dialog>
     </t>
 </templates>
+
 
 
 <!--<?xml version="1.0" encoding="utf-8"?>-->
@@ -166,13 +169,14 @@
 <!--                    </div>-->
 <!--                </t>-->
 
-<!--                &lt;!&ndash; Round Off button: only shown when a rounding gap exists &ndash;&gt;-->
+<!--                &lt;!&ndash; Round Off button: one-tap confirm — no need to press Donate after &ndash;&gt;-->
 <!--                <t t-if="roundOff > 0">-->
 <!--                    <div class="mb-3">-->
-<!--                        <button class="btn btn-charity-roundoff w-100" t-on-click="setRoundOff">-->
+<!--                        <button class="btn btn-charity-roundoff w-100" t-on-click="confirmRoundOff"-->
+<!--                            style="font-size:16px; padding:14px;">-->
 <!--                            ↑ Round Off-->
 <!--                            <strong class="ms-1"><t t-esc="symbol"/><t t-esc="roundOff.toFixed(2)"/></strong>-->
-<!--                            <span class="ms-1" style="font-size:12px;opacity:0.85;">(donate rounding difference)</span>-->
+<!--                            <span class="ms-1" style="font-size:12px;opacity:0.85;">(one tap — no confirmation needed)</span>-->
 <!--                        </button>-->
 <!--                    </div>-->
 <!--                </t>-->
@@ -210,95 +214,3 @@
 <!--    </t>-->
 <!--</templates>-->
 
-
-<!--&lt;!&ndash;<?xml version="1.0" encoding="utf-8"?>&ndash;&gt;-->
-<!--&lt;!&ndash;<templates xml:space="preserve">&ndash;&gt;-->
-<!--&lt;!&ndash;    <t t-name="pos_charity_ledger.CharityDonationPopup">&ndash;&gt;-->
-<!--&lt;!&ndash;        <Dialog title="props.title" size="'md'">&ndash;&gt;-->
-<!--&lt;!&ndash;            <div class="charity-popup-body">&ndash;&gt;-->
-
-<!--&lt;!&ndash;                &lt;!&ndash; Show available cap only when there is a finite max (round-off scenario) &ndash;&gt;&ndash;&gt;-->
-<!--&lt;!&ndash;                <t t-if="!hasNoMax">&ndash;&gt;-->
-<!--&lt;!&ndash;                    <p class="text-center mb-3" style="font-size:15px;">&ndash;&gt;-->
-<!--&lt;!&ndash;                        Available Change: <strong style="color:#2ecc71;font-size:18px;">&ndash;&gt;-->
-<!--&lt;!&ndash;                            <t t-esc="symbol"/><t t-esc="maxAmount.toFixed(2)"/>&ndash;&gt;-->
-<!--&lt;!&ndash;                        </strong>&ndash;&gt;-->
-<!--&lt;!&ndash;                    </p>&ndash;&gt;-->
-<!--&lt;!&ndash;                </t>&ndash;&gt;-->
-
-<!--&lt;!&ndash;                &lt;!&ndash; Quick fixed amount buttons:&ndash;&gt;-->
-<!--&lt;!&ndash;                     Only show ₹1/₹2/₹5 buttons that are STRICTLY LESS THAN the cap.&ndash;&gt;-->
-<!--&lt;!&ndash;                     When cap is Infinity (whole number total) all three show.&ndash;&gt;-->
-<!--&lt;!&ndash;                     When cap is e.g. ₹0.55, none of them show (they would all exceed it).&ndash;&gt;-->
-<!--&lt;!&ndash;                     Full Change only shown when there is a finite cap. &ndash;&gt;&ndash;&gt;-->
-<!--&lt;!&ndash;                <t t-if="hasNoMax or maxAmount > 1">&ndash;&gt;-->
-<!--&lt;!&ndash;                    <div class="d-flex gap-2 mb-3 flex-wrap">&ndash;&gt;-->
-<!--&lt;!&ndash;                        <t t-if="hasNoMax or maxAmount > 1">&ndash;&gt;-->
-<!--&lt;!&ndash;                            <button class="btn btn-outline-danger flex-fill"&ndash;&gt;-->
-<!--&lt;!&ndash;                                t-on-click="() => this.setAmount(1)">&ndash;&gt;-->
-<!--&lt;!&ndash;                                <t t-esc="symbol"/>1&ndash;&gt;-->
-<!--&lt;!&ndash;                            </button>&ndash;&gt;-->
-<!--&lt;!&ndash;                        </t>&ndash;&gt;-->
-<!--&lt;!&ndash;                        <t t-if="hasNoMax or maxAmount > 2">&ndash;&gt;-->
-<!--&lt;!&ndash;                            <button class="btn btn-outline-danger flex-fill"&ndash;&gt;-->
-<!--&lt;!&ndash;                                t-on-click="() => this.setAmount(2)">&ndash;&gt;-->
-<!--&lt;!&ndash;                                <t t-esc="symbol"/>2&ndash;&gt;-->
-<!--&lt;!&ndash;                            </button>&ndash;&gt;-->
-<!--&lt;!&ndash;                        </t>&ndash;&gt;-->
-<!--&lt;!&ndash;                        <t t-if="hasNoMax or maxAmount > 5">&ndash;&gt;-->
-<!--&lt;!&ndash;                            <button class="btn btn-outline-danger flex-fill"&ndash;&gt;-->
-<!--&lt;!&ndash;                                t-on-click="() => this.setAmount(5)">&ndash;&gt;-->
-<!--&lt;!&ndash;                                <t t-esc="symbol"/>5&ndash;&gt;-->
-<!--&lt;!&ndash;                            </button>&ndash;&gt;-->
-<!--&lt;!&ndash;                        </t>&ndash;&gt;-->
-<!--&lt;!&ndash;                        <t t-if="!hasNoMax">&ndash;&gt;-->
-<!--&lt;!&ndash;                            <button class="btn btn-danger flex-fill" t-on-click="setFullChange">&ndash;&gt;-->
-<!--&lt;!&ndash;                                Full Change&ndash;&gt;-->
-<!--&lt;!&ndash;                            </button>&ndash;&gt;-->
-<!--&lt;!&ndash;                        </t>&ndash;&gt;-->
-<!--&lt;!&ndash;                    </div>&ndash;&gt;-->
-<!--&lt;!&ndash;                </t>&ndash;&gt;-->
-
-<!--&lt;!&ndash;                &lt;!&ndash; Round Off button: only shown when a rounding gap exists &ndash;&gt;&ndash;&gt;-->
-<!--&lt;!&ndash;                <t t-if="roundOff > 0">&ndash;&gt;-->
-<!--&lt;!&ndash;                    <div class="mb-3">&ndash;&gt;-->
-<!--&lt;!&ndash;                        <button class="btn btn-charity-roundoff w-100" t-on-click="setRoundOff">&ndash;&gt;-->
-<!--&lt;!&ndash;                            ↑ Round Off&ndash;&gt;-->
-<!--&lt;!&ndash;                            <strong class="ms-1"><t t-esc="symbol"/><t t-esc="roundOff.toFixed(2)"/></strong>&ndash;&gt;-->
-<!--&lt;!&ndash;                            <span class="ms-1" style="font-size:12px;opacity:0.85;">(donate rounding difference)</span>&ndash;&gt;-->
-<!--&lt;!&ndash;                        </button>&ndash;&gt;-->
-<!--&lt;!&ndash;                    </div>&ndash;&gt;-->
-<!--&lt;!&ndash;                </t>&ndash;&gt;-->
-
-<!--&lt;!&ndash;                &lt;!&ndash; Manual amount input &ndash;&gt;&ndash;&gt;-->
-<!--&lt;!&ndash;                <div class="input-group mb-2">&ndash;&gt;-->
-<!--&lt;!&ndash;                    <span class="input-group-text" style="font-size:20px;"><t t-esc="symbol"/></span>&ndash;&gt;-->
-<!--&lt;!&ndash;                    <input type="number" class="form-control form-control-lg text-end"&ndash;&gt;-->
-<!--&lt;!&ndash;                        t-att-value="state.inputAmount" t-on-input="onInputChange"&ndash;&gt;-->
-<!--&lt;!&ndash;                        placeholder="0.00" min="0" step="0.01"/>&ndash;&gt;-->
-<!--&lt;!&ndash;                </div>&ndash;&gt;-->
-
-<!--&lt;!&ndash;                <div t-if="state.error" class="text-danger text-center mb-2" t-esc="state.error"/>&ndash;&gt;-->
-
-<!--&lt;!&ndash;                &lt;!&ndash; Numpad &ndash;&gt;&ndash;&gt;-->
-<!--&lt;!&ndash;                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">&ndash;&gt;-->
-<!--&lt;!&ndash;                    <t t-foreach="['1','2','3','4','5','6','7','8','9','.','0','⌫']" t-as="key" t-key="key">&ndash;&gt;-->
-<!--&lt;!&ndash;                        <button class="btn btn-light btn-lg"&ndash;&gt;-->
-<!--&lt;!&ndash;                            style="font-size:20px;font-weight:600;"&ndash;&gt;-->
-<!--&lt;!&ndash;                            t-on-click="() => this.pressKey(key)">&ndash;&gt;-->
-<!--&lt;!&ndash;                            <t t-esc="key"/>&ndash;&gt;-->
-<!--&lt;!&ndash;                        </button>&ndash;&gt;-->
-<!--&lt;!&ndash;                    </t>&ndash;&gt;-->
-<!--&lt;!&ndash;                </div>&ndash;&gt;-->
-<!--&lt;!&ndash;            </div>&ndash;&gt;-->
-<!--&lt;!&ndash;            <t t-set-slot="footer">&ndash;&gt;-->
-<!--&lt;!&ndash;                <div class="d-flex gap-2 w-100">&ndash;&gt;-->
-<!--&lt;!&ndash;                    <button class="btn btn-secondary btn-lg flex-fill" t-on-click="cancel">Cancel</button>&ndash;&gt;-->
-<!--&lt;!&ndash;                    <button class="btn btn-danger btn-lg flex-fill" t-on-click="confirm">&ndash;&gt;-->
-<!--&lt;!&ndash;                        ❤ Donate<t t-if="displayAmount"> <t t-esc="symbol"/><t t-esc="displayAmount"/></t>&ndash;&gt;-->
-<!--&lt;!&ndash;                    </button>&ndash;&gt;-->
-<!--&lt;!&ndash;                </div>&ndash;&gt;-->
-<!--&lt;!&ndash;            </t>&ndash;&gt;-->
-<!--&lt;!&ndash;        </Dialog>&ndash;&gt;-->
-<!--&lt;!&ndash;    </t>&ndash;&gt;-->
-<!--&lt;!&ndash;</templates>&ndash;&gt;-->
