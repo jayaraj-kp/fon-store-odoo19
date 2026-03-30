@@ -138,19 +138,56 @@
         </field>
     </record>
 
-    <record id="account_bank_statement_line_search" model="ir.ui.view">
-        <field name="name">account.bank.statement.line.search</field>
-        <field name="model">account.bank.statement.line</field>
-        <field
-                name="inherit_id"
-                ref="account_statement_base.account_bank_statement_line_search"
-        />
-        <field name="arch" type="xml">
-            <field name="journal_id" position="after">
-                <field name="move_id"/>
-            </field>
+    <record id="action_bank_statement_line_reconcile_all" model="ir.actions.act_window">
+        <field name="name">Reconcile bank statement lines</field>
+        <field name="res_model">account.bank.statement.line</field>
+        <field name="domain">[('journal_id', '=', active_id)]</field>
+        <field name="context">
+            {'default_journal_id': active_id,
+            'search_default_not_reconciled': True,
+            'view_ref': 'account_reconcile_oca.bank_statement_line_form_reconcile_view'}
         </field>
+        <field name="view_mode">kanban,list</field>
+        <field
+                name="view_ids"
+                eval="[(5, 0, 0),
+        (0, 0, {'view_mode': 'kanban', 'view_id': ref('bank_statement_line_reconcile_view')}),
+        (0, 0, {'view_mode': 'list', 'view_id': ref('account_statement_base.account_bank_statement_line_tree')})]"
+        />
     </record>
+
+    <record
+            id="action_bank_statement_line_move_view_reconcile"
+            model="ir.actions.act_window"
+    >
+        <field name="name">Reconcile bank statement lines</field>
+        <field name="res_model">account.bank.statement.line</field>
+        <field name="context">
+            {'search_default_move_id': active_id or False,
+            'search_default_not_reconciled': True,
+            'view_ref': 'account_reconcile_oca.bank_statement_line_form_reconcile_view'}
+        </field>
+        <field name="view_mode">kanban</field>
+        <field
+                name="view_ids"
+                eval="[(5, 0, 0),
+        (0, 0, {'view_mode': 'kanban', 'view_id': ref('bank_statement_line_reconcile_view')})]"
+        />
+    </record>
+
+    <!--    <record id="account_bank_statement_line_search" model="ir.ui.view">-->
+    <!--        <field name="name">account.bank.statement.line.search</field>-->
+    <!--        <field name="model">account.bank.statement.line</field>-->
+    <!--        <field-->
+    <!--                name="inherit_id"-->
+    <!--                ref="account_statement_base.account_bank_statement_line_search"-->
+    <!--        />-->
+    <!--        <field name="arch" type="xml">-->
+    <!--            <field name="journal_id" position="after">-->
+    <!--                <field name="move_id"/>-->
+    <!--            </field>-->
+    <!--        </field>-->
+    <!--    </record>-->
 
     <record id="bank_statement_line_form_reconcile_view" model="ir.ui.view">
         <field name="name">account.bank.statement.line.reconcile</field>
