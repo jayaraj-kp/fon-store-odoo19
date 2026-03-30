@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_form_sqft_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.sqft.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add Width, Height, Sqft columns to order lines after qty -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']"
+                   position="after">
+                <field name="width"
+                       string="Width (ft)"
+                       optional="show"
+                       readonly="0"/>
+                <field name="height"
+                       string="Height (ft)"
+                       optional="show"
+                       readonly="0"/>
+                <field name="sqft"
+                       string="Sq. Ft."
+                       optional="show"
+                       readonly="1"/>
+            </xpath>
+
+            <!-- Add Calculator Button before unit price -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']"
+                   position="before">
+                <button name="action_open_sqft_wizard"
+                        string="📐"
+                        title="Open Sq.Ft Calculator"
+                        type="object"
+                        class="btn btn-sm btn-secondary"
+                        invisible="not product_id"/>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
