@@ -120,7 +120,6 @@ class PosSpecialOffer(models.Model):
     @api.constrains('offer_type', 'coupon_code')
     def _check_coupon_code(self):
         for rec in self:
-            # Only require coupon_code if no generated codes exist
             if rec.offer_type == 'coupon' and not rec.coupon_code and not rec.coupon_ids:
                 raise ValidationError(
                     'Coupon offers require either a Coupon Code or generated coupon codes.')
@@ -166,15 +165,45 @@ class PosSpecialOffer(models.Model):
             'context': {'default_offer_id': self.id},
         }
 
+    # ── POS RPC: get warehouse_id for the current POS session ─────────────────
+    @api.model
+    def get_current_pos_warehouse_id(self):
+        """
+        Return the warehouse_id of the POS config linked to the current
+        open POS session for this user.
+
+        Logic:
+          1. Find the open pos.session for the current user.
+          2. Read its config_id.warehouse_id.
+          3. Return the integer warehouse id, or None if not found.
+        """
+        PosSession = self.env['pos.session']
+
+        # Find an open session for the current user
+        session = PosSession.search([
+            ('state', '=', 'opened'),
+            ('user_id', '=', self.env.uid),
+        ], limit=1)
+
+        if not session:
+            # Fallback: any open session (multi-cashier setups)
+            session = PosSession.search([
+                ('state', '=', 'opened'),
+            ], limit=1)
+
+        if session and session.config_id and session.config_id.warehouse_id:
+            wh_id = session.config_id.warehouse_id.id
+            return wh_id
+
+        return None
+
     # ── POS RPC: return active offers filtered by warehouse ───────────────────
     @api.model
     def get_active_offers_for_pos(self, warehouse_id=None):
         """
         Return active offers for the POS session.
-        If warehouse_id is provided, only offers that either:
-          - have no warehouse restriction (warehouse_ids is empty), OR
-          - include the given warehouse_id
-        will be returned.
+        - Offers with NO warehouse restriction → shown in ALL sessions.
+        - Offers WITH warehouse restriction → shown only in matching sessions.
         """
         now = fields.Datetime.now()
         offers = self.search([
@@ -188,15 +217,17 @@ class PosSpecialOffer(models.Model):
                 continue
 
             # ── Warehouse filter ──────────────────────────────────────────────
-            # If the offer has warehouse restrictions, check the current session's warehouse.
-            if o.warehouse_ids and warehouse_id:
+            if o.warehouse_ids:
+                # Offer has warehouse restrictions
+                if not warehouse_id:
+                    # We don't know the warehouse — skip restricted offers
+                    continue
                 if warehouse_id not in o.warehouse_ids.ids:
-                    continue  # skip — this offer is not for this warehouse
-            # If warehouse_id is unknown (None/0) and offer has restrictions, skip for safety.
-            elif o.warehouse_ids and not warehouse_id:
-                continue
+                    # Wrong warehouse — skip
+                    continue
+            # If offer has NO warehouse_ids → always include (global offer)
 
-            # Build list of valid coupon codes for POS
+            # Build coupon codes list
             generated_codes = []
             if o.offer_type == 'coupon' and o.coupon_ids:
                 generated_codes = [
@@ -223,7 +254,7 @@ class PosSpecialOffer(models.Model):
                 'usage_count':     o.usage_count,
                 'date_from':       str(o.date_from),
                 'date_to':         str(o.date_to),
-                'warehouse_ids':   o.warehouse_ids.ids,  # send to frontend for info
+                'warehouse_ids':   o.warehouse_ids.ids,
             })
         return result
 
@@ -239,7 +270,6 @@ class PosSpecialOffer(models.Model):
     def increment_usage(self):
         for rec in self:
             rec.usage_count += 1
-
 # from odoo import models, fields, api
 # from odoo.exceptions import ValidationError
 # from datetime import datetime, date
