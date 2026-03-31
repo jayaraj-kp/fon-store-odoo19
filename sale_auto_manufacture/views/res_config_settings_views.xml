@@ -2,32 +2,19 @@
 <odoo>
 
     <!-- Extend Sale Settings to add Auto-Manufacture toggle -->
+    <!-- Odoo 19 CE uses <app><block><setting> structure inside //form -->
     <record id="res_config_settings_view_form_auto_manufacture" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.auto.manufacture</field>
         <field name="model">res.config.settings</field>
         <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <!-- Append to the end of the settings sheet - works on all Odoo 19 CE layouts -->
-            <xpath expr="//form/sheet" position="inside">
-                <div class="app_settings_block" data-string="Auto Manufacturing" string="Auto Manufacturing" data-key="sale_auto_manufacture">
-                    <h2>Auto Manufacturing</h2>
-                    <div class="row mt16 o_settings_container">
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_left_pane">
-                                <field name="auto_manufacture_on_confirm"/>
-                            </div>
-                            <div class="o_setting_right_pane">
-                                <label for="auto_manufacture_on_confirm" string="Auto-Manufacture on Sale Confirm"/>
-                                <div class="text-muted">
-                                    Automatically create, confirm, and produce a
-                                    Manufacturing Order when a Sale Order is confirmed.
-                                    Components are consumed and finished product stock
-                                    is updated immediately — no manual steps needed.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <xpath expr="//app[@name='sale_management']//block[@name='quotation_order_setting_container']" position="after">
+                <block title="Auto Manufacturing" name="auto_manufacture_setting_container">
+                    <setting string="Auto-Manufacture on Sale Confirm"
+                             help="Automatically create, confirm and produce a Manufacturing Order when a Sale Order is confirmed. Components are consumed and finished product stock is updated immediately.">
+                        <field name="auto_manufacture_on_confirm"/>
+                    </setting>
+                </block>
             </xpath>
         </field>
     </record>
