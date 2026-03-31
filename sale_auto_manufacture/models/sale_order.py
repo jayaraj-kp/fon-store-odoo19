@@ -27,7 +27,6 @@ class SaleOrder(models.Model):
         """Override sale order confirmation to trigger auto manufacturing."""
         result = super().action_confirm()
 
-        # Check if auto-manufacture is enabled in settings
         auto_manufacture = self.env['ir.config_parameter'].sudo().get_param(
             'sale_auto_manufacture.auto_manufacture_on_confirm', default='False'
         )
@@ -51,7 +50,14 @@ class SaleOrder(models.Model):
         for line in self.order_line:
             product = line.product_id
             qty = line.product_uom_qty
-            uom = line.product_uom
+
+            # Odoo 17+ renamed product_uom -> product_uom_id on sale.order.line
+            uom = (
+                line.product_uom_id
+                if hasattr(line, 'product_uom_id') and line.product_uom_id
+                else line.product_uom if hasattr(line, 'product_uom') and line.product_uom
+                else product.uom_id
+            )
 
             if not product or qty <= 0:
                 continue
@@ -64,7 +70,6 @@ class SaleOrder(models.Model):
             )
 
             # _bom_find returns a dict {product: bom} in Odoo 16+
-            # Handle both old and new API signatures
             if isinstance(bom, dict):
                 bom = bom.get(product, self.env['mrp.bom'])
 
@@ -83,7 +88,7 @@ class SaleOrder(models.Model):
             # Convert quantity to BoM UoM if needed
             product_qty = uom._compute_quantity(qty, bom.product_uom_id)
 
-            # Create Manufacturing Order
+            # Build Manufacturing Order values
             mo_vals = {
                 'product_id': product.id,
                 'product_qty': product_qty,
@@ -91,12 +96,7 @@ class SaleOrder(models.Model):
                 'bom_id': bom.id,
                 'company_id': self.company_id.id,
                 'origin': self.name,
-                'sale_order_id': self.id if 'sale_order_id' in MrpProduction._fields else False,
             }
-
-            # Remove sale_order_id if field doesn't exist (avoid error)
-            if 'sale_order_id' not in MrpProduction._fields:
-                mo_vals.pop('sale_order_id', None)
 
             mo = MrpProduction.create(mo_vals)
             created_mos |= mo
@@ -104,10 +104,10 @@ class SaleOrder(models.Model):
             # Confirm the Manufacturing Order
             mo.action_confirm()
 
-            # Check & reserve component availability
+            # Reserve component stock
             mo.action_assign()
 
-            # Auto-produce: set qty_producing and finish
+            # Auto-produce
             self._auto_produce_mo(mo, product_qty)
 
         if created_mos:
@@ -120,31 +120,39 @@ class SaleOrder(models.Model):
     def _auto_produce_mo(self, mo, qty_to_produce):
         """
         Mark manufacturing order as fully produced.
-        This consumes components and adds finished product to stock.
+        Consumes components and adds finished product to stock.
         """
         try:
-            # Set quantity being produced
             mo.qty_producing = qty_to_produce
 
-            # Fill in the component quantities (immediate transfer approach)
+            # Set done qty on raw material moves
             for move in mo.move_raw_ids:
-                if move.state not in ('done', 'cancel'):
-                    # Set the done quantity on move lines
-                    for move_line in move.move_line_ids:
-                        move_line.qty_done = move_line.reserved_qty or move_line.quantity
-                    # If no move lines exist, create them
-                    if not move.move_line_ids:
-                        move.quantity = move.product_uom_qty
+                if move.state in ('done', 'cancel'):
+                    continue
+                if move.move_line_ids:
+                    for ml in move.move_line_ids:
+                        # Odoo 17+ uses 'quantity' instead of 'qty_done'
+                        if hasattr(ml, 'quantity'):
+                            ml.quantity = ml.reserved_uom_qty or ml.quantity
+                        else:
+                            ml.qty_done = ml.product_uom_qty
+                else:
+                    move.quantity = move.product_uom_qty
 
-            # Set finished product done quantity
+            # Set done qty on finished product moves
             for move in mo.move_finished_ids:
-                if move.state not in ('done', 'cancel'):
-                    for move_line in move.move_line_ids:
-                        move_line.qty_done = move_line.reserved_qty or move_line.quantity
-                    if not move.move_line_ids:
-                        move.quantity = move.product_uom_qty
+                if move.state in ('done', 'cancel'):
+                    continue
+                if move.move_line_ids:
+                    for ml in move.move_line_ids:
+                        if hasattr(ml, 'quantity'):
+                            ml.quantity = ml.reserved_uom_qty or ml.quantity
+                        else:
+                            ml.qty_done = ml.product_uom_qty
+                else:
+                    move.quantity = move.product_uom_qty
 
-            # Mark as done / produce
+            # Mark as done - try all known method names across Odoo versions
             if hasattr(mo, 'button_mark_done'):
                 mo.button_mark_done()
             elif hasattr(mo, '_action_mark_done'):
@@ -158,7 +166,6 @@ class SaleOrder(models.Model):
                 'MO is confirmed but needs manual production.',
                 mo.name, str(e)
             )
-            # Don't raise — MO is created & confirmed, just needs manual finish
 
     def action_view_auto_manufacture_orders(self):
         """Smart button to view auto-created MOs from this sale order."""
@@ -179,7 +186,6 @@ class SaleOrderLine(models.Model):
     has_bom = fields.Boolean(
         compute='_compute_has_bom',
         string='Has Bill of Materials',
-        help='Indicates if this product has a BoM and will be auto-manufactured',
     )
 
     @api.depends('product_id')
