@@ -7,8 +7,9 @@
         <field name="model">res.config.settings</field>
         <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//div[@id='sale_order_settings']" position="after">
-                <div id="sale_auto_manufacture_settings">
+            <!-- Append to the end of the settings sheet - works on all Odoo 19 CE layouts -->
+            <xpath expr="//form/sheet" position="inside">
+                <div class="app_settings_block" data-string="Auto Manufacturing" string="Auto Manufacturing" data-key="sale_auto_manufacture">
                     <h2>Auto Manufacturing</h2>
                     <div class="row mt16 o_settings_container">
                         <div class="col-12 col-lg-6 o_setting_box">
@@ -16,7 +17,7 @@
                                 <field name="auto_manufacture_on_confirm"/>
                             </div>
                             <div class="o_setting_right_pane">
-                                <label for="auto_manufacture_on_confirm"/>
+                                <label for="auto_manufacture_on_confirm" string="Auto-Manufacture on Sale Confirm"/>
                                 <div class="text-muted">
                                     Automatically create, confirm, and produce a
                                     Manufacturing Order when a Sale Order is confirmed.
@@ -43,7 +44,7 @@
                     name="action_view_auto_manufacture_orders"
                     class="oe_stat_button"
                     icon="fa-industry"
-                    attrs="{'invisible': [('auto_manufacture_count', '=', 0)]}"
+                    invisible="auto_manufacture_count == 0"
                 >
                     <field name="auto_manufacture_count" widget="statinfo" string="MOs"/>
                 </button>
@@ -57,12 +58,11 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='order_line']/tree//field[@name='product_uom_qty']" position="after">
+            <xpath expr="//field[@name='order_line']/list//field[@name='product_uom_qty']" position="after">
                 <field
                     name="has_bom"
                     string="Auto MFG"
                     optional="show"
-                    widget="boolean"
                     readonly="1"
                     help="This product has a Bill of Materials and will be auto-manufactured on confirm"
                 />
