@@ -1,5 +1,4 @@
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -38,12 +37,6 @@ class SaleOrder(models.Model):
         return result
 
     def _auto_create_and_produce_manufacturing_orders(self):
-        """
-        For each sale order line with a product that has a BoM:
-        1. Create a Manufacturing Order
-        2. Confirm it
-        3. Auto-produce it (consume components, add finished goods)
-        """
         MrpProduction = self.env['mrp.production']
         created_mos = self.env['mrp.production']
 
@@ -55,40 +48,27 @@ class SaleOrder(models.Model):
             uom = (
                 line.product_uom_id
                 if hasattr(line, 'product_uom_id') and line.product_uom_id
-                else line.product_uom if hasattr(line, 'product_uom') and line.product_uom
-                else product.uom_id
+                else getattr(line, 'product_uom', None) or product.uom_id
             )
 
             if not product or qty <= 0:
                 continue
 
-            # Find Bill of Materials for this product
+            # Find Bill of Materials
             bom = self.env['mrp.bom']._bom_find(
                 product,
                 company_id=self.company_id.id,
                 bom_type='normal',
             )
-
-            # _bom_find returns a dict {product: bom} in Odoo 16+
             if isinstance(bom, dict):
                 bom = bom.get(product, self.env['mrp.bom'])
 
             if not bom:
-                _logger.info(
-                    'No BoM found for product %s, skipping auto-manufacture.',
-                    product.display_name
-                )
+                _logger.info('No BoM for %s, skipping.', product.display_name)
                 continue
 
-            _logger.info(
-                'Auto-manufacturing %s x %s for sale order %s',
-                qty, product.display_name, self.name
-            )
-
-            # Convert quantity to BoM UoM if needed
             product_qty = uom._compute_quantity(qty, bom.product_uom_id)
 
-            # Build Manufacturing Order values
             mo_vals = {
                 'product_id': product.id,
                 'product_qty': product_qty,
@@ -101,74 +81,87 @@ class SaleOrder(models.Model):
             mo = MrpProduction.create(mo_vals)
             created_mos |= mo
 
-            # Confirm the Manufacturing Order
             mo.action_confirm()
-
-            # Reserve component stock
             mo.action_assign()
-
-            # Auto-produce
             self._auto_produce_mo(mo, product_qty)
 
         if created_mos:
             self.auto_manufacture_mo_ids = [(4, mo.id) for mo in created_mos]
-            _logger.info(
-                'Auto-manufactured %d MO(s) for sale order %s',
-                len(created_mos), self.name
-            )
 
     def _auto_produce_mo(self, mo, qty_to_produce):
         """
-        Mark manufacturing order as fully produced.
-        Consumes components and adds finished product to stock.
+        Fully produce an MO in Odoo 19:
+        1. Set qty_producing
+        2. Set consumed quantities on move lines
+        3. Call button_mark_done to go from 'To Close' -> 'Done'
+           If it returns a wizard action, bypass it with immediate_transfer
         """
         try:
             mo.qty_producing = qty_to_produce
 
-            # Set done qty on raw material moves
+            # Set done quantities on raw material (component) moves
             for move in mo.move_raw_ids:
                 if move.state in ('done', 'cancel'):
                     continue
                 if move.move_line_ids:
                     for ml in move.move_line_ids:
-                        # Odoo 17+ uses 'quantity' instead of 'qty_done'
                         if hasattr(ml, 'quantity'):
-                            ml.quantity = ml.reserved_uom_qty or ml.quantity
+                            ml.quantity = ml.reserved_uom_qty or ml.product_uom_qty
                         else:
                             ml.qty_done = ml.product_uom_qty
                 else:
                     move.quantity = move.product_uom_qty
 
-            # Set done qty on finished product moves
+            # Set done quantities on finished product moves
             for move in mo.move_finished_ids:
                 if move.state in ('done', 'cancel'):
                     continue
                 if move.move_line_ids:
                     for ml in move.move_line_ids:
                         if hasattr(ml, 'quantity'):
-                            ml.quantity = ml.reserved_uom_qty or ml.quantity
+                            ml.quantity = ml.reserved_uom_qty or ml.product_uom_qty
                         else:
                             ml.qty_done = ml.product_uom_qty
                 else:
                     move.quantity = move.product_uom_qty
 
-            # Mark as done - try all known method names across Odoo versions
+            # In Odoo 19, button_mark_done may return a wizard action
+            # when state is 'to_close'. We detect this and call _action_mark_done
+            # directly to skip the wizard and finalize immediately.
+            result = None
             if hasattr(mo, 'button_mark_done'):
-                mo.button_mark_done()
-            elif hasattr(mo, '_action_mark_done'):
-                mo._action_mark_done()
+                result = mo.button_mark_done()
 
-            _logger.info('MO %s auto-produced successfully.', mo.name)
+            # If a wizard/action was returned instead of completing, force finish
+            if isinstance(result, dict) and result.get('type') in (
+                'ir.actions.act_window',
+                'ir.actions.act_window_close',
+            ):
+                _logger.info(
+                    'MO %s returned wizard on button_mark_done, '
+                    'forcing _action_mark_done directly.', mo.name
+                )
+                if hasattr(mo, '_action_mark_done'):
+                    mo._action_mark_done()
+                elif mo.state == 'to_close':
+                    # Last resort: write state directly via stock moves
+                    mo.move_raw_ids.filtered(
+                        lambda m: m.state not in ('done', 'cancel')
+                    )._action_done()
+                    mo.move_finished_ids.filtered(
+                        lambda m: m.state not in ('done', 'cancel')
+                    )._action_done()
+                    mo.write({'state': 'done'})
+
+            _logger.info('MO %s completed. State: %s', mo.name, mo.state)
 
         except Exception as e:
             _logger.warning(
                 'Auto-produce failed for MO %s: %s. '
-                'MO is confirmed but needs manual production.',
-                mo.name, str(e)
+                'MO needs manual production.', mo.name, str(e)
             )
 
     def action_view_auto_manufacture_orders(self):
-        """Smart button to view auto-created MOs from this sale order."""
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
