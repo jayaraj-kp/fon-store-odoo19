@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_form_sqft_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.sqft.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!--
+                Place the 📐 calculator button RIGHT AFTER the product field.
+                - Only visible when a product is selected on that line
+                - Focusable via Tab key (tabindex handled by Odoo list renderer)
+                - Click or Enter opens the Sq.Ft Calculator popup
+            -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']"
+                   position="after">
+                <button
+                    name="action_open_sqft_wizard"
+                    type="object"
+                    icon="fa-calculator"
+                    title="📐 Sq.Ft Calculator  [Tab to focus, Enter to open]"
+                    string=""
+                    class="btn btn-sm btn-link text-primary o_sqft_btn"
+                    invisible="not product_id"
+                    tabindex="0"
+                />
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

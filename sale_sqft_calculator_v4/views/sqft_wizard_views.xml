@@ -4,12 +4,14 @@
         <field name="name">sqft.calculator.wizard.form</field>
         <field name="model">sqft.calculator.wizard</field>
         <field name="arch" type="xml">
-            <form string="📐 Square Feet Calculator">
+            <form string="Square Feet Calculator">
                 <sheet>
 
                     <!-- Product title -->
                     <div class="oe_title mb-3">
-                        <span class="text-muted" style="font-size:13px;">Calculating area for:</span>
+                        <span class="text-muted" style="font-size:13px;">
+                            Calculating area for:
+                        </span>
                         <h3 style="margin-top:4px;">
                             <field name="product_id" readonly="1" nolabel="1"/>
                         </h3>
@@ -17,7 +19,6 @@
 
                     <separator string="Enter Dimensions (in feet)"/>
 
-                    <!-- Width and Height inputs side by side -->
                     <div class="row mt-2 mb-2">
                         <div class="col-6">
                             <group>
@@ -41,44 +42,45 @@
 
                     <separator string="Calculated Result"/>
 
-                    <!-- Result display -->
-                    <div class="alert alert-success text-center mt-2" role="status"
-                         style="border-radius:8px; padding: 20px;">
-                        <div style="font-size:15px; color:#555;">
-                            Width × Height
+                    <div class="alert alert-success text-center mt-2"
+                         role="status"
+                         style="border-radius:8px; padding:20px;">
+                        <div style="font-size:14px; color:#555; margin-bottom:6px;">
+                            Width x Height
                         </div>
-                        <div style="font-size:30px; font-weight:bold; color:#28a745; margin:8px 0;">
+                        <div style="font-size:32px; font-weight:bold; color:#28a745; margin:8px 0;">
                             <field name="sqft_display"
                                    readonly="1"
                                    nolabel="1"
-                                   widget="char"
-                                   style="font-size:30px; font-weight:bold; color:#28a745;"/>
+                                   widget="char"/>
                         </div>
-                        <div style="font-size:13px; color:#888;">
-                            ↑ This will be set as the <strong>Quantity</strong> on the order line
+                        <div style="font-size:12px; color:#888; margin-top:6px;">
+                            This value will replace the Quantity on the order line
                         </div>
                     </div>
 
-                    <!-- Keyboard hint -->
-                    <div class="text-center mt-2" style="font-size:12px; color:#aaa;">
-                        <i class="fa fa-keyboard-o"/> Tip: Press
-                        <kbd>Alt</kbd> + <kbd>C</kbd> to apply instantly
+                    <!-- Keyboard shortcut hint -->
+                    <div class="text-center mt-3"
+                         style="font-size:12px; color:#aaa; letter-spacing:0.3px;">
+                        Keyboard shortcuts:
+                        Alt + C to Apply  |  Alt + X to Cancel
                     </div>
 
                 </sheet>
 
                 <footer>
                     <!--
-                        data-hotkey="c"  →  Alt+C triggers this button from anywhere in the dialog.
-                        Odoo's web client maps data-hotkey="c" to the Alt+C keyboard shortcut.
+                        data-hotkey="c"  means  Alt + C  triggers this button (native Odoo feature).
+                        data-hotkey="x"  means  Alt + X  triggers Cancel.
+                        No custom JavaScript needed.
                     -->
                     <button name="action_apply"
-                            string="✔  Apply to Order Line"
+                            string="Apply to Order Line"
                             type="object"
                             class="btn-primary"
                             data-hotkey="c"/>
                     <button name="action_cancel"
-                            string="✖  Cancel"
+                            string="Cancel"
                             type="object"
                             class="btn-secondary"
                             data-hotkey="x"/>
