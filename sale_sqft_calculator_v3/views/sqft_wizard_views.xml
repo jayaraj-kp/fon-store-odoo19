@@ -59,17 +59,29 @@
                         </div>
                     </div>
 
+                    <!-- Keyboard hint -->
+                    <div class="text-center mt-2" style="font-size:12px; color:#aaa;">
+                        <i class="fa fa-keyboard-o"/> Tip: Press
+                        <kbd>Alt</kbd> + <kbd>C</kbd> to apply instantly
+                    </div>
+
                 </sheet>
 
                 <footer>
+                    <!--
+                        data-hotkey="c"  →  Alt+C triggers this button from anywhere in the dialog.
+                        Odoo's web client maps data-hotkey="c" to the Alt+C keyboard shortcut.
+                    -->
                     <button name="action_apply"
                             string="✔  Apply to Order Line"
                             type="object"
-                            class="btn-primary"/>
+                            class="btn-primary"
+                            data-hotkey="c"/>
                     <button name="action_cancel"
                             string="✖  Cancel"
                             type="object"
-                            class="btn-secondary"/>
+                            class="btn-secondary"
+                            data-hotkey="x"/>
                 </footer>
             </form>
         </field>

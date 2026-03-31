@@ -7,19 +7,21 @@
         <field name="arch" type="xml">
 
             <!--
-                Show ONLY the 📐 icon button next to the product.
-                No inline columns — width/height/sqft are entered inside the popup wizard.
+                Place the 📐 calculator button (OWL widget) right after the product field.
+                Uses `is_sqft_product` boolean field as the widget carrier.
+                  - Tab from product → focus lands on this button
+                  - Press Enter / Space → opens the Sq.Ft Calculator popup
             -->
             <xpath expr="//field[@name='order_line']/list/field[@name='product_id']"
                    position="after">
-                <button
-                    name="action_open_sqft_wizard"
-                    type="object"
-                    icon="fa-calculator"
-                    title="📐 Open Sq.Ft Calculator"
+                <field
+                    name="is_sqft_product"
+                    widget="sqft_calculator_button"
                     string=""
-                    class="btn btn-sm btn-link text-primary"
-                    invisible="not product_id"
+                    nolabel="1"
+                    optional="show"
+                    readonly="0"
+                    column_invisible="False"
                 />
             </xpath>
 
