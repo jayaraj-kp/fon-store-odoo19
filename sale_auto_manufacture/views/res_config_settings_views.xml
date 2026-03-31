@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Extend Sale Settings to add Auto-Manufacture toggle -->
+    <record id="res_config_settings_view_form_auto_manufacture" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.auto.manufacture</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@id='sale_order_settings']" position="after">
+                <div id="sale_auto_manufacture_settings">
+                    <h2>Auto Manufacturing</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="auto_manufacture_on_confirm"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="auto_manufacture_on_confirm"/>
+                                <div class="text-muted">
+                                    Automatically create, confirm, and produce a
+                                    Manufacturing Order when a Sale Order is confirmed.
+                                    Components are consumed and finished product stock
+                                    is updated immediately — no manual steps needed.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add smart button on Sale Order to view auto-created MOs -->
+    <record id="view_order_form_auto_manufacture_button" model="ir.ui.view">
+        <field name="name">sale.order.form.auto.manufacture.button</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button
+                    type="object"
+                    name="action_view_auto_manufacture_orders"
+                    class="oe_stat_button"
+                    icon="fa-industry"
+                    attrs="{'invisible': [('auto_manufacture_count', '=', 0)]}"
+                >
+                    <field name="auto_manufacture_count" widget="statinfo" string="MOs"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add indicator column in sale order lines -->
+    <record id="view_order_form_auto_manufacture_lines" model="ir.ui.view">
+        <field name="name">sale.order.form.auto.manufacture.lines</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='order_line']/tree//field[@name='product_uom_qty']" position="after">
+                <field
+                    name="has_bom"
+                    string="Auto MFG"
+                    optional="show"
+                    widget="boolean"
+                    readonly="1"
+                    help="This product has a Bill of Materials and will be auto-manufactured on confirm"
+                />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
