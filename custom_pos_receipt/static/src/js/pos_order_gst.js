@@ -1,4 +1,4 @@
-///** @odoo-module **/
+//
 //
 //import { PosOrder } from "@point_of_sale/app/models/pos_order";
 //import { patch } from "@web/core/utils/patch";
@@ -42,20 +42,28 @@
 //        const id = this.partner_id?.id || 0;
 //        const padded = String(id).padStart(5, '0');
 //
-//        const shopName = (
-//            this.config?.name ||
-//            this.session?.config?.name ||
-//            this.pos?.config?.name ||
-//            ''
-//        ).toUpperCase().replace(/[^A-Z]/g, '');
+//        const cfg =
+//            this.config ||
+//            this.session?.config ||
+//            this.pos?.config ||
+//            null;
+//
+//        // Use the custom prefix field if set on pos.config (e.g. "KDTY" or "CHLR")
+//        const customPrefix = (cfg?.pos_customer_prefix || '').toUpperCase().replace(/[^A-Z]/g, '');
+//        if (customPrefix.length >= 2) {
+//            return customPrefix + '-' + padded;
+//        }
+//
+//        // Fallback: auto-derive from shop name — take up to 4 consonants
+//        const shopName = (cfg?.name || '').toUpperCase().replace(/[^A-Z]/g, '');
 //
 //        let prefix = '';
-//        if (shopName.length >= 3) {
+//        if (shopName.length >= 2) {
 //            const consonants = shopName.replace(/[AEIOU]/g, '');
-//            if (consonants.length >= 3) {
-//                prefix = consonants.substring(0, 3);
+//            if (consonants.length >= 2) {
+//                prefix = consonants.substring(0, 4);
 //            } else {
-//                prefix = shopName.substring(0, 3);
+//                prefix = shopName.substring(0, 4);
 //            }
 //        } else {
 //            prefix = (shopName + 'CST').substring(0, 3);
@@ -309,6 +317,11 @@
 //        );
 //    },
 //
+//    /* ================= CHARITY DONATION ================= */
+//    getCharityDonation() {
+//        return this._charity_donation_amount || 0;
+//    },
+//
 //});
 /** @odoo-module **/
 
@@ -392,20 +405,7 @@ patch(PosOrder.prototype, {
         return [name];
     },
 
-    /* ================= POS ADDRESS (highest priority) ================= */
-    /*
-     * Reads the "Receipt Address" fields entered directly on the POS
-     * Configuration form (Point of Sale → Configuration → Settings → your POS
-     * → "Receipt Address" tab).
-     *
-     * Returns an object with street, place, cityPin, and phone.
-     * Returns null if none of the POS-level address fields are filled.
-     *
-     * Priority chain in the receipt template:
-     *   1. getPosAddress()      ← fields on pos.config
-     *   2. getWarehouseInfo()   ← warehouse partner
-     *   3. company fallback
-     */
+    /* ================= POS ADDRESS ================= */
     getPosAddress() {
         const cfg =
             this.config ||
@@ -475,19 +475,95 @@ patch(PosOrder.prototype, {
         return Object.values(grouped).sort((a, b) => a.rate - b.rate);
     },
 
-    /*
-     * getTotalTaxableAmount — shows the original price BEFORE discount (and before rounding).
-     * This is what appears as "Total Amount" on the receipt.
-     * Sum of (price_unit × qty) for all lines, inclusive of tax rate.
-     * e.g. ₹200 item with 20% discount → Total Amount = ₹200
+    /* ================= CHARITY DONATION ================= */
+    /**
+     * Returns the charity donation amount for this order.
+     * Used by the receipt template to show the donation line
+     * AND by other methods to subtract it from displayed totals.
+     */
+    getCharityDonation() {
+        return this._charity_donation_amount || 0;
+    },
+
+    /* ================= LINE ITEMS FOR TABLE ================= */
+    /**
+     * Build the receipt line items array.
+     *
+     * The charity donation was added to the last line's price_unit via
+     * setUnitPrice() in charity_button.js. We must subtract it from
+     * that line's rate and total so the receipt shows the REAL product
+     * price, not the inflated price-with-charity.
+     *
+     * e.g. mouse ₹993, charity ₹7 →
+     *   line.price_unit = 1000  (bumped)
+     *   We restore: rate = 1000 - 7 = 993
+     *               total = price_subtotal_incl - 7 = 993
+     */
+    getReceiptLines() {
+        const allLines    = this.lines || this.orderlines || [];
+        const charityAmt  = this.getCharityDonation();
+        const lastIndex   = allLines.length - 1;
+
+        return allLines.map((line, index) => {
+            let name = (line.product_id?.display_name || line.full_product_name || '')
+                .replace(/^\[.*?\]\s*/, '').trim();
+
+            const gstRate       = (line.tax_ids || []).length > 0 ? ((line.tax_ids[0].amount) || 0) : 0;
+            const qty           = line.qty || 0;
+            const discount      = line.discount || 0;
+
+            // For the last line (where charity was applied), restore the original price
+            const isCharityLine = charityAmt > 0 && index === lastIndex;
+            const rate          = isCharityLine
+                ? Math.round(((line.price_unit || 0) - charityAmt) * 100) / 100
+                : (line.price_unit || 0);
+
+            const originalTotal = Math.round(rate * qty * 100) / 100;
+
+            // price_subtotal_incl has the bumped price — subtract charity for the last line
+            const total = isCharityLine
+                ? Math.round(((line.price_subtotal_incl || 0) - charityAmt) * 100) / 100
+                : (line.price_subtotal_incl || 0);
+
+            return {
+                sn:            index + 1,
+                name,
+                qty,
+                uom:           line.product_id?.uom_id?.name || 'Units',
+                rate,
+                gst:           gstRate,
+                discount,
+                originalTotal,
+                total,
+                note:          line.customerNote || '',
+            };
+        });
+    },
+
+    /* ================= TOTALS ================= */
+
+    /**
+     * getTotalTaxableAmount — sum of all line totals BEFORE discount,
+     * with the charity amount EXCLUDED from the last line.
+     *
+     * e.g. mouse ₹1000 (bumped) with ₹7 charity →
+     *   original price_unit = 993, taxRate = 0%
+     *   getTotalTaxableAmount = 993
      */
     getTotalTaxableAmount() {
-        return (this.lines || this.orderlines || []).reduce((s, line) => {
-            const qty  = line.qty || 0;
-            const rate = line.price_unit || 0;
-            // price_unit is always the unit price before discount
-            // multiply by (1 + tax_rate/100) to get tax-inclusive original total
+        const allLines   = this.lines || this.orderlines || [];
+        const charityAmt = this.getCharityDonation();
+        const lastIndex  = allLines.length - 1;
+
+        return allLines.reduce((s, line, index) => {
+            const qty     = line.qty || 0;
             const taxRate = (line.tax_ids || []).reduce((t, tx) => t + (tx.amount || 0), 0);
+
+            // Restore original price_unit for the last (charity-bumped) line
+            const rate = (charityAmt > 0 && index === lastIndex)
+                ? Math.max(0, (line.price_unit || 0) - charityAmt)
+                : (line.price_unit || 0);
+
             return s + Math.round(rate * qty * (1 + taxRate / 100) * 100) / 100;
         }, 0);
     },
@@ -500,65 +576,46 @@ patch(PosOrder.prototype, {
         return this.getGstBreakdown().reduce((s, g) => s + g.sgst, 0);
     },
 
-    /* ================= LINE ITEMS FOR TABLE ================= */
-    getReceiptLines() {
-        return (this.lines || this.orderlines || []).map((line, index) => {
-            let name = (line.product_id?.display_name || line.full_product_name || '').replace(/^\[.*?\]\s*/, '').trim();
-            const gstRate = (line.tax_ids || []).length > 0 ? ((line.tax_ids[0].amount) || 0) : 0;
-            const qty      = line.qty || 0;
-            const rate     = line.price_unit || 0;
-            const discount = line.discount || 0;
-            const originalTotal = Math.round(rate * qty * 100) / 100;
-            return {
-                sn:            index + 1,
-                name,
-                qty,
-                uom:           line.product_id?.uom_id?.name || 'Units',
-                rate,
-                gst:           gstRate,
-                discount,
-                originalTotal,
-                total:         line.price_subtotal_incl || 0,
-                note:          line.customerNote || '',
-            };
-        });
-    },
-
-    /* ================= TOTALS ================= */
-
-    /*
-     * getRoundOff — difference between rounded and raw amount_total (after discount).
-     * Positive means rounding up, negative means rounding down.
-     * e.g. amount_total = 400.20 → rounded = 400 → roundOff = -0.20
-     * e.g. amount_total = 180.00 → rounded = 180 → roundOff = 0 (hidden)
+    /**
+     * getRoundOff — difference between rounded and raw amount_total
+     * AFTER subtracting the charity donation.
      */
     getRoundOff() {
-        const raw     = this.amount_total || 0;
+        const raw     = (this.amount_total || 0) - this.getCharityDonation();
         const rounded = Math.round(raw);
         const diff    = Math.round((rounded - raw) * 100) / 100;
         return diff === 0 ? 0 : diff;
     },
 
-    /*
-     * getRoundedGrandTotal — amount_total (after discount) rounded to nearest integer.
+    /**
+     * getRoundedGrandTotal — the product total (charity excluded), rounded.
+     * e.g. amount_total=1000 with charity=7 → 1000-7=993 → 993
      */
     getRoundedGrandTotal() {
-        return Math.round(this.amount_total || 0);
+        return Math.round((this.amount_total || 0) - this.getCharityDonation());
     },
 
-    /*
-     * getGrandTotal — returns the ROUNDED final payable amount after discount.
-     * This is what appears as "Grand Total" on the receipt.
-     * e.g. ₹200 with 20% discount → amount_total = 180 → Grand Total = ₹180
-     * e.g. ₹400.20 no discount    → amount_total = 400.20 → Grand Total = ₹400
+    /**
+     * getGrandTotal — the amount the customer pays for PRODUCTS only.
+     * Charity is shown separately on its own line below.
      */
     getGrandTotal() {
         return this.getRoundedGrandTotal();
     },
 
+    /**
+     * getTotalSaved — savings from discounts, using restored (non-charity) price.
+     */
     getTotalSaved() {
-        return (this.lines || this.orderlines || []).reduce((s, line) => {
-            return s + (line.price_unit || 0) * (line.qty || 0) * ((line.discount || 0) / 100);
+        const allLines   = this.lines || this.orderlines || [];
+        const charityAmt = this.getCharityDonation();
+        const lastIndex  = allLines.length - 1;
+
+        return allLines.reduce((s, line, index) => {
+            const rate = (charityAmt > 0 && index === lastIndex)
+                ? Math.max(0, (line.price_unit || 0) - charityAmt)
+                : (line.price_unit || 0);
+            return s + rate * (line.qty || 0) * ((line.discount || 0) / 100);
         }, 0);
     },
 
@@ -597,9 +654,10 @@ patch(PosOrder.prototype, {
     },
 
     /* ================= AMOUNT IN WORDS ================= */
-    /*
-     * Uses the rounded grand total so words match the Grand Total line.
-     * e.g. 400.20 → rounds to 400 → "Four Hundred Only"
+    /**
+     * Uses the product grand total (charity excluded) so words match
+     * the Grand Total line on the receipt.
+     * e.g. amount_total=1000, charity=7 → words for ₹993
      */
     getAmountInWords() {
         const amount = this.getRoundedGrandTotal();
@@ -627,11 +685,6 @@ patch(PosOrder.prototype, {
             this.pos?.cashier?.name ||
             ''
         );
-    },
-
-    /* ================= CHARITY DONATION ================= */
-    getCharityDonation() {
-        return this._charity_donation_amount || 0;
     },
 
 });
