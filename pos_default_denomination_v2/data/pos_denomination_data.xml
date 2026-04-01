@@ -9,10 +9,6 @@
     -->
 
     <!-- Notes -->
-    <record id="pos_bill_inr_2000" model="pos.bill">
-        <field name="value">200000</field>
-    </record>
-
     <record id="pos_bill_inr_500" model="pos.bill">
         <field name="value">50000</field>
     </record>
