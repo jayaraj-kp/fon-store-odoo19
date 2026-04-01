@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Show the resolved warehouse analytic account on the user preferences
+         form so admins can verify the mapping at a glance. -->
+    <record id="view_users_form_warehouse_analytic" model="ir.ui.view">
+        <field name="name">res.users.form.warehouse.analytic</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="stock.res_users_view_form_stock"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='property_warehouse_id']" position="after">
+                <field
+                    name="warehouse_analytic_account_id"
+                    string="Warehouse Analytic Account"
+                    readonly="1"
+                    optional="show"
+                />
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
