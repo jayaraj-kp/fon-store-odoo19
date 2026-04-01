@@ -5,7 +5,6 @@ import logging
 _logger = logging.getLogger(__name__)
 
 INDIAN_DENOMINATIONS = [
-    200000,  # ₹2000
     50000,   # ₹500
     20000,   # ₹200
     10000,   # ₹100
