@@ -17,10 +17,6 @@ class StockMove(models.Model):
 
 
 class StockPicking(models.Model):
-    """
-    When a delivery / receipt is validated, stamp the warehouse analytic
-    account on every stock move belonging to this picking.
-    """
     _inherit = 'stock.picking'
 
     def _get_warehouse_analytic_account(self):
@@ -42,7 +38,6 @@ class StockPicking(models.Model):
                 ).write({'analytic_account_id': analytic.id})
                 _logger.debug(
                     'Warehouse analytic %s stamped on picking %s moves',
-                    analytic.name,
-                    picking.name,
+                    analytic.name, picking.name,
                 )
         return result

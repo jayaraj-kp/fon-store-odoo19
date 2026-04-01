@@ -4,14 +4,24 @@ from odoo import api, models
 
 _logger = logging.getLogger(__name__)
 
+# Resolve the warehouse field name once at import time
+_WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
+
+
+def _get_user_warehouse(user):
+    """Return the default warehouse for a user, regardless of Odoo version."""
+    for fname in _WAREHOUSE_FIELDS:
+        if fname in user._fields:
+            return getattr(user, fname, False)
+    return False
+
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
     def _get_warehouse_analytic_account(self):
         """Return the analytic account linked to the current user's default warehouse."""
-        user = self.env.user
-        wh = getattr(user, 'property_warehouse_id', False)
+        wh = _get_user_warehouse(self.env.user)
         if wh and wh.analytic_account_id:
             return wh.analytic_account_id
         return False
@@ -84,8 +94,7 @@ class AccountMoveLine(models.Model):
         """
         if not self.move_id or self.move_id.move_type not in ('in_invoice', 'in_refund'):
             return
-        user = self.env.user
-        wh = getattr(user, 'property_warehouse_id', False)
+        wh = _get_user_warehouse(self.env.user)
         if not wh or not wh.analytic_account_id:
             return
         key = str(wh.analytic_account_id.id)
