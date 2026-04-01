@@ -1,71 +1,84 @@
 // =====================================================================
-// Enterprise Theme for Odoo 19 CE
-// Using plain CSS only - no SCSS variables that may be undefined in CE
+// Enterprise Theme for Odoo 19 CE - Light Style (matches Enterprise CE look)
 // =====================================================================
 
-// TOP NAVBAR
-.o_navbar,
+// TOP NAVBAR - thin red/dark top bar + white background like Image 1
 .o_main_navbar {
-    background-color: #875A7B !important;
-    border-bottom: none !important;
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
 }
-.o_navbar *,
+
+// Navbar text/icons in dark color for white navbar
 .o_main_navbar * {
-    color: #fff !important;
-}
-.o_navbar a:hover,
-.o_main_navbar a:hover,
-.o_navbar .o_nav_entry:hover,
-.o_main_navbar .o_nav_entry:hover {
-    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: #555555 !important;
 }
 
-// HOME MENU BACKGROUND
+.o_main_navbar .o_menu_brand {
+    color: #333333 !important;
+    font-weight: 600 !important;
+}
+
+// The thin red top accent bar (like Enterprise)
+body::before {
+    content: "";
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: #e74c3c;
+    z-index: 9999;
+}
+
+// HOME MENU BACKGROUND - light lavender/grey diagonal like Image 1
+// Odoo 19 uses .o_home_menu_background for the full-page backdrop
+.o_home_menu_background,
 .o_home_menu {
-    background-color: #9C6490 !important;
-    background-image: linear-gradient(135deg, rgba(255,255,255,0.07) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.07) 75%, transparent 75%, transparent) !important;
-    background-size: 60px 60px !important;
-    min-height: 100% !important;
+    background-color: #dfe3ee !important;
+    background-image:
+        linear-gradient(
+            135deg,
+            rgba(255,255,255,0.55) 25%,
+            transparent 25%,
+            transparent 50%,
+            rgba(255,255,255,0.55) 50%,
+            rgba(255,255,255,0.55) 75%,
+            transparent 75%,
+            transparent
+        ) !important;
+    background-size: 120px 120px !important;
+    min-height: 100vh !important;
 }
 
-// Odoo 19: action manager background when home menu is active
-.o_action_manager:has(.o_home_menu) {
-    background-color: #9C6490 !important;
-    background-image: linear-gradient(135deg, rgba(255,255,255,0.07) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.07) 75%, transparent 75%, transparent) !important;
-    background-size: 60px 60px !important;
+// Action manager backdrop when home menu is shown
+.o_action_manager:has(.o_home_menu),
+.o_home_menu_background {
+    background-color: #dfe3ee !important;
 }
 
-// APP ICON LABELS
+// APP ICON LABELS - dark text for light background
 .o_home_menu .o_app .o_app_name,
 .o_home_menu .o_app span {
-    color: #fff !important;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+    color: #555555 !important;
+    text-shadow: none !important;
+}
+
+// APP ICON CARDS - white card style like Image 1
+.o_home_menu .o_app .o_app_icon,
+.o_home_menu .o_app img {
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+    background: #ffffff !important;
 }
 
 // APP ICON HOVER
 .o_home_menu .o_app:hover .o_app_icon,
 .o_home_menu .o_app:hover img {
     transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 8px 18px rgba(0,0,0,0.4) !important;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.18) !important;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-// APP ICON SHADOW
-.o_home_menu .o_app .o_app_icon,
-.o_home_menu .o_app img {
-    border-radius: 10px !important;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.25) !important;
-}
-
-// SEARCH BAR on home menu
-.o_home_menu input {
-    background: rgba(255, 255, 255, 0.25) !important;
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    border-radius: 4px !important;
-    color: #fff !important;
-}
-.o_home_menu input::placeholder {
-    color: rgba(255, 255, 255, 0.75) !important;
 }
 
 // PRIMARY BUTTONS
@@ -79,9 +92,6 @@
     background-color: #6d4863 !important;
     border-color: #6d4863 !important;
 }
-
-// LINKS
-a { color: #875A7B; }
 
 // SCROLLBAR
 ::-webkit-scrollbar { width: 6px; height: 6px; }
