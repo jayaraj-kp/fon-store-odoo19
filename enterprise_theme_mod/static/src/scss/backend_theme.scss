@@ -1,137 +1,89 @@
-///
-/// Enterprise-style Backend Theme for Odoo 19 Community Edition
-///
+// =====================================================================
+// Enterprise Theme for Odoo 19 CE
+// Using plain CSS only - no SCSS variables that may be undefined in CE
+// =====================================================================
 
-// =====================================================================
-// TOP NAVIGATION BAR
-// =====================================================================
+// TOP NAVBAR
 .o_navbar,
 .o_main_navbar {
     background-color: #875A7B !important;
     border-bottom: none !important;
-
-    .o_menu_brand, .o_nav_entry, a,
-    .o_user_menu .o_dropdown_title,
-    .o_menu_sections > li > a { color: #fff !important; }
-
-    .o_icon_button, .o_notification_counter,
-    .o_menu_toggle, .o_nav_entry .o_nav_entry_icon {
-        color: #fff !important; fill: #fff !important;
-    }
-
-    a:hover, .o_nav_entry:hover {
-        background-color: rgba(255,255,255,0.15) !important;
-        color: #fff !important;
-    }
-
-    .o_user_menu button,
-    .o_switch_company_menu button { color: #fff !important; }
+}
+.o_navbar *,
+.o_main_navbar * {
+    color: #fff !important;
+}
+.o_navbar a:hover,
+.o_main_navbar a:hover,
+.o_navbar .o_nav_entry:hover,
+.o_main_navbar .o_nav_entry:hover {
+    background-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-// =====================================================================
-// HOME MENU — cover every Odoo 19 CE selector variation
-// =====================================================================
-.o_home_menu,
-.o_home_menu_wrapper,
-div.o_home_menu,
-.o_web_client .o_home_menu,
-.o_action_manager .o_home_menu,
-.o_action.o_home_menu,
-.o_action_manager > .o_home_menu,
-.o_action_manager > div > .o_home_menu,
-.o_content > .o_home_menu {
+// HOME MENU BACKGROUND
+.o_home_menu {
     background-color: #9C6490 !important;
-    background-image: linear-gradient(
-        135deg,
-        rgba(255,255,255,0.07) 25%, transparent 25%,
-        transparent 50%, rgba(255,255,255,0.07) 50%,
-        rgba(255,255,255,0.07) 75%, transparent 75%, transparent
-    ) !important;
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.07) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.07) 75%, transparent 75%, transparent) !important;
     background-size: 60px 60px !important;
     min-height: 100% !important;
 }
 
-// Odoo 19: when home menu is active, colour the action manager too
-.o_web_client:has(.o_home_menu) .o_action_manager {
+// Odoo 19: action manager background when home menu is active
+.o_action_manager:has(.o_home_menu) {
     background-color: #9C6490 !important;
-    background-image: linear-gradient(
-        135deg,
-        rgba(255,255,255,0.07) 25%, transparent 25%,
-        transparent 50%, rgba(255,255,255,0.07) 50%,
-        rgba(255,255,255,0.07) 75%, transparent 75%, transparent
-    ) !important;
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.07) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.07) 75%, transparent 75%, transparent) !important;
     background-size: 60px 60px !important;
 }
 
-// =====================================================================
+// APP ICON LABELS
+.o_home_menu .o_app .o_app_name,
+.o_home_menu .o_app span {
+    color: #fff !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+}
+
+// APP ICON HOVER
+.o_home_menu .o_app:hover .o_app_icon,
+.o_home_menu .o_app:hover img {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.4) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+// APP ICON SHADOW
+.o_home_menu .o_app .o_app_icon,
+.o_home_menu .o_app img {
+    border-radius: 10px !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25) !important;
+}
+
 // SEARCH BAR on home menu
-// =====================================================================
-.o_home_menu .o_search_view,
-.o_home_menu .o_home_menu_searchbar,
-.o_home_menu input[type="search"],
 .o_home_menu input {
-    background: rgba(255,255,255,0.25) !important;
-    border: 1px solid rgba(255,255,255,0.4) !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
     border-radius: 4px !important;
     color: #fff !important;
-    padding: 8px 16px !important;
-
-    &::placeholder { color: rgba(255,255,255,0.75) !important; }
+}
+.o_home_menu input::placeholder {
+    color: rgba(255, 255, 255, 0.75) !important;
 }
 
-// =====================================================================
-// APP ICONS
-// =====================================================================
-.o_home_menu .o_app,
-.o_home_menu .o_menuitem,
-.o_home_menu .o_home_menu_app {
-    .o_app_icon, .o_menuitem_icon, img {
-        border-radius: 10px !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-        transition: transform 0.15s ease, box-shadow 0.15s ease !important;
-    }
-    .o_app_name, .o_menuitem_name, span {
-        color: #fff !important;
-        font-size: 13px !important;
-        margin-top: 6px !important;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
-    }
-    &:hover {
-        .o_app_icon, .o_menuitem_icon, img {
-            transform: translateY(-3px) scale(1.05) !important;
-            box-shadow: 0 8px 18px rgba(0,0,0,0.4) !important;
-        }
-    }
-}
-
-// =====================================================================
-// GENERAL BACKEND
-// =====================================================================
+// PRIMARY BUTTONS
 .btn-primary {
     background-color: #875A7B !important;
     border-color: #875A7B !important;
     color: #fff !important;
-    &:hover, &:focus {
-        background-color: #6d4863 !important;
-        border-color: #6d4863 !important;
-    }
+}
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: #6d4863 !important;
+    border-color: #6d4863 !important;
 }
 
+// LINKS
 a { color: #875A7B; }
 
-.o_control_panel {
-    background: #fff !important;
-    border-bottom: 1px solid #e8e8e8 !important;
-}
-
-.o_statusbar_status .btn-primary {
-    background-color: #875A7B !important;
-    border-color: #875A7B !important;
-}
-
-// =====================================================================
 // SCROLLBAR
-// =====================================================================
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #875A7B; border-radius: 3px; }
 ::-webkit-scrollbar-track { background: #f0f0f0; }
