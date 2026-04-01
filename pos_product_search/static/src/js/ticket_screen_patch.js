@@ -750,13 +750,7 @@ import { Dialog } from "@web/core/dialog/dialog";
 import { _t } from "@web/core/l10n/translation";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// NATIVE-STYLE CUSTOM FILTER DIALOG
-// Mimics Odoo 19's built-in Custom Filter popup exactly:
-//   - "Match any/all of the following rules:" header with dropdown
-//   - "Include archived" toggle (top-right)
-//   - One rule row per line: [Field ▼] [Operator ▼] [Value input] [🗑]
-//   - "+ New Rule" button (bottom-left)
-//   - "Search" and "Discard" buttons (bottom-left, matching Odoo 19 style)
+// FIELD DEFINITIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const FIELD_DEFS = [
@@ -795,6 +789,10 @@ function makeRule() {
     return { id: Date.now() + Math.random(), field: "amount_total", operator: "=", value: "" };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// NATIVE-STYLE CUSTOM FILTER DIALOG
+// ═══════════════════════════════════════════════════════════════════════════════
+
 class NativeCustomFilterDialog extends Component {
     static components = { Dialog };
     static props = ["close", "confirm"];
@@ -803,7 +801,7 @@ class NativeCustomFilterDialog extends Component {
 <Dialog title="'Custom Filter'">
   <div style="min-width:580px;">
 
-    <!-- Header: "Match any/all ... rules" + Include archived -->
+    <!-- Header: Match any/all + Include archived -->
     <div class="d-flex align-items-center justify-content-between mb-3">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <span>Match</span>
@@ -915,7 +913,6 @@ class NativeCustomFilterDialog extends Component {
     onFieldChange(rule, ev) {
         rule.field = ev.target.value;
         rule.operator = getOperatorsForField(rule.field)[0].key;
-        // value stays so user can re-use it after field switch
     }
 
     onOperatorChange(rule, ev) {
@@ -1079,16 +1076,37 @@ function matchesNativeFilter(order, payload) {
     return payload.matchMode === "all" ? results.every(Boolean) : results.some(Boolean);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// BUILD SEARCH FIELDS
+//
+// *** THE FIX ***
+// Odoo 19's SearchBar template reads field.text (NOT field.displayName).
+// Every custom field MUST have a `text` property or the SearchBar crashes with:
+//   TypeError: Cannot read properties of undefined (reading 'text')
+//
+// We set BOTH `text` and `displayName` for maximum compatibility.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function makeField(label, modelField, reprFn) {
+    const translatedLabel = _t(label);
+    return {
+        text: translatedLabel,          // ← required by Odoo 19 SearchBar template
+        displayName: translatedLabel,   // ← used by some older Odoo 18/17 code
+        modelField,
+        repr: reprFn,
+    };
+}
+
 function buildSearchFields(existingFields) {
     return {
         ...existingFields,
-        PRODUCT:        { displayName: _t("Product"),           modelField: "lines.product_id.display_name",      repr: (order) => getOrderProductNames(order)    },
-        PAYMENT_METHOD: { displayName: _t("Payment Method"),    modelField: "payment_ids.payment_method_id.name", repr: (order) => getOrderPaymentMethods(order)  },
-        ORDER_DATE:     { displayName: _t("Date"),              modelField: "date_order",                         repr: (order) => getOrderDate(order)             },
-        MOBILE:         { displayName: _t("Phone / Mobile"),    modelField: "mobile",                             repr: (order) => getOrderMobile(order)           },
-        CATEGORY:       { displayName: _t("Product Category"),  modelField: "lines.product_id.categ_id.name",     repr: (order) => getOrderCategories(order)       },
-        AMOUNT:         { displayName: _t("Bill Amount"),       modelField: "amount_total",                       repr: (order) => String(getOrderAmountNum(order)) },
-        CUSTOM_FILTER:  { displayName: _t("Custom Filter..."),  modelField: "",                                   repr: () => ""                                   },
+        PRODUCT:        makeField("Product",           "lines.product_id.display_name",      (order) => getOrderProductNames(order)    ),
+        PAYMENT_METHOD: makeField("Payment Method",    "payment_ids.payment_method_id.name", (order) => getOrderPaymentMethods(order)  ),
+        ORDER_DATE:     makeField("Date",              "date_order",                         (order) => getOrderDate(order)             ),
+        MOBILE:         makeField("Phone / Mobile",    "mobile",                             (order) => getOrderMobile(order)           ),
+        CATEGORY:       makeField("Product Category",  "lines.product_id.categ_id.name",     (order) => getOrderCategories(order)       ),
+        AMOUNT:         makeField("Bill Amount",       "amount_total",                       (order) => String(getOrderAmountNum(order)) ),
+        CUSTOM_FILTER:  makeField("Custom Filter...", "",                                    ()      => ""                              ),
     };
 }
 
@@ -1146,7 +1164,10 @@ patch(TicketScreen.prototype, {
                     this.pos.screenState.ticketScreen.offsetByDomain = {};
                 }
 
-                const fields    = this.getSearchFields ? this.getSearchFields() : (this._getSearchFields ? this._getSearchFields() : {});
+                // Do NOT directly mutate this.state.search — it destroys SearchBar's
+                // reactive reference. Instead call super.onSearch() with a safe field
+                // so SearchBar resets through its own code path.
+                const fields    = this.getSearchFields ? this.getSearchFields() : {};
                 const safeField = Object.keys(fields).find((k) => k !== "CUSTOM_FILTER") || "RECEIPT_NUMBER";
                 await super.onSearch({ fieldName: safeField, searchTerm: "" });
             }
