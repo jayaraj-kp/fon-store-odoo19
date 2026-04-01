@@ -1,23 +1,26 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Warehouse Analytic Account',
-    'version': '19.0.1.0.0',
+    'version': '19.0.2.0.0',
     'category': 'Inventory/Configuration',
-    'summary': 'Link Analytic Account to Warehouse; auto-apply on bills/journal entries',
+    'summary': 'Auto-apply warehouse analytic account on sales, purchases and invoices',
     'description': """
-        - Adds an Analytic Account field on each Warehouse (stock.warehouse).
-        - When a user whose default warehouse has an analytic account creates/confirms
-          a vendor bill (account.move), the analytic account is automatically applied
-          to every invoice line that has an account configured.
-        - The same analytic account is stamped on outgoing stock moves / pickings
-          that originate from that warehouse.
-        - A server action lets you retroactively apply the analytic account to
-          existing draft bills for a warehouse.
+        Adds an Analytic Account field on each Warehouse.
+        When a user whose default warehouse has an analytic account creates any of
+        the following documents, the analytic account is automatically applied
+        to all order/invoice lines:
+
+        - Sales Quotation & Sales Order
+        - Purchase Quotation (RFQ) & Purchase Order
+        - Customer Invoice & Credit Note
+        - Vendor Bill & Vendor Refund
+        - Stock moves / pickings (on validation)
     """,
     'author': 'Custom',
     'depends': [
         'stock',
         'purchase',
+        'sale',
         'account',
         'analytic',
     ],
