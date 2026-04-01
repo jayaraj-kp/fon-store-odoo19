@@ -1,0 +1,36 @@
+///
+/// Primary variables for Odoo 19 CE Enterprise Theme
+/// These are available in every asset bundle (loaded first).
+///
+
+// =====================
+// Brand Colors
+// =====================
+// Map CE variables to enterprise-style colors
+// $o-enterprise-color and $o-enterprise-primary-color may not exist in CE,
+// so we define our own purple palette that mirrors Enterprise.
+
+$o-brand-odoo:            #875A7B !default;  // Enterprise purple
+$o-brand-primary:         #875A7B !default;
+$o-brand-secondary:       #8f8f8f !default;
+$o-brand-lightsecondary:  #f5f5f5 !default;
+
+// Main text
+$o-main-text-color: #666666 !default;
+
+// List footer
+$o-list-footer-bg-color: white !default;
+
+// Buttons
+$o-btn-secondary-bg:        white !default;
+$o-btn-secondary-hover-bg:  darken(white, 10%) !default;
+$o-btn-secondary-active-bg: darken(white, 8%) !default;
+
+// =====================
+// Home Menu (App Switcher)
+// =====================
+$o-home-menu-container-size:    850px !default;
+$o-home-menu-app-icon-max-width: 70px !default;
+
+// Font sizes
+$o-font-size-base-touch: 15px !default;
