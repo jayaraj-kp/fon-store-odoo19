@@ -745,11 +745,217 @@
 
 import { patch } from "@web/core/utils/patch";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
-import { Component, useState, useService, xml } from "@odoo/owl";
+import { Component, useState, xml } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
-import { DomainSelectorDialog } from "@web/core/domain_selector_dialog/domain_selector_dialog";
 import { _t } from "@web/core/l10n/translation";
-import { Domain } from "@web/core/domain";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NATIVE-STYLE CUSTOM FILTER DIALOG
+// Mimics Odoo 19's built-in Custom Filter popup exactly:
+//   - "Match any/all of the following rules:" header with dropdown
+//   - "Include archived" toggle (top-right)
+//   - One rule row per line: [Field ▼] [Operator ▼] [Value input] [🗑]
+//   - "+ New Rule" button (bottom-left)
+//   - "Search" and "Discard" buttons (bottom-left, matching Odoo 19 style)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const FIELD_DEFS = [
+    { key: "amount_total",   label: "Bill Amount",       type: "number" },
+    { key: "partner_name",   label: "Customer Name",     type: "text"   },
+    { key: "mobile",         label: "Phone / Mobile",    type: "text"   },
+    { key: "product_name",   label: "Product Name",      type: "text"   },
+    { key: "payment_method", label: "Payment Method",    type: "text"   },
+    { key: "date_order",     label: "Date (YYYY-MM-DD)", type: "text"   },
+    { key: "category",       label: "Product Category",  type: "text"   },
+    { key: "pos_reference",  label: "Order Reference",   type: "text"   },
+];
+
+const OPERATORS_TEXT = [
+    { key: "ilike",     label: "contains"          },
+    { key: "not ilike", label: "does not contain"   },
+    { key: "=",         label: "is equal to"        },
+    { key: "!=",        label: "is not equal to"    },
+];
+
+const OPERATORS_NUMBER = [
+    { key: "=",  label: "is equal to"                   },
+    { key: "!=", label: "is not equal to"                },
+    { key: ">",  label: "is greater than"                },
+    { key: ">=", label: "is greater than or equal to"    },
+    { key: "<",  label: "is less than"                   },
+    { key: "<=", label: "is less than or equal to"       },
+];
+
+function getOperatorsForField(fieldKey) {
+    const def = FIELD_DEFS.find((f) => f.key === fieldKey);
+    return def && def.type === "number" ? OPERATORS_NUMBER : OPERATORS_TEXT;
+}
+
+function makeRule() {
+    return { id: Date.now() + Math.random(), field: "amount_total", operator: "=", value: "" };
+}
+
+class NativeCustomFilterDialog extends Component {
+    static components = { Dialog };
+    static props = ["close", "confirm"];
+
+    static template = xml`
+<Dialog title="'Custom Filter'">
+  <div style="min-width:580px;">
+
+    <!-- Header: "Match any/all ... rules" + Include archived -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span>Match</span>
+        <select class="form-select form-select-sm d-inline-block"
+                style="width:auto"
+                t-model="state.matchMode">
+          <option value="any">any</option>
+          <option value="all">all</option>
+        </select>
+        <span>of the following rules:</span>
+      </div>
+      <div class="form-check form-check-inline m-0">
+        <input class="form-check-input" type="checkbox"
+               id="cfIncludeArchived"
+               t-model="state.includeArchived"/>
+        <label class="form-check-label" for="cfIncludeArchived">
+          Include archived
+        </label>
+      </div>
+    </div>
+
+    <!-- Rule rows -->
+    <div class="d-flex flex-column gap-2 mb-2">
+      <t t-foreach="state.rules" t-as="rule" t-key="rule.id">
+        <div class="d-flex align-items-center gap-2">
+
+          <!-- Field -->
+          <select class="form-select form-select-sm"
+                  style="min-width:160px; flex:1"
+                  t-att-value="rule.field"
+                  t-on-change="(ev) => this.onFieldChange(rule, ev)">
+            <t t-foreach="fieldDefs" t-as="fd" t-key="fd.key">
+              <option t-att-value="fd.key"
+                      t-att-selected="fd.key === rule.field"
+                      t-esc="fd.label"/>
+            </t>
+          </select>
+
+          <!-- Operator -->
+          <select class="form-select form-select-sm"
+                  style="min-width:180px; flex:1"
+                  t-att-value="rule.operator"
+                  t-on-change="(ev) => this.onOperatorChange(rule, ev)">
+            <t t-foreach="getOperators(rule.field)" t-as="op" t-key="op.key">
+              <option t-att-value="op.key"
+                      t-att-selected="op.key === rule.operator"
+                      t-esc="op.label"/>
+            </t>
+          </select>
+
+          <!-- Value -->
+          <input class="form-control form-control-sm"
+                 style="min-width:120px; flex:1"
+                 type="text"
+                 t-att-value="rule.value"
+                 t-on-input="(ev) => this.onValueInput(rule, ev)"
+                 t-on-keydown="(ev) => this.onKeydown(ev)"
+                 placeholder="Value"/>
+
+          <!-- Delete rule -->
+          <button class="btn btn-sm btn-light border"
+                  t-att-disabled="state.rules.length === 1 ? true : undefined"
+                  t-on-click="() => this.removeRule(rule)"
+                  title="Remove rule">
+            <i class="fa fa-trash-o"/>
+          </button>
+
+        </div>
+      </t>
+    </div>
+
+    <!-- New Rule link -->
+    <div class="mb-3">
+      <a href="#" class="text-decoration-none small" t-on-click.prevent="addRule">
+        <i class="fa fa-plus me-1"/>New Rule
+      </a>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary btn-sm"
+              t-att-disabled="!canSearch ? true : undefined"
+              t-on-click="onSearch">
+        Search
+      </button>
+      <button class="btn btn-secondary btn-sm"
+              t-on-click="() => props.close()">
+        Discard
+      </button>
+    </div>
+
+  </div>
+</Dialog>
+    `;
+
+    setup() {
+        this.fieldDefs = FIELD_DEFS;
+        this.state = useState({
+            matchMode: "any",
+            includeArchived: false,
+            rules: [makeRule()],
+        });
+    }
+
+    getOperators(fieldKey) {
+        return getOperatorsForField(fieldKey);
+    }
+
+    onFieldChange(rule, ev) {
+        rule.field = ev.target.value;
+        rule.operator = getOperatorsForField(rule.field)[0].key;
+        // value stays so user can re-use it after field switch
+    }
+
+    onOperatorChange(rule, ev) {
+        rule.operator = ev.target.value;
+    }
+
+    onValueInput(rule, ev) {
+        rule.value = ev.target.value;
+    }
+
+    addRule() {
+        this.state.rules.push(makeRule());
+    }
+
+    removeRule(rule) {
+        if (this.state.rules.length <= 1) return;
+        const idx = this.state.rules.findIndex((r) => r.id === rule.id);
+        if (idx !== -1) this.state.rules.splice(idx, 1);
+    }
+
+    get canSearch() {
+        return this.state.rules.some((r) => r.value.trim() !== "");
+    }
+
+    onKeydown(ev) {
+        if (ev.key === "Enter" && this.canSearch) this.onSearch();
+    }
+
+    onSearch() {
+        if (!this.canSearch) return;
+        this.props.confirm({
+            matchMode: this.state.matchMode,
+            includeArchived: this.state.includeArchived,
+            rules: this.state.rules
+                .filter((r) => r.value.trim() !== "")
+                .map((r) => ({ field: r.field, operator: r.operator, value: r.value.trim() })),
+        });
+        this.props.close();
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELPERS
@@ -834,121 +1040,55 @@ function amountMatchesOrder(order, searchTerm) {
     return Math.abs(getOrderAmountNum(order) - searchNum) < 0.001;
 }
 
-/**
- * Evaluate a native Odoo domain (array format) against a pos.order record-like object.
- * We only handle simple leaf nodes: [field, operator, value].
- * Composite operators (&, |, !) are supported.
- */
-function evaluateDomainOnOrder(domain, order) {
-    if (!domain || domain.length === 0) return true;
-
-    // Normalize domain to a flat list of conditions using Domain utility
-    let domainArray;
-    try {
-        domainArray = typeof domain === "string" ? JSON.parse(domain) : domain;
-    } catch (_e) {
-        return true;
+function getFieldValue(order, fieldKey) {
+    switch (fieldKey) {
+        case "amount_total":   return getOrderAmountNum(order);
+        case "partner_name":   return ((typeof order.getPartnerName === "function" && order.getPartnerName()) || order.partner_id?.name || "").toLowerCase();
+        case "mobile":         return getOrderMobile(order);
+        case "product_name":   return getOrderProductNames(order);
+        case "payment_method": return getOrderPaymentMethods(order);
+        case "date_order":     return getOrderDate(order);
+        case "category":       return getOrderCategories(order);
+        case "pos_reference":  return (order.pos_reference || order.name || "").toLowerCase();
+        default:               return "";
     }
+}
 
-    function getValue(order, field) {
-        // Map common pos.order fields to actual order data
-        const fieldMap = {
-            "amount_total": () => getOrderAmountNum(order),
-            "partner_id.name": () => (order.partner_id?.name || "").toLowerCase(),
-            "partner_id.mobile": () => getOrderMobile(order),
-            "partner_id.phone": () => getOrderMobile(order),
-            "mobile": () => getOrderMobile(order),
-            "lines.product_id.display_name": () => getOrderProductNames(order),
-            "lines.product_id.name": () => getOrderProductNames(order),
-            "payment_ids.payment_method_id.name": () => getOrderPaymentMethods(order),
-            "date_order": () => getOrderDate(order),
-            "lines.product_id.categ_id.name": () => getOrderCategories(order),
-            "pos_reference": () => (order.pos_reference || "").toLowerCase(),
-            "name": () => (order.pos_reference || order.name || "").toLowerCase(),
-        };
-        if (fieldMap[field]) return fieldMap[field]();
-        // Fallback: try direct field access
-        const val = order[field];
-        if (val === undefined || val === null) return "";
-        return typeof val === "string" ? val.toLowerCase() : val;
+function applyOperator(orderVal, operator, rawValue) {
+    const isNum = typeof orderVal === "number";
+    const val   = isNum ? parseFloat(rawValue) : rawValue.toLowerCase().trim();
+    if (isNum && isNaN(val)) return false;
+    switch (operator) {
+        case "=":         return isNum ? Math.abs(orderVal - val) < 0.001 : orderVal === val;
+        case "!=":        return isNum ? Math.abs(orderVal - val) >= 0.001 : orderVal !== val;
+        case ">":         return orderVal > val;
+        case ">=":        return orderVal >= val;
+        case "<":         return orderVal < val;
+        case "<=":        return orderVal <= val;
+        case "ilike":     return String(orderVal).includes(String(val));
+        case "not ilike": return !String(orderVal).includes(String(val));
+        default:          return true;
     }
+}
 
-    function evalLeaf([field, op, value]) {
-        const orderVal = getValue(order, field);
-        const cmpVal = typeof value === "string" ? value.toLowerCase() : value;
-        switch (op) {
-            case "=":
-            case "==":
-                if (typeof orderVal === "number") return Math.abs(orderVal - parseFloat(value)) < 0.001;
-                return orderVal === cmpVal;
-            case "!=":
-            case "<>":
-                if (typeof orderVal === "number") return Math.abs(orderVal - parseFloat(value)) >= 0.001;
-                return orderVal !== cmpVal;
-            case ">":  return typeof orderVal === "number" ? orderVal > parseFloat(value) : orderVal > cmpVal;
-            case ">=": return typeof orderVal === "number" ? orderVal >= parseFloat(value) : orderVal >= cmpVal;
-            case "<":  return typeof orderVal === "number" ? orderVal < parseFloat(value) : orderVal < cmpVal;
-            case "<=": return typeof orderVal === "number" ? orderVal <= parseFloat(value) : orderVal <= cmpVal;
-            case "ilike":
-            case "like":
-                return String(orderVal).includes(String(cmpVal));
-            case "not ilike":
-            case "not like":
-                return !String(orderVal).includes(String(cmpVal));
-            case "in":
-                return Array.isArray(value) && value.some((v) =>
-                    typeof orderVal === "number" ? Math.abs(orderVal - parseFloat(v)) < 0.001 : orderVal === String(v).toLowerCase()
-                );
-            case "not in":
-                return Array.isArray(value) && !value.some((v) =>
-                    typeof orderVal === "number" ? Math.abs(orderVal - parseFloat(v)) < 0.001 : orderVal === String(v).toLowerCase()
-                );
-            default:
-                return true;
-        }
-    }
-
-    function evalNode(nodes, idx) {
-        if (idx >= nodes.length) return { result: true, idx };
-        const node = nodes[idx];
-        if (node === "&") {
-            const left = evalNode(nodes, idx + 1);
-            const right = evalNode(nodes, left.idx);
-            return { result: left.result && right.result, idx: right.idx };
-        }
-        if (node === "|") {
-            const left = evalNode(nodes, idx + 1);
-            const right = evalNode(nodes, left.idx);
-            return { result: left.result || right.result, idx: right.idx };
-        }
-        if (node === "!") {
-            const child = evalNode(nodes, idx + 1);
-            return { result: !child.result, idx: child.idx };
-        }
-        if (Array.isArray(node) && node.length === 3) {
-            return { result: evalLeaf(node), idx: idx + 1 };
-        }
-        return { result: true, idx: idx + 1 };
-    }
-
-    try {
-        const { result } = evalNode(domainArray, 0);
-        return result;
-    } catch (_e) {
-        return true;
-    }
+function matchesNativeFilter(order, payload) {
+    if (!payload || !payload.rules || payload.rules.length === 0) return true;
+    const results = payload.rules.map((rule) =>
+        applyOperator(getFieldValue(order, rule.field), rule.operator, rule.value)
+    );
+    return payload.matchMode === "all" ? results.every(Boolean) : results.some(Boolean);
 }
 
 function buildSearchFields(existingFields) {
     return {
         ...existingFields,
-        PRODUCT: { displayName: _t("Product"), modelField: "lines.product_id.display_name", repr: (order) => getOrderProductNames(order) },
-        PAYMENT_METHOD: { displayName: _t("Payment Method"), modelField: "payment_ids.payment_method_id.name", repr: (order) => getOrderPaymentMethods(order) },
-        ORDER_DATE: { displayName: _t("Date"), modelField: "date_order", repr: (order) => getOrderDate(order) },
-        MOBILE: { displayName: _t("Phone / Mobile"), modelField: "mobile", repr: (order) => getOrderMobile(order) },
-        CATEGORY: { displayName: _t("Product Category"), modelField: "lines.product_id.categ_id.name", repr: (order) => getOrderCategories(order) },
-        AMOUNT: { displayName: _t("Bill Amount"), modelField: "amount_total", repr: (order) => String(getOrderAmountNum(order)) },
-        CUSTOM_FILTER: { displayName: _t("Custom Filter..."), modelField: "", repr: () => "" },
+        PRODUCT:        { displayName: _t("Product"),           modelField: "lines.product_id.display_name",      repr: (order) => getOrderProductNames(order)    },
+        PAYMENT_METHOD: { displayName: _t("Payment Method"),    modelField: "payment_ids.payment_method_id.name", repr: (order) => getOrderPaymentMethods(order)  },
+        ORDER_DATE:     { displayName: _t("Date"),              modelField: "date_order",                         repr: (order) => getOrderDate(order)             },
+        MOBILE:         { displayName: _t("Phone / Mobile"),    modelField: "mobile",                             repr: (order) => getOrderMobile(order)           },
+        CATEGORY:       { displayName: _t("Product Category"),  modelField: "lines.product_id.categ_id.name",     repr: (order) => getOrderCategories(order)       },
+        AMOUNT:         { displayName: _t("Bill Amount"),       modelField: "amount_total",                       repr: (order) => String(getOrderAmountNum(order)) },
+        CUSTOM_FILTER:  { displayName: _t("Custom Filter..."),  modelField: "",                                   repr: () => ""                                   },
     };
 }
 
@@ -972,8 +1112,7 @@ function sortOrders(orders, ascending = false) {
 patch(TicketScreen.prototype, {
     setup() {
         super.setup(...arguments);
-        // Stores the compiled domain array from the native DomainSelectorDialog
-        this._customDomain = null;
+        this._customFilter = null;
     },
 
     _getSearchFields() {
@@ -988,55 +1127,28 @@ patch(TicketScreen.prototype, {
         return buildSearchFields(fields);
     },
 
-    /**
-     * Intercept search: when user picks "Custom Filter..." open Odoo's native
-     * DomainSelectorDialog (the same one used in list/search views).
-     */
     async onSearch(search) {
         if (search?.fieldName === "CUSTOM_FILTER") {
             const result = await new Promise((resolve) => {
-                // DomainSelectorDialog props: resModel, initialValue (domain string), onConfirm, close
                 this.dialog.add(
-                    DomainSelectorDialog,
-                    {
-                        resModel: "pos.order",
-                        // Start with an empty domain so the dialog shows a blank rule
-                        initialValue: "[]",
-                        isDebugMode: false,
-                        onConfirm: (domain) => resolve(domain),
-                    },
-                    {
-                        onClose: () => resolve(null),
-                    }
+                    NativeCustomFilterDialog,
+                    { confirm: (payload) => resolve(payload) },
+                    { onClose: () => resolve(null) }
                 );
             });
 
-            if (result !== null && result !== undefined) {
-                // result is a domain string like '[["amount_total",">=",100]]'
-                let domainArray;
-                try {
-                    domainArray = typeof result === "string" ? JSON.parse(result) : result;
-                } catch (_e) {
-                    domainArray = [];
+            if (result && result.rules && result.rules.length > 0) {
+                this._customFilter = result;
+                this.state.filter = "CUSTOM_FILTER";
+
+                if (this.pos.screenState?.ticketScreen) {
+                    this.pos.screenState.ticketScreen.totalCount = 0;
+                    this.pos.screenState.ticketScreen.offsetByDomain = {};
                 }
 
-                if (domainArray && domainArray.length > 0) {
-                    this._customDomain = domainArray;
-                    this.state.filter = "CUSTOM_FILTER";
-
-                    // Reset pagination/cache state safely
-                    if (this.pos.screenState?.ticketScreen) {
-                        this.pos.screenState.ticketScreen.totalCount = 0;
-                        this.pos.screenState.ticketScreen.offsetByDomain = {};
-                    }
-
-                    // Reset the SearchBar through the safe code path
-                    const fields = this.getSearchFields
-                        ? this.getSearchFields()
-                        : (this._getSearchFields ? this._getSearchFields() : {});
-                    const safeField = Object.keys(fields).find((k) => k !== "CUSTOM_FILTER") || "RECEIPT_NUMBER";
-                    await super.onSearch({ fieldName: safeField, searchTerm: "" });
-                }
+                const fields    = this.getSearchFields ? this.getSearchFields() : (this._getSearchFields ? this._getSearchFields() : {});
+                const safeField = Object.keys(fields).find((k) => k !== "CUSTOM_FILTER") || "RECEIPT_NUMBER";
+                await super.onSearch({ fieldName: safeField, searchTerm: "" });
             }
             return;
         }
@@ -1051,8 +1163,7 @@ patch(TicketScreen.prototype, {
     },
 
     async onFilterSelected(selectedFilter) {
-        // Clear the stored domain when the user switches to another filter
-        this._customDomain = null;
+        this._customFilter = null;
         return super.onFilterSelected(selectedFilter);
     },
 
@@ -1081,11 +1192,11 @@ patch(TicketScreen.prototype, {
             return sortOrders(orders, true).slice((this.state.page - 1) * this.state.nbrByPage, this.state.page * this.state.nbrByPage);
         }
 
-        // ── Native domain custom filter ──
-        if (this.state.filter === "CUSTOM_FILTER" && this._customDomain) {
+        // ── Multi-rule custom filter ──
+        if (this.state.filter === "CUSTOM_FILTER" && this._customFilter) {
             const orderModel = this.pos.models["pos.order"];
             let orders = orderModel.filter(this.activeOrderFilter);
-            orders = orders.filter((order) => evaluateDomainOnOrder(this._customDomain, order));
+            orders = orders.filter((order) => matchesNativeFilter(order, this._customFilter));
             if (this.state.selectedPreset)
                 orders = orders.filter((order) => order.preset_id?.id === this.state.selectedPreset.id);
             if (this.pos.screenState?.ticketScreen)
