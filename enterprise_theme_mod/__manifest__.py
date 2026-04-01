@@ -8,9 +8,8 @@
     "category": "Branding",
     "assets": {
         "web.assets_backend": [
-            "/enterprise_theme_mod/static/src/scss/backend_theme.scss",
-        ],
-        "web.assets_web": [
+            # Variables must load FIRST, before any other SCSS
+            ("prepend", "/enterprise_theme_mod/static/src/scss/primary_variables_custom.scss"),
             "/enterprise_theme_mod/static/src/scss/backend_theme.scss",
         ],
     },
