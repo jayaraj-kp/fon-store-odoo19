@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Warehouse Analytic Account',
-    'version': '17.0.1.0.0',
+    'version': '19.0.1.0.0',
     'category': 'Inventory/Configuration',
     'summary': 'Link Analytic Account to Warehouse; auto-apply on bills/journal entries',
     'description': """
