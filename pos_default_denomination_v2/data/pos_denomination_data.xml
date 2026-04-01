@@ -10,40 +10,40 @@
 
     <!-- Notes -->
     <record id="pos_bill_inr_500" model="pos.bill">
-        <field name="value">50000</field>
+        <field name="value">500</field>
     </record>
 
     <record id="pos_bill_inr_200" model="pos.bill">
-        <field name="value">20000</field>
+        <field name="value">200</field>
     </record>
 
     <record id="pos_bill_inr_100" model="pos.bill">
-        <field name="value">10000</field>
+        <field name="value">100</field>
     </record>
 
     <record id="pos_bill_inr_50" model="pos.bill">
-        <field name="value">5000</field>
+        <field name="value">50</field>
     </record>
 
     <record id="pos_bill_inr_20" model="pos.bill">
-        <field name="value">2000</field>
+        <field name="value">20</field>
     </record>
 
     <!-- Coins -->
     <record id="pos_bill_inr_10" model="pos.bill">
-        <field name="value">1000</field>
+        <field name="value">10</field>
     </record>
 
     <record id="pos_bill_inr_5" model="pos.bill">
-        <field name="value">500</field>
+        <field name="value">5</field>
     </record>
 
     <record id="pos_bill_inr_2" model="pos.bill">
-        <field name="value">200</field>
+        <field name="value">2</field>
     </record>
 
     <record id="pos_bill_inr_1" model="pos.bill">
-        <field name="value">100</field>
+        <field name="value">1</field>
     </record>
 
 </odoo>

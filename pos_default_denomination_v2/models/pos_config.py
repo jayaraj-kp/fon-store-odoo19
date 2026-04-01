@@ -4,17 +4,7 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-INDIAN_DENOMINATIONS = [
-    50000,   # ₹500
-    20000,   # ₹200
-    10000,   # ₹100
-    5000,    # ₹50
-    2000,    # ₹20
-    1000,    # ₹10
-    500,     # ₹5
-    200,     # ₹2
-    100,     # ₹1
-]
+INDIAN_DENOMINATIONS = [500, 200, 100, 50, 20, 10, 5, 2, 1]
 
 
 class PosConfig(models.Model):
@@ -46,5 +36,5 @@ class PosConfig(models.Model):
                 PosBill.create({'value': value})
                 _logger.info(
                     "POS Default Denomination: Auto-created denomination ₹%s "
-                    "for new POS '%s'.", value / 100, self.name
+                    "for new POS '%s'.", value, self.name
                 )
