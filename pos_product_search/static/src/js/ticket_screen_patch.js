@@ -1,3 +1,368 @@
+/////** @odoo-module **/
+////
+////import { patch } from "@web/core/utils/patch";
+////import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
+////import { Component, useState, xml } from "@odoo/owl";
+////import { Dialog } from "@web/core/dialog/dialog";
+////import { _t } from "@web/core/l10n/translation";
+////
+////// ═══════════════════════════════════════════════════════════════════════════════
+////// CUSTOM FILTER DIALOG — uses Odoo 19 Dialog component directly
+////// ═══════════════════════════════════════════════════════════════════════════════
+////
+////class CustomFilterDialog extends Component {
+////    static components = { Dialog };
+////    static props = ["close", "confirm"];
+////    static template = xml`
+////        <Dialog title="'Custom Filter'">
+////            <div class="p-3" style="min-width:360px">
+////                <div class="mb-3 text-muted small">Match orders where:</div>
+////
+////                <div class="mb-3">
+////                    <label class="form-label fw-bold">Field</label>
+////                    <select class="form-select" t-model="state.field"
+////                            t-on-change="onFieldChange">
+////                        <t t-foreach="fields" t-as="f" t-key="f.key">
+////                            <option t-att-value="f.key" t-esc="f.label"/>
+////                        </t>
+////                    </select>
+////                </div>
+////
+////                <div class="mb-3">
+////                    <label class="form-label fw-bold">Condition</label>
+////                    <select class="form-select" t-model="state.operator">
+////                        <t t-foreach="currentOperators" t-as="op" t-key="op.key">
+////                            <option t-att-value="op.key" t-esc="op.label"/>
+////                        </t>
+////                    </select>
+////                </div>
+////
+////                <div class="mb-4">
+////                    <label class="form-label fw-bold">Value</label>
+////                    <input class="form-control"
+////                           type="text"
+////                           t-model="state.value"
+////                           placeholder="Enter value..."
+////                           t-on-keydown="onKeydown"/>
+////                </div>
+////
+////                <div class="d-flex gap-2 justify-content-end">
+////                    <button class="btn btn-secondary" t-on-click="() => props.close()">
+////                        Discard
+////                    </button>
+////                    <button class="btn btn-primary"
+////                            t-att-disabled="!state.value"
+////                            t-on-click="onApply">
+////                        Apply Filter
+////                    </button>
+////                </div>
+////            </div>
+////        </Dialog>
+////    `;
+////
+////    setup() {
+////        this.fields = [
+////            { key: "amount_total",   label: "Bill Amount" },
+////            { key: "mobile",         label: "Phone / Mobile" },
+////            { key: "partner_name",   label: "Customer Name" },
+////            { key: "product_name",   label: "Product Name" },
+////            { key: "payment_method", label: "Payment Method" },
+////            { key: "date_order",     label: "Date (YYYY-MM-DD)" },
+////            { key: "category",       label: "Product Category" },
+////        ];
+////        this.operatorMap = {
+////            amount_total: [
+////                { key: "=",  label: "is equal to" },
+////                { key: ">=", label: "is greater than or equal" },
+////                { key: "<=", label: "is less than or equal" },
+////                { key: ">",  label: "is greater than" },
+////                { key: "<",  label: "is less than" },
+////            ],
+////            default: [
+////                { key: "ilike", label: "contains" },
+////                { key: "=",     label: "is equal to" },
+////            ],
+////        };
+////        this.state = useState({
+////            field: "amount_total",
+////            operator: "=",
+////            value: "",
+////        });
+////    }
+////
+////    get currentOperators() {
+////        return this.operatorMap[this.state.field] || this.operatorMap.default;
+////    }
+////
+////    onFieldChange() {
+////        const ops = this.currentOperators;
+////        this.state.operator = ops[0].key;
+////    }
+////
+////    onKeydown(e) {
+////        if (e.key === "Enter" && this.state.value) this.onApply();
+////    }
+////
+////    onApply() {
+////        if (!this.state.value) return;
+////        this.props.confirm({
+////            field: this.state.field,
+////            operator: this.state.operator,
+////            value: this.state.value,
+////        });
+////        this.props.close();
+////    }
+////}
+////
+////// ═══════════════════════════════════════════════════════════════════════════════
+////// HELPERS
+////// ═══════════════════════════════════════════════════════════════════════════════
+////
+////function getOrderProductNames(order) {
+////    const lines = order?.getOrderlines?.() || order?.lines || [];
+////    return Array.from(lines)
+////        .map((line) =>
+////            (typeof line.get_full_product_name === "function" && line.get_full_product_name()) ||
+////            line.full_product_name || line.product_name ||
+////            (line.product_id && (line.product_id.display_name || line.product_id.name)) ||
+////            (line.product && (line.product.display_name || line.product.name)) || ""
+////        ).filter(Boolean).join(" ").toLowerCase();
+////}
+////
+////function getOrderPaymentMethods(order) {
+////    const paymentLines =
+////        (typeof order.get_paymentlines === "function" && order.get_paymentlines()) ||
+////        order.payment_ids || order.paymentlines || order.payment_lines || [];
+////    return Array.from(paymentLines)
+////        .map((line) =>
+////            (line.payment_method_id && (line.payment_method_id.name || line.payment_method_id.display_name)) ||
+////            (line.payment_method && (line.payment_method.name || line.payment_method.display_name)) ||
+////            line.name || ""
+////        ).filter(Boolean).join(" ").toLowerCase();
+////}
+////
+////function getOrderDate(order) {
+////    const raw = order.date_order || order.creation_date || order.date || "";
+////    if (!raw) return "";
+////    try {
+////        const d = new Date(raw);
+////        const pad = (n) => String(n).padStart(2, "0");
+////        const yyyy = d.getFullYear();
+////        const mm = pad(d.getMonth() + 1);
+////        const dd = pad(d.getDate());
+////        return `${yyyy}-${mm}-${dd} ${dd}/${mm}/${yyyy} ${mm}/${dd}/${yyyy} ${raw}`.toLowerCase();
+////    } catch (_e) { return String(raw).toLowerCase(); }
+////}
+////
+////function getOrderMobile(order) {
+////    return (
+////        order.mobile || order.phone ||
+////        order.partner_id?.mobile || order.partner_id?.phone ||
+////        (typeof order.getPartner === "function" && order.getPartner()?.mobile) ||
+////        (typeof order.getPartner === "function" && order.getPartner()?.phone) || ""
+////    ).toString().toLowerCase();
+////}
+////
+////function getOrderCategories(order) {
+////    const lines = order?.getOrderlines?.() || order?.lines || [];
+////    const cats = new Set();
+////    Array.from(lines).forEach((line) => {
+////        const product = line.product_id || line.product;
+////        if (!product) return;
+////        const categ = product.categ_id;
+////        if (categ) {
+////            const name = categ.name || categ.display_name || categ.complete_name;
+////            if (name) cats.add(name.toLowerCase());
+////        }
+////        Array.from(product.pos_category_ids || []).forEach((pc) => {
+////            const name = pc.name || pc.display_name;
+////            if (name) cats.add(name.toLowerCase());
+////        });
+////    });
+////    return [...cats].join(" ");
+////}
+////
+////function getOrderAmountNum(order) {
+////    const amount =
+////        order.amount_total ??
+////        (typeof order.getRoundedGrandTotal === "function" && order.getRoundedGrandTotal()) ?? 0;
+////    return parseFloat(amount) || 0;
+////}
+////
+////function amountMatchesOrder(order, searchTerm) {
+////    const term = (searchTerm || "").trim();
+////    if (!term) return true;
+////    const searchNum = parseFloat(term);
+////    if (isNaN(searchNum)) return false;
+////    return Math.abs(getOrderAmountNum(order) - searchNum) < 0.001;
+////}
+////
+////function matchesCustomFilter(order, filter) {
+////    if (!filter || !filter.value) return true;
+////    const { field, operator, value } = filter;
+////    const val = value.toString().toLowerCase().trim();
+////
+////    if (field === "amount_total") {
+////        const orderNum = getOrderAmountNum(order);
+////        const searchNum = parseFloat(value);
+////        if (isNaN(searchNum)) return false;
+////        if (operator === "=")  return Math.abs(orderNum - searchNum) < 0.001;
+////        if (operator === ">=") return orderNum >= searchNum;
+////        if (operator === "<=") return orderNum <= searchNum;
+////        if (operator === ">")  return orderNum > searchNum;
+////        if (operator === "<")  return orderNum < searchNum;
+////    }
+////    if (field === "mobile")
+////        return operator === "ilike" ? getOrderMobile(order).includes(val) : getOrderMobile(order) === val;
+////    if (field === "partner_name") {
+////        const name = ((typeof order.getPartnerName === "function" && order.getPartnerName()) || order.partner_id?.name || "").toLowerCase();
+////        return operator === "ilike" ? name.includes(val) : name === val;
+////    }
+////    if (field === "product_name")
+////        return operator === "ilike" ? getOrderProductNames(order).includes(val) : getOrderProductNames(order) === val;
+////    if (field === "payment_method")
+////        return operator === "ilike" ? getOrderPaymentMethods(order).includes(val) : getOrderPaymentMethods(order) === val;
+////    if (field === "date_order")
+////        return getOrderDate(order).includes(val);
+////    if (field === "category")
+////        return operator === "ilike" ? getOrderCategories(order).includes(val) : getOrderCategories(order) === val;
+////    return true;
+////}
+////
+////function buildSearchFields(existingFields) {
+////    return {
+////        ...existingFields,
+////        PRODUCT: { displayName: _t("Product"), modelField: "lines.product_id.display_name", repr: (order) => getOrderProductNames(order) },
+////        PAYMENT_METHOD: { displayName: _t("Payment Method"), modelField: "payment_ids.payment_method_id.name", repr: (order) => getOrderPaymentMethods(order) },
+////        ORDER_DATE: { displayName: _t("Date"), modelField: "date_order", repr: (order) => getOrderDate(order) },
+////        MOBILE: { displayName: _t("Phone / Mobile"), modelField: "mobile", repr: (order) => getOrderMobile(order) },
+////        CATEGORY: { displayName: _t("Product Category"), modelField: "lines.product_id.categ_id.name", repr: (order) => getOrderCategories(order) },
+////        AMOUNT: { displayName: _t("Bill Amount"), modelField: "amount_total", repr: (order) => String(getOrderAmountNum(order)) },
+////        CUSTOM_FILTER: { displayName: _t("Custom Filter..."), modelField: "", repr: () => "" },
+////    };
+////}
+////
+////const EXACT_FIELDS = new Set(["AMOUNT"]);
+////
+////function sortOrders(orders, ascending = false) {
+////    return orders.sort((a, b) => {
+////        const dateA = a.date_order;
+////        const dateB = b.date_order;
+////        if (!dateA.equals(dateB)) return ascending ? dateA - dateB : dateB - dateA;
+////        const nameA = parseInt(a.pos_reference?.replace(/\D/g, "")) || 0;
+////        const nameB = parseInt(b.pos_reference?.replace(/\D/g, "")) || 0;
+////        return ascending ? nameA - nameB : nameB - nameA;
+////    });
+////}
+////
+////// ═══════════════════════════════════════════════════════════════════════════════
+////// PATCH
+////// ═══════════════════════════════════════════════════════════════════════════════
+////
+////patch(TicketScreen.prototype, {
+////    setup() {
+////        super.setup(...arguments);
+////        this._customFilter = null;
+////    },
+////
+////    _getSearchFields() {
+////        let fields = {};
+////        try { fields = super._getSearchFields() || {}; } catch (_e) {}
+////        return buildSearchFields(fields);
+////    },
+////
+////    getSearchFields() {
+////        let fields = {};
+////        try { fields = super.getSearchFields() || {}; } catch (_e) {}
+////        return buildSearchFields(fields);
+////    },
+////
+////    // Intercept onSearch to open dialog when CUSTOM_FILTER is selected
+////    async onSearch(search) {
+////        if (search?.fieldName === "CUSTOM_FILTER") {
+////            const result = await new Promise((resolve) => {
+////                this.dialog.add(CustomFilterDialog, {
+////                    confirm: (payload) => resolve(payload),
+////                }, {
+////                    onClose: () => resolve(null),
+////                });
+////            });
+////            if (result && result.value !== "") {
+////                this._customFilter = result;
+////                this.state.filter = "CUSTOM_FILTER";
+////                this.pos.screenState.ticketSCreen.totalCount = 0;
+////                this.pos.screenState.ticketSCreen.offsetByDomain = {};
+////                // Clear search so dropdown closes
+////                this.state.search = { fieldName: "CUSTOM_FILTER", searchTerm: "" };
+////            }
+////            return;
+////        }
+////        return super.onSearch(search);
+////    },
+////
+////    _getFilterOptions() {
+////        let options;
+////        try { options = super._getFilterOptions(); } catch (_e) { options = new Map(); }
+////        if (!options) options = new Map();
+////        return options;
+////    },
+////
+////    async onFilterSelected(selectedFilter) {
+////        this._customFilter = null;
+////        return super.onFilterSelected(selectedFilter);
+////    },
+////
+////    getFilteredOrderList() {
+////        const { fieldName, searchTerm } = this.state.search || {};
+////
+////        if (EXACT_FIELDS.has(fieldName) && searchTerm) {
+////            const orderModel = this.pos.models["pos.order"];
+////            let orders = this.state.filter === "SYNCED"
+////                ? orderModel.filter((o) => o.finalized && o.uiState.displayed)
+////                : orderModel.filter(this.activeOrderFilter);
+////            if (this.state.filter && !["ACTIVE_ORDERS", "SYNCED", "CUSTOM_FILTER"].includes(this.state.filter)) {
+////                orders = orders.filter((order) => {
+////                    const screen = order.getScreenData();
+////                    return this._getScreenToStatusMap()[screen.name] === this.state.filter;
+////                });
+////            }
+////            orders = orders.filter((order) => amountMatchesOrder(order, searchTerm));
+////            if (this.state.selectedPreset)
+////                orders = orders.filter((order) => order.preset_id?.id === this.state.selectedPreset.id);
+////            if (this.state.filter === "SYNCED")
+////                return sortOrders(orders).slice((this.state.page - 1) * this.state.nbrByPage, this.state.page * this.state.nbrByPage);
+////            if (this.pos.screenState?.ticketSCreen)
+////                this.pos.screenState.ticketSCreen.totalCount = orders.length;
+////            return sortOrders(orders, true).slice((this.state.page - 1) * this.state.nbrByPage, this.state.page * this.state.nbrByPage);
+////        }
+////
+////        if (this.state.filter === "CUSTOM_FILTER" && this._customFilter) {
+////            const orderModel = this.pos.models["pos.order"];
+////            let orders = orderModel.filter(this.activeOrderFilter);
+////            orders = orders.filter((order) => matchesCustomFilter(order, this._customFilter));
+////            if (this.state.selectedPreset)
+////                orders = orders.filter((order) => order.preset_id?.id === this.state.selectedPreset.id);
+////            if (this.pos.screenState?.ticketSCreen)
+////                this.pos.screenState.ticketSCreen.totalCount = orders.length;
+////            return sortOrders(orders, true).slice((this.state.page - 1) * this.state.nbrByPage, this.state.page * this.state.nbrByPage);
+////        }
+////
+////        return super.getFilteredOrderList();
+////    },
+////
+////    _doesOrderPassFilter(order, { fieldName, searchTerm }) {
+////        if (fieldName === "AMOUNT") return amountMatchesOrder(order, searchTerm);
+////        try { return super._doesOrderPassFilter(order, { fieldName, searchTerm }); }
+////        catch (_e) { return true; }
+////    },
+////
+////    filterOrderBySearch(order, searchDetails) {
+////        if (searchDetails?.fieldName === "AMOUNT") return amountMatchesOrder(order, searchDetails.searchTerm);
+////        try { return super.filterOrderBySearch(order, searchDetails); }
+////        catch (_e) { return true; }
+////    },
+////});
+///** @odoo-module **/
 ///** @odoo-module **/
 //
 //import { patch } from "@web/core/utils/patch";
@@ -246,9 +611,9 @@
 //
 //function sortOrders(orders, ascending = false) {
 //    return orders.sort((a, b) => {
-//        const dateA = a.date_order;
-//        const dateB = b.date_order;
-//        if (!dateA.equals(dateB)) return ascending ? dateA - dateB : dateB - dateA;
+//        const dateA = a.date_order ? new Date(a.date_order) : new Date(0);
+//        const dateB = b.date_order ? new Date(b.date_order) : new Date(0);
+//        if (dateA.getTime() !== dateB.getTime()) return ascending ? dateA - dateB : dateB - dateA;
 //        const nameA = parseInt(a.pos_reference?.replace(/\D/g, "")) || 0;
 //        const nameB = parseInt(b.pos_reference?.replace(/\D/g, "")) || 0;
 //        return ascending ? nameA - nameB : nameB - nameA;
@@ -290,10 +655,24 @@
 //            if (result && result.value !== "") {
 //                this._customFilter = result;
 //                this.state.filter = "CUSTOM_FILTER";
-//                this.pos.screenState.ticketSCreen.totalCount = 0;
-//                this.pos.screenState.ticketSCreen.offsetByDomain = {};
-//                // Clear search so dropdown closes
-//                this.state.search = { fieldName: "CUSTOM_FILTER", searchTerm: "" };
+//                // Fix typo ticketSCreen -> ticketScreen, guard with optional chaining
+//                if (this.pos.screenState?.ticketScreen) {
+//                    this.pos.screenState.ticketScreen.totalCount = 0;
+//                    this.pos.screenState.ticketScreen.offsetByDomain = {};
+//                }
+//                // *** CRITICAL FIX ***
+//                // DO NOT reassign this.state.search — SearchBar owns its own
+//                // reactive state object. Replacing it from outside destroys the
+//                // reactive reference and causes:
+//                //   TypeError: Cannot read properties of undefined (reading 'text')
+//                //
+//                // Instead: call super.onSearch() with the first real search field
+//                // (e.g. RECEIPT_NUMBER) and an empty term. This lets SearchBar
+//                // reset itself cleanly through its own normal code path.
+//                const fields = this.getSearchFields ? this.getSearchFields() : (this._getSearchFields ? this._getSearchFields() : {});
+//                // Pick the first non-custom field as the safe reset target
+//                const safeField = Object.keys(fields).find((k) => k !== "CUSTOM_FILTER") || "RECEIPT_NUMBER";
+//                await super.onSearch({ fieldName: safeField, searchTerm: "" });
 //            }
 //            return;
 //        }
@@ -363,121 +742,14 @@
 //    },
 //});
 /** @odoo-module **/
-/** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
-import { Component, useState, xml } from "@odoo/owl";
+import { Component, useState, useService, xml } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
+import { DomainSelectorDialog } from "@web/core/domain_selector_dialog/domain_selector_dialog";
 import { _t } from "@web/core/l10n/translation";
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CUSTOM FILTER DIALOG — uses Odoo 19 Dialog component directly
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class CustomFilterDialog extends Component {
-    static components = { Dialog };
-    static props = ["close", "confirm"];
-    static template = xml`
-        <Dialog title="'Custom Filter'">
-            <div class="p-3" style="min-width:360px">
-                <div class="mb-3 text-muted small">Match orders where:</div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Field</label>
-                    <select class="form-select" t-model="state.field"
-                            t-on-change="onFieldChange">
-                        <t t-foreach="fields" t-as="f" t-key="f.key">
-                            <option t-att-value="f.key" t-esc="f.label"/>
-                        </t>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Condition</label>
-                    <select class="form-select" t-model="state.operator">
-                        <t t-foreach="currentOperators" t-as="op" t-key="op.key">
-                            <option t-att-value="op.key" t-esc="op.label"/>
-                        </t>
-                    </select>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Value</label>
-                    <input class="form-control"
-                           type="text"
-                           t-model="state.value"
-                           placeholder="Enter value..."
-                           t-on-keydown="onKeydown"/>
-                </div>
-
-                <div class="d-flex gap-2 justify-content-end">
-                    <button class="btn btn-secondary" t-on-click="() => props.close()">
-                        Discard
-                    </button>
-                    <button class="btn btn-primary"
-                            t-att-disabled="!state.value"
-                            t-on-click="onApply">
-                        Apply Filter
-                    </button>
-                </div>
-            </div>
-        </Dialog>
-    `;
-
-    setup() {
-        this.fields = [
-            { key: "amount_total",   label: "Bill Amount" },
-            { key: "mobile",         label: "Phone / Mobile" },
-            { key: "partner_name",   label: "Customer Name" },
-            { key: "product_name",   label: "Product Name" },
-            { key: "payment_method", label: "Payment Method" },
-            { key: "date_order",     label: "Date (YYYY-MM-DD)" },
-            { key: "category",       label: "Product Category" },
-        ];
-        this.operatorMap = {
-            amount_total: [
-                { key: "=",  label: "is equal to" },
-                { key: ">=", label: "is greater than or equal" },
-                { key: "<=", label: "is less than or equal" },
-                { key: ">",  label: "is greater than" },
-                { key: "<",  label: "is less than" },
-            ],
-            default: [
-                { key: "ilike", label: "contains" },
-                { key: "=",     label: "is equal to" },
-            ],
-        };
-        this.state = useState({
-            field: "amount_total",
-            operator: "=",
-            value: "",
-        });
-    }
-
-    get currentOperators() {
-        return this.operatorMap[this.state.field] || this.operatorMap.default;
-    }
-
-    onFieldChange() {
-        const ops = this.currentOperators;
-        this.state.operator = ops[0].key;
-    }
-
-    onKeydown(e) {
-        if (e.key === "Enter" && this.state.value) this.onApply();
-    }
-
-    onApply() {
-        if (!this.state.value) return;
-        this.props.confirm({
-            field: this.state.field,
-            operator: this.state.operator,
-            value: this.state.value,
-        });
-        this.props.close();
-    }
-}
+import { Domain } from "@web/core/domain";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELPERS
@@ -562,36 +834,109 @@ function amountMatchesOrder(order, searchTerm) {
     return Math.abs(getOrderAmountNum(order) - searchNum) < 0.001;
 }
 
-function matchesCustomFilter(order, filter) {
-    if (!filter || !filter.value) return true;
-    const { field, operator, value } = filter;
-    const val = value.toString().toLowerCase().trim();
+/**
+ * Evaluate a native Odoo domain (array format) against a pos.order record-like object.
+ * We only handle simple leaf nodes: [field, operator, value].
+ * Composite operators (&, |, !) are supported.
+ */
+function evaluateDomainOnOrder(domain, order) {
+    if (!domain || domain.length === 0) return true;
 
-    if (field === "amount_total") {
-        const orderNum = getOrderAmountNum(order);
-        const searchNum = parseFloat(value);
-        if (isNaN(searchNum)) return false;
-        if (operator === "=")  return Math.abs(orderNum - searchNum) < 0.001;
-        if (operator === ">=") return orderNum >= searchNum;
-        if (operator === "<=") return orderNum <= searchNum;
-        if (operator === ">")  return orderNum > searchNum;
-        if (operator === "<")  return orderNum < searchNum;
+    // Normalize domain to a flat list of conditions using Domain utility
+    let domainArray;
+    try {
+        domainArray = typeof domain === "string" ? JSON.parse(domain) : domain;
+    } catch (_e) {
+        return true;
     }
-    if (field === "mobile")
-        return operator === "ilike" ? getOrderMobile(order).includes(val) : getOrderMobile(order) === val;
-    if (field === "partner_name") {
-        const name = ((typeof order.getPartnerName === "function" && order.getPartnerName()) || order.partner_id?.name || "").toLowerCase();
-        return operator === "ilike" ? name.includes(val) : name === val;
+
+    function getValue(order, field) {
+        // Map common pos.order fields to actual order data
+        const fieldMap = {
+            "amount_total": () => getOrderAmountNum(order),
+            "partner_id.name": () => (order.partner_id?.name || "").toLowerCase(),
+            "partner_id.mobile": () => getOrderMobile(order),
+            "partner_id.phone": () => getOrderMobile(order),
+            "mobile": () => getOrderMobile(order),
+            "lines.product_id.display_name": () => getOrderProductNames(order),
+            "lines.product_id.name": () => getOrderProductNames(order),
+            "payment_ids.payment_method_id.name": () => getOrderPaymentMethods(order),
+            "date_order": () => getOrderDate(order),
+            "lines.product_id.categ_id.name": () => getOrderCategories(order),
+            "pos_reference": () => (order.pos_reference || "").toLowerCase(),
+            "name": () => (order.pos_reference || order.name || "").toLowerCase(),
+        };
+        if (fieldMap[field]) return fieldMap[field]();
+        // Fallback: try direct field access
+        const val = order[field];
+        if (val === undefined || val === null) return "";
+        return typeof val === "string" ? val.toLowerCase() : val;
     }
-    if (field === "product_name")
-        return operator === "ilike" ? getOrderProductNames(order).includes(val) : getOrderProductNames(order) === val;
-    if (field === "payment_method")
-        return operator === "ilike" ? getOrderPaymentMethods(order).includes(val) : getOrderPaymentMethods(order) === val;
-    if (field === "date_order")
-        return getOrderDate(order).includes(val);
-    if (field === "category")
-        return operator === "ilike" ? getOrderCategories(order).includes(val) : getOrderCategories(order) === val;
-    return true;
+
+    function evalLeaf([field, op, value]) {
+        const orderVal = getValue(order, field);
+        const cmpVal = typeof value === "string" ? value.toLowerCase() : value;
+        switch (op) {
+            case "=":
+            case "==":
+                if (typeof orderVal === "number") return Math.abs(orderVal - parseFloat(value)) < 0.001;
+                return orderVal === cmpVal;
+            case "!=":
+            case "<>":
+                if (typeof orderVal === "number") return Math.abs(orderVal - parseFloat(value)) >= 0.001;
+                return orderVal !== cmpVal;
+            case ">":  return typeof orderVal === "number" ? orderVal > parseFloat(value) : orderVal > cmpVal;
+            case ">=": return typeof orderVal === "number" ? orderVal >= parseFloat(value) : orderVal >= cmpVal;
+            case "<":  return typeof orderVal === "number" ? orderVal < parseFloat(value) : orderVal < cmpVal;
+            case "<=": return typeof orderVal === "number" ? orderVal <= parseFloat(value) : orderVal <= cmpVal;
+            case "ilike":
+            case "like":
+                return String(orderVal).includes(String(cmpVal));
+            case "not ilike":
+            case "not like":
+                return !String(orderVal).includes(String(cmpVal));
+            case "in":
+                return Array.isArray(value) && value.some((v) =>
+                    typeof orderVal === "number" ? Math.abs(orderVal - parseFloat(v)) < 0.001 : orderVal === String(v).toLowerCase()
+                );
+            case "not in":
+                return Array.isArray(value) && !value.some((v) =>
+                    typeof orderVal === "number" ? Math.abs(orderVal - parseFloat(v)) < 0.001 : orderVal === String(v).toLowerCase()
+                );
+            default:
+                return true;
+        }
+    }
+
+    function evalNode(nodes, idx) {
+        if (idx >= nodes.length) return { result: true, idx };
+        const node = nodes[idx];
+        if (node === "&") {
+            const left = evalNode(nodes, idx + 1);
+            const right = evalNode(nodes, left.idx);
+            return { result: left.result && right.result, idx: right.idx };
+        }
+        if (node === "|") {
+            const left = evalNode(nodes, idx + 1);
+            const right = evalNode(nodes, left.idx);
+            return { result: left.result || right.result, idx: right.idx };
+        }
+        if (node === "!") {
+            const child = evalNode(nodes, idx + 1);
+            return { result: !child.result, idx: child.idx };
+        }
+        if (Array.isArray(node) && node.length === 3) {
+            return { result: evalLeaf(node), idx: idx + 1 };
+        }
+        return { result: true, idx: idx + 1 };
+    }
+
+    try {
+        const { result } = evalNode(domainArray, 0);
+        return result;
+    } catch (_e) {
+        return true;
+    }
 }
 
 function buildSearchFields(existingFields) {
@@ -627,7 +972,8 @@ function sortOrders(orders, ascending = false) {
 patch(TicketScreen.prototype, {
     setup() {
         super.setup(...arguments);
-        this._customFilter = null;
+        // Stores the compiled domain array from the native DomainSelectorDialog
+        this._customDomain = null;
     },
 
     _getSearchFields() {
@@ -642,37 +988,55 @@ patch(TicketScreen.prototype, {
         return buildSearchFields(fields);
     },
 
-    // Intercept onSearch to open dialog when CUSTOM_FILTER is selected
+    /**
+     * Intercept search: when user picks "Custom Filter..." open Odoo's native
+     * DomainSelectorDialog (the same one used in list/search views).
+     */
     async onSearch(search) {
         if (search?.fieldName === "CUSTOM_FILTER") {
             const result = await new Promise((resolve) => {
-                this.dialog.add(CustomFilterDialog, {
-                    confirm: (payload) => resolve(payload),
-                }, {
-                    onClose: () => resolve(null),
-                });
+                // DomainSelectorDialog props: resModel, initialValue (domain string), onConfirm, close
+                this.dialog.add(
+                    DomainSelectorDialog,
+                    {
+                        resModel: "pos.order",
+                        // Start with an empty domain so the dialog shows a blank rule
+                        initialValue: "[]",
+                        isDebugMode: false,
+                        onConfirm: (domain) => resolve(domain),
+                    },
+                    {
+                        onClose: () => resolve(null),
+                    }
+                );
             });
-            if (result && result.value !== "") {
-                this._customFilter = result;
-                this.state.filter = "CUSTOM_FILTER";
-                // Fix typo ticketSCreen -> ticketScreen, guard with optional chaining
-                if (this.pos.screenState?.ticketScreen) {
-                    this.pos.screenState.ticketScreen.totalCount = 0;
-                    this.pos.screenState.ticketScreen.offsetByDomain = {};
+
+            if (result !== null && result !== undefined) {
+                // result is a domain string like '[["amount_total",">=",100]]'
+                let domainArray;
+                try {
+                    domainArray = typeof result === "string" ? JSON.parse(result) : result;
+                } catch (_e) {
+                    domainArray = [];
                 }
-                // *** CRITICAL FIX ***
-                // DO NOT reassign this.state.search — SearchBar owns its own
-                // reactive state object. Replacing it from outside destroys the
-                // reactive reference and causes:
-                //   TypeError: Cannot read properties of undefined (reading 'text')
-                //
-                // Instead: call super.onSearch() with the first real search field
-                // (e.g. RECEIPT_NUMBER) and an empty term. This lets SearchBar
-                // reset itself cleanly through its own normal code path.
-                const fields = this.getSearchFields ? this.getSearchFields() : (this._getSearchFields ? this._getSearchFields() : {});
-                // Pick the first non-custom field as the safe reset target
-                const safeField = Object.keys(fields).find((k) => k !== "CUSTOM_FILTER") || "RECEIPT_NUMBER";
-                await super.onSearch({ fieldName: safeField, searchTerm: "" });
+
+                if (domainArray && domainArray.length > 0) {
+                    this._customDomain = domainArray;
+                    this.state.filter = "CUSTOM_FILTER";
+
+                    // Reset pagination/cache state safely
+                    if (this.pos.screenState?.ticketScreen) {
+                        this.pos.screenState.ticketScreen.totalCount = 0;
+                        this.pos.screenState.ticketScreen.offsetByDomain = {};
+                    }
+
+                    // Reset the SearchBar through the safe code path
+                    const fields = this.getSearchFields
+                        ? this.getSearchFields()
+                        : (this._getSearchFields ? this._getSearchFields() : {});
+                    const safeField = Object.keys(fields).find((k) => k !== "CUSTOM_FILTER") || "RECEIPT_NUMBER";
+                    await super.onSearch({ fieldName: safeField, searchTerm: "" });
+                }
             }
             return;
         }
@@ -687,13 +1051,15 @@ patch(TicketScreen.prototype, {
     },
 
     async onFilterSelected(selectedFilter) {
-        this._customFilter = null;
+        // Clear the stored domain when the user switches to another filter
+        this._customDomain = null;
         return super.onFilterSelected(selectedFilter);
     },
 
     getFilteredOrderList() {
         const { fieldName, searchTerm } = this.state.search || {};
 
+        // ── Bill Amount exact-match fast path ──
         if (EXACT_FIELDS.has(fieldName) && searchTerm) {
             const orderModel = this.pos.models["pos.order"];
             let orders = this.state.filter === "SYNCED"
@@ -710,19 +1076,20 @@ patch(TicketScreen.prototype, {
                 orders = orders.filter((order) => order.preset_id?.id === this.state.selectedPreset.id);
             if (this.state.filter === "SYNCED")
                 return sortOrders(orders).slice((this.state.page - 1) * this.state.nbrByPage, this.state.page * this.state.nbrByPage);
-            if (this.pos.screenState?.ticketSCreen)
-                this.pos.screenState.ticketSCreen.totalCount = orders.length;
+            if (this.pos.screenState?.ticketScreen)
+                this.pos.screenState.ticketScreen.totalCount = orders.length;
             return sortOrders(orders, true).slice((this.state.page - 1) * this.state.nbrByPage, this.state.page * this.state.nbrByPage);
         }
 
-        if (this.state.filter === "CUSTOM_FILTER" && this._customFilter) {
+        // ── Native domain custom filter ──
+        if (this.state.filter === "CUSTOM_FILTER" && this._customDomain) {
             const orderModel = this.pos.models["pos.order"];
             let orders = orderModel.filter(this.activeOrderFilter);
-            orders = orders.filter((order) => matchesCustomFilter(order, this._customFilter));
+            orders = orders.filter((order) => evaluateDomainOnOrder(this._customDomain, order));
             if (this.state.selectedPreset)
                 orders = orders.filter((order) => order.preset_id?.id === this.state.selectedPreset.id);
-            if (this.pos.screenState?.ticketSCreen)
-                this.pos.screenState.ticketSCreen.totalCount = orders.length;
+            if (this.pos.screenState?.ticketScreen)
+                this.pos.screenState.ticketScreen.totalCount = orders.length;
             return sortOrders(orders, true).slice((this.state.page - 1) * this.state.nbrByPage, this.state.page * this.state.nbrByPage);
         }
 
