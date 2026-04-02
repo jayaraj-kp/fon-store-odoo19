@@ -81,7 +81,7 @@
     <!--  LABEL CONTENT  27x12mm                                         -->
     <!--                                                                 -->
     <!--  ROW 1  ~3mm : Product name (bold, centred)                     -->
-    <!--  ROW 2  ~6mm : Barcode image                                    -->
+    <!--  ROW 2  ~6mm : Barcode image via Odoo built-in URL              -->
     <!--  ROW 3  ~3mm : Barcode number (left) | MRP price (right)        -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
 
@@ -100,14 +100,14 @@
             }
             .page { margin: 0 !important; padding: 0 !important; }
             table { border-collapse: collapse; }
-            tr, td, th { border: none !important; }
+            tr, td { border: none !important; }
         </style>
 
-        <table style="width:27mm; height:12mm; table-layout:fixed; border-collapse:collapse;
+        <table style="width:27mm; height:12mm; table-layout:fixed;
+                      border-collapse:collapse;
                       font-family:Arial,Helvetica,sans-serif; background:#fff;">
 
             <t t-if="product.barcode">
-                <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
 
                 <!-- ROW 1: Product name -->
                 <tr style="height:3mm;">
@@ -120,19 +120,14 @@
                     </td>
                 </tr>
 
-                <!-- ROW 2: Barcode image -->
+                <!-- ROW 2: Barcode image — uses Odoo's built-in /report/barcode/ endpoint -->
                 <tr style="height:6mm;">
                     <td colspan="2"
-                        style="width:27mm; height:6mm; padding:0 0.5mm;
+                        style="width:27mm; height:6mm; padding:0 0.3mm;
                                text-align:center; vertical-align:middle;">
-                        <t t-if="bc_src">
-                            <img t-att-src="bc_src"
-                                 style="display:block; width:25mm; height:5.5mm; margin:0 auto;"
-                                 alt="barcode"/>
-                        </t>
-                        <t t-else="">
-                            <span style="font-size:4pt; color:#aaa; font-style:italic;">No barcode image</span>
-                        </t>
+                        <img t-attf-src="/report/barcode/Code128/{{ product.barcode }}?width=600&amp;height=100&amp;humanreadable=0"
+                             style="display:block; width:25mm; height:5.5mm; margin:0 auto;"
+                             alt="barcode"/>
                     </td>
                 </tr>
 
@@ -150,6 +145,7 @@
                         MRP Rs.<t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
                     </td>
                 </tr>
+
             </t>
 
             <!-- No barcode fallback -->
