@@ -3,46 +3,51 @@ import { registry } from "@web/core/registry";
 import { registerAutoApplyService } from "@pos_special_offers/js/special_offer_auto_apply";
 
 const specialOfferService = {
-    dependencies: ["orm", "pos"],
+    dependencies: ["orm"],   // no "pos" dependency — POS config not ready at service start
 
-    async start(env, { orm, pos }) {
+    async start(env, { orm }) {
         let activeOffers = [];
 
-        async function loadOffers() {
+        // Resolve warehouse_id whether it arrives as integer or object
+        function resolveWarehouseId(raw) {
+            if (!raw) return null;
+            if (typeof raw === "object" && raw.id) return raw.id;
+            if (typeof raw === "number" && raw > 0) return raw;
+            return null;
+        }
+
+        // warehouseId MUST be passed by the caller (button / popup component)
+        // because those components use usePos() which is always ready.
+        async function loadOffers(warehouseId = null) {
             try {
-                // The POS config always knows which warehouse it belongs to.
-                // We pass this to the server so it can filter warehouse-restricted
-                // offers correctly — no guessing from session lookups needed.
-                const warehouseId = pos?.config?.warehouse_id?.id ?? null;
+                const resolvedId = resolveWarehouseId(warehouseId);
+                console.log("[SpecialOffers] Loading offers for warehouseId =", resolvedId);
 
                 activeOffers = await orm.call(
                     "pos.special.offer",
                     "get_active_offers_for_pos",
-                    [],                          // positional args (none)
-                    { warehouse_id: warehouseId } // keyword arg → Python param
+                    [],
+                    { warehouse_id: resolvedId }
                 );
 
-                console.log(
-                    "[SpecialOffers] Loaded", activeOffers.length,
-                    "offers for warehouse_id =", warehouseId,
-                    activeOffers
-                );
+                console.log("[SpecialOffers] Loaded", activeOffers.length, "offers");
             } catch (e) {
                 console.warn("[SpecialOffers] Load failed:", e);
                 activeOffers = [];
             }
         }
 
-        await loadOffers();
+        // Do NOT load on service start — POS config is not ready yet at this point.
+        // The button component calls refresh() with the correct warehouseId
+        // the moment the cashier opens the Offers popup.
 
         const service = {
             getActiveOffers: () => activeOffers,
-            refresh: () => loadOffers(),
+            // Always pass this.pos.config.warehouse_id from the calling component
+            refresh: (warehouseId = null) => loadOffers(warehouseId),
         };
 
-        // Register service reference for auto-apply
         registerAutoApplyService(service);
-
         return service;
     },
 };
