@@ -35,11 +35,9 @@
                     </div>
                     <group>
                         <group string="Transfer Details">
-                            <field name="from_session_id"
-                                   readonly="state != 'draft'"/>
+                            <field name="from_session_id" readonly="state != 'draft'"/>
                             <field name="from_config_id"/>
-                            <field name="to_session_id"
-                                   readonly="state != 'draft'"/>
+                            <field name="to_session_id" readonly="state != 'draft'"/>
                             <field name="to_config_id"/>
                         </group>
                         <group string="Amount and Journal">
@@ -48,17 +46,11 @@
                                    options="{'currency_field': 'currency_id'}"
                                    readonly="state != 'draft'"/>
                             <field name="currency_id" invisible="1"/>
-                            <field name="journal_id"
-                                   readonly="state != 'draft'"/>
-                            <field name="reason"
-                                   readonly="state != 'draft'"/>
+                            <field name="journal_id" readonly="state != 'draft'"/>
+                            <field name="reason" readonly="state != 'draft'"/>
                             <field name="transfer_date" readonly="1"/>
                             <field name="user_id" readonly="1"/>
                         </group>
-                    </group>
-                    <group string="Journal Entries" invisible="state != 'done'">
-                        <field name="move_out_id" readonly="1"/>
-                        <field name="move_in_id" readonly="1"/>
                     </group>
                     <group string="Notes">
                         <field name="note" nolabel="1"
@@ -96,24 +88,21 @@
         </field>
     </record>
 
-    <!-- Search View -->
+    <!-- Search View - kept minimal for compatibility -->
     <record id="view_pos_cash_transfer_search" model="ir.ui.view">
         <field name="name">pos.cash.transfer.search</field>
         <field name="model">pos.cash.transfer</field>
         <field name="arch" type="xml">
             <search string="POS Cash Transfers">
-                <field name="name"/>
-                <field name="from_config_id"/>
-                <field name="to_config_id"/>
-                <field name="reason"/>
-                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
-                <filter string="Done" name="done" domain="[('state','=','done')]"/>
-                <filter string="Cancelled" name="cancelled" domain="[('state','=','cancelled')]"/>
+                <field name="name" string="Reference"/>
+                <field name="reason" string="Reason"/>
+                <filter string="Draft" name="filter_draft" domain="[('state','=','draft')]"/>
+                <filter string="Done" name="filter_done" domain="[('state','=','done')]"/>
+                <filter string="Cancelled" name="filter_cancelled" domain="[('state','=','cancelled')]"/>
                 <group expand="0" string="Group By">
-                    <filter string="From POS" name="group_from" context="{'group_by': 'from_config_id'}"/>
-                    <filter string="To POS" name="group_to" context="{'group_by': 'to_config_id'}"/>
-                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
-                    <filter string="Date" name="group_date" context="{'group_by': 'transfer_date:day'}"/>
+                    <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
+                    <filter string="From POS" name="groupby_from" context="{'group_by': 'from_config_id'}"/>
+                    <filter string="To POS" name="groupby_to" context="{'group_by': 'to_config_id'}"/>
                 </group>
             </search>
         </field>
@@ -124,11 +113,9 @@
         <field name="name">Cash Transfers</field>
         <field name="res_model">pos.cash.transfer</field>
         <field name="view_mode">list,form</field>
-        <field name="search_view_id" ref="view_pos_cash_transfer_search"/>
-        <field name="context">{}</field>
     </record>
 
-    <!-- Menu Items -->
+    <!-- Menu Item -->
     <menuitem id="menu_pos_cash_transfer"
               name="Cash Transfers"
               parent="point_of_sale.menu_point_of_sale"
@@ -136,8 +123,8 @@
               sequence="25"
               groups="point_of_sale.group_pos_manager"/>
 
-    <!-- POS Session Form - Add smart buttons -->
-    <record id="view_pos_session_form_inherit" model="ir.ui.view">
+    <!-- Inherit POS Session form - Add smart buttons -->
+    <record id="view_pos_session_form_inherit_transfer" model="ir.ui.view">
         <field name="name">pos.session.form.cash.transfer</field>
         <field name="model">pos.session</field>
         <field name="inherit_id" ref="point_of_sale.view_pos_session_form"/>
