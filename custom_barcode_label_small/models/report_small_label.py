@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import base64
-import io
 import json
 import logging
 
@@ -10,9 +8,6 @@ _logger = logging.getLogger(__name__)
 
 
 class ReportSmallLabel(models.AbstractModel):
-    # _name must match: "report." + report_name (with first dot replaced)
-    # report_name = custom_barcode_label_small.report_small_label_main
-    # → model _name = report.custom_barcode_label_small.report_small_label_main
     _name = 'report.custom_barcode_label_small.report_small_label_main'
     _description = 'Custom Small Product Label Report (27x12mm)'
     _table = 'report_cbl_small_lbl_main'
@@ -27,7 +22,6 @@ class ReportSmallLabel(models.AbstractModel):
             'doc_model':   'product.product',
             'docs':        docs,
             'label_qty':   label_qty,
-            'get_barcode': self._get_barcode,
         }
 
     @api.model
@@ -59,42 +53,6 @@ class ReportSmallLabel(models.AbstractModel):
         # Layer 3: default
         return {doc_id: 1 for doc_id in docids}
 
-    @api.model
-    def _get_barcode(self, barcode_value):
-        if not barcode_value:
-            return ''
-        try:
-            import barcode
-            from barcode.writer import ImageWriter
-            buf = io.BytesIO()
-            barcode.get('code128', str(barcode_value), writer=ImageWriter()).write(
-                buf, options={
-                    'write_text':    False,
-                    'module_height': 6.0,   # reduced from 10.0 to fit 6mm row
-                    'quiet_zone':    1.0,   # reduced from 2.0
-                    'font_size':     0,
-                    'text_distance': 0,
-                })
-            buf.seek(0)
-            return 'data:image/png;base64,' + base64.b64encode(buf.read()).decode()
-        except Exception as e:
-            _logger.warning("SMALL LABEL: python-barcode failed: %s", e)
-        try:
-            from reportlab.graphics.barcode.code128 import Code128Barcode
-            from reportlab.lib.units import mm
-            from reportlab.graphics.shapes import Drawing
-            from reportlab.graphics import renderPM
-            bc = Code128Barcode(str(barcode_value), barHeight=5 * mm, barWidth=0.8)
-            d = Drawing(25 * mm, 6 * mm)
-            d.add(bc)
-            buf = io.BytesIO()
-            renderPM.drawToFile(d, buf, fmt='PNG', dpi=96)
-            buf.seek(0)
-            return 'data:image/png;base64,' + base64.b64encode(buf.read()).decode()
-        except Exception as e:
-            _logger.warning("SMALL LABEL: reportlab failed: %s", e)
-        return ''
-
 
 class ReportSmallLabelTmpl(models.AbstractModel):
     _name = 'report.custom_barcode_label_small.report_small_label_tmpl_main'
@@ -114,7 +72,6 @@ class ReportSmallLabelTmpl(models.AbstractModel):
             'doc_model':   'product.template',
             'docs':        products,
             'label_qty':   label_qty,
-            'get_barcode': self._get_barcode,
         }
 
 
