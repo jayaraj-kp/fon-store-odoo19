@@ -14,8 +14,7 @@
                         <group string="Source">
                             <field name="from_session_id"/>
                             <field name="from_config_id" readonly="1"/>
-                            <field name="available_cash" readonly="1"
-                                   widget="monetary"/>
+                            <field name="available_cash" readonly="1"/>
                         </group>
                         <group string="Destination">
                             <field name="to_session_id"/>
@@ -24,7 +23,7 @@
                     </group>
                     <group>
                         <group string="Transfer Info">
-                            <field name="amount" widget="monetary"/>
+                            <field name="amount"/>
                             <field name="journal_id"/>
                             <field name="reason"/>
                         </group>
@@ -46,7 +45,7 @@
         </field>
     </record>
 
-    <!-- Action to open wizard standalone -->
+    <!-- Action to open wizard -->
     <record id="action_pos_cash_transfer_wizard" model="ir.actions.act_window">
         <field name="name">New Cash Transfer</field>
         <field name="res_model">pos.cash.transfer.wizard</field>
@@ -54,7 +53,7 @@
         <field name="target">new</field>
     </record>
 
-    <!-- Quick Transfer menu under POS -->
+    <!-- Menu under POS -->
     <menuitem id="menu_pos_cash_transfer_new"
               name="New Cash Transfer"
               parent="point_of_sale.menu_point_of_sale"
