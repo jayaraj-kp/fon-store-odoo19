@@ -166,14 +166,8 @@
                 placeholder="Leave empty to show in ALL warehouses…"/>
             </group>
             <div colspan="2" class="alert alert-info" role="alert"
-                 style="margin-top:4px; margin-bottom:0;"
-                 invisible="warehouse_ids != []">
-              ℹ️ No warehouse selected — this offer will be visible in <strong>all</strong> POS warehouses.
-            </div>
-            <div colspan="2" class="alert alert-warning" role="alert"
-                 style="margin-top:4px; margin-bottom:0;"
-                 invisible="warehouse_ids == []">
-              🏬 This offer is restricted to the selected warehouse(s) only.
+                 style="margin-top:4px; margin-bottom:0;">
+              ℹ️ Leave empty to show in ALL warehouses. Select one or more to restrict this offer to specific POS locations.
             </div>
           </group>
 
@@ -283,11 +277,7 @@
         <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>
         <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>
         <separator/>
-        <filter string="All Warehouses" name="all_wh"  domain="[('warehouse_ids','=',False)]"
-                help="Offers with no warehouse restriction (visible everywhere)"/>
-        <group expand="0" string="Group By">
-          <filter string="Warehouse" name="grp_warehouse" context="{'group_by': 'warehouse_ids'}"/>
-        </group>
+        <filter string="All Warehouses" name="all_wh"  domain="[('warehouse_ids','=',False)]"/>
       </search>
     </field>
   </record>
