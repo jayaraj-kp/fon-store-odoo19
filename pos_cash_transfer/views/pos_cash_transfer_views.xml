@@ -42,7 +42,7 @@
                                    readonly="state != 'draft'"/>
                             <field name="to_config_id"/>
                         </group>
-                        <group string="Amount &amp; Journal">
+                        <group string="Amount and Journal">
                             <field name="amount"
                                    widget="monetary"
                                    options="{'currency_field': 'currency_id'}"
@@ -76,7 +76,8 @@
         <field name="name">pos.cash.transfer.list</field>
         <field name="model">pos.cash.transfer</field>
         <field name="arch" type="xml">
-            <list string="POS Cash Transfers" decoration-success="state == 'done'"
+            <list string="POS Cash Transfers"
+                  decoration-success="state == 'done'"
                   decoration-muted="state == 'cancelled'">
                 <field name="name"/>
                 <field name="transfer_date"/>
@@ -108,9 +109,6 @@
                 <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
                 <filter string="Done" name="done" domain="[('state','=','done')]"/>
                 <filter string="Cancelled" name="cancelled" domain="[('state','=','cancelled')]"/>
-                <separator/>
-                <filter string="Today" name="today"
-                        domain="[('transfer_date','&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00'))]"/>
                 <group expand="0" string="Group By">
                     <filter string="From POS" name="group_from" context="{'group_by': 'from_config_id'}"/>
                     <filter string="To POS" name="group_to" context="{'group_by': 'to_config_id'}"/>
@@ -159,14 +157,6 @@
                     <field name="cash_transfer_in_count" widget="statinfo"
                            string="Transfers In"/>
                 </button>
-            </xpath>
-            <xpath expr="//header/button[last()]" position="after">
-                <button name="action_open_cash_transfer_wizard"
-                        string="Transfer Cash"
-                        type="object"
-                        class="btn-secondary"
-                        invisible="state != 'opened'"
-                        groups="point_of_sale.group_pos_manager"/>
             </xpath>
         </field>
     </record>
