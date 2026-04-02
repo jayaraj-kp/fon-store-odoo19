@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import base64
+import io
 import json
 import logging
 
@@ -22,6 +24,7 @@ class ReportSmallLabel(models.AbstractModel):
             'doc_model':   'product.product',
             'docs':        docs,
             'label_qty':   label_qty,
+            'get_barcode': self._get_barcode,
         }
 
     @api.model
@@ -53,6 +56,47 @@ class ReportSmallLabel(models.AbstractModel):
         # Layer 3: default
         return {doc_id: 1 for doc_id in docids}
 
+    @api.model
+    def _get_barcode(self, barcode_value):
+        """
+        Generate a Code128 barcode PNG and return it as a base64 data URI.
+        Uses python-barcode at default 300 DPI, then resizes with Pillow
+        to avoid DPI-related rendering errors with newer Pillow versions.
+        """
+        if not barcode_value:
+            return ''
+        try:
+            import barcode as python_barcode
+            from barcode.writer import ImageWriter
+            from PIL import Image
+
+            writer = ImageWriter()  # default 300 DPI — do NOT override dpi
+            buf = io.BytesIO()
+            python_barcode.get('code128', str(barcode_value), writer=writer).write(
+                buf, options={
+                    'write_text':    False,
+                    'module_height': 10.0,
+                    'module_width':  0.3,
+                    'quiet_zone':    1.0,
+                    'font_size':     0,
+                    'text_distance': 0,
+                }
+            )
+            buf.seek(0)
+            img = Image.open(buf)
+            orig_w, orig_h = img.size
+            # Resize: fix height to 60px, keep width proportional
+            # CSS on the <img> tag will scale it to exact mm size in the label
+            target_h = 60
+            target_w = int(orig_w * target_h / orig_h)
+            img = img.resize((target_w, target_h), Image.LANCZOS)
+            out = io.BytesIO()
+            img.save(out, format='PNG', optimize=True)
+            return 'data:image/png;base64,' + base64.b64encode(out.getvalue()).decode()
+        except Exception as e:
+            _logger.error("SMALL LABEL: barcode generation failed: %s", e)
+            return ''
+
 
 class ReportSmallLabelTmpl(models.AbstractModel):
     _name = 'report.custom_barcode_label_small.report_small_label_tmpl_main'
@@ -72,6 +116,7 @@ class ReportSmallLabelTmpl(models.AbstractModel):
             'doc_model':   'product.template',
             'docs':        products,
             'label_qty':   label_qty,
+            'get_barcode': self._get_barcode,
         }
 
 
