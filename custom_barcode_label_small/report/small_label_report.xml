@@ -25,7 +25,6 @@
     <!--  REPORT ACTIONS                                                 -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
 
-    <!-- product.product -->
     <record id="action_report_small_label" model="ir.actions.report">
         <field name="name">Custom Small Product Label (27x12mm)</field>
         <field name="model">product.product</field>
@@ -35,7 +34,6 @@
         <field name="paperformat_id" ref="custom_barcode_label_small.paperformat_small_label"/>
     </record>
 
-    <!-- product.template -->
     <record id="action_report_small_label_tmpl" model="ir.actions.report">
         <field name="name">Custom Small Product Label (27x12mm)</field>
         <field name="model">product.template</field>
@@ -49,7 +47,6 @@
     <!--  QWEB TEMPLATES                                                 -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
 
-    <!-- product.product wrapper -->
     <template id="report_small_label_main">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
@@ -63,7 +60,6 @@
         </t>
     </template>
 
-    <!-- product.template wrapper -->
     <template id="report_small_label_tmpl_main">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="product">
@@ -79,10 +75,9 @@
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!--  LABEL CONTENT  27x12mm                                         -->
-    <!--                                                                 -->
-    <!--  ROW 1  ~3mm : Product name (bold, centred)                     -->
-    <!--  ROW 2  ~6mm : Barcode image via Odoo built-in URL              -->
-    <!--  ROW 3  ~3mm : Barcode number (left) | MRP price (right)        -->
+    <!--  ROW 1  3mm : Product name                                      -->
+    <!--  ROW 2  6mm : Barcode image (base64 PNG via Python)             -->
+    <!--  ROW 3  3mm : Barcode number | MRP price                        -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
 
     <template id="report_small_label_content">
@@ -108,6 +103,7 @@
                       font-family:Arial,Helvetica,sans-serif; background:#fff;">
 
             <t t-if="product.barcode">
+                <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
 
                 <!-- ROW 1: Product name -->
                 <tr style="height:3mm;">
@@ -120,14 +116,22 @@
                     </td>
                 </tr>
 
-                <!-- ROW 2: Barcode image — uses Odoo's built-in /report/barcode/ endpoint -->
+                <!-- ROW 2: Barcode image — base64 data URI, no external HTTP request -->
                 <tr style="height:6mm;">
                     <td colspan="2"
                         style="width:27mm; height:6mm; padding:0 0.3mm;
                                text-align:center; vertical-align:middle;">
-                        <img t-attf-src="/report/barcode/Code128/{{ product.barcode }}?width=600&amp;height=100&amp;humanreadable=0"
-                             style="display:block; width:25mm; height:5.5mm; margin:0 auto;"
-                             alt="barcode"/>
+                        <t t-if="bc_src">
+                            <img t-att-src="bc_src"
+                                 style="display:block; width:25mm; height:5.5mm;
+                                        margin:0 auto; image-rendering:crisp-edges;"
+                                 alt="barcode"/>
+                        </t>
+                        <t t-else="">
+                            <span style="font-size:4pt; color:#aaa; font-style:italic;">
+                                No barcode image
+                            </span>
+                        </t>
                     </td>
                 </tr>
 
