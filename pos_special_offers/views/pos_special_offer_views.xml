@@ -110,6 +110,8 @@
             decoration-warning="state=='draft'">
         <field name="name"/>
         <field name="offer_type"/>
+        <field name="warehouse_ids" widget="many2many_tags" optional="show"
+               string="Warehouses" options="{'no_create': True}"/>
         <field name="coupon_code" optional="show"/>
         <field name="coupon_count"     string="Codes"      optional="show"/>
         <field name="available_count"  string="Available"  optional="show"/>
@@ -152,6 +154,27 @@
               <field name="date_to"   widget="datetime"/>
               <field name="days_remaining"/>
             </group>
+          </group>
+
+          <!-- ── Warehouse Restriction ── -->
+          <group string="Warehouse Restriction">
+            <group colspan="2">
+              <field name="warehouse_ids"
+                widget="many2many_tags"
+                string="Restrict to Warehouses"
+                options="{'no_create': True}"
+                placeholder="Leave empty to show in ALL warehouses…"/>
+            </group>
+            <div colspan="2" class="alert alert-info" role="alert"
+                 style="margin-top:4px; margin-bottom:0;"
+                 invisible="warehouse_ids != []">
+              ℹ️ No warehouse selected — this offer will be visible in <strong>all</strong> POS warehouses.
+            </div>
+            <div colspan="2" class="alert alert-warning" role="alert"
+                 style="margin-top:4px; margin-bottom:0;"
+                 invisible="warehouse_ids == []">
+              🏬 This offer is restricted to the selected warehouse(s) only.
+            </div>
           </group>
 
           <group string="Discount">
@@ -252,12 +275,19 @@
       <search>
         <field name="name"/>
         <field name="coupon_code"/>
+        <field name="warehouse_ids" string="Warehouse"/>
         <filter string="Active"        name="active"   domain="[('state','=','active')]"/>
         <filter string="Draft"         name="draft"    domain="[('state','=','draft')]"/>
         <filter string="Expired"       name="expired"  domain="[('state','=','expired')]"/>
         <separator/>
         <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>
         <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>
+        <separator/>
+        <filter string="All Warehouses" name="all_wh"  domain="[('warehouse_ids','=',False)]"
+                help="Offers with no warehouse restriction (visible everywhere)"/>
+        <group expand="0" string="Group By">
+          <filter string="Warehouse" name="grp_warehouse" context="{'group_by': 'warehouse_ids'}"/>
+        </group>
       </search>
     </field>
   </record>
@@ -278,6 +308,289 @@
     groups="point_of_sale.group_pos_manager"/>
 
 </odoo>
+
+
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+
+<!--  &lt;!&ndash; ── Coupon list view ── &ndash;&gt;-->
+<!--  <record id="view_pos_offer_coupon_list" model="ir.ui.view">-->
+<!--    <field name="name">pos.special.offer.coupon.list</field>-->
+<!--    <field name="model">pos.special.offer.coupon</field>-->
+<!--    <field name="arch" type="xml">-->
+<!--      <list string="Coupon Codes"-->
+<!--            decoration-success="state=='available'"-->
+<!--            decoration-muted="state=='used'"-->
+<!--            decoration-danger="state=='expired'">-->
+<!--        <field name="offer_id"/>-->
+<!--        <field name="code"/>-->
+<!--        <field name="used_count" string="Times Used"/>-->
+<!--        <field name="state" widget="badge"-->
+<!--          decoration-success="state=='available'"-->
+<!--          decoration-warning="state=='used'"-->
+<!--          decoration-danger="state=='expired'"/>-->
+<!--        <field name="active" widget="boolean_toggle"/>-->
+<!--      </list>-->
+<!--    </field>-->
+<!--  </record>-->
+
+<!--  &lt;!&ndash; ── Generate wizard form ── &ndash;&gt;-->
+<!--  <record id="view_pos_offer_generate_wizard_form" model="ir.ui.view">-->
+<!--    <field name="name">pos.special.offer.generate.wizard.form</field>-->
+<!--    <field name="model">pos.special.offer.generate.wizard</field>-->
+<!--    <field name="arch" type="xml">-->
+<!--      <form string="Generate Coupon Codes">-->
+<!--        <sheet>-->
+<!--          <group>-->
+<!--            <field name="offer_id" readonly="1"/>-->
+<!--            <field name="generation_mode" widget="radio"/>-->
+<!--          </group>-->
+
+<!--          &lt;!&ndash; ── Preview banner ── &ndash;&gt;-->
+<!--          <div class="alert alert-success" role="alert" style="margin-bottom:12px;">-->
+<!--            <strong>Preview: </strong>-->
+<!--            <field name="preview" readonly="1" nolabel="1"-->
+<!--              style="display:inline; font-family:monospace; font-weight:600;"/>-->
+<!--          </div>-->
+
+<!--          &lt;!&ndash; ── Random mode fields ── &ndash;&gt;-->
+<!--          <group string="Random Code Settings"-->
+<!--                 invisible="generation_mode != 'random'">-->
+<!--            <field name="count"-->
+<!--              string="Number of Codes"-->
+<!--              help="How many unique random codes to generate"/>-->
+<!--            <field name="code_length"-->
+<!--              string="Code Length (chars)"-->
+<!--              help="Number of random characters per code (min 4, recommended 8)"/>-->
+<!--          </group>-->
+
+<!--          &lt;!&ndash; ── Serial mode fields ── &ndash;&gt;-->
+<!--          <group string="Serial Number Settings"-->
+<!--                 invisible="generation_mode != 'serial'">-->
+<!--            <group>-->
+<!--              <field name="prefix"-->
+<!--                placeholder="e.g. FON"-->
+<!--                help="Prefix prepended to every code. Leave blank for numbers only."/>-->
+<!--              <field name="serial_padding"-->
+<!--                string="Number Padding (digits)"-->
+<!--                help="Zero-pad width. 6 → 000001, 000002 …"/>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <field name="serial_from" string="Serial From"/>-->
+<!--              <field name="serial_to"   string="Serial To"/>-->
+<!--            </group>-->
+<!--          </group>-->
+
+<!--          <div class="alert alert-info" role="alert"-->
+<!--               invisible="generation_mode != 'serial'">-->
+<!--            Will generate-->
+<!--            <strong>-->
+<!--              <field name="serial_to"  readonly="1" nolabel="1"-->
+<!--                style="display:inline; width:60px;"/>-->
+<!--              −-->
+<!--              <field name="serial_from" readonly="1" nolabel="1"-->
+<!--                style="display:inline; width:60px;"/>-->
+<!--              + 1-->
+<!--            </strong>-->
+<!--            single-use codes. Already-existing codes are skipped automatically.-->
+<!--          </div>-->
+
+<!--          <div class="alert alert-info" role="alert"-->
+<!--               invisible="generation_mode != 'random'">-->
+<!--            Generates <strong>random</strong> single-use codes (e.g. <strong>A3X9K2M1</strong>).-->
+<!--            Each code can only be redeemed once in POS.-->
+<!--          </div>-->
+
+<!--        </sheet>-->
+<!--        <footer>-->
+<!--          <button name="action_generate" type="object"-->
+<!--            string="Generate Codes" class="btn-primary"/>-->
+<!--          <button string="Cancel" class="btn-secondary" special="cancel"/>-->
+<!--        </footer>-->
+<!--      </form>-->
+<!--    </field>-->
+<!--  </record>-->
+
+<!--  &lt;!&ndash; ── Offer list view ── &ndash;&gt;-->
+<!--  <record id="view_pos_special_offer_list" model="ir.ui.view">-->
+<!--    <field name="name">pos.special.offer.list</field>-->
+<!--    <field name="model">pos.special.offer</field>-->
+<!--    <field name="arch" type="xml">-->
+<!--      <list string="Special Offers"-->
+<!--            decoration-success="state=='active'"-->
+<!--            decoration-muted="state=='expired'"-->
+<!--            decoration-warning="state=='draft'">-->
+<!--        <field name="name"/>-->
+<!--        <field name="offer_type"/>-->
+<!--        <field name="coupon_code" optional="show"/>-->
+<!--        <field name="coupon_count"     string="Codes"      optional="show"/>-->
+<!--        <field name="available_count"  string="Available"  optional="show"/>-->
+<!--        <field name="date_from"/>-->
+<!--        <field name="date_to"/>-->
+<!--        <field name="discount_type"/>-->
+<!--        <field name="discount_value"/>-->
+<!--        <field name="active" widget="boolean_toggle"/>-->
+<!--        <field name="state" widget="badge"-->
+<!--          decoration-success="state=='active'"-->
+<!--          decoration-warning="state=='draft'"-->
+<!--          decoration-danger="state=='expired'"/>-->
+<!--      </list>-->
+<!--    </field>-->
+<!--  </record>-->
+
+<!--  &lt;!&ndash; ── Offer form view ── &ndash;&gt;-->
+<!--  <record id="view_pos_special_offer_form" model="ir.ui.view">-->
+<!--    <field name="name">pos.special.offer.form</field>-->
+<!--    <field name="model">pos.special.offer</field>-->
+<!--    <field name="arch" type="xml">-->
+<!--      <form string="Special Offer">-->
+<!--        <header>-->
+<!--          <field name="state" widget="statusbar" statusbar_visible="draft,active,expired"/>-->
+<!--        </header>-->
+<!--        <sheet>-->
+<!--          <div class="oe_title">-->
+<!--            <h1><field name="name" placeholder="Offer Name..."/></h1>-->
+<!--          </div>-->
+
+<!--          <group>-->
+<!--            <group string="Offer Settings">-->
+<!--              <field name="offer_type" widget="radio"/>-->
+<!--              <field name="purchase_limit"/>-->
+<!--              <field name="usage_count"/>-->
+<!--              <field name="active"/>-->
+<!--            </group>-->
+<!--            <group string="Offer Period">-->
+<!--              <field name="date_from" widget="datetime"/>-->
+<!--              <field name="date_to"   widget="datetime"/>-->
+<!--              <field name="days_remaining"/>-->
+<!--            </group>-->
+<!--          </group>-->
+
+<!--          <group string="Discount">-->
+<!--            <group>-->
+<!--              <field name="discount_type"/>-->
+<!--              <field name="discount_value"/>-->
+<!--            </group>-->
+<!--          </group>-->
+
+<!--          &lt;!&ndash; ── Coupon section ── &ndash;&gt;-->
+<!--          <group string="Coupon Settings" invisible="offer_type != 'coupon'">-->
+<!--            <group string="Single Reusable Code">-->
+<!--              <field name="coupon_code"-->
+<!--                placeholder="Optional — or use generated codes below"/>-->
+<!--            </group>-->
+<!--            <group string="Generated Codes">-->
+<!--              <field name="coupon_count"     string="Total Generated"/>-->
+<!--              <field name="available_count"  string="Available"/>-->
+<!--              <field name="used_count_total" string="Used"/>-->
+<!--            </group>-->
+<!--            &lt;!&ndash; Action buttons &ndash;&gt;-->
+<!--            <div colspan="2" style="padding: 8px 0 12px 0; display:flex; gap:8px;">-->
+<!--              <button name="action_generate_coupons" type="object"-->
+<!--                string="⚙️ Generate Codes"-->
+<!--                class="btn btn-primary"/>-->
+<!--              <button name="action_view_coupons" type="object"-->
+<!--                string="📋 View All Codes"-->
+<!--                class="btn btn-secondary"-->
+<!--                invisible="coupon_count == 0"/>-->
+<!--              <button name="action_export_coupons_csv" type="object"-->
+<!--                string="⬇️ Export CSV"-->
+<!--                class="btn btn-secondary"-->
+<!--                invisible="coupon_count == 0"/>-->
+<!--            </div>-->
+<!--            &lt;!&ndash; Inline codes preview &ndash;&gt;-->
+<!--            <field name="coupon_ids" colspan="2" invisible="coupon_count == 0"-->
+<!--              nolabel="1">-->
+<!--              <list limit="20"-->
+<!--                    decoration-success="state=='available'"-->
+<!--                    decoration-muted="state=='used'">-->
+<!--                <field name="code"/>-->
+<!--                <field name="used_count" string="Times Used"/>-->
+<!--                <field name="state" widget="badge"-->
+<!--                  decoration-success="state=='available'"-->
+<!--                  decoration-warning="state=='used'"-->
+<!--                  decoration-danger="state=='expired'"/>-->
+<!--                <field name="active" widget="boolean_toggle"/>-->
+<!--              </list>-->
+<!--            </field>-->
+<!--          </group>-->
+
+<!--          &lt;!&ndash; ── Apply To ── &ndash;&gt;-->
+<!--          <group string="Apply To">-->
+<!--            <group string="Products">-->
+<!--              <field name="all_products" widget="boolean_toggle"/>-->
+<!--              <field name="product_ids"-->
+<!--                widget="many2many_tags"-->
+<!--                string="Select Products"-->
+<!--                options="{'no_create': True}"-->
+<!--                invisible="all_products == True"/>-->
+<!--            </group>-->
+<!--            <group string="Categories">-->
+<!--              <field name="all_categories" widget="boolean_toggle"/>-->
+<!--              <field name="category_ids"-->
+<!--                widget="many2many_tags"-->
+<!--                string="Select Categories"-->
+<!--                options="{'no_create': True}"-->
+<!--                invisible="all_categories == True"/>-->
+<!--            </group>-->
+<!--          </group>-->
+
+<!--          &lt;!&ndash; ── Exclude From Offer ── &ndash;&gt;-->
+<!--          <group string="Exclude From Offer">-->
+<!--            <group>-->
+<!--              <field name="exclude_product_ids"-->
+<!--                widget="many2many_tags"-->
+<!--                string="Exclude Products"-->
+<!--                options="{'no_create': True}"/>-->
+<!--            </group>-->
+<!--            <group>-->
+<!--              <field name="exclude_category_ids"-->
+<!--                widget="many2many_tags"-->
+<!--                string="Exclude Categories"-->
+<!--                options="{'no_create': True}"/>-->
+<!--            </group>-->
+<!--          </group>-->
+
+<!--        </sheet>-->
+<!--      </form>-->
+<!--    </field>-->
+<!--  </record>-->
+
+<!--  &lt;!&ndash; ── Search ── &ndash;&gt;-->
+<!--  <record id="view_pos_special_offer_search" model="ir.ui.view">-->
+<!--    <field name="name">pos.special.offer.search</field>-->
+<!--    <field name="model">pos.special.offer</field>-->
+<!--    <field name="arch" type="xml">-->
+<!--      <search>-->
+<!--        <field name="name"/>-->
+<!--        <field name="coupon_code"/>-->
+<!--        <filter string="Active"        name="active"   domain="[('state','=','active')]"/>-->
+<!--        <filter string="Draft"         name="draft"    domain="[('state','=','draft')]"/>-->
+<!--        <filter string="Expired"       name="expired"  domain="[('state','=','expired')]"/>-->
+<!--        <separator/>-->
+<!--        <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>-->
+<!--        <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>-->
+<!--      </search>-->
+<!--    </field>-->
+<!--  </record>-->
+
+<!--  <record id="action_pos_special_offer" model="ir.actions.act_window">-->
+<!--    <field name="name">Special Offers</field>-->
+<!--    <field name="res_model">pos.special.offer</field>-->
+<!--    <field name="view_mode">list,form</field>-->
+<!--    <field name="search_view_id" ref="view_pos_special_offer_search"/>-->
+<!--    <field name="context">{'search_default_active': 1}</field>-->
+<!--  </record>-->
+
+<!--  <menuitem id="menu_pos_special_offers"-->
+<!--    name="Special Offers"-->
+<!--    parent="point_of_sale.menu_point_of_sale"-->
+<!--    action="action_pos_special_offer"-->
+<!--    sequence="25"-->
+<!--    groups="point_of_sale.group_pos_manager"/>-->
+
+<!--</odoo>-->
 
 
 
