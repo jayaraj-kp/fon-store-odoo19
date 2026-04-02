@@ -72,8 +72,13 @@ class SaleOrder(models.Model):
             })
             created_mos |= mo
 
+            # Confirm the MO
             mo.action_confirm()
+
+            # Try to reserve stock
             mo.action_assign()
+
+            # Produce fully
             self._auto_produce_mo(mo, product_qty)
 
         if created_mos:
@@ -81,58 +86,88 @@ class SaleOrder(models.Model):
 
     def _auto_produce_mo(self, mo, qty_to_produce):
         """
-        Odoo 19 CE production flow:
-        - stock_move_line uses 'quantity' (not qty_done) 
-        - stock_move_line has 'picked' boolean — must be True to finalize
-        - button_mark_done() returns a wizard when state is 'to_close'
-        - Must call _action_mark_done() directly to bypass wizard
+        Fully produce an MO in Odoo 19, simulating:
+          Produce All → Set Quantities → Validate
+        
+        Odoo 19 specifics confirmed from DB inspection:
+          - stock_move_line uses 'quantity' field (not qty_done)
+          - stock_move_line has 'picked' boolean → must be True
+          - stock_move has 'picked' boolean → must be True
+          - button_mark_done() returns wizard when state='to_close'
+          - Must use context skip_immediate=True, skip_backorder=True
+            to bypass all wizard popups and go straight to Done
         """
         try:
-            # Step 1: Set qty_producing on the MO
+            # Step 1: Set qty_producing on MO (simulates "Produce All")
             mo.qty_producing = qty_to_produce
 
-            # Step 2: Mark all raw material (component) move lines
+            # Step 2: Process RAW MATERIAL (component) moves
+            # Simulates "Set Quantities" on each component
             for move in mo.move_raw_ids:
                 if move.state in ('done', 'cancel'):
                     continue
-                if move.move_line_ids:
-                    for ml in move.move_line_ids:
-                        ml.quantity = ml.reserved_uom_qty or ml.product_uom_qty
-                        ml.picked = True          # ← KEY for Odoo 19
-                else:
-                    move.quantity = move.product_uom_qty
-                    move.picked = True
 
-            # Step 3: Mark all finished product move lines
+                needed_qty = move.product_uom_qty
+
+                if move.move_line_ids:
+                    # Move lines exist (stock was reserved via action_assign)
+                    for ml in move.move_line_ids:
+                        ml.quantity = ml.reserved_uom_qty or needed_qty
+                        ml.picked = True
+                else:
+                    # No move lines — set directly on the move
+                    # This handles cases where stock reservation created no lines
+                    move.write({
+                        'quantity': needed_qty,
+                        'picked': True,
+                    })
+
+            # Step 3: Process FINISHED PRODUCT moves
             for move in mo.move_finished_ids:
                 if move.state in ('done', 'cancel'):
                     continue
+
+                needed_qty = move.product_uom_qty
+
                 if move.move_line_ids:
                     for ml in move.move_line_ids:
-                        ml.quantity = ml.reserved_uom_qty or ml.product_uom_qty
-                        ml.picked = True          # ← KEY for Odoo 19
+                        ml.quantity = ml.reserved_uom_qty or needed_qty
+                        ml.picked = True
                 else:
-                    move.quantity = move.product_uom_qty
-                    move.picked = True
+                    move.write({
+                        'quantity': needed_qty,
+                        'picked': True,
+                    })
 
-            # Step 4: Call button_mark_done — in Odoo 19 this may return
-            # a backorder wizard dict instead of completing. We detect and skip it.
-            result = mo.button_mark_done()
+            # Step 4: Validate — simulates clicking "Validate"
+            # Use context to bypass ALL wizard popups:
+            #   skip_immediate   → skips "Set Quantities" wizard
+            #   skip_backorder   → skips backorder creation wizard
+            mo_ctx = mo.with_context(
+                skip_immediate=True,
+                skip_backorder=True,
+                no_recompute=True,
+            )
 
+            result = mo_ctx.button_mark_done()
+
+            # If still returned a wizard action, force via _action_mark_done
             if isinstance(result, dict) and result.get('type') == 'ir.actions.act_window':
-                # Wizard returned — call _action_mark_done directly with no backorder
                 _logger.info(
-                    'MO %s: button_mark_done returned wizard, '
-                    'calling _action_mark_done directly.', mo.name
+                    'MO %s: wizard returned, forcing _action_mark_done.', mo.name
                 )
-                mo._action_mark_done()
+                mo_ctx._action_mark_done()
 
-            _logger.info('MO %s final state: %s', mo.name, mo.state)
+            _logger.info(
+                'MO %s auto-produced successfully. Final state: %s',
+                mo.name, mo.state
+            )
 
         except Exception as e:
             _logger.warning(
                 'Auto-produce failed for MO %s: %s. Needs manual production.',
-                mo.name, str(e)
+                mo.name, str(e),
+                exc_info=True,
             )
 
     def action_view_auto_manufacture_orders(self):
