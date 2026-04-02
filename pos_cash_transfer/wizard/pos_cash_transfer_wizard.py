@@ -70,8 +70,11 @@ class PosCashTransferWizard(models.TransientModel):
     def _compute_available_cash(self):
         for rec in self:
             if rec.from_session_id:
-                rec.available_cash = rec.from_session_id.cash_register_balance_start + \
-                    rec.from_session_id.cash_register_total_entry_encoding
+                session = rec.from_session_id
+                # Use statement_line_ids confirmed present in Odoo 19
+                opening = session.cash_register_balance_start or 0.0
+                lines_total = sum(session.statement_line_ids.mapped('amount'))
+                rec.available_cash = opening + lines_total
             else:
                 rec.available_cash = 0.0
 
@@ -106,7 +109,6 @@ class PosCashTransferWizard(models.TransientModel):
 
         transfer.action_confirm_transfer()
 
-        # Show success and open the transfer record
         return {
             'name': _('Cash Transfer'),
             'type': 'ir.actions.act_window',
