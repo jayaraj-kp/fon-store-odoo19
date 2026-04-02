@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Sequence for transfer reference -->
+    <!-- Sequence -->
     <record id="seq_pos_cash_transfer" model="ir.sequence">
         <field name="name">POS Cash Transfer</field>
         <field name="code">pos.cash.transfer</field>
@@ -88,26 +88,6 @@
         </field>
     </record>
 
-    <!-- Search View - kept minimal for compatibility -->
-    <record id="view_pos_cash_transfer_search" model="ir.ui.view">
-        <field name="name">pos.cash.transfer.search</field>
-        <field name="model">pos.cash.transfer</field>
-        <field name="arch" type="xml">
-            <search string="POS Cash Transfers">
-                <field name="name" string="Reference"/>
-                <field name="reason" string="Reason"/>
-                <filter string="Draft" name="filter_draft" domain="[('state','=','draft')]"/>
-                <filter string="Done" name="filter_done" domain="[('state','=','done')]"/>
-                <filter string="Cancelled" name="filter_cancelled" domain="[('state','=','cancelled')]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
-                    <filter string="From POS" name="groupby_from" context="{'group_by': 'from_config_id'}"/>
-                    <filter string="To POS" name="groupby_to" context="{'group_by': 'to_config_id'}"/>
-                </group>
-            </search>
-        </field>
-    </record>
-
     <!-- Action -->
     <record id="action_pos_cash_transfer" model="ir.actions.act_window">
         <field name="name">Cash Transfers</field>
@@ -122,30 +102,5 @@
               action="action_pos_cash_transfer"
               sequence="25"
               groups="point_of_sale.group_pos_manager"/>
-
-    <!-- Inherit POS Session form - Add smart buttons -->
-    <record id="view_pos_session_form_inherit_transfer" model="ir.ui.view">
-        <field name="name">pos.session.form.cash.transfer</field>
-        <field name="model">pos.session</field>
-        <field name="inherit_id" ref="point_of_sale.view_pos_session_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//div[@name='button_box']" position="inside">
-                <button class="oe_stat_button" type="object"
-                        name="action_view_transfers_out"
-                        icon="fa-arrow-right"
-                        invisible="cash_transfer_out_count == 0">
-                    <field name="cash_transfer_out_count" widget="statinfo"
-                           string="Transfers Out"/>
-                </button>
-                <button class="oe_stat_button" type="object"
-                        name="action_view_transfers_in"
-                        icon="fa-arrow-left"
-                        invisible="cash_transfer_in_count == 0">
-                    <field name="cash_transfer_in_count" widget="statinfo"
-                           string="Transfers In"/>
-                </button>
-            </xpath>
-        </field>
-    </record>
 
 </odoo>
