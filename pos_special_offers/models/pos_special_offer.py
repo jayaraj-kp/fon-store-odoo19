@@ -120,7 +120,6 @@ class PosSpecialOffer(models.Model):
     @api.constrains('offer_type', 'coupon_code')
     def _check_coupon_code(self):
         for rec in self:
-            # Only require coupon_code if no generated codes exist
             if rec.offer_type == 'coupon' and not rec.coupon_code and not rec.coupon_ids:
                 raise ValidationError(
                     'Coupon offers require either a Coupon Code or generated coupon codes.')
@@ -166,29 +165,16 @@ class PosSpecialOffer(models.Model):
             'context': {'default_offer_id': self.id},
         }
 
-    # ── POS RPC: return active offers with generated coupon codes ─────────────
+    # ── POS RPC: return active offers filtered by warehouse ───────────────────
     @api.model
-    def get_active_offers_for_pos(self):
+    def get_active_offers_for_pos(self, warehouse_id=None):
+        """
+        Called from the POS frontend via orm.call().
+        warehouse_id: the stock.warehouse ID of the current POS config.
+                      The frontend passes this so we never have to guess it.
+                      If None (old clients / fallback) all offers are returned.
+        """
         now = fields.Datetime.now()
-
-        # ── Determine the current POS session's warehouse ─────────────────────
-        # The POS session is linked to a pos.config which has a warehouse_id.
-        # We look up the open session for the current user's terminal.
-        current_warehouse_id = None
-        try:
-            PosSession = self.env['pos.session']
-            # Find the active session owned by the current user
-            session = PosSession.search([
-                ('state', '=', 'opened'),
-                ('user_id', '=', self.env.uid),
-            ], limit=1)
-            if not session:
-                # Fallback: any open session (multi-user POS scenario)
-                session = PosSession.search([('state', '=', 'opened')], limit=1)
-            if session and session.config_id and session.config_id.warehouse_id:
-                current_warehouse_id = session.config_id.warehouse_id.id
-        except Exception:
-            pass
 
         offers = self.search([
             ('active', '=', True),
@@ -198,18 +184,19 @@ class PosSpecialOffer(models.Model):
 
         result = []
         for o in offers:
+            # Skip exhausted purchase-limit offers
             if o.purchase_limit and o.usage_count >= o.purchase_limit:
                 continue
 
             # ── Warehouse filtering ────────────────────────────────────────────
-            # If the offer has warehouse restrictions AND we know the current
-            # warehouse, only include the offer if it targets that warehouse.
-            # If the offer has NO warehouse restrictions, include it everywhere.
-            if o.warehouse_ids and current_warehouse_id:
-                if current_warehouse_id not in o.warehouse_ids.ids:
+            # Rule:
+            #   • Offer has NO warehouse restriction  → visible in ALL POS
+            #   • Offer HAS warehouse restriction     → visible ONLY in those warehouses
+            # If warehouse_id is None (caller didn't send it), show everything
+            # so old / misconfigured clients don't go blank.
+            if o.warehouse_ids and warehouse_id:
+                if warehouse_id not in o.warehouse_ids.ids:
                     continue
-            # If current_warehouse_id is None (couldn't detect session),
-            # we show all offers — safe fallback.
 
             # Build list of valid coupon codes for POS
             generated_codes = []
@@ -238,7 +225,6 @@ class PosSpecialOffer(models.Model):
                 'usage_count':     o.usage_count,
                 'date_from':       str(o.date_from),
                 'date_to':         str(o.date_to),
-                # Send warehouse info to POS for display purposes
                 'warehouse_ids':   o.warehouse_ids.ids,
                 'warehouse_names': ', '.join(o.warehouse_ids.mapped('name')) if o.warehouse_ids else '',
             })
