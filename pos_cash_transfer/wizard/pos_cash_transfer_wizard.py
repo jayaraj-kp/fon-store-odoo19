@@ -48,7 +48,6 @@ class PosCashTransferWizard(models.TransientModel):
         compute='_compute_journal_id',
         store=True,
         readonly=False,
-        help='The cash journal of the source POS',
     )
     available_cash = fields.Float(
         string='Available Cash (Approx.)',
@@ -71,12 +70,8 @@ class PosCashTransferWizard(models.TransientModel):
     def _compute_available_cash(self):
         for rec in self:
             if rec.from_session_id:
-                # Sum of cash in/out statement lines for this session
-                session = rec.from_session_id
-                rec.available_cash = session.cash_register_balance_start + \
-                    sum(session.statement_line_ids.filtered(
-                        lambda l: l.journal_id.type == 'cash'
-                    ).mapped('amount'))
+                rec.available_cash = rec.from_session_id.cash_register_balance_start + \
+                    rec.from_session_id.cash_register_total_entry_encoding
             else:
                 rec.available_cash = 0.0
 
@@ -85,7 +80,8 @@ class PosCashTransferWizard(models.TransientModel):
         for rec in self:
             if rec.from_session_id and rec.to_session_id:
                 if rec.from_session_id == rec.to_session_id:
-                    raise ValidationError(_('Source and destination sessions must be different.'))
+                    raise ValidationError(
+                        _('Source and destination sessions must be different.'))
 
     @api.constrains('amount')
     def _check_amount(self):
@@ -94,11 +90,10 @@ class PosCashTransferWizard(models.TransientModel):
                 raise ValidationError(_('Amount must be greater than zero.'))
 
     def action_transfer(self):
-        """Create and confirm the cash transfer."""
         self.ensure_one()
 
         if not self.journal_id:
-            raise UserError(_('Please select a cash journal for the transfer.'))
+            raise UserError(_('Please select a cash journal.'))
 
         transfer = self.env['pos.cash.transfer'].create({
             'from_session_id': self.from_session_id.id,
@@ -109,9 +104,9 @@ class PosCashTransferWizard(models.TransientModel):
             'note': self.note,
         })
 
-        result = transfer.action_confirm_transfer()
+        transfer.action_confirm_transfer()
 
-        # Return the transfer record view
+        # Show success and open the transfer record
         return {
             'name': _('Cash Transfer'),
             'type': 'ir.actions.act_window',
