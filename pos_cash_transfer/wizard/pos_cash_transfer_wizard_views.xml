@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pos_cash_transfer_wizard_form" model="ir.ui.view">
+        <field name="name">pos.cash.transfer.wizard.form</field>
+        <field name="model">pos.cash.transfer.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Transfer Cash Between POS">
+                <sheet>
+                    <div class="oe_title">
+                        <h2>Transfer Cash Between POS Terminals</h2>
+                    </div>
+                    <group>
+                        <group string="Source">
+                            <field name="from_session_id"/>
+                            <field name="from_config_id" readonly="1"/>
+                            <field name="available_cash" readonly="1"
+                                   widget="monetary"/>
+                        </group>
+                        <group string="Destination">
+                            <field name="to_session_id"/>
+                            <field name="to_config_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Transfer Info">
+                            <field name="amount" widget="monetary"/>
+                            <field name="journal_id"/>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+                    <group string="Notes">
+                        <field name="note" nolabel="1"
+                               placeholder="Optional notes about this transfer..."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_transfer"
+                            string="Confirm Transfer"
+                            type="object"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action to open wizard standalone -->
+    <record id="action_pos_cash_transfer_wizard" model="ir.actions.act_window">
+        <field name="name">New Cash Transfer</field>
+        <field name="res_model">pos.cash.transfer.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Quick Transfer menu under POS -->
+    <menuitem id="menu_pos_cash_transfer_new"
+              name="New Cash Transfer"
+              parent="point_of_sale.menu_point_of_sale"
+              action="action_pos_cash_transfer_wizard"
+              sequence="26"
+              groups="point_of_sale.group_pos_manager"/>
+
+</odoo>

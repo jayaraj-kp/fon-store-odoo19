@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Sequence for transfer reference -->
+    <record id="seq_pos_cash_transfer" model="ir.sequence">
+        <field name="name">POS Cash Transfer</field>
+        <field name="code">pos.cash.transfer</field>
+        <field name="prefix">PCT/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_pos_cash_transfer_form" model="ir.ui.view">
+        <field name="name">pos.cash.transfer.form</field>
+        <field name="model">pos.cash.transfer</field>
+        <field name="arch" type="xml">
+            <form string="POS Cash Transfer">
+                <header>
+                    <button name="action_confirm_transfer"
+                            string="Confirm Transfer"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_cancel"
+                            string="Cancel"
+                            type="object"
+                            invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Transfer Details">
+                            <field name="from_session_id"
+                                   readonly="state != 'draft'"/>
+                            <field name="from_config_id"/>
+                            <field name="to_session_id"
+                                   readonly="state != 'draft'"/>
+                            <field name="to_config_id"/>
+                        </group>
+                        <group string="Amount &amp; Journal">
+                            <field name="amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"
+                                   readonly="state != 'draft'"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="journal_id"
+                                   readonly="state != 'draft'"/>
+                            <field name="reason"
+                                   readonly="state != 'draft'"/>
+                            <field name="transfer_date" readonly="1"/>
+                            <field name="user_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Journal Entries" invisible="state != 'done'">
+                        <field name="move_out_id" readonly="1"/>
+                        <field name="move_in_id" readonly="1"/>
+                    </group>
+                    <group string="Notes">
+                        <field name="note" nolabel="1"
+                               placeholder="Additional notes..."
+                               readonly="state != 'draft'"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- List View -->
+    <record id="view_pos_cash_transfer_list" model="ir.ui.view">
+        <field name="name">pos.cash.transfer.list</field>
+        <field name="model">pos.cash.transfer</field>
+        <field name="arch" type="xml">
+            <list string="POS Cash Transfers" decoration-success="state == 'done'"
+                  decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="transfer_date"/>
+                <field name="from_config_id"/>
+                <field name="to_config_id"/>
+                <field name="amount" widget="monetary"
+                       options="{'currency_field': 'currency_id'}"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="reason"/>
+                <field name="user_id"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'done'"
+                       decoration-warning="state == 'draft'"
+                       decoration-danger="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_pos_cash_transfer_search" model="ir.ui.view">
+        <field name="name">pos.cash.transfer.search</field>
+        <field name="model">pos.cash.transfer</field>
+        <field name="arch" type="xml">
+            <search string="POS Cash Transfers">
+                <field name="name"/>
+                <field name="from_config_id"/>
+                <field name="to_config_id"/>
+                <field name="reason"/>
+                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
+                <filter string="Done" name="done" domain="[('state','=','done')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('state','=','cancelled')]"/>
+                <separator/>
+                <filter string="Today" name="today"
+                        domain="[('transfer_date','&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="From POS" name="group_from" context="{'group_by': 'from_config_id'}"/>
+                    <filter string="To POS" name="group_to" context="{'group_by': 'to_config_id'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Date" name="group_date" context="{'group_by': 'transfer_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_pos_cash_transfer" model="ir.actions.act_window">
+        <field name="name">Cash Transfers</field>
+        <field name="res_model">pos.cash.transfer</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_pos_cash_transfer_search"/>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- Menu Items -->
+    <menuitem id="menu_pos_cash_transfer"
+              name="Cash Transfers"
+              parent="point_of_sale.menu_point_of_sale"
+              action="action_pos_cash_transfer"
+              sequence="25"
+              groups="point_of_sale.group_pos_manager"/>
+
+    <!-- POS Session Form - Add smart buttons -->
+    <record id="view_pos_session_form_inherit" model="ir.ui.view">
+        <field name="name">pos.session.form.cash.transfer</field>
+        <field name="model">pos.session</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_session_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button class="oe_stat_button" type="object"
+                        name="action_view_transfers_out"
+                        icon="fa-arrow-right"
+                        invisible="cash_transfer_out_count == 0">
+                    <field name="cash_transfer_out_count" widget="statinfo"
+                           string="Transfers Out"/>
+                </button>
+                <button class="oe_stat_button" type="object"
+                        name="action_view_transfers_in"
+                        icon="fa-arrow-left"
+                        invisible="cash_transfer_in_count == 0">
+                    <field name="cash_transfer_in_count" widget="statinfo"
+                           string="Transfers In"/>
+                </button>
+            </xpath>
+            <xpath expr="//header/button[last()]" position="after">
+                <button name="action_open_cash_transfer_wizard"
+                        string="Transfer Cash"
+                        type="object"
+                        class="btn-secondary"
+                        invisible="state != 'opened'"
+                        groups="point_of_sale.group_pos_manager"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
