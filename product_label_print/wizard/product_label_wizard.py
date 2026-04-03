@@ -151,7 +151,7 @@ class ProductLabelWizard(models.TransientModel):
             top_cell = (
                 '<tr><td style="'
                 'height:' + str(QR_H) + 'mm;'
-                'padding:2mm 1mm 1mm 1mm;'
+                'padding:4mm 1mm 1mm 1mm;'
                 'vertical-align:top;'
                 'text-align:center;'
                 'border-bottom:1.5px dashed #aaa;'
@@ -174,7 +174,7 @@ class ProductLabelWizard(models.TransientModel):
             bot_cell = (
                 '<tr><td style="'
                 'height:' + str(BOT_H) + 'mm;'
-                'padding:8mm 1mm 0mm 1mm;'
+                'padding:10mm 1mm 0mm 1mm;'
                 'vertical-align:top;'
                 'text-align:center;'
                 '">'
