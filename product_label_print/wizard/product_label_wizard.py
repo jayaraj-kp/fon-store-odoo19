@@ -18,13 +18,15 @@ class ProductLabelWizard(models.TransientModel):
     show_qr = fields.Boolean(string='Show QR Code', default=True)
     show_label_code = fields.Boolean(string='Show Label Code', default=True)
 
+    # ── QR generator ──────────────────────────────────────────────────────────
+
     def _make_qr_base64(self, value):
         try:
             import qrcode
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=6,
+                box_size=8,
                 border=1,
             )
             qr.add_data(value or 'LABEL')
@@ -38,6 +40,8 @@ class ProductLabelWizard(models.TransientModel):
                 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
                 'YAAAAAYAAjCB0C8AAAAASUVORK5CYII='
             )
+
+    # ── Product / label helpers ───────────────────────────────────────────────
 
     def _get_products(self):
         products = self.env['product.product']
@@ -68,91 +72,110 @@ class ProductLabelWizard(models.TransientModel):
                 })
         return label_list
 
+    # ── HTML builder ──────────────────────────────────────────────────────────
+
     def _build_html(self, label_list):
         """
-        Physical die-cut roll layout — each product occupies TWO separate label cells:
+        GP-1125T roll: 152mm wide, labels feed horizontally.
 
-          Row A  ┌──────────┐  ┌──────────┐   ← QR label (separate cut)
-                 │  [QR]    │  │  [QR]    │
-                 │  KC110   │  │  KC110   │
-                 └──────────┘  └──────────┘
-                 (small gap between cuts)
-          Row B  ┌──────────┐  ┌──────────┐   ← Name label (separate cut)
-                 │KEYCHAIN  │  │KEYCHAIN  │
-                 │MRP Rs.110│  │MRP Rs.110│
-                 └──────────┘  └──────────┘
+        Each label = two stacked cells (solid outer border, dashed divider):
+        ┌──────────────────────────┐
+        │   [QR]   KC110           │  top cell  (QR_H mm tall)
+        ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+        │  KEYCHAIN 110            │  bottom cell (BOT_H mm tall)
+        │  MRP Rs. 110             │
+        └──────────────────────────┘
 
-        Labels come in pairs of rows (QR row + Name row).
-        2 columns per row matching the physical die-cut positions on the roll.
+        2 labels per row, side by side.
+
+        Page width  = 152mm  (full roll width)
+        Page height = num_rows × (QR_H + BOT_H + ROW_GAP) + top/bottom margin
+
+        wkhtmltopdf flags:
+          --page-width  152mm
+          --page-height <calculated>mm
+          --margin-*    0            (we control all spacing in HTML)
+          --disable-smart-shrinking  (critical — prevents auto-scale)
+          --zoom 1
+          --dpi 203
         """
 
-        LW    = 65    # label width mm
-        LH_Q  = 33    # QR label height mm
-        LH_N  = 20    # Name/MRP label height mm
-        QR_MM = 22    # QR image size mm
-        CGAP  = 2     # gap between left and right column mm
-        IGAP  = 2     # gap between QR label and Name label (inner gap) mm
-        RGAP  = 4     # gap between successive product pairs mm
-        PW    = 152   # roll width mm
+        # ── Dimensions (all in mm) ──────────────────────────────────────────
+        LW      = 65    # label width
+        QR_H    = 33    # top cell height  (QR area)
+        BOT_H   = 20    # bottom cell height (name/MRP)
+        LH      = QR_H + BOT_H   # 53mm total per label
+        QR_SIZE = 24    # QR image size
+        COL_GAP = 4     # gap between 2 label columns
+        ROW_GAP = 4     # gap between label rows
+        L_MAR   = (152 - (2 * LW + COL_GAP)) // 2   # = 9mm each side
+        PW      = 152   # page/roll width mm
 
-        # Cell style helpers
-        CELL_STYLE = (
-            'border:1.5px solid #999;border-radius:3mm;'
-            'background:white;overflow:hidden;'
-        )
-
-        def qr_cell(lbl):
-            """Top label: QR code centred + label code below."""
+        def one_label(lbl):
+            # ── Top cell: QR image + label code below it ──
             qr_html = ''
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                    'style="width:' + str(QR_MM) + 'mm;height:' + str(QR_MM) + 'mm;'
-                    'display:block;margin:0 auto 1.5mm auto;" alt=""/>'
+                    'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
+                    'display:block;margin:0 auto 1mm auto;" alt=""/>'
                 )
+
             code_html = ''
             if self.show_label_code and lbl.get('label_code'):
                 code_html = (
-                    '<div style="text-align:center;font-size:7pt;font-weight:bold;'
-                    'letter-spacing:0.3mm;white-space:nowrap;">'
+                    '<div style="text-align:center;font-size:8pt;font-weight:bold;'
+                    'letter-spacing:0.5mm;margin-top:1mm;">'
                     + lbl['label_code'] + '</div>'
                 )
-            return (
-                '<td style="width:' + str(LW) + 'mm;height:' + str(LH_Q) + 'mm;'
-                + CELL_STYLE +
-                'padding:2mm 1mm 1mm 1mm;vertical-align:middle;text-align:center;">'
+
+            top_cell = (
+                '<tr><td style="'
+                'height:' + str(QR_H) + 'mm;'
+                'padding:2mm 1mm 1mm 1mm;'
+                'vertical-align:middle;'
+                'text-align:center;'
+                'border-bottom:1.5px dashed #aaa;'
+                '">'
                 + qr_html + code_html +
-                '</td>'
+                '</td></tr>'
             )
 
-        def name_cell(lbl):
-            """Bottom label: product name + MRP centred."""
+            # ── Bottom cell: product name + MRP ──
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
-                    '<div style="font-size:6pt;margin-top:1.5mm;'
-                    'text-align:center;white-space:nowrap;">'
+                    '<div style="font-size:7pt;margin-top:2mm;text-align:center;">'
                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
-            return (
-                '<td style="width:' + str(LW) + 'mm;height:' + str(LH_N) + 'mm;'
-                + CELL_STYLE +
-                'padding:1.5mm 1mm;vertical-align:middle;text-align:center;">'
-                '<div style="font-size:7.5pt;font-weight:bold;text-transform:uppercase;'
-                'white-space:nowrap;">' + (lbl['name'] or '') + '</div>'
+
+            bot_cell = (
+                '<tr><td style="'
+                'height:' + str(BOT_H) + 'mm;'
+                'padding:2mm 1mm 1mm 1mm;'
+                'vertical-align:middle;'
+                'text-align:center;'
+                '">'
+                '<div style="font-size:8pt;font-weight:bold;'
+                'text-transform:uppercase;white-space:nowrap;">'
+                + (lbl['name'] or '') + '</div>'
                 + mrp_html +
-                '</td>'
+                '</td></tr>'
             )
 
-        def gap_col():
-            return '<td style="width:' + str(CGAP) + 'mm;border:none;padding:0;"></td>'
-
-        def spacer_row(height_mm, colspan=3):
             return (
-                '<tr><td colspan="' + str(colspan) + '" '
-                'style="height:' + str(height_mm) + 'mm;border:none;padding:0;"></td></tr>'
+                '<table style="'
+                'border-collapse:collapse;'
+                'width:' + str(LW) + 'mm;'
+                'border:1.5px solid #888;'
+                'border-radius:3mm;'
+                'background:white;'
+                'table-layout:fixed;">'
+                + top_cell + bot_cell +
+                '</table>'
             )
 
+        # ── Build row pairs ──────────────────────────────────────────────────
         rows_html = []
         i = 0
         while i < len(label_list):
@@ -160,47 +183,48 @@ class ProductLabelWizard(models.TransientModel):
             right = label_list[i + 1] if (i + 1) < len(label_list) else None
             i += 2
 
-            right_qr_td   = qr_cell(right)   if right else '<td style="width:' + str(LW) + 'mm;border:none;"></td>'
-            right_name_td = name_cell(right)  if right else '<td style="width:' + str(LW) + 'mm;border:none;"></td>'
-
-            # QR row
             rows_html.append(
                 '<tr>'
-                + qr_cell(left) + gap_col() + right_qr_td +
+                '<td style="width:' + str(LW) + 'mm;vertical-align:top;padding:0;">'
+                + one_label(left) + '</td>'
+                '<td style="width:' + str(COL_GAP) + 'mm;padding:0;border:none;"></td>'
+                '<td style="width:' + str(LW) + 'mm;vertical-align:top;padding:0;">'
+                + (one_label(right) if right else '') + '</td>'
                 '</tr>'
+                '<tr><td colspan="3" style="height:' + str(ROW_GAP) + 'mm;'
+                'border:none;padding:0;"></td></tr>'
             )
-            # Inner gap between QR label and Name label
-            rows_html.append(spacer_row(IGAP))
-            # Name row
-            rows_html.append(
-                '<tr>'
-                + name_cell(left) + gap_col() + right_name_td +
-                '</tr>'
-            )
-            # Gap before next product pair
-            rows_html.append(spacer_row(RGAP))
 
+        # ── Page height: exact fit to content ────────────────────────────────
         num_pairs = (len(label_list) + 1) // 2
-        page_h = num_pairs * (LH_Q + IGAP + LH_N + RGAP) + 6
-
-        lmargin = (PW - (2 * LW + CGAP)) // 2  # centre on roll = 10mm
+        page_h = 2 + num_pairs * (LH + ROW_GAP) + 2   # 2mm top + 2mm bottom margin
 
         html = (
             '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
             '<style>'
             '* { margin:0; padding:0; box-sizing:border-box; }'
-            'html,body { font-family:Arial,Helvetica,sans-serif; background:white; }'
+            'html, body {'
+            '  font-family: Arial, Helvetica, sans-serif;'
+            '  background: white;'
+            '  width: ' + str(PW) + 'mm;'
+            '}'
             '</style></head>'
             '<body>'
-            '<div style="margin-left:' + str(lmargin) + 'mm;padding-top:2mm;">'
-            '<table style="width:' + str(2 * LW + CGAP) + 'mm;'
-            'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
+            '<div style="padding-top:2mm;padding-left:' + str(L_MAR) + 'mm;">'
+            '<table style="'
+            'width:' + str(2 * LW + COL_GAP) + 'mm;'
+            'border-collapse:separate;'
+            'border-spacing:0;'
+            'table-layout:fixed;">'
             + ''.join(rows_html) +
-            '</table></div>'
+            '</table>'
+            '</div>'
             '</body></html>'
         )
 
         return html, PW, page_h
+
+    # ── Print action ──────────────────────────────────────────────────────────
 
     def action_print_labels(self):
         self.ensure_one()
@@ -223,16 +247,20 @@ class ProductLabelWizard(models.TransientModel):
 
             cmd = [
                 'wkhtmltopdf',
-                '--page-width',    str(page_w) + 'mm',
-                '--page-height',   str(page_h) + 'mm',
-                '--margin-top',    '2mm',
-                '--margin-bottom', '2mm',
-                '--margin-left',   '0',
-                '--margin-right',  '0',
+                # ── Page size: exactly the roll width × content height ──
+                '--page-width',     str(page_w) + 'mm',
+                '--page-height',    str(page_h) + 'mm',
+                # ── Zero margins (all spacing is in the HTML) ──
+                '--margin-top',     '0',
+                '--margin-bottom',  '0',
+                '--margin-left',    '0',
+                '--margin-right',   '0',
+                # ── Critical: prevent wkhtmltopdf from rescaling content ──
                 '--disable-smart-shrinking',
-                '--zoom', '1',
-                '--dpi', '203',
+                '--zoom',           '1',
+                '--dpi',            '203',
                 '--no-stop-slow-scripts',
+                '--encoding',       'UTF-8',
                 html_path,
                 pdf_path,
             ]
