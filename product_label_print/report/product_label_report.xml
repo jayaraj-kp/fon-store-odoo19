@@ -9,12 +9,6 @@
         <field name="page_height">30</field>
         <field name="page_width">150</field>
         <field name="orientation">Portrait</field>
-        <field name="top_margin">0</field>
-        <field name="bottom_margin">0</field>
-        <field name="left_margin">0</field>
-        <field name="right_margin">0</field>
-        <field name="header_line" eval="False"/>
-        <field name="header_spacing">0</field>
         <field name="dpi">203</field>
     </record>
 
