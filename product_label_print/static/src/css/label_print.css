@@ -1,0 +1,12 @@
+/* Product Label Print - Backend CSS */
+
+/* Make the wizard form look clean */
+.o_field_widget[name="product_tmpl_ids"] .o_field_many2many_tags,
+.o_field_widget[name="product_ids"] .o_field_many2many_tags {
+    min-height: 40px;
+}
+
+/* Highlight the print button */
+.o_form_view .oe_stat_button[name="action_print_labels"] {
+    background-color: #f8f9fa;
+}
