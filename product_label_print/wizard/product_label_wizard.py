@@ -185,6 +185,8 @@
 #         }
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+import base64
+import io
 
 
 class ProductLabelWizard(models.TransientModel):
@@ -204,6 +206,37 @@ class ProductLabelWizard(models.TransientModel):
     show_qr = fields.Boolean(string='Show QR Code', default=True)
     show_label_code = fields.Boolean(string='Show Label Code', default=True)
 
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _make_qr_base64(self, value):
+        """
+        Generate a QR code PNG and return it as a base64 string.
+        Uses the 'qrcode' library which is already installed by Odoo.
+        This avoids ANY network call from wkhtmltopdf (ProtocolUnknownError fix).
+        """
+        try:
+            import qrcode
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=4,
+                border=1,
+            )
+            qr.add_data(value or 'LABEL')
+            qr.make(fit=True)
+            img = qr.make_image(fill_color='black', back_color='white')
+            buf = io.BytesIO()
+            img.save(buf, format='PNG')
+            return base64.b64encode(buf.getvalue()).decode('ascii')
+        except ImportError:
+            # Fallback: 1x1 transparent PNG so label still prints without QR
+            return (
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
+                'YAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+            )
+
     def _get_products(self):
         products = self.env['product.product']
         if self.product_ids:
@@ -214,7 +247,7 @@ class ProductLabelWizard(models.TransientModel):
         return products
 
     def _get_label_list(self):
-        """Return a flat list of label dicts (one per copy × per product)."""
+        """Return a flat list of label dicts (one per copy x per product)."""
         products = self._get_products()
         label_list = []
         for product in products:
@@ -224,19 +257,22 @@ class ProductLabelWizard(models.TransientModel):
             mrp = int(tmpl.list_price or 0)
             qr_value = (product.barcode or product.default_code or
                         tmpl.name or str(product.id))
+            # Generate QR once per product variant (reused for all copies)
+            qr_b64 = self._make_qr_base64(qr_value)
             for _i in range(self.quantity):
                 label_list.append({
                     'name': tmpl.name or '',
                     'label_code': label_code,
                     'mrp': mrp,
                     'qr_value': qr_value or 'LABEL',
+                    'qr_b64': qr_b64,   # inline base64 PNG - no HTTP needed
                 })
         return label_list
 
     def _get_label_rows(self):
         """
-        Return the label list split into rows of `columns` items each.
-        Called from the QWeb template as: wizard._get_label_rows()
+        Split label list into rows of `columns` items each.
+        Called directly from the QWeb template: wizard._get_label_rows()
         """
         label_list = self._get_label_list()
         col_count = int(self.columns)
@@ -245,15 +281,18 @@ class ProductLabelWizard(models.TransientModel):
             rows.append(label_list[i:i + col_count])
         return rows
 
+    # ------------------------------------------------------------------
+    # Action
+    # ------------------------------------------------------------------
+
     def action_print_labels(self):
         """
-        Trigger Odoo's built-in QWeb PDF report.
-        Odoo handles wkhtmltopdf internally (with proper localhost access
-        for barcode/QR images) so the subprocess auth issue is avoided.
+        Render via Odoo's built-in QWeb PDF engine.
+        QR images are embedded as base64 data URIs so wkhtmltopdf
+        never makes a network request -> no more ProtocolUnknownError.
         """
         self.ensure_one()
-        products = self._get_products()
-        if not products:
+        if not self._get_products():
             raise UserError(_('Please select at least one product.'))
 
         return self.env.ref(
