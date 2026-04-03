@@ -18,23 +18,6 @@ class ProductLabelWizard(models.TransientModel):
     show_qr = fields.Boolean(string='Show QR Code', default=True)
     show_label_code = fields.Boolean(string='Show Label Code', default=True)
 
-    # ─────────────────────────────────────────────────────────────────
-    # Roll layout  (GP-1125T, 152mm roll, 3-column die-cut)
-    #
-    #  |←──── 40mm ────→|←──── 72mm (blank) ────→|←──── 40mm ────→|
-    #  ┌────────────────┐                          ┌────────────────┐
-    #  │   QR │ KC110  │         (empty)           │   QR │ KC110  │
-    #  ├────────────────┤                          ├────────────────┤
-    #  │ KEYCHAIN 110   │                          │ KEYCHAIN 110   │
-    #  │ MRP Rs  110    │                          │ MRP Rs  110    │
-    #  └────────────────┘                          └────────────────┘
-    #
-    # Tune these 3 values if labels are misaligned:
-    LW     = 40   # label width  (mm)
-    LH     = 30   # label height (mm)
-    GAP    = 72   # blank middle column (mm)  →  LW + GAP + LW must = 152
-    # ─────────────────────────────────────────────────────────────────
-
     def _make_qr_base64(self, value):
         try:
             import qrcode
@@ -85,110 +68,120 @@ class ProductLabelWizard(models.TransientModel):
                 })
         return label_list
 
-    def _one_label_html(self, lbl):
-        """HTML content for a single label cell."""
-        LH = self.LH
-        qr_size = LH - 12   # QR image size in mm
+    def _one_label_html(self, lbl, lw, lh):
+        """Return the inner HTML content for a single label cell."""
+        qr_size = lh - 12
 
+        # QR image
         qr_html = ''
         if self.show_qr:
             qr_html = (
-                '<img src="data:image/png;base64,{b64}" '
-                'style="width:{q}mm;height:{q}mm;display:block;flex-shrink:0;" alt=""/>'
-            ).format(b64=lbl['qr_b64'], q=qr_size)
+                '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
+                'style="width:' + str(qr_size) + 'mm;height:' + str(qr_size) + 'mm;'
+                'display:block;flex-shrink:0;" alt=""/>'
+            )
 
+        # Label code rotated vertically
         code_html = ''
         if self.show_label_code and lbl.get('label_code'):
             code_html = (
-                '<div style="'
-                'writing-mode:vertical-lr;'
-                'transform:rotate(180deg);'
-                'font-size:5pt;font-weight:bold;'
-                'white-space:nowrap;'
-                'margin-left:1mm;'
-                'flex-shrink:0;'
-                '">{c}</div>'
-            ).format(c=lbl['label_code'])
+                '<div style="writing-mode:vertical-lr;transform:rotate(180deg);'
+                'font-size:5pt;font-weight:bold;white-space:nowrap;'
+                'margin-left:1mm;flex-shrink:0;">'
+                + lbl['label_code'] +
+                '</div>'
+            )
 
+        # MRP line
         mrp_html = ''
         if self.show_mrp:
             mrp_html = (
                 '<div style="font-size:5pt;white-space:nowrap;margin-top:0.3mm;">'
-                'MRP Rs&nbsp;{m}'
+                'MRP Rs ' + str(lbl['mrp']) +
                 '</div>'
-            ).format(m=lbl['mrp'])
+            )
 
-        top_h   = LH - 10
-        bot_h   = 10
+        top_h = lh - 10
+        bot_h = 10
 
-        return (
-            # TOP: QR + label code side-by-side
-            '<div style="'
-            'display:flex;flex-direction:row;align-items:center;'
-            'height:{th}mm;padding:1mm 0.5mm 0 0.5mm;overflow:hidden;">'
-            '{qr}{code}'
+        # Top section: QR + label code
+        top_html = (
+            '<div style="display:flex;flex-direction:row;align-items:center;'
+            'height:' + str(top_h) + 'mm;padding:1mm 0.5mm 0 0.5mm;overflow:hidden;">'
+            + qr_html + code_html +
             '</div>'
-            # BOTTOM: product name + MRP
-            '<div style="'
-            'height:{bh}mm;padding:0.5mm 1mm;'
-            'border-top:0.5px solid #ccc;overflow:hidden;">'
-            '<div style="'
-            'font-size:5pt;font-weight:bold;text-transform:uppercase;'
-            'white-space:nowrap;overflow:hidden;line-height:1.3;">'
-            '{name}</div>'
-            '{mrp}'
-            '</div>'
-        ).format(
-            th=top_h, bh=bot_h,
-            qr=qr_html, code=code_html,
-            name=lbl['name'], mrp=mrp_html,
         )
 
-    def _build_html(self, label_list):
-        LW    = self.LW
-        LH    = self.LH
-        GAP   = self.GAP
-        RG    = 2       # row gap mm
-        PW    = 152     # full page width mm
+        # Bottom section: product name + MRP
+        bot_html = (
+            '<div style="height:' + str(bot_h) + 'mm;padding:0.5mm 1mm;'
+            'border-top:0.5px solid #ccc;overflow:hidden;">'
+            '<div style="font-size:5pt;font-weight:bold;text-transform:uppercase;'
+            'white-space:nowrap;overflow:hidden;line-height:1.3;">'
+            + (lbl['name'] or '') +
+            '</div>'
+            + mrp_html +
+            '</div>'
+        )
 
-        rows_html = []
+        return top_html + bot_html
+
+    def _build_html(self, label_list):
+        # ── Roll layout: 152mm wide, 3-column die-cut ──
+        # | Label (LW) | Blank (GAP) | Label (LW) |
+        # LW + GAP + LW = 152mm
+        LW   = 40    # label width mm   ← adjust if needed
+        LH   = 30    # label height mm  ← adjust if needed
+        GAP  = 72    # blank middle mm  ← LW + GAP + LW must = 152
+        RG   = 2     # row gap mm
+        PW   = 152   # page width mm (full roll)
+
+        rows = []
         i = 0
         while i < len(label_list):
             left  = label_list[i]
             right = label_list[i + 1] if (i + 1) < len(label_list) else None
             i += 2
 
-            left_content  = self._one_label_html(left)
-            right_content = self._one_label_html(right) if right else ''
-            right_border  = (
+            left_inner  = self._one_label_html(left, LW, LH)
+            right_inner = self._one_label_html(right, LW, LH) if right else ''
+
+            right_style = (
                 'border:1px solid #999;border-radius:2mm;'
                 if right else 'border:none;'
             )
 
-            rows_html.append(
-                # ── label row ──
+            # One <tr> = left label | blank gap | right label  (all horizontal)
+            row_html = (
                 '<tr>'
-                '<td style="width:{lw}mm;height:{lh}mm;'
+
+                # Left label cell
+                '<td style="width:' + str(LW) + 'mm;height:' + str(LH) + 'mm;'
                 'border:1px solid #999;border-radius:2mm;'
                 'padding:0;vertical-align:top;overflow:hidden;">'
-                '{lc}'
+                + left_inner +
                 '</td>'
-                '<td style="width:{gap}mm;height:{lh}mm;'
+
+                # Blank middle cell
+                '<td style="width:' + str(GAP) + 'mm;height:' + str(LH) + 'mm;'
                 'border:none;padding:0;"></td>'
-                '<td style="width:{lw}mm;height:{lh}mm;'
-                '{rb}padding:0;vertical-align:top;overflow:hidden;">'
-                '{rc}'
+
+                # Right label cell
+                '<td style="width:' + str(LW) + 'mm;height:' + str(LH) + 'mm;'
+                + right_style +
+                'padding:0;vertical-align:top;overflow:hidden;">'
+                + right_inner +
                 '</td>'
+
                 '</tr>'
-                # ── gap row ──
+
+                # Gap row between label rows
                 '<tr>'
-                '<td colspan="3" style="height:{rg}mm;'
+                '<td colspan="3" style="height:' + str(RG) + 'mm;'
                 'border:none;padding:0;"></td>'
                 '</tr>'
-            ).format(
-                lw=LW, lh=LH, gap=GAP, rg=RG,
-                lc=left_content, rc=right_content, rb=right_border,
             )
+            rows.append(row_html)
 
         num_pairs = (len(label_list) + 1) // 2
         page_h = (num_pairs * LH) + (num_pairs * RG)
@@ -197,17 +190,17 @@ class ProductLabelWizard(models.TransientModel):
             '<!DOCTYPE html>'
             '<html><head><meta charset="utf-8"/>'
             '<style>'
-            '* {{ margin:0; padding:0; box-sizing:border-box; }}'
-            'html, body {{ font-family:Arial,Helvetica,sans-serif; background:white; }}'
+            '* { margin:0; padding:0; box-sizing:border-box; }'
+            'html, body { font-family:Arial,Helvetica,sans-serif; background:white; }'
             '</style>'
             '</head>'
             '<body>'
-            '<table style="width:{pw}mm; border-collapse:separate; '
-            'border-spacing:0; table-layout:fixed;">'
-            '{rows}'
+            '<table style="width:' + str(PW) + 'mm;'
+            'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
+            + ''.join(rows) +
             '</table>'
             '</body></html>'
-        ).format(pw=PW, rows=''.join(rows_html))
+        )
 
         return html, PW, page_h
 
@@ -232,8 +225,8 @@ class ProductLabelWizard(models.TransientModel):
 
             cmd = [
                 'wkhtmltopdf',
-                '--page-width',    '{}mm'.format(page_w),
-                '--page-height',   '{}mm'.format(page_h),
+                '--page-width',    str(page_w) + 'mm',
+                '--page-height',   str(page_h) + 'mm',
                 '--margin-top',    '0',
                 '--margin-bottom', '0',
                 '--margin-left',   '0',
@@ -241,7 +234,6 @@ class ProductLabelWizard(models.TransientModel):
                 '--zoom', '1',
                 '--dpi', '203',
                 '--no-stop-slow-scripts',
-                '--disable-external-links',
                 html_path,
                 pdf_path,
             ]
@@ -276,7 +268,7 @@ class ProductLabelWizard(models.TransientModel):
 
         return {
             'type': 'ir.actions.act_url',
-            'url': '/web/content/{}?download=true'.format(attachment.id),
+            'url': '/web/content/' + str(attachment.id) + '?download=true',
             'target': 'new',
         }
 # from odoo import models, fields, api, _
