@@ -2,121 +2,125 @@
 <odoo>
 <template id="product_label_template">
     <t t-call="web.html_container">
+
         <style type="text/css">
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, Helvetica, sans-serif; background: white; }
+
+            body {
+                font-family: Arial, Helvetica, sans-serif;
+                background: white;
+            }
 
             table.sheet {
                 border-collapse: separate;
                 border-spacing: 0;
-                width: 132mm;       /* 65 + 2 + 65 */
+                width: 132mm;   /* 65 + 2 + 65 */
                 margin-left: 10mm;
                 table-layout: fixed;
             }
 
-            /* Shared label cell style */
             td.lbl {
                 border: 1.5px solid #999;
                 border-radius: 3mm;
                 background: white;
-                overflow: hidden;
-                vertical-align: middle;
+                width: 65mm;
+                height: 55mm;
+                padding: 2mm;
+                vertical-align: top;
                 text-align: center;
             }
 
-            /* QR label (top die-cut) */
-            td.lbl-qr {
-                width: 65mm;
-                height: 33mm;
-                padding: 2mm 1mm 1mm 1mm;
+            td.cgap {
+                width: 2mm;
+                border: none;
             }
+
+            tr.rgap td {
+                height: 4mm;
+                border: none;
+            }
+
             .qr-img {
                 width: 22mm;
                 height: 22mm;
                 display: block;
-                margin: 0 auto 1.5mm auto;
+                margin: 0 auto 1mm auto;
             }
+
             .lbl-code {
                 font-size: 7pt;
                 font-weight: bold;
                 letter-spacing: 0.3mm;
-                white-space: nowrap;
-                text-align: center;
+                margin-top: 1mm;
             }
 
-            /* Name label (bottom die-cut) */
-            td.lbl-name {
-                width: 65mm;
-                height: 20mm;
-                padding: 1.5mm 1mm;
-            }
             .prod-name {
                 font-size: 7.5pt;
                 font-weight: bold;
                 text-transform: uppercase;
+                margin-top: 3mm;
                 white-space: nowrap;
             }
+
             .prod-mrp {
                 font-size: 6pt;
                 margin-top: 1.5mm;
-                white-space: nowrap;
             }
 
-            /* Column gap */
-            td.cgap { width: 2mm; border: none; padding: 0; }
-
-            /* Spacer rows */
-            tr.igap td { height: 2mm; border: none; padding: 0; }   /* QR↔Name gap */
-            tr.rgap td { height: 4mm; border: none; padding: 0; }   /* product pair gap */
         </style>
 
         <t t-foreach="docs" t-as="wizard">
-            <table class="sheet" cellspacing="0" cellpadding="0">
+            <table class="sheet">
 
                 <t t-foreach="wizard._get_label_rows()" t-as="row">
 
-                    <!-- ── QR ROW ── -->
+                    <!-- ONE ROW = TWO PRODUCTS -->
                     <tr>
                         <t t-foreach="row" t-as="lbl">
-                            <td class="lbl lbl-qr">
+
+                            <td class="lbl">
+
+                                <!-- QR SECTION -->
                                 <t t-if="wizard.show_qr">
                                     <img class="qr-img"
                                          t-attf-src="data:image/png;base64,{{ lbl['qr_b64'] }}"
                                          alt="QR"/>
                                 </t>
+
+                                <!-- LABEL CODE -->
                                 <t t-if="wizard.show_label_code and lbl['label_code']">
                                     <div class="lbl-code">
                                         <t t-esc="lbl['label_code']"/>
                                     </div>
                                 </t>
-                            </td>
-                            <t t-if="lbl_index == 0"><td class="cgap"/></t>
-                        </t>
-                    </tr>
 
-                    <!-- ── inner gap between QR label and Name label ── -->
-                    <tr class="igap"><td colspan="3"/></tr>
-
-                    <!-- ── NAME ROW ── -->
-                    <tr>
-                        <t t-foreach="row" t-as="lbl">
-                            <td class="lbl lbl-name">
+                                <!-- PRODUCT NAME -->
                                 <div class="prod-name">
                                     <t t-esc="lbl['name']"/>
                                 </div>
+
+                                <!-- PRICE -->
                                 <t t-if="wizard.show_mrp">
                                     <div class="prod-mrp">
                                         MRP Rs. <t t-esc="lbl['mrp']"/>
                                     </div>
                                 </t>
+
                             </td>
-                            <t t-if="lbl_index == 0"><td class="cgap"/></t>
+
+                            <!-- GAP BETWEEN 2 LABELS -->
+                            <t t-if="lbl_index == 0">
+                                <td class="cgap"/>
+                            </t>
+
                         </t>
                     </tr>
 
-                    <!-- ── gap before next product pair ── -->
+                    <!-- GAP BETWEEN ROWS -->
                     <t t-if="not row_last">
-                        <tr class="rgap"><td colspan="3"/></tr>
+                        <tr class="rgap">
+                            <td colspan="3"></td>
+                        </tr>
                     </t>
 
                 </t>
@@ -127,137 +131,3 @@
     </t>
 </template>
 </odoo>
-
-<!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<odoo>-->
-<!--<template id="product_label_template">-->
-<!--    <t t-call="web.html_container">-->
-<!--        <style type="text/css">-->
-<!--            body {-->
-<!--                margin: 0;-->
-<!--                padding: 0;-->
-<!--                font-family: Arial, sans-serif;-->
-<!--                background: white;-->
-<!--            }-->
-<!--            table.label-sheet {-->
-<!--                border-collapse: collapse;-->
-<!--                width: 100%;-->
-<!--            }-->
-<!--            td.label-cell {-->
-<!--                border: 1px solid #888;-->
-<!--                border-radius: 4px;-->
-<!--                width: 73mm;-->
-<!--                height: 28mm;-->
-<!--                padding: 0;-->
-<!--                vertical-align: middle;-->
-<!--            }-->
-<!--            td.label-gap {-->
-<!--                width: 2mm;-->
-<!--                border: none;-->
-<!--                padding: 0;-->
-<!--            }-->
-<!--            tr.label-gap-row {-->
-<!--                height: 1mm;-->
-<!--            }-->
-<!--            table.label-inner {-->
-<!--                border-collapse: collapse;-->
-<!--                width: 100%;-->
-<!--                height: 28mm;-->
-<!--            }-->
-<!--            td.label-qr-cell {-->
-<!--                width: 26mm;-->
-<!--                text-align: center;-->
-<!--                vertical-align: middle;-->
-<!--                padding: 1mm;-->
-<!--            }-->
-<!--            td.label-code-cell {-->
-<!--                width: 6mm;-->
-<!--                text-align: center;-->
-<!--                vertical-align: middle;-->
-<!--                padding: 0;-->
-<!--            }-->
-<!--            .label-code-text {-->
-<!--                display: inline-block;-->
-<!--                writing-mode: vertical-rl;-->
-<!--                text-orientation: mixed;-->
-<!--                transform: rotate(180deg);-->
-<!--                font-size: 5pt;-->
-<!--                font-weight: bold;-->
-<!--                color: #000;-->
-<!--                white-space: nowrap;-->
-<!--            }-->
-<!--            td.label-info-cell {-->
-<!--                vertical-align: bottom;-->
-<!--                padding: 1mm 1mm 2mm 1mm;-->
-<!--            }-->
-<!--            .label-name {-->
-<!--                font-size: 6pt;-->
-<!--                font-weight: bold;-->
-<!--                text-transform: uppercase;-->
-<!--                color: #000;-->
-<!--                display: block;-->
-<!--                line-height: 1.3;-->
-<!--            }-->
-<!--            .label-mrp {-->
-<!--                font-size: 5.5pt;-->
-<!--                color: #000;-->
-<!--                display: block;-->
-<!--                margin-top: 1mm;-->
-<!--            }-->
-<!--        </style>-->
-
-<!--        <t t-foreach="docs" t-as="wizard">-->
-<!--            <table class="label-sheet" cellspacing="0" cellpadding="0">-->
-<!--                <t t-foreach="wizard._get_label_rows()" t-as="row">-->
-<!--                    <tr>-->
-<!--                        <t t-foreach="row" t-as="lbl">-->
-<!--                            <td class="label-cell">-->
-<!--                                <table class="label-inner" cellspacing="0" cellpadding="0">-->
-<!--                                    <tr>-->
-<!--                                        &lt;!&ndash; QR Code &ndash;&gt;-->
-<!--                                        <t t-if="wizard.show_qr">-->
-<!--                                            <td class="label-qr-cell">-->
-<!--                                                <img t-attf-src="/report/barcode/QR/{{ lbl['qr_value'] }}?width=70&amp;height=70"-->
-<!--                                                     style="width:24mm;height:24mm;display:block;margin:auto;"-->
-<!--                                                     alt="QR"/>-->
-<!--                                            </td>-->
-<!--                                        </t>-->
-<!--                                        &lt;!&ndash; Vertical label code &ndash;&gt;-->
-<!--                                        <t t-if="wizard.show_label_code and lbl['label_code']">-->
-<!--                                            <td class="label-code-cell">-->
-<!--                                                <span class="label-code-text">-->
-<!--                                                    <t t-esc="lbl['label_code']"/>-->
-<!--                                                </span>-->
-<!--                                            </td>-->
-<!--                                        </t>-->
-<!--                                        &lt;!&ndash; Product name + MRP &ndash;&gt;-->
-<!--                                        <td class="label-info-cell">-->
-<!--                                            <span class="label-name">-->
-<!--                                                <t t-esc="lbl['name']"/>-->
-<!--                                            </span>-->
-<!--                                            <t t-if="wizard.show_mrp">-->
-<!--                                                <span class="label-mrp">-->
-<!--                                                    MRP Rs&#160;&#160;<t t-esc="lbl['mrp']"/>-->
-<!--                                                </span>-->
-<!--                                            </t>-->
-<!--                                        </td>-->
-<!--                                    </tr>-->
-<!--                                </table>-->
-<!--                            </td>-->
-<!--                            &lt;!&ndash; Gap between labels &ndash;&gt;-->
-<!--                            <t t-if="not lbl_last">-->
-<!--                                <td class="label-gap"/>-->
-<!--                            </t>-->
-<!--                        </t>-->
-<!--                    </tr>-->
-<!--                    &lt;!&ndash; Row gap &ndash;&gt;-->
-<!--                    <t t-if="not row_last">-->
-<!--                        <tr class="label-gap-row"><td/></tr>-->
-<!--                    </t>-->
-<!--                </t>-->
-<!--            </table>-->
-<!--        </t>-->
-
-<!--    </t>-->
-<!--</template>-->
-<!--</odoo>-->
