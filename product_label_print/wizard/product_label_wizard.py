@@ -24,7 +24,7 @@ class ProductLabelWizard(models.TransientModel):
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=4,
+                box_size=6,
                 border=1,
             )
             qr.add_data(value or 'LABEL')
@@ -68,137 +68,135 @@ class ProductLabelWizard(models.TransientModel):
                 })
         return label_list
 
-    def _one_label_html(self, lbl, lw, lh):
-        """Return the inner HTML content for a single label cell."""
-        qr_size = lh - 12
-
-        # QR image
-        qr_html = ''
-        if self.show_qr:
-            qr_html = (
-                '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                'style="width:' + str(qr_size) + 'mm;height:' + str(qr_size) + 'mm;'
-                'display:block;flex-shrink:0;" alt=""/>'
-            )
-
-        # Label code rotated vertically
-        code_html = ''
-        if self.show_label_code and lbl.get('label_code'):
-            code_html = (
-                '<div style="writing-mode:vertical-lr;transform:rotate(180deg);'
-                'font-size:5pt;font-weight:bold;white-space:nowrap;'
-                'margin-left:1mm;flex-shrink:0;">'
-                + lbl['label_code'] +
-                '</div>'
-            )
-
-        # MRP line
-        mrp_html = ''
-        if self.show_mrp:
-            mrp_html = (
-                '<div style="font-size:5pt;white-space:nowrap;margin-top:0.3mm;">'
-                'MRP Rs ' + str(lbl['mrp']) +
-                '</div>'
-            )
-
-        top_h = lh - 10
-        bot_h = 10
-
-        # Top section: QR + label code
-        top_html = (
-            '<div style="display:flex;flex-direction:row;align-items:center;'
-            'height:' + str(top_h) + 'mm;padding:1mm 0.5mm 0 0.5mm;overflow:hidden;">'
-            + qr_html + code_html +
-            '</div>'
-        )
-
-        # Bottom section: product name + MRP
-        bot_html = (
-            '<div style="height:' + str(bot_h) + 'mm;padding:0.5mm 1mm;'
-            'border-top:0.5px solid #ccc;overflow:hidden;">'
-            '<div style="font-size:5pt;font-weight:bold;text-transform:uppercase;'
-            'white-space:nowrap;overflow:hidden;line-height:1.3;">'
-            + (lbl['name'] or '') +
-            '</div>'
-            + mrp_html +
-            '</div>'
-        )
-
-        return top_html + bot_html
-
     def _build_html(self, label_list):
-        # ── Roll layout: 152mm wide, 3-column die-cut ──
-        # | Label (LW) | Blank (GAP) | Label (LW) |
-        # LW + GAP + LW = 152mm
-        LW   = 40    # label width mm   ← adjust if needed
-        LH   = 30    # label height mm  ← adjust if needed
-        GAP  = 72    # blank middle mm  ← LW + GAP + LW must = 152
-        RG   = 2     # row gap mm
-        PW   = 152   # page width mm (full roll)
+        """
+        Physical die-cut roll layout — each product occupies TWO separate label cells:
 
-        rows = []
+          Row A  ┌──────────┐  ┌──────────┐   ← QR label (separate cut)
+                 │  [QR]    │  │  [QR]    │
+                 │  KC110   │  │  KC110   │
+                 └──────────┘  └──────────┘
+                 (small gap between cuts)
+          Row B  ┌──────────┐  ┌──────────┐   ← Name label (separate cut)
+                 │KEYCHAIN  │  │KEYCHAIN  │
+                 │MRP Rs.110│  │MRP Rs.110│
+                 └──────────┘  └──────────┘
+
+        Labels come in pairs of rows (QR row + Name row).
+        2 columns per row matching the physical die-cut positions on the roll.
+        """
+
+        LW    = 65    # label width mm
+        LH_Q  = 33    # QR label height mm
+        LH_N  = 20    # Name/MRP label height mm
+        QR_MM = 22    # QR image size mm
+        CGAP  = 2     # gap between left and right column mm
+        IGAP  = 2     # gap between QR label and Name label (inner gap) mm
+        RGAP  = 4     # gap between successive product pairs mm
+        PW    = 152   # roll width mm
+
+        # Cell style helpers
+        CELL_STYLE = (
+            'border:1.5px solid #999;border-radius:3mm;'
+            'background:white;overflow:hidden;'
+        )
+
+        def qr_cell(lbl):
+            """Top label: QR code centred + label code below."""
+            qr_html = ''
+            if self.show_qr:
+                qr_html = (
+                    '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
+                    'style="width:' + str(QR_MM) + 'mm;height:' + str(QR_MM) + 'mm;'
+                    'display:block;margin:0 auto 1.5mm auto;" alt=""/>'
+                )
+            code_html = ''
+            if self.show_label_code and lbl.get('label_code'):
+                code_html = (
+                    '<div style="text-align:center;font-size:7pt;font-weight:bold;'
+                    'letter-spacing:0.3mm;white-space:nowrap;">'
+                    + lbl['label_code'] + '</div>'
+                )
+            return (
+                '<td style="width:' + str(LW) + 'mm;height:' + str(LH_Q) + 'mm;'
+                + CELL_STYLE +
+                'padding:2mm 1mm 1mm 1mm;vertical-align:middle;text-align:center;">'
+                + qr_html + code_html +
+                '</td>'
+            )
+
+        def name_cell(lbl):
+            """Bottom label: product name + MRP centred."""
+            mrp_html = ''
+            if self.show_mrp:
+                mrp_html = (
+                    '<div style="font-size:6pt;margin-top:1.5mm;'
+                    'text-align:center;white-space:nowrap;">'
+                    'MRP Rs. ' + str(lbl['mrp']) + '</div>'
+                )
+            return (
+                '<td style="width:' + str(LW) + 'mm;height:' + str(LH_N) + 'mm;'
+                + CELL_STYLE +
+                'padding:1.5mm 1mm;vertical-align:middle;text-align:center;">'
+                '<div style="font-size:7.5pt;font-weight:bold;text-transform:uppercase;'
+                'white-space:nowrap;">' + (lbl['name'] or '') + '</div>'
+                + mrp_html +
+                '</td>'
+            )
+
+        def gap_col():
+            return '<td style="width:' + str(CGAP) + 'mm;border:none;padding:0;"></td>'
+
+        def spacer_row(height_mm, colspan=3):
+            return (
+                '<tr><td colspan="' + str(colspan) + '" '
+                'style="height:' + str(height_mm) + 'mm;border:none;padding:0;"></td></tr>'
+            )
+
+        rows_html = []
         i = 0
         while i < len(label_list):
             left  = label_list[i]
             right = label_list[i + 1] if (i + 1) < len(label_list) else None
             i += 2
 
-            left_inner  = self._one_label_html(left, LW, LH)
-            right_inner = self._one_label_html(right, LW, LH) if right else ''
+            right_qr_td   = qr_cell(right)   if right else '<td style="width:' + str(LW) + 'mm;border:none;"></td>'
+            right_name_td = name_cell(right)  if right else '<td style="width:' + str(LW) + 'mm;border:none;"></td>'
 
-            right_style = (
-                'border:1px solid #999;border-radius:2mm;'
-                if right else 'border:none;'
-            )
-
-            # One <tr> = left label | blank gap | right label  (all horizontal)
-            row_html = (
+            # QR row
+            rows_html.append(
                 '<tr>'
-
-                # Left label cell
-                '<td style="width:' + str(LW) + 'mm;height:' + str(LH) + 'mm;'
-                'border:1px solid #999;border-radius:2mm;'
-                'padding:0;vertical-align:top;overflow:hidden;">'
-                + left_inner +
-                '</td>'
-
-                # Blank middle cell
-                '<td style="width:' + str(GAP) + 'mm;height:' + str(LH) + 'mm;'
-                'border:none;padding:0;"></td>'
-
-                # Right label cell
-                '<td style="width:' + str(LW) + 'mm;height:' + str(LH) + 'mm;'
-                + right_style +
-                'padding:0;vertical-align:top;overflow:hidden;">'
-                + right_inner +
-                '</td>'
-
-                '</tr>'
-
-                # Gap row between label rows
-                '<tr>'
-                '<td colspan="3" style="height:' + str(RG) + 'mm;'
-                'border:none;padding:0;"></td>'
+                + qr_cell(left) + gap_col() + right_qr_td +
                 '</tr>'
             )
-            rows.append(row_html)
+            # Inner gap between QR label and Name label
+            rows_html.append(spacer_row(IGAP))
+            # Name row
+            rows_html.append(
+                '<tr>'
+                + name_cell(left) + gap_col() + right_name_td +
+                '</tr>'
+            )
+            # Gap before next product pair
+            rows_html.append(spacer_row(RGAP))
 
         num_pairs = (len(label_list) + 1) // 2
-        page_h = (num_pairs * LH) + (num_pairs * RG)
+        page_h = num_pairs * (LH_Q + IGAP + LH_N + RGAP) + 6
+
+        lmargin = (PW - (2 * LW + CGAP)) // 2  # centre on roll = 10mm
 
         html = (
-            '<!DOCTYPE html>'
-            '<html><head><meta charset="utf-8"/>'
+            '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
             '<style>'
             '* { margin:0; padding:0; box-sizing:border-box; }'
-            'html, body { font-family:Arial,Helvetica,sans-serif; background:white; }'
-            '</style>'
-            '</head>'
+            'html,body { font-family:Arial,Helvetica,sans-serif; background:white; }'
+            '</style></head>'
             '<body>'
-            '<table style="width:' + str(PW) + 'mm;'
+            '<div style="margin-left:' + str(lmargin) + 'mm;padding-top:2mm;">'
+            '<table style="width:' + str(2 * LW + CGAP) + 'mm;'
             'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
-            + ''.join(rows) +
-            '</table>'
+            + ''.join(rows_html) +
+            '</table></div>'
             '</body></html>'
         )
 
@@ -227,10 +225,11 @@ class ProductLabelWizard(models.TransientModel):
                 'wkhtmltopdf',
                 '--page-width',    str(page_w) + 'mm',
                 '--page-height',   str(page_h) + 'mm',
-                '--margin-top',    '0',
-                '--margin-bottom', '0',
+                '--margin-top',    '2mm',
+                '--margin-bottom', '2mm',
                 '--margin-left',   '0',
                 '--margin-right',  '0',
+                '--disable-smart-shrinking',
                 '--zoom', '1',
                 '--dpi', '203',
                 '--no-stop-slow-scripts',
