@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<!--
+    Label Template for GP-1125T Thermal Transfer Printer
+    Style matches Image 1:
+      - QR code top-left (rotated area)
+      - Label code (KC110) printed vertically beside QR
+      - Product name (KEYCHAIN 110) bold
+      - MRP Rs. PRICE below product name
+      - 2 labels per row
+-->
+<template id="product_label_template">
+    <t t-call="web.html_container">
+        <t t-set="col_count" t-value="docs._context.get('columns', 2) if hasattr(docs, '_context') else 2"/>
+        <t t-set="label_data" t-value="docs._context.get('label_data', []) if hasattr(docs, '_context') else []"/>
+        <t t-set="show_qr" t-value="docs._context.get('show_qr', True) if hasattr(docs, '_context') else True"/>
+        <t t-set="show_mrp" t-value="docs._context.get('show_mrp', True) if hasattr(docs, '_context') else True"/>
+        <t t-set="show_label_code" t-value="docs._context.get('show_label_code', True) if hasattr(docs, '_context') else True"/>
+        <t t-set="lw" t-value="docs._context.get('label_width_mm', 75) if hasattr(docs, '_context') else 75"/>
+        <t t-set="lh" t-value="docs._context.get('label_height_mm', 30) if hasattr(docs, '_context') else 30"/>
+
+        <!-- Also support data dict passed via report_action -->
+        <t t-if="data and data.get('label_data')">
+            <t t-set="label_data" t-value="data['label_data']"/>
+            <t t-set="col_count" t-value="data.get('columns', 2)"/>
+            <t t-set="show_qr" t-value="data.get('show_qr', True)"/>
+            <t t-set="show_mrp" t-value="data.get('show_mrp', True)"/>
+            <t t-set="show_label_code" t-value="data.get('show_label_code', True)"/>
+            <t t-set="lw" t-value="data.get('label_width_mm', 75)"/>
+            <t t-set="lh" t-value="data.get('label_height_mm', 30)"/>
+        </t>
+
+        <style>
+            /* Reset */
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+
+            body {
+                font-family: Arial, Helvetica, sans-serif;
+                background: #fff;
+            }
+
+            /* Page: full width of the label sheet */
+            .label-page {
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                align-items: flex-start;
+            }
+
+            /* Each individual label cell */
+            .label-cell {
+                display: inline-flex;
+                flex-direction: row;
+                align-items: stretch;
+                border: 0.5px solid #ccc;
+                border-radius: 3mm;
+                overflow: hidden;
+                page-break-inside: avoid;
+                background: #fff;
+            }
+
+            /* Left section: QR code + vertical label code */
+            .label-left {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                padding: 1mm;
+                gap: 0.5mm;
+                flex-shrink: 0;
+            }
+
+            .label-qr {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .label-qr img {
+                display: block;
+            }
+
+            /* Label code printed vertically (rotated) - matches KC110 in image */
+            .label-code-vertical {
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+                transform: rotate(180deg);
+                font-size: 5pt;
+                font-weight: bold;
+                letter-spacing: 0.5px;
+                color: #000;
+                white-space: nowrap;
+                line-height: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Right section: product name + MRP (empty middle space matches image) */
+            .label-right {
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+                padding: 1mm 1mm 1.5mm 1mm;
+                flex: 1;
+            }
+
+            .label-product-name {
+                font-size: 6pt;
+                font-weight: bold;
+                text-transform: uppercase;
+                color: #000;
+                letter-spacing: 0.3px;
+                line-height: 1.2;
+                word-break: break-word;
+            }
+
+            .label-mrp {
+                font-size: 5.5pt;
+                color: #000;
+                margin-top: 0.5mm;
+                letter-spacing: 0.2px;
+            }
+
+            .label-mrp span {
+                font-weight: normal;
+            }
+
+            /* Separator between label pairs in a row */
+            .label-separator {
+                width: 2mm;
+            }
+
+            /* Row wrapper */
+            .label-row {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                page-break-inside: avoid;
+                margin-bottom: 1mm;
+            }
+
+            /* Print optimizations */
+            @media print {
+                @page {
+                    margin: 0;
+                    padding: 0;
+                }
+                body { margin: 0; padding: 0; }
+                .label-cell { border-color: #aaa; }
+            }
+        </style>
+
+        <div class="label-page">
+            <!--
+                We chunk label_data into rows of col_count.
+                Python-side: we pass flat list; template groups them.
+            -->
+            <t t-set="labels" t-value="label_data"/>
+            <t t-set="total" t-value="len(labels)"/>
+            <t t-set="row_idx" t-value="0"/>
+
+            <t t-foreach="range(0, total, col_count)" t-as="row_start">
+                <div class="label-row">
+                    <t t-foreach="range(row_start, min(row_start + col_count, total))" t-as="col_idx">
+                        <t t-set="lbl" t-value="labels[col_idx]"/>
+                        <t t-set="cell_w_mm" t-value="lw"/>
+                        <t t-set="cell_h_mm" t-value="lh"/>
+                        <t t-set="qr_size_mm" t-value="cell_h_mm - 4"/>
+
+                        <!-- Label cell -->
+                        <div class="label-cell"
+                             t-attf-style="width:#{cell_w_mm}mm; height:#{cell_h_mm}mm; min-width:#{cell_w_mm}mm;">
+
+                            <!-- LEFT: QR + vertical code -->
+                            <div class="label-left"
+                                 t-attf-style="height:#{cell_h_mm}mm;">
+
+                                <!-- QR Code -->
+                                <t t-if="show_qr">
+                                    <div class="label-qr"
+                                         t-attf-style="width:#{qr_size_mm}mm; height:#{qr_size_mm}mm;">
+                                        <img t-attf-src="/report/barcode/QR/{{ lbl.get('qr_value', lbl.get('name','')) }}?width=#{qr_size_mm * 3}&amp;height=#{qr_size_mm * 3}"
+                                             t-attf-style="width:#{qr_size_mm}mm; height:#{qr_size_mm}mm;"
+                                             alt="QR"/>
+                                    </div>
+                                </t>
+
+                                <!-- Vertical label code (KC110) -->
+                                <t t-if="show_label_code and lbl.get('label_code')">
+                                    <div class="label-code-vertical"
+                                         t-attf-style="height:#{cell_h_mm - 2}mm;">
+                                        <t t-esc="lbl.get('label_code', '')"/>
+                                    </div>
+                                </t>
+                            </div>
+
+                            <!-- RIGHT: Name + MRP at bottom -->
+                            <div class="label-right">
+                                <div class="label-product-name">
+                                    <t t-esc="lbl.get('name', '')"/>
+                                </div>
+                                <t t-if="show_mrp">
+                                    <div class="label-mrp">
+                                        MRP Rs&#160;&#160;
+                                        <span><t t-esc="'%.0f' % (lbl.get('mrp', 0) or 0)"/></span>
+                                    </div>
+                                </t>
+                            </div>
+
+                        </div><!-- end label-cell -->
+
+                        <!-- Gap between labels in same row -->
+                        <t t-if="col_idx + 1 &lt; min(row_start + col_count, total)">
+                            <div class="label-separator"/>
+                        </t>
+
+                    </t><!-- end col loop -->
+                </div><!-- end label-row -->
+            </t><!-- end row loop -->
+        </div><!-- end label-page -->
+
+    </t>
+</template>
+</odoo>
