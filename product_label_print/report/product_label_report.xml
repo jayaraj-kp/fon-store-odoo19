@@ -1,15 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Custom paper format MUST be defined first before the report action references it -->
+    <!--
+        GP-1125T Label Roll — 152mm wide thermal roll.
+
+        Page width  = 152mm  (full roll width — NEVER change this)
+        Page height = dynamic (set by wkhtmltopdf in wizard, but a sensible
+                      default of 57mm covers 1 row of labels: 53mm + 4mm margin)
+
+        Orientation: Portrait  (width < height is not required; for roll
+                     printers "Portrait" simply means the page is taller
+                     than wide in the PDF — our page is 152 wide × 57+ tall,
+                     which is correct for a roll that feeds top-to-bottom)
+
+        ALL margins = 0  (spacing is controlled inside the HTML template)
+        DPI = 203        (GP-1125T native resolution)
+    -->
     <record id="paperformat_label_gp1125t" model="report.paperformat">
-        <field name="name">GP-1125T Label Sheet (150mm x 30mm)</field>
+        <field name="name">GP-1125T Label Roll (152mm)</field>
         <field name="default" eval="False"/>
         <field name="format">custom</field>
-        <field name="page_height">30</field>
-        <field name="page_width">150</field>
+        <field name="page_width">152</field>
+        <field name="page_height">57</field>
         <field name="orientation">Portrait</field>
+        <field name="margin_top">0</field>
+        <field name="margin_bottom">0</field>
+        <field name="margin_left">0</field>
+        <field name="margin_right">0</field>
         <field name="dpi">203</field>
+        <field name="disable_shrinking" eval="True"/>
     </record>
 
     <record id="action_product_label_report" model="ir.actions.report">
@@ -23,3 +42,30 @@
     </record>
 
 </odoo>
+
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+
+<!--    &lt;!&ndash; Custom paper format MUST be defined first before the report action references it &ndash;&gt;-->
+<!--    <record id="paperformat_label_gp1125t" model="report.paperformat">-->
+<!--        <field name="name">GP-1125T Label Sheet (150mm x 30mm)</field>-->
+<!--        <field name="default" eval="False"/>-->
+<!--        <field name="format">custom</field>-->
+<!--        <field name="page_height">30</field>-->
+<!--        <field name="page_width">150</field>-->
+<!--        <field name="orientation">Portrait</field>-->
+<!--        <field name="dpi">203</field>-->
+<!--    </record>-->
+
+<!--    <record id="action_product_label_report" model="ir.actions.report">-->
+<!--        <field name="name">Product Labels - GP1125T</field>-->
+<!--        <field name="model">product.label.wizard</field>-->
+<!--        <field name="report_type">qweb-pdf</field>-->
+<!--        <field name="report_name">product_label_print.product_label_template</field>-->
+<!--        <field name="report_file">product_label_print.product_label_template</field>-->
+<!--        <field name="print_report_name">'Product_Labels'</field>-->
+<!--        <field name="paperformat_id" ref="product_label_print.paperformat_label_gp1125t"/>-->
+<!--    </record>-->
+
+<!--</odoo>-->
