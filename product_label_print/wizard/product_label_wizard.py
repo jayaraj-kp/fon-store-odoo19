@@ -68,9 +68,6 @@ class ProductLabelWizard(models.TransientModel):
 
         self.label_data_json = json.dumps(label_list)
 
-        # Clear QWeb template cache so new template is used
-        self.env['ir.ui.view'].clear_caches()
-
         return self.env.ref(
             'product_label_print.action_product_label_report'
         ).report_action(self)
