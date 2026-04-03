@@ -15,8 +15,8 @@
                         icon="fa-tag"
                         string="Print Labels"/>
             </xpath>
-            <!-- Add Label Code field in General Information tab -->
-            <xpath expr="//field[@name='default_code']" position="after">
+            <!-- Add Label Code field after product name (safe location in all Odoo 19 product views) -->
+            <xpath expr="//field[@name='name']" position="after">
                 <field name="label_code"
                        placeholder="e.g. KC110"
                        help="Short code shown on printed label. If empty, uses internal reference."/>
