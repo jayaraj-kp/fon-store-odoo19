@@ -15,7 +15,7 @@ class ProductLabelWizard(models.TransientModel):
     product_ids = fields.Many2many('product.product', string='Product Variants')
     quantity = fields.Integer(string='Number of Labels per Product', default=1, required=True)
     label_width_mm = fields.Integer(string='Label Width (mm)', default=75)
-    label_height_mm = fields.Integer(string='Label Height (mm)', default=40)
+    label_height_mm = fields.Integer(string='Label Height (mm)', default=30)
     columns = fields.Selection(
         [('1', '1 Column'), ('2', '2 Columns')],
         string='Columns per Row', default='2', required=True,
@@ -25,11 +25,9 @@ class ProductLabelWizard(models.TransientModel):
     show_label_code = fields.Boolean(string='Show Label Code', default=True)
 
     # ------------------------------------------------------------------
-    # QR helper  (no network — purely in-process)
+    # QR helper
     # ------------------------------------------------------------------
-
     def _make_qr_base64(self, value):
-        """Return base64-encoded PNG of a QR code. Zero network calls."""
         try:
             import qrcode
             qr = qrcode.QRCode(
@@ -45,16 +43,14 @@ class ProductLabelWizard(models.TransientModel):
             img.save(buf, format='PNG')
             return base64.b64encode(buf.getvalue()).decode('ascii')
         except Exception:
-            # 1×1 white PNG fallback so the rest of the label still prints
             return (
                 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
                 'YAAAAAYAAjCB0C8AAAAASUVORK5CYII='
             )
 
     # ------------------------------------------------------------------
-    # Product / label helpers
+    # Product helpers
     # ------------------------------------------------------------------
-
     def _get_products(self):
         products = self.env['product.product']
         if self.product_ids:
@@ -87,107 +83,137 @@ class ProductLabelWizard(models.TransientModel):
     # ------------------------------------------------------------------
     # HTML builder
     #
-    # PORTRAIT layout per label cell (matches Image 3):
+    # Physical label stock: 75mm wide x 30mm tall each
+    # Roll total width: 152mm = 2 labels (75mm each) + 2mm gap
     #
-    #   ┌─────────────────────┐
-    #   │  [QR]  │ KC110      │   ← top half: QR left, label code right (rotated)
-    #   ├─────────────────────┤
-    #   │  PRODUCT NAME       │   ← bottom: product name
-    #   │  MRP Rs  110        │
-    #   └─────────────────────┘
+    # Layout per label:
     #
-    #   Two such cells side-by-side per row (2-column mode).
-    #   All images are inline base64 — wkhtmltopdf makes ZERO external requests.
+    #  ┌───────────────────────────────┐
+    #  │ [QR 19x19mm] │(space)│ KC110 │  ← top 20mm
+    #  ├───────────────────────────────┤
+    #  │ PRODUCT NAME                  │  ← bottom 10mm
+    #  │ MRP Rs  110                   │
+    #  └───────────────────────────────┘
+    #
     # ------------------------------------------------------------------
-
     def _build_label_html(self, label_list, col_count):
-        # Each label: 75 mm wide × 40 mm tall
-        # Gap between columns: 2 mm
-        # We size everything in mm using wkhtmltopdf's page size.
-
         css = """
         <style>
-            * { margin:0; padding:0; box-sizing:border-box; }
-            body { font-family:Arial,sans-serif; background:white; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            html, body {
+                font-family: Arial, Helvetica, sans-serif;
+                background: white;
+                width: 100%;
+            }
 
-            /* Outer sheet table */
-            table.sheet { border-collapse:separate; border-spacing:0; width:100%; }
-            td.gap  { width:2mm; border:none; padding:0; }
-            tr.rgap { height:1mm; }
+            table.sheet {
+                border-collapse: separate;
+                border-spacing: 0;
+                width: 100%;
+                table-layout: fixed;
+            }
 
-            /* Each label cell */
-            td.cell {
-                border: 1px solid #888;
-                border-radius: 3px;
-                width: 73mm;
-                height: 38mm;
+            td.col-gap {
+                width: 2mm;
+                border: none;
+                padding: 0;
+            }
+
+            tr.row-gap td {
+                height: 1mm;
+                border: none;
+                padding: 0;
+            }
+
+            /* Each label: exactly 75mm wide, 30mm tall */
+            td.label-cell {
+                width: 75mm;
+                height: 30mm;
+                border: 1px solid #999;
+                border-radius: 2mm;
                 padding: 0;
                 vertical-align: top;
                 overflow: hidden;
             }
 
-            /* Inner layout: stacked rows */
             table.inner {
+                width: 75mm;
+                height: 30mm;
                 border-collapse: collapse;
+                table-layout: fixed;
+            }
+
+            /* Top row: 20mm tall */
+            td.top-section {
+                width: 75mm;
+                height: 20mm;
+                padding: 0;
+                vertical-align: top;
+            }
+
+            table.top-inner {
                 width: 100%;
-                height: 38mm;
+                height: 20mm;
+                border-collapse: collapse;
+                table-layout: fixed;
             }
 
-            /* ── TOP ROW: QR  +  label-code (rotated, right side) ── */
-            tr.top-row { height: 26mm; }
-
-            td.qr-td {
-                width: 26mm;
+            td.qr-cell {
+                width: 20mm;
+                height: 20mm;
                 text-align: center;
                 vertical-align: middle;
-                padding: 1mm;
+                padding: 0.5mm;
             }
-            td.qr-td img {
-                width: 24mm;
-                height: 24mm;
-            }
-
-            /* Spacer: fills remaining width so code-td stays right */
-            td.spacer-td {
-                /* auto width */
-                vertical-align: middle;
+            td.qr-cell img {
+                width: 19mm;
+                height: 19mm;
+                display: block;
             }
 
-            td.code-td {
-                width: 7mm;
+            td.top-spacer {
+                /* fills remaining width */
+            }
+
+            td.code-cell {
+                width: 6mm;
+                height: 20mm;
                 text-align: center;
                 vertical-align: middle;
-                padding: 0 1mm;
+                padding: 0;
             }
-            .code-text {
+            .code-rotated {
                 display: inline-block;
-                writing-mode: vertical-rl;
+                writing-mode: vertical-lr;
                 transform: rotate(180deg);
-                font-size: 5.5pt;
+                font-size: 5pt;
                 font-weight: bold;
-                letter-spacing: 0.5pt;
+                letter-spacing: 0.3pt;
                 white-space: nowrap;
             }
 
-            /* ── BOTTOM ROW: product name + MRP ── */
-            tr.bottom-row { height: 12mm; }
-
-            td.info-td {
-                vertical-align: top;
+            /* Bottom row: 10mm tall */
+            td.bottom-section {
+                width: 75mm;
+                height: 10mm;
+                vertical-align: middle;
                 padding: 1mm 2mm;
-                /* spans all columns */
+                border-top: 0.3px solid #ccc;
             }
             .pname {
-                font-size: 6.5pt;
+                display: block;
+                font-size: 6pt;
                 font-weight: bold;
                 text-transform: uppercase;
-                display: block;
-                line-height: 1.35;
+                line-height: 1.3;
+                white-space: nowrap;
+                overflow: hidden;
             }
-            .mrp {
-                font-size: 6pt;
+            .mrp-line {
                 display: block;
-                margin-top: 0.5mm;
+                font-size: 5.5pt;
+                margin-top: 0.2mm;
+                white-space: nowrap;
             }
         </style>
         """
@@ -200,67 +226,61 @@ class ProductLabelWizard(models.TransientModel):
             cells = []
             for c_idx, lbl in enumerate(row):
 
-                # ── top row: QR | spacer | label-code ──
-                qr_td = ''
+                qr_html = ''
                 if self.show_qr:
-                    qr_td = (
-                        '<td class="qr-td">'
-                        '<img src="data:image/png;base64,{b64}" alt="QR"/>'
-                        '</td>'
-                    ).format(b64=lbl['qr_b64'])
+                    qr_html = '<img src="data:image/png;base64,{b64}" alt="QR"/>'.format(
+                        b64=lbl['qr_b64'])
 
-                code_td = ''
+                code_html = ''
                 if self.show_label_code and lbl.get('label_code'):
-                    code_td = (
-                        '<td class="code-td">'
-                        '<span class="code-text">{code}</span>'
+                    code_html = (
+                        '<td class="code-cell">'
+                        '<span class="code-rotated">{code}</span>'
                         '</td>'
                     ).format(code=lbl['label_code'])
 
-                top_row = (
-                    '<tr class="top-row">'
-                    '{qr}'
-                    '<td class="spacer-td"></td>'
-                    '{code}'
-                    '</tr>'
-                ).format(qr=qr_td, code=code_td)
-
-                # ── bottom row: name + MRP spanning all cols ──
                 mrp_html = ''
                 if self.show_mrp:
-                    mrp_html = (
-                        '<span class="mrp">MRP Rs&nbsp;&nbsp;{mrp}</span>'
-                    ).format(mrp=lbl['mrp'])
+                    mrp_html = '<span class="mrp-line">MRP Rs&nbsp;&nbsp;{mrp}</span>'.format(
+                        mrp=lbl['mrp'])
 
-                bottom_row = (
-                    '<tr class="bottom-row">'
-                    '<td class="info-td" colspan="3">'
-                    '<span class="pname">{name}</span>'
-                    '{mrp}'
+                cell = (
+                    '<td class="label-cell">'
+                      '<table class="inner">'
+                        '<tr>'
+                          '<td class="top-section">'
+                            '<table class="top-inner">'
+                              '<tr>'
+                                '<td class="qr-cell">{qr}</td>'
+                                '<td class="top-spacer"></td>'
+                                '{code}'
+                              '</tr>'
+                            '</table>'
+                          '</td>'
+                        '</tr>'
+                        '<tr>'
+                          '<td class="bottom-section">'
+                            '<span class="pname">{name}</span>'
+                            '{mrp}'
+                          '</td>'
+                        '</tr>'
+                      '</table>'
                     '</td>'
-                    '</tr>'
-                ).format(name=lbl['name'], mrp=mrp_html)
+                ).format(qr=qr_html, code=code_html, name=lbl['name'], mrp=mrp_html)
 
-                cell_html = (
-                    '<td class="cell">'
-                    '<table class="inner">'
-                    '{top}'
-                    '{bottom}'
-                    '</table>'
-                    '</td>'
-                ).format(top=top_row, bottom=bottom_row)
-
-                cells.append(cell_html)
+                cells.append(cell)
                 if c_idx < len(row) - 1:
-                    cells.append('<td class="gap"></td>')
+                    cells.append('<td class="col-gap"></td>')
 
             html_rows.append('<tr>{}</tr>'.format(''.join(cells)))
             if r_idx < len(rows) - 1:
-                html_rows.append('<tr class="rgap"><td></td></tr>')
+                html_rows.append(
+                    '<tr class="row-gap"><td colspan="{n}"></td></tr>'.format(
+                        n=(col_count * 2 - 1)))
 
         return (
-            '<!DOCTYPE html><html>'
-            '<head><meta charset="utf-8"/>{css}</head>'
+            '<!DOCTYPE html>'
+            '<html><head><meta charset="utf-8"/>{css}</head>'
             '<body><table class="sheet">{rows}</table></body>'
             '</html>'
         ).format(css=css, rows=''.join(html_rows))
@@ -268,7 +288,6 @@ class ProductLabelWizard(models.TransientModel):
     # ------------------------------------------------------------------
     # Action
     # ------------------------------------------------------------------
-
     def action_print_labels(self):
         self.ensure_one()
         products = self._get_products()
@@ -279,11 +298,14 @@ class ProductLabelWizard(models.TransientModel):
         label_list = self._get_label_list()
         num_rows = (len(label_list) + col_count - 1) // col_count
 
-        # Page dimensions (portrait labels):
-        #   width  = col_count × 75mm + (col_count-1) × 2mm gap
-        #   height = num_rows  × 40mm + (num_rows-1)  × 1mm gap
-        page_w = (col_count * 75) + ((col_count - 1) * 2)
-        page_h = (num_rows * 40) + max(0, (num_rows - 1) * 1)
+        # GP-1125T roll is exactly 152mm wide = 2 x 75mm labels + 2mm gap
+        # Height = rows x 30mm + row-gaps x 1mm
+        if col_count == 2:
+            page_w = 152
+        else:
+            page_w = 76   # 75mm label + 1mm breathing room
+
+        page_h = (num_rows * 30) + max(0, (num_rows - 1) * 1)
 
         html_content = self._build_label_html(label_list, col_count)
 
@@ -299,14 +321,15 @@ class ProductLabelWizard(models.TransientModel):
 
             cmd = [
                 'wkhtmltopdf',
-                '--page-width',  '{}mm'.format(page_w),
-                '--page-height', '{}mm'.format(page_h),
-                '--margin-top',    '0mm',
-                '--margin-bottom', '0mm',
-                '--margin-left',   '0mm',
-                '--margin-right',  '0mm',
+                '--page-width',    '{}mm'.format(page_w),
+                '--page-height',   '{}mm'.format(page_h),
+                '--margin-top',    '0',
+                '--margin-bottom', '0',
+                '--margin-left',   '0',
+                '--margin-right',  '0',
                 '--disable-smart-shrinking',
                 '--zoom', '1',
+                '--dpi', '203',
                 '--no-stop-slow-scripts',
                 '--disable-external-links',
                 html_path,
