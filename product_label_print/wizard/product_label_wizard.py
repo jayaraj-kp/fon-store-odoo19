@@ -1,3 +1,4 @@
+#
 # from odoo import models, fields, api, _
 # from odoo.exceptions import UserError
 # import base64
@@ -106,10 +107,10 @@
 #         BOT_H   = 28    # bottom cell height (name/MRP)
 #         LH      = QR_H + BOT_H   # 53mm total per label
 #         QR_SIZE = 24    # QR image size
-#         COL_GAP = 4     # gap between 2 label columns
+#         COL_GAP = 55  # gap between 2 label columns
 #         ROW_GAP = 4     # gap between label rows
-#         L_MAR   = (152 - (2 * LW + COL_GAP)) // 2   # = 9mm each side
-#         PW      = 152   # page/roll width mm
+#         L_MAR   = 5     # fixed left margin
+#         PW      = 160   # page/roll width mm (wider to fit the gap)
 #
 #         def one_label(lbl):
 #             # ── Top cell: QR image + label code below it ──
@@ -406,27 +407,35 @@ class ProductLabelWizard(models.TransientModel):
         BOT_H   = 28    # bottom cell height (name/MRP)
         LH      = QR_H + BOT_H   # 53mm total per label
         QR_SIZE = 24    # QR image size
-        COL_GAP = 55  # gap between 2 label columns
+        COL_GAP = 57    # gap between 2 label columns
         ROW_GAP = 4     # gap between label rows
         L_MAR   = 5     # fixed left margin
         PW      = 160   # page/roll width mm (wider to fit the gap)
 
         def one_label(lbl):
-            # ── Top cell: QR image + label code below it ──
+            # ── Top cell: QR image with label code vertically on right side ──
             qr_html = ''
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
                     'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
-                    'display:block;margin:0 auto 1mm auto;" alt=""/>'
+                    'display:block;" alt=""/>'
                 )
 
             code_html = ''
             if self.show_label_code and lbl.get('label_code'):
                 code_html = (
-                    '<div style="text-align:center;font-size:8pt;font-weight:bold;'
-                    'letter-spacing:0.5mm;margin-top:1mm;">'
-                    + lbl['label_code'] + '</div>'
+                    '<td style="vertical-align:middle;padding-left:1.5mm;">'
+                    '<div style="'
+                    'writing-mode:vertical-rl;'
+                    'text-orientation:mixed;'
+                    'transform:rotate(180deg);'
+                    'font-size:8pt;font-weight:bold;'
+                    'letter-spacing:0.8mm;'
+                    'white-space:nowrap;">'
+                    + lbl['label_code'] +
+                    '</div>'
+                    '</td>'
                 )
 
             top_cell = (
@@ -437,7 +446,10 @@ class ProductLabelWizard(models.TransientModel):
                 'text-align:center;'
                 'border-bottom:1.5px dashed #aaa;'
                 '">'
-                + qr_html + code_html +
+                '<table style="border-collapse:collapse;margin:0 auto;"><tr>'
+                '<td style="vertical-align:middle;">' + qr_html + '</td>'
+                + code_html +
+                '</tr></table>'
                 '</td></tr>'
             )
 
