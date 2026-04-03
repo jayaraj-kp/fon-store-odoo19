@@ -26,29 +26,29 @@
                             <field name="show_mrp"/>
                         </group>
                     </group>
-                    <group string="Paper / Printer Settings (GP-1125T)">
-                        <group>
-                            <field name="label_width_mm"/>
-                            <field name="label_height_mm"/>
-                        </group>
-                        <group>
-                            <div class="text-muted" colspan="2">
-                                <p>GP-1125T specs: 203 DPI | Paper width: 20–120 mm | USB/Serial/Ethernet</p>
-                                <p>Recommended label: 75mm × 30mm (2 columns) or 50mm × 30mm (1 column)</p>
-                            </div>
-                        </group>
+                    <group string="Direct Print — GP-1125T (Windows PC)">
+                        <field name="print_server_url"
+                               placeholder="http://192.168.1.50:8899/print"/>
+                        <div class="text-muted" colspan="2">
+                            <p>Run <b>windows_print_server.py</b> on the Windows PC connected
+                               to the GP-1125T. Enter its IP address above, then click
+                               <b>Print Directly</b>.</p>
+                        </div>
                     </group>
                 </sheet>
                 <footer>
+                    <!-- Direct print to GP-1125T -->
+                    <button name="action_direct_print" type="object"
+                            string="🖨 Print Directly" class="btn-primary"/>
+                    <!-- Download PDF (fallback) -->
                     <button name="action_print_labels" type="object"
-                            string="Print Labels" class="btn-primary"/>
+                            string="⬇ Download PDF" class="btn-secondary"/>
                     <button string="Cancel" class="btn-secondary" special="cancel"/>
                 </footer>
             </form>
         </field>
     </record>
 
-    <!-- Action to open wizard standalone (from menu) -->
     <record id="action_product_label_wizard" model="ir.actions.act_window">
         <field name="name">Print Product Labels</field>
         <field name="res_model">product.label.wizard</field>
@@ -56,7 +56,6 @@
         <field name="target">new</field>
     </record>
 
-    <!-- Menu item under Inventory > Operations -->
     <menuitem id="menu_product_label_print"
               name="Print Product Labels"
               parent="stock.menu_stock_warehouse_mgmt"
@@ -64,3 +63,70 @@
               sequence="50"/>
 
 </odoo>
+<!--below code is working-->
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+
+<!--    <record id="product_label_wizard_view_form" model="ir.ui.view">-->
+<!--        <field name="name">product.label.wizard.form</field>-->
+<!--        <field name="model">product.label.wizard</field>-->
+<!--        <field name="arch" type="xml">-->
+<!--            <form string="Print Product Labels">-->
+<!--                <sheet>-->
+<!--                    <group string="Products">-->
+<!--                        <field name="product_tmpl_ids" widget="many2many_tags"-->
+<!--                               options="{'no_create': True}"-->
+<!--                               placeholder="Select product templates..."/>-->
+<!--                        <field name="product_ids" widget="many2many_tags"-->
+<!--                               options="{'no_create': True}"-->
+<!--                               placeholder="Or select product variants..."/>-->
+<!--                    </group>-->
+<!--                    <group string="Label Settings">-->
+<!--                        <group>-->
+<!--                            <field name="quantity"/>-->
+<!--                            <field name="columns" widget="radio" options="{'horizontal': true}"/>-->
+<!--                        </group>-->
+<!--                        <group>-->
+<!--                            <field name="show_qr"/>-->
+<!--                            <field name="show_label_code"/>-->
+<!--                            <field name="show_mrp"/>-->
+<!--                        </group>-->
+<!--                    </group>-->
+<!--                    <group string="Paper / Printer Settings (GP-1125T)">-->
+<!--                        <group>-->
+<!--                            <field name="label_width_mm"/>-->
+<!--                            <field name="label_height_mm"/>-->
+<!--                        </group>-->
+<!--                        <group>-->
+<!--                            <div class="text-muted" colspan="2">-->
+<!--                                <p>GP-1125T specs: 203 DPI | Paper width: 20–120 mm | USB/Serial/Ethernet</p>-->
+<!--                                <p>Recommended label: 75mm × 30mm (2 columns) or 50mm × 30mm (1 column)</p>-->
+<!--                            </div>-->
+<!--                        </group>-->
+<!--                    </group>-->
+<!--                </sheet>-->
+<!--                <footer>-->
+<!--                    <button name="action_print_labels" type="object"-->
+<!--                            string="Print Labels" class="btn-primary"/>-->
+<!--                    <button string="Cancel" class="btn-secondary" special="cancel"/>-->
+<!--                </footer>-->
+<!--            </form>-->
+<!--        </field>-->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; Action to open wizard standalone (from menu) &ndash;&gt;-->
+<!--    <record id="action_product_label_wizard" model="ir.actions.act_window">-->
+<!--        <field name="name">Print Product Labels</field>-->
+<!--        <field name="res_model">product.label.wizard</field>-->
+<!--        <field name="view_mode">form</field>-->
+<!--        <field name="target">new</field>-->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; Menu item under Inventory > Operations &ndash;&gt;-->
+<!--    <menuitem id="menu_product_label_print"-->
+<!--              name="Print Product Labels"-->
+<!--              parent="stock.menu_stock_warehouse_mgmt"-->
+<!--              action="action_product_label_wizard"-->
+<!--              sequence="50"/>-->
+
+<!--</odoo>-->
