@@ -18,28 +18,22 @@ class ProductLabelWizard(models.TransientModel):
     show_qr = fields.Boolean(string='Show QR Code', default=True)
     show_label_code = fields.Boolean(string='Show Label Code', default=True)
 
-    # ------------------------------------------------------------------
-    # GP-1125T roll: 152mm wide, 3 die-cut columns
+    # ─────────────────────────────────────────────────────────────────
+    # Roll layout  (GP-1125T, 152mm roll, 3-column die-cut)
     #
-    #  ←────────────── 152mm ──────────────→
-    #  ┌──────────┐  ┌──────────┐  ┌──────────┐
-    #  │  LABEL A │  │  (blank) │  │  LABEL B │   row 1
-    #  └──────────┘  └──────────┘  └──────────┘
-    #  ┌──────────┐  ┌──────────┐  ┌──────────┐
-    #  │  LABEL C │  │  (blank) │  │  LABEL D │   row 2
-    #  └──────────┘  └──────────┘  └──────────┘
+    #  |←──── 40mm ────→|←──── 72mm (blank) ────→|←──── 40mm ────→|
+    #  ┌────────────────┐                          ┌────────────────┐
+    #  │   QR │ KC110  │         (empty)           │   QR │ KC110  │
+    #  ├────────────────┤                          ├────────────────┤
+    #  │ KEYCHAIN 110   │                          │ KEYCHAIN 110   │
+    #  │ MRP Rs  110    │                          │ MRP Rs  110    │
+    #  └────────────────┘                          └────────────────┘
     #
-    # Each label cell : ~38mm wide × 25mm tall
-    # Gap between cols: ~19mm (the blank middle column)
-    # Total            : 38 + 19 + 38 + gaps ≈ 152mm
-    # ------------------------------------------------------------------
-
-    # Tweak these if labels are still misaligned after first print
-    LW  = 38    # label width  mm
-    LH  = 25    # label height mm
-    GAP = 19    # blank middle column width mm
-    # page width = LW + GAP + LW + 2*small_margin ≈ 152
-    # page height auto-calculated from number of rows
+    # Tune these 3 values if labels are misaligned:
+    LW     = 40   # label width  (mm)
+    LH     = 30   # label height (mm)
+    GAP    = 72   # blank middle column (mm)  →  LW + GAP + LW must = 152
+    # ─────────────────────────────────────────────────────────────────
 
     def _make_qr_base64(self, value):
         try:
@@ -91,20 +85,17 @@ class ProductLabelWizard(models.TransientModel):
                 })
         return label_list
 
-    def _label_td(self, lbl):
-        """Return a <td> containing one label cell."""
-        LW = self.LW
+    def _one_label_html(self, lbl):
+        """HTML content for a single label cell."""
         LH = self.LH
-
-        # QR image size: leave 1mm padding each side inside 15mm area
-        QR = LH - 4   # use most of the height for QR
+        qr_size = LH - 12   # QR image size in mm
 
         qr_html = ''
         if self.show_qr:
             qr_html = (
                 '<img src="data:image/png;base64,{b64}" '
-                'style="width:{q}mm;height:{q}mm;display:block;" alt=""/>'
-            ).format(b64=lbl['qr_b64'], q=QR)
+                'style="width:{q}mm;height:{q}mm;display:block;flex-shrink:0;" alt=""/>'
+            ).format(b64=lbl['qr_b64'], q=qr_size)
 
         code_html = ''
         if self.show_label_code and lbl.get('label_code'):
@@ -112,39 +103,39 @@ class ProductLabelWizard(models.TransientModel):
                 '<div style="'
                 'writing-mode:vertical-lr;'
                 'transform:rotate(180deg);'
-                'font-size:4.5pt;font-weight:bold;'
-                'white-space:nowrap;line-height:1;'
-                'margin-left:0.5mm;'
+                'font-size:5pt;font-weight:bold;'
+                'white-space:nowrap;'
+                'margin-left:1mm;'
+                'flex-shrink:0;'
                 '">{c}</div>'
             ).format(c=lbl['label_code'])
 
         mrp_html = ''
         if self.show_mrp:
             mrp_html = (
-                '<div style="font-size:4.5pt;margin-top:0.3mm;white-space:nowrap;">'
-                'MRP Rs&nbsp;{m}</div>'
+                '<div style="font-size:5pt;white-space:nowrap;margin-top:0.3mm;">'
+                'MRP Rs&nbsp;{m}'
+                '</div>'
             ).format(m=lbl['mrp'])
 
-        # Inner layout:
-        # Top area  : QR (left) + label-code (right, rotated)
-        # Bottom area: product name + MRP
-        top_h  = LH - 8
-        bot_h  = 8
+        top_h   = LH - 10
+        bot_h   = 10
 
-        inner = (
-            # top: QR + code side by side
+        return (
+            # TOP: QR + label code side-by-side
             '<div style="'
             'display:flex;flex-direction:row;align-items:center;'
-            'height:{th}mm;overflow:hidden;padding:0.5mm 0.5mm 0 0.5mm;">'
+            'height:{th}mm;padding:1mm 0.5mm 0 0.5mm;overflow:hidden;">'
             '{qr}{code}'
             '</div>'
-            # bottom: name + mrp
+            # BOTTOM: product name + MRP
             '<div style="'
-            'height:{bh}mm;padding:0 1mm 0.5mm 1mm;'
-            'border-top:0.3px solid #ddd;overflow:hidden;'
-            'display:flex;flex-direction:column;justify-content:center;">'
-            '<div style="font-size:5pt;font-weight:bold;text-transform:uppercase;'
-            'white-space:nowrap;overflow:hidden;line-height:1.2;">{name}</div>'
+            'height:{bh}mm;padding:0.5mm 1mm;'
+            'border-top:0.5px solid #ccc;overflow:hidden;">'
+            '<div style="'
+            'font-size:5pt;font-weight:bold;text-transform:uppercase;'
+            'white-space:nowrap;overflow:hidden;line-height:1.3;">'
+            '{name}</div>'
             '{mrp}'
             '</div>'
         ).format(
@@ -153,83 +144,72 @@ class ProductLabelWizard(models.TransientModel):
             name=lbl['name'], mrp=mrp_html,
         )
 
-        return (
-            '<td style="'
-            'width:{lw}mm;height:{lh}mm;'
-            'border:1px solid #aaa;border-radius:1.5mm;'
-            'padding:0;vertical-align:top;overflow:hidden;'
-            '">{inner}</td>'
-        ).format(lw=LW, lh=LH, inner=inner)
-
-    def _blank_td(self, w, h):
-        """Return a blank spacer <td> — no border, no content."""
-        return (
-            '<td style="width:{w}mm;height:{h}mm;'
-            'border:none;padding:0;"></td>'
-        ).format(w=w, h=h)
-
     def _build_html(self, label_list):
-        LW  = self.LW
-        LH  = self.LH
-        GAP = self.GAP
-        ROW_GAP = 2   # mm between rows
+        LW    = self.LW
+        LH    = self.LH
+        GAP   = self.GAP
+        RG    = 2       # row gap mm
+        PW    = 152     # full page width mm
 
-        # Pair labels: [0,1] → row1 left+right, [2,3] → row2, ...
-        pairs = []
+        rows_html = []
         i = 0
         while i < len(label_list):
             left  = label_list[i]
             right = label_list[i + 1] if (i + 1) < len(label_list) else None
-            pairs.append((left, right))
             i += 2
 
-        rows_html = []
-        for left, right in pairs:
-            left_td  = self._label_td(left)
-            blank_td = self._blank_td(GAP, LH)
-            if right:
-                right_td = self._label_td(right)
-            else:
-                # empty placeholder with same dimensions but no border
-                right_td = (
-                    '<td style="width:{lw}mm;height:{lh}mm;'
-                    'border:none;padding:0;"></td>'
-                ).format(lw=LW, lh=LH)
-
-            rows_html.append(
-                '<tr>{left}{blank}{right}</tr>'.format(
-                    left=left_td, blank=blank_td, right=right_td)
-            )
-            # row gap
-            rows_html.append(
-                '<tr><td colspan="3" style="height:{g}mm;'
-                'border:none;padding:0;"></td></tr>'.format(g=ROW_GAP)
+            left_content  = self._one_label_html(left)
+            right_content = self._one_label_html(right) if right else ''
+            right_border  = (
+                'border:1px solid #999;border-radius:2mm;'
+                if right else 'border:none;'
             )
 
-        num_rows = len(pairs)
-        page_h = (num_rows * LH) + max(0, (num_rows - 1) * ROW_GAP)
-        page_w = LW + GAP + LW   # = 38+19+38 = 95 ... but roll is 152mm
-        # The roll is 152mm; extra space is the liner/backing on each side
-        # Use full 152mm so PDF aligns with roll
-        page_w = 152
+            rows_html.append(
+                # ── label row ──
+                '<tr>'
+                '<td style="width:{lw}mm;height:{lh}mm;'
+                'border:1px solid #999;border-radius:2mm;'
+                'padding:0;vertical-align:top;overflow:hidden;">'
+                '{lc}'
+                '</td>'
+                '<td style="width:{gap}mm;height:{lh}mm;'
+                'border:none;padding:0;"></td>'
+                '<td style="width:{lw}mm;height:{lh}mm;'
+                '{rb}padding:0;vertical-align:top;overflow:hidden;">'
+                '{rc}'
+                '</td>'
+                '</tr>'
+                # ── gap row ──
+                '<tr>'
+                '<td colspan="3" style="height:{rg}mm;'
+                'border:none;padding:0;"></td>'
+                '</tr>'
+            ).format(
+                lw=LW, lh=LH, gap=GAP, rg=RG,
+                lc=left_content, rc=right_content, rb=right_border,
+            )
+
+        num_pairs = (len(label_list) + 1) // 2
+        page_h = (num_pairs * LH) + (num_pairs * RG)
 
         html = (
             '<!DOCTYPE html>'
             '<html><head><meta charset="utf-8"/>'
             '<style>'
-            '* {{ margin:0;padding:0;box-sizing:border-box; }}'
-            'html,body {{ font-family:Arial,sans-serif;background:white; }}'
-            'table {{ border-collapse:separate;border-spacing:0; }}'
+            '* {{ margin:0; padding:0; box-sizing:border-box; }}'
+            'html, body {{ font-family:Arial,Helvetica,sans-serif; background:white; }}'
             '</style>'
             '</head>'
             '<body>'
-            '<table style="width:{pw}mm;table-layout:fixed;">'
+            '<table style="width:{pw}mm; border-collapse:separate; '
+            'border-spacing:0; table-layout:fixed;">'
             '{rows}'
             '</table>'
             '</body></html>'
-        ).format(pw=page_w, rows=''.join(rows_html))
+        ).format(pw=PW, rows=''.join(rows_html))
 
-        return html, page_w, page_h
+        return html, PW, page_h
 
     def action_print_labels(self):
         self.ensure_one()
@@ -258,7 +238,6 @@ class ProductLabelWizard(models.TransientModel):
                 '--margin-bottom', '0',
                 '--margin-left',   '0',
                 '--margin-right',  '0',
-                '--disable-smart-shrinking',
                 '--zoom', '1',
                 '--dpi', '203',
                 '--no-stop-slow-scripts',
