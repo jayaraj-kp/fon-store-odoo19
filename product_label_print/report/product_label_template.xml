@@ -67,68 +67,59 @@
                 color: #000;
                 margin-top: 1mm;
             }
-            .label-gap { width: 2mm; flex-shrink: 0; }
+            .label-gap { width: 2mm; flex-shrink: 0; display: inline-block; }
             @media print {
                 @page { margin: 0; }
                 body { margin: 0; }
             }
         </style>
 
-        <!-- Loop over each wizard record (usually just one) -->
         <t t-foreach="docs" t-as="wizard">
-            <t t-set="labels" t-value="wizard._parse_label_data()"/>
-            <t t-set="col_count" t-value="int(wizard.columns)"/>
-            <t t-set="show_qr" t-value="wizard.show_qr"/>
-            <t t-set="show_mrp" t-value="wizard.show_mrp"/>
-            <t t-set="show_label_code" t-value="wizard.show_label_code"/>
-            <t t-set="total" t-value="len(labels)"/>
-
+            <!-- _get_label_rows() returns a list of rows; each row is a list of label dicts -->
             <div class="label-page">
-                <t t-set="row_index" t-value="0"/>
-                <t t-foreach="labels" t-as="lbl">
-                    <!-- Open a new row every col_count labels -->
-                    <t t-if="lbl_index % col_count == 0">
-                        <div class="label-row">
-                    </t>
+                <t t-foreach="wizard._get_label_rows()" t-as="row">
+                    <div class="label-row">
+                        <t t-foreach="row" t-as="lbl">
 
-                    <div class="label-cell">
-                        <div class="label-left">
-                            <t t-if="show_qr">
-                                <div class="label-qr">
-                                    <img t-attf-src="/report/barcode/QR/{{ lbl['qr_value'] }}?width=72&amp;height=72"
-                                         alt="QR"/>
+                            <div class="label-cell">
+                                <!-- LEFT: QR code + vertical label code -->
+                                <div class="label-left">
+                                    <t t-if="wizard.show_qr">
+                                        <div class="label-qr">
+                                            <img t-attf-src="/report/barcode/QR/{{ lbl['qr_value'] }}?width=72&amp;height=72" alt="QR"/>
+                                        </div>
+                                    </t>
+                                    <t t-if="wizard.show_label_code and lbl['label_code']">
+                                        <div class="label-code-vertical">
+                                            <t t-esc="lbl['label_code']"/>
+                                        </div>
+                                    </t>
                                 </div>
-                            </t>
-                            <t t-if="show_label_code and lbl['label_code']">
-                                <div class="label-code-vertical">
-                                    <t t-esc="lbl['label_code']"/>
+
+                                <!-- RIGHT: product name + MRP -->
+                                <div class="label-right">
+                                    <div class="label-product-name">
+                                        <t t-esc="lbl['name']"/>
+                                    </div>
+                                    <t t-if="wizard.show_mrp">
+                                        <div class="label-mrp">
+                                            MRP Rs&#160;&#160;<t t-esc="lbl['mrp']"/>
+                                        </div>
+                                    </t>
                                 </div>
-                            </t>
-                        </div>
-                        <div class="label-right">
-                            <div class="label-product-name">
-                                <t t-esc="lbl['name']"/>
                             </div>
-                            <t t-if="show_mrp">
-                                <div class="label-mrp">
-                                    MRP Rs&#160;&#160;<t t-esc="int(lbl['mrp'])"/>
-                                </div>
+
+                            <!-- Gap between labels in same row (not after last one) -->
+                            <t t-if="not lbl_last">
+                                <div class="label-gap"/>
                             </t>
-                        </div>
+
+                        </t>
                     </div>
-
-                    <t t-if="(lbl_index + 1) % col_count != 0 and lbl_index + 1 &lt; total">
-                        <div class="label-gap"/>
-                    </t>
-
-                    <!-- Close row when full or last item -->
-                    <t t-if="(lbl_index + 1) % col_count == 0 or lbl_index + 1 == total">
-                        </div><!-- end label-row -->
-                    </t>
-
-                </t><!-- end labels loop -->
+                </t>
             </div>
-        </t><!-- end docs loop -->
+        </t>
+
     </t>
 </template>
 </odoo>
