@@ -10,11 +10,9 @@
                     <group string="Products">
                         <field name="product_tmpl_ids" widget="many2many_tags"
                                options="{'no_create': True}"
-                               attrs="{'invisible': [('product_ids', '!=', [])]}"
                                placeholder="Select product templates..."/>
                         <field name="product_ids" widget="many2many_tags"
                                options="{'no_create': True}"
-                               attrs="{'invisible': [('product_tmpl_ids', '!=', [])]}"
                                placeholder="Or select product variants..."/>
                     </group>
                     <group string="Label Settings">
