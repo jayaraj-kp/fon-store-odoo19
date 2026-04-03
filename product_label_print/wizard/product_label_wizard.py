@@ -22,7 +22,6 @@ class ProductLabelWizard(models.TransientModel):
     label_data_json = fields.Text(string='Label Data JSON', default='[]')
 
     def _parse_label_data(self):
-        """Return flat list of label dicts."""
         self.ensure_one()
         try:
             return json.loads(self.label_data_json or '[]')
@@ -30,10 +29,6 @@ class ProductLabelWizard(models.TransientModel):
             return []
 
     def _get_label_rows(self):
-        """Return labels grouped into rows based on columns setting.
-        Each row is a list of label dicts.
-        Called from QWeb template.
-        """
         self.ensure_one()
         labels = self._parse_label_data()
         col_count = int(self.columns)
@@ -61,15 +56,21 @@ class ProductLabelWizard(models.TransientModel):
         for product in products:
             tmpl = product.product_tmpl_id
             label_code = getattr(tmpl, 'label_code', None) or product.default_code or ''
-            mrp = tmpl.list_price or 0
+            mrp = int(tmpl.list_price or 0)
             qr_value = product.barcode or product.default_code or tmpl.name or str(product.id)
             for _i in range(self.quantity):
                 label_list.append({
                     'name': tmpl.name or '',
                     'label_code': label_code or '',
-                    'mrp': int(mrp),
+                    'mrp': mrp,
                     'qr_value': qr_value or 'LABEL',
                 })
 
         self.label_data_json = json.dumps(label_list)
-        return self.env.ref('product_label_print.action_product_label_report').report_action(self)
+
+        # Clear QWeb template cache so new template is used
+        self.env['ir.ui.view'].clear_caches()
+
+        return self.env.ref(
+            'product_label_print.action_product_label_report'
+        ).report_action(self)
