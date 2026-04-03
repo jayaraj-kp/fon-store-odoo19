@@ -31,8 +31,8 @@
                 padding: 2mm 1mm 1mm 1mm;
             }
             .qr-img {
-                width: 22mm;
-                height: 22mm;
+                width: 8mm;
+                height: 8mm;
                 display: block;
                 margin: 0 auto 1.5mm auto;
             }
@@ -82,7 +82,7 @@
                                 <t t-if="wizard.show_qr">
                                     <img class="qr-img"
                                          t-attf-src="data:image/png;base64,{{ lbl['qr_b64'] }}"
-                                         alt="QR" style="margin-left:10px; "/>
+                                         alt="QR" />
                                 </t>
                                 <t t-if="wizard.show_label_code and lbl['label_code']">
                                     <div class="lbl-code">
