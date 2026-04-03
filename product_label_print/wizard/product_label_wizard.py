@@ -102,11 +102,11 @@ class ProductLabelWizard(models.TransientModel):
 
         # ── Dimensions (all in mm) ──────────────────────────────────────────
         LW      = 65    # label width
-        QR_H    = 33    # top cell height  (QR area)
+        QR_H    = 26    # top cell height  (QR area)
         BOT_H   = 28    # bottom cell height (name/MRP)
         LH      = QR_H + BOT_H   # 53mm total per label
-        QR_SIZE = 24    # QR image size
-        COL_GAP = 60   # gap between 2 label columns
+        QR_SIZE = 18    # QR image size
+        COL_GAP = 60    # gap between 2 label columns
         ROW_GAP = 4     # gap between label rows
         L_MAR   = 5     # fixed left margin
         PW      = 160   # page/roll width mm (wider to fit the gap)
@@ -137,7 +137,7 @@ class ProductLabelWizard(models.TransientModel):
                     'top:50%;'
                     'left:50%;'
                     'white-space:nowrap;'
-                    'font-size:12pt;font-weight:bold;'
+                    'font-size:10pt;font-weight:bold;'
                     'letter-spacing:0.8mm;'
                     'transform:translate(-50%,-50%) rotate(-90deg);'
                     '-webkit-transform:translate(-50%,-50%) rotate(-90deg);'
@@ -152,7 +152,7 @@ class ProductLabelWizard(models.TransientModel):
                 '<tr><td style="'
                 'height:' + str(QR_H) + 'mm;'
                 'padding:2mm 1mm 1mm 1mm;'
-                'vertical-align:middle;'
+                'vertical-align:top;'
                 'text-align:center;'
                 'border-bottom:1.5px dashed #aaa;'
                 '">'
@@ -167,18 +167,18 @@ class ProductLabelWizard(models.TransientModel):
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
-                    '<div style="font-size:14pt;font-weight:bold;margin-top:2mm;text-align:center;">'
+                    '<div style="font-size:12pt;font-weight:bold;margin-top:2mm;text-align:center;">'
                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
 
             bot_cell = (
                 '<tr><td style="'
                 'height:' + str(BOT_H) + 'mm;'
-                'padding:2mm 1mm 1mm 1mm;'
-                'vertical-align:middle;'
+                'padding:1mm 1mm 0mm 1mm;'
+                'vertical-align:top;'
                 'text-align:center;'
                 '">'
-                '<div style="font-size:18pt;font-weight:bold;'
+                '<div style="font-size:16pt;font-weight:bold;'
                 'text-transform:uppercase;white-space:nowrap;">'
                 + (lbl['name'] or '') + '</div>'
                 + mrp_html +
@@ -428,7 +428,7 @@ class ProductLabelWizard(models.TransientModel):
 #             td.gap  { width:2mm; border:none; padding:0; }
 #             tr.rgap { height:1mm; }
 #             table.inner { border-collapse:collapse; width:100%; height:28mm; }
-#             td.qr-td   { width:26mm; text-align:center; vertical-align:middle; padding:1mm; }
+#             td.qr-td   { width:26mm; text-align:center; vertical-align:top; padding:1mm; }
 #             td.code-td { width:7mm;  text-align:center; vertical-align:middle; padding:0; }
 #             .code-text {
 #                 display: inline-block;
