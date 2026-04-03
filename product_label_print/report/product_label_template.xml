@@ -2,42 +2,52 @@
 <odoo>
 <template id="product_label_template">
     <t t-call="web.html_container">
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, Helvetica, sans-serif; background: #fff; }
-            .label-page { width: 100%; }
-            .label-row {
-                display: flex;
-                flex-direction: row;
-                align-items: flex-start;
-                page-break-inside: avoid;
-                margin-bottom: 1mm;
+        <style type="text/css">
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: Arial, sans-serif;
+                background: white;
             }
-            .label-cell {
-                display: inline-flex;
-                flex-direction: row;
-                align-items: stretch;
-                border: 0.5px solid #999;
-                border-radius: 3mm;
-                overflow: hidden;
-                background: #fff;
+            table.label-sheet {
+                border-collapse: collapse;
+                width: 100%;
+            }
+            td.label-cell {
+                border: 1px solid #888;
+                border-radius: 4px;
                 width: 73mm;
                 height: 28mm;
+                padding: 0;
+                vertical-align: middle;
             }
-            .label-left {
-                display: flex;
-                flex-direction: row;
-                align-items: center;
+            td.label-gap {
+                width: 2mm;
+                border: none;
+                padding: 0;
+            }
+            tr.label-gap-row {
+                height: 1mm;
+            }
+            table.label-inner {
+                border-collapse: collapse;
+                width: 100%;
+                height: 28mm;
+            }
+            td.label-qr-cell {
+                width: 26mm;
+                text-align: center;
+                vertical-align: middle;
                 padding: 1mm;
-                gap: 0.5mm;
-                flex-shrink: 0;
             }
-            .label-qr img {
-                display: block;
-                width: 24mm;
-                height: 24mm;
+            td.label-code-cell {
+                width: 6mm;
+                text-align: center;
+                vertical-align: middle;
+                padding: 0;
             }
-            .label-code-vertical {
+            .label-code-text {
+                display: inline-block;
                 writing-mode: vertical-rl;
                 text-orientation: mixed;
                 transform: rotate(180deg);
@@ -45,79 +55,77 @@
                 font-weight: bold;
                 color: #000;
                 white-space: nowrap;
-                line-height: 1;
             }
-            .label-right {
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-end;
+            td.label-info-cell {
+                vertical-align: bottom;
                 padding: 1mm 1mm 2mm 1mm;
-                flex: 1;
             }
-            .label-product-name {
+            .label-name {
                 font-size: 6pt;
                 font-weight: bold;
                 text-transform: uppercase;
                 color: #000;
+                display: block;
                 line-height: 1.3;
-                word-break: break-word;
             }
             .label-mrp {
                 font-size: 5.5pt;
                 color: #000;
+                display: block;
                 margin-top: 1mm;
-            }
-            .label-gap { width: 2mm; flex-shrink: 0; display: inline-block; }
-            @media print {
-                @page { margin: 0; }
-                body { margin: 0; }
             }
         </style>
 
         <t t-foreach="docs" t-as="wizard">
-            <!-- _get_label_rows() returns a list of rows; each row is a list of label dicts -->
-            <div class="label-page">
+            <table class="label-sheet" cellspacing="0" cellpadding="0">
                 <t t-foreach="wizard._get_label_rows()" t-as="row">
-                    <div class="label-row">
+                    <tr>
                         <t t-foreach="row" t-as="lbl">
-
-                            <div class="label-cell">
-                                <!-- LEFT: QR code + vertical label code -->
-                                <div class="label-left">
-                                    <t t-if="wizard.show_qr">
-                                        <div class="label-qr">
-                                            <img t-attf-src="/report/barcode/QR/{{ lbl['qr_value'] }}?width=72&amp;height=72" alt="QR"/>
-                                        </div>
-                                    </t>
-                                    <t t-if="wizard.show_label_code and lbl['label_code']">
-                                        <div class="label-code-vertical">
-                                            <t t-esc="lbl['label_code']"/>
-                                        </div>
-                                    </t>
-                                </div>
-
-                                <!-- RIGHT: product name + MRP -->
-                                <div class="label-right">
-                                    <div class="label-product-name">
-                                        <t t-esc="lbl['name']"/>
-                                    </div>
-                                    <t t-if="wizard.show_mrp">
-                                        <div class="label-mrp">
-                                            MRP Rs&#160;&#160;<t t-esc="lbl['mrp']"/>
-                                        </div>
-                                    </t>
-                                </div>
-                            </div>
-
-                            <!-- Gap between labels in same row (not after last one) -->
+                            <td class="label-cell">
+                                <table class="label-inner" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <!-- QR Code -->
+                                        <t t-if="wizard.show_qr">
+                                            <td class="label-qr-cell">
+                                                <img t-attf-src="/report/barcode/QR/{{ lbl['qr_value'] }}?width=70&amp;height=70"
+                                                     style="width:24mm;height:24mm;display:block;margin:auto;"
+                                                     alt="QR"/>
+                                            </td>
+                                        </t>
+                                        <!-- Vertical label code -->
+                                        <t t-if="wizard.show_label_code and lbl['label_code']">
+                                            <td class="label-code-cell">
+                                                <span class="label-code-text">
+                                                    <t t-esc="lbl['label_code']"/>
+                                                </span>
+                                            </td>
+                                        </t>
+                                        <!-- Product name + MRP -->
+                                        <td class="label-info-cell">
+                                            <span class="label-name">
+                                                <t t-esc="lbl['name']"/>
+                                            </span>
+                                            <t t-if="wizard.show_mrp">
+                                                <span class="label-mrp">
+                                                    MRP Rs&#160;&#160;<t t-esc="lbl['mrp']"/>
+                                                </span>
+                                            </t>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                            <!-- Gap between labels -->
                             <t t-if="not lbl_last">
-                                <div class="label-gap"/>
+                                <td class="label-gap"/>
                             </t>
-
                         </t>
-                    </div>
+                    </tr>
+                    <!-- Row gap -->
+                    <t t-if="not row_last">
+                        <tr class="label-gap-row"><td/></tr>
+                    </t>
                 </t>
-            </div>
+            </table>
         </t>
 
     </t>
