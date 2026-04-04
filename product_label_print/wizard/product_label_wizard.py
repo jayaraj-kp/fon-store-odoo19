@@ -150,14 +150,15 @@ class ProductLabelWizard(models.TransientModel):
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
-                    '<div style="font-size:12pt;font-weight:bold;margin-top:15mm;margin-right:10mm;text-align:center;">'
+                    '<div style="font-size:12pt;font-weight:bold;margin-top:8mm;margin-right:10mm;text-align:center;">'
                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
 
             bot_cell = (
                 '<tr><td style="'
                 'height:' + str(BOT_H) + 'mm;'
-                'padding-top:10mm;'
+                'padding-top:14mm;'
+                'margin-right:8mm;'
                 'vertical-align:middle;'
                 'text-align:center;'
                 '">'
