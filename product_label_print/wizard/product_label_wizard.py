@@ -1723,73 +1723,45 @@ class ProductLabelWizard(models.TransientModel):
     # ── SMALL label HTML builder (25×15mm, 2 per row) ─────────────────────────
 
     def _build_html_small(self, label_list):
-        """
-        Small label: 25mm wide x 15mm tall
-        3-column layout:
-          Col 1 : QR image + label code below  (normal orientation)
-          Col 2 : Product name  rotated -90deg  (bottom -> top)
-          Col 3 : MRP Rs. xxx   rotated -90deg  (bottom -> top)
-
-        wkhtmltopdf does NOT support writing-mode.
-        We rotate text using transform:rotate(-90deg) on an absolutely-positioned
-        div whose natural width equals the label height (so after rotation it
-        fills the column height) and whose natural height equals the column width.
-
-        All sizes in mm; pixel equivalents at 96 px/inch (wkhtmltopdf default screen DPI):
-            1 mm = 96/25.4 ~ 3.78 px
-        """
-        MM = 3.7795   # px per mm at 96 dpi (wkhtmltopdf default)
+        MM = 3.7795
 
         # ── Label dimensions ──────────────────────────────────────────────────
-        LW_MM      = 25.0   # label width  mm
-        LH_MM      = 15.0   # label height mm
-        QR_MM      = 10.0   # QR image size mm
-        QR_COL_MM  = 12.0   # left col width  (QR + code)
-        NAME_COL_MM= 8.0    # middle col width (product name, vertical)
-        MRP_COL_MM = 5.0    # right  col width (MRP, vertical)
-        # total = 12+8+5 = 25 mm = LW_MM  ✓
+        LW_MM       = 25.0
+        LH_MM       = 15.0
+        QR_MM       = 7.0    # reduced from 10mm
+        QR_COL_MM   = 12.0
+        NAME_COL_MM = 8.0
+        MRP_COL_MM  = 5.0
 
-        COL_GAP_MM = 4.0    # gap between the 2 side-by-side labels
-        L_MAR_MM   = 2.0    # left margin of page
-        PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM   # 58 mm
+        COL_GAP_MM = 4.0
+        L_MAR_MM   = 2.0
+        PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
-        # px equivalents
-        LW  = LW_MM  * MM
-        LH  = LH_MM  * MM
-        QR  = QR_MM  * MM
-        QC  = QR_COL_MM   * MM
-        NC  = NAME_COL_MM * MM
-        MC  = MRP_COL_MM  * MM
-        PW  = PW_MM  * MM
+        LW = LW_MM  * MM
+        LH = LH_MM  * MM
+        QR = QR_MM  * MM
+        QC = QR_COL_MM   * MM
+        NC = NAME_COL_MM * MM
+        MC = MRP_COL_MM  * MM
+        PW = PW_MM  * MM
 
         def px(mm): return str(round(mm * MM, 2)) + 'px'
 
         def _name_font(name):
             n = len(name or '')
-            if n <= 8:    return '5pt'
-            elif n <= 14: return '4pt'
-            else:         return '3pt'
+            if n <= 8:    return '7pt'
+            elif n <= 14: return '6pt'
+            else:         return '5pt'
 
         def _code_font(code):
             n = len(code or '')
-            if n <= 8:    return '5pt'
-            elif n <= 12: return '4pt'
-            else:         return '3pt'
+            if n <= 8:    return '6pt'
+            elif n <= 12: return '5pt'
+            else:         return '4pt'
 
         # ── Rotated-text helper ───────────────────────────────────────────────
-        # The trick for wkhtmltopdf:
-        #   - Put text in a div that is LH_MM wide x col_w_mm tall (natural dims).
-        #   - Rotate it -90deg around its centre.
-        #   - After rotation its visual width = col_w_mm, visual height = LH_MM.
-        #   - Wrap in a relative container of col_w_mm x LH_MM with overflow:hidden.
-        #   - Use negative margins to pull the rotated div into position.
         def rotated_cell(text, col_w_mm, font_size, extra_style=''):
             col_w = col_w_mm * MM
-            # The rotated div: natural size = LH x col_w
-            # After -90deg: occupies col_w wide x LH tall  (what we want)
-            # top-left offset after rotation:
-            #   translateX = -(LH - col_w) / 2
-            #   translateY = -(LH - col_w) / 2    (square-rotation identity)
             shift = (LH - col_w) / 2.0
             transform = (
                 'transform:rotate(-90deg);'
@@ -1801,9 +1773,10 @@ class ProductLabelWizard(models.TransientModel):
                 '<div style="'
                 'width:' + str(round(LH, 2)) + 'px;'
                 'height:' + str(round(col_w, 2)) + 'px;'
-                'line-height:' + str(round(col_w, 2)) + 'px;'
-                'text-align:center;'
-                'white-space:nowrap;'
+                'display:flex;'
+                'flex-direction:column;'
+                'align-items:center;'
+                'justify-content:center;'
                 'overflow:hidden;'
                 'font-size:' + font_size + ';'
                 'font-weight:bold;'
@@ -1813,7 +1786,6 @@ class ProductLabelWizard(models.TransientModel):
                 'margin-left:' + str(round(-shift, 2)) + 'px;'
                 '">' + text + '</div>'
             )
-            # Outer wrapper cell: fixed size = col_w x LH, clips overflow
             return (
                 '<td style="'
                 'width:' + str(round(col_w, 2)) + 'px;'
@@ -1831,7 +1803,7 @@ class ProductLabelWizard(models.TransientModel):
             name = lbl['name'] or ''
             code = lbl.get('label_code') or ''
 
-            # ── Col 1: QR + label code (normal) ──────────────────────────────
+            # ── Col 1: QR + label code ────────────────────────────────────────
             qr_html = ''
             if self.show_qr:
                 qr_html = (
@@ -1856,31 +1828,43 @@ class ProductLabelWizard(models.TransientModel):
                 '</td>'
             )
 
-            # ── Divider 1 ────────────────────────────────────────────────────
-            div1 = (
-                '<td style="width:1px;padding:0;'
-                'border-left:1px dashed #999;"></td>'
-            )
+            div1 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 2: Product name — rotated -90deg ─────────────────────────
+            # ── Col 2: Product name — rotated -90deg with word wrap ───────────
+            def wrap_name(n, chars_per_line=7):
+                words = n.split()
+                lines = []
+                current = ''
+                for w in words:
+                    if current and len(current) + 1 + len(w) > chars_per_line:
+                        lines.append(current)
+                        current = w
+                    else:
+                        current = (current + ' ' + w).strip()
+                if current:
+                    lines.append(current)
+                return '<br/>'.join(lines)
+
+            wrapped_name = wrap_name(name.upper())
             col2 = rotated_cell(
-                name.upper(),
+                wrapped_name,
                 NAME_COL_MM,
                 _name_font(name),
                 'text-transform:uppercase;letter-spacing:0.2px;'
+                'white-space:normal;word-break:break-word;'
+                'text-align:center;line-height:1.2;'
             )
 
-            # ── Divider 2 ────────────────────────────────────────────────────
-            div2 = (
-                '<td style="width:1px;padding:0;'
-                'border-left:1px dashed #999;"></td>'
-            )
+            div2 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
             # ── Col 3: MRP — rotated -90deg ───────────────────────────────────
-            col3 = '<td style="width:' + str(round(MC, 2)) + 'px;height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+            col3 = (
+                '<td style="width:' + str(round(MC, 2)) + 'px;'
+                'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+            )
             if self.show_mrp:
                 mrp_text = 'MRP Rs.' + str(lbl['mrp'])
-                col3 = rotated_cell(mrp_text, MRP_COL_MM, '4pt', '')
+                col3 = rotated_cell(mrp_text, MRP_COL_MM, '5pt', '')
 
             return (
                 '<table style="'
@@ -1898,7 +1882,7 @@ class ProductLabelWizard(models.TransientModel):
         # ── Page layout: 2 labels per page ───────────────────────────────────
         GAP = COL_GAP_MM * MM
         MAR = L_MAR_MM   * MM
-        PH  = (LH_MM + 2) * MM   # page height px
+        PH  = (LH_MM + 2) * MM
 
         pages_html = []
         i = 0
@@ -1931,7 +1915,6 @@ class ProductLabelWizard(models.TransientModel):
                 + row + '</table></div>'
             )
 
-        # ── Final HTML — dimensions in mm for @page, px for layout ───────────
         html = (
             '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
             '<style>'
