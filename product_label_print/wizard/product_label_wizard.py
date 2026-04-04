@@ -569,104 +569,93 @@ class ProductLabelWizard(models.TransientModel):
     def _build_html_small(self, label_list):
         """
         Small label: 25mm wide × 15mm tall
-        Layout: QR on left, then vertical text columns reading upward:
-        ┌────────┬───────┬──────────────┬──────────────┐
-        │  [QR]  │ KC150 │  PRODUCT     │  MRP Rs.150  │
-        │        │(vert) │  NAME(vert)  │   (vert)     │
-        └────────┴───────┴──────────────┴──────────────┘
+        Layout (landscape):
+        ┌─────────┬────────────────┐
+        │  [QR]   │  PRODUCT NAME  │
+        │  KC150  │  MRP Rs. 150   │
+        └─────────┴────────────────┘
         2 labels per row.
         """
-        LW       = 25   # label width mm
-        LH       = 15   # label height mm
-        QR_SIZE  = 9    # QR image size mm
-        QR_COL   = 9    # QR column width
-        CODE_COL = 4    # ref code column width  (vertical KC150)
-        NAME_COL = 7    # product name column width (vertical KEYCHAIN)
-        MRP_COL  = 5    # MRP column width (vertical MRP Rs.150)
-        # QR_COL + CODE_COL + NAME_COL + MRP_COL = 9+4+7+5 = 25mm ✓
-        COL_GAP  = 4    # gap between 2 labels on page
-        L_MAR    = 2    # left margin
-        PW       = 2 * LW + COL_GAP + 2 * L_MAR
+        LW      = 25    # label width mm
+        LH      = 15    # label height mm
+        QR_SIZE = 9     # QR image size mm
+        L_COL   = 11    # left column width (QR side)
+        R_COL   = 13    # right column width (text side)
+        COL_GAP = 4     # gap between 2 label columns
+        L_MAR   = 2     # left margin
+        PW      = 2 * LW + COL_GAP + 2 * L_MAR  # ~58mm page width
+
+        def _name_font_size(name):
+            n = len(name or '')
+            if n <= 8:    return 7
+            elif n <= 14: return 6
+            else:         return 5
+
+        def _code_font_size(code):
+            n = len(code or '')
+            if n <= 6:    return 6
+            elif n <= 10: return 5
+            else:         return 4
 
         def one_label(lbl):
-            # ── Column 1: QR code ──
+            # ── QR column ──
             qr_html = ''
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
                     'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
-                    'display:block;" alt=""/>'
+                    'display:block;margin:0 auto;" alt=""/>'
                 )
-            qr_col = (
-                '<td style="width:' + str(QR_COL) + 'mm;'
+
+            code_html = ''
+            if self.show_label_code and lbl.get('label_code'):
+                code_fs = str(_code_font_size(lbl['label_code'])) + 'pt'
+                code_html = (
+                    '<div style="text-align:center;font-size:' + code_fs + ';'
+                    'font-weight:bold;margin-top:0.5mm;word-break:break-all;">'
+                    + lbl['label_code'] + '</div>'
+                )
+
+            left_col = (
+                '<td style="width:' + str(L_COL) + 'mm;'
                 'vertical-align:middle;text-align:center;'
                 'padding:1mm 0.5mm;">'
-                + qr_html + '</td>'
+                + qr_html + code_html + '</td>'
             )
 
-            # ── Column 2: Ref code — vertical text reading upward ──
-            code_col = '<td style="width:0;padding:0;border:none;"></td>'
-            if self.show_label_code and lbl.get('label_code'):
-                code_col = (
-                    '<td style="width:' + str(CODE_COL) + 'mm;'
-                    'vertical-align:middle;text-align:center;'
-                    'padding:0.5mm 0;'
-                    'border-left:1px dashed #aaa;">'
-                    '<div style="'
-                    'writing-mode:vertical-rl;'
-                    'font-size:6pt;font-weight:bold;'
-                    'white-space:nowrap;'
-                    'overflow:hidden;'
-                    'height:' + str(LH - 3) + 'mm;'
-                    'display:flex;align-items:center;justify-content:center;">'
-                    + lbl['label_code'] +
-                    '</div></td>'
-                )
+            # ── Text column ──
+            name    = lbl['name'] or ''
+            name_fs = str(_name_font_size(name)) + 'pt'
 
-            # ── Column 3: Product name — vertical text reading upward ──
-            name = lbl['name'] or ''
-            name_col = (
-                '<td style="width:' + str(NAME_COL) + 'mm;'
-                'vertical-align:middle;text-align:center;'
-                'padding:0.5mm 0;'
-                'border-left:1px dashed #aaa;">'
-                '<div style="'
-                'writing-mode:vertical-rl;'
-                'font-size:7pt;font-weight:bold;'
-                'text-transform:uppercase;'
-                'white-space:nowrap;'
-                'overflow:hidden;'
-                'height:' + str(LH - 3) + 'mm;'
-                'display:flex;align-items:center;justify-content:center;">'
-                + name +
-                '</div></td>'
-            )
-
-            # ── Column 4: MRP — vertical text reading upward ──
-            mrp_col = '<td style="width:0;padding:0;border:none;"></td>'
+            mrp_html = ''
             if self.show_mrp:
-                mrp_col = (
-                    '<td style="width:' + str(MRP_COL) + 'mm;'
-                    'vertical-align:middle;text-align:center;'
-                    'padding:0.5mm 0;'
-                    'border-left:1px dashed #aaa;">'
-                    '<div style="'
-                    'writing-mode:vertical-rl;'
-                    'font-size:5pt;font-weight:bold;'
-                    'white-space:nowrap;'
-                    'overflow:hidden;'
-                    'height:' + str(LH - 3) + 'mm;'
-                    'display:flex;align-items:center;justify-content:center;">'
-                    'MRP Rs.' + str(lbl['mrp']) +
-                    '</div></td>'
+                mrp_html = (
+                    '<div style="font-size:5pt;margin-top:1mm;">'
+                    'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
+
+            right_col = (
+                '<td style="width:' + str(R_COL) + 'mm;'
+                'vertical-align:bottom;'
+                'padding:1mm 1mm 1.5mm 1mm;overflow:hidden;">'
+                '<div style="font-size:' + name_fs + ';font-weight:bold;'
+                'text-transform:uppercase;word-break:break-word;'
+                'word-wrap:break-word;white-space:normal;line-height:1.1;">'
+                + name + '</div>'
+                + mrp_html + '</td>'
+            )
+
+            # Divider line between QR and text
+            divider = (
+                '<td style="width:0;border-left:1px dashed #aaa;padding:0;"></td>'
+            )
 
             return (
                 '<table style="border-collapse:collapse;'
                 'width:' + str(LW) + 'mm;height:' + str(LH) + 'mm;'
                 'border:1.5px solid #888;border-radius:2mm;background:white;'
                 'table-layout:fixed;">'
-                '<tr>' + qr_col + code_col + name_col + mrp_col + '</tr>'
+                '<tr>' + left_col + divider + right_col + '</tr>'
                 '</table>'
             )
 
