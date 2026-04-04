@@ -108,7 +108,7 @@ class ProductLabelWizard(models.TransientModel):
         QR_SIZE = 18    # QR image size
         COL_GAP = 66 # gap between 2 label columns
         ROW_GAP = 4     # gap between label rows
-        L_MAR   = 2     # fixed left margin
+        L_MAR   = 3    # fixed left margin
         PW      = 160   # page/roll width mm (wider to fit the gap)
 
         def one_label(lbl):
@@ -149,7 +149,7 @@ class ProductLabelWizard(models.TransientModel):
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
-                    '<div style="font-size:12pt;font-weight:;padding-left:18mm;">'
+                    '<div style="font-size:12pt;font-weight:;padding-left:15mm;">'
                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
 
