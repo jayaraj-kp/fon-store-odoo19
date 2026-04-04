@@ -149,7 +149,7 @@ class ProductLabelWizard(models.TransientModel):
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
-                    '<div style="font-size:12pt;font-weight:;padding-left:20">'
+                    '<div style="font-size:12pt;font-weight:;padding-left:20mm;">'
                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
 
