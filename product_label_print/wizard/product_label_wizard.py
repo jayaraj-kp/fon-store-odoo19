@@ -137,9 +137,8 @@ class ProductLabelWizard(models.TransientModel):
             top_cell = (
                 '<tr><td style="'
                 'height:' + str(QR_H) + 'mm;'
-                'padding:5mm 1mm 0mm 1mm;'
-                'vertical-align:middle;'
-                'text-align:center;'
+                'padding:5mm 1mm 1mm 1mm;'
+  
                 'border-bottom:1.5px dashed #aaa;'
                 '">'
                 + qr_html + code_html +
