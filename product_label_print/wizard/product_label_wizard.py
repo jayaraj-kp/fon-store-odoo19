@@ -516,7 +516,7 @@ class ProductLabelWizard(models.TransientModel):
                 'height:' + str(BOT_H) + 'mm;'
                 'padding-bottom:3mm;'
                 'padding-left:4mm;'
-                'padding-right:2mm;'
+                'padding-right:4mm;'
                 'vertical-align:bottom;'
                 'overflow:hidden;'
                 '">'
