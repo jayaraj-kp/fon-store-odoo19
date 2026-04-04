@@ -117,7 +117,7 @@ class ProductLabelWizard(models.TransientModel):
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                    'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;''padding-top:5mm;'
+                    'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
                     'display:block;margin:0 auto;" alt=""/>'
                 )
 
@@ -137,7 +137,7 @@ class ProductLabelWizard(models.TransientModel):
             top_cell = (
                 '<tr><td style="'
                 'height:' + str(QR_H) + 'mm;'
-                'padding:2mm 1mm 1mm 1mm;'
+                'padding:5mm 1mm 1mm 1mm;'
                 'vertical-align:middle;'
                 'text-align:center;'
                 'border-bottom:1.5px dashed #aaa;'
@@ -150,7 +150,7 @@ class ProductLabelWizard(models.TransientModel):
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
-                    '<div style="font-size:12pt;font-weight:bold;margin-right:8mm;text-align:center;">'
+                    '<div style="font-size:12pt;font-weight:bold;text-align:center;">'
                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
 
