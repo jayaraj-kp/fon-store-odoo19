@@ -106,7 +106,7 @@ class ProductLabelWizard(models.TransientModel):
         BOT_H   = 28    # bottom cell height (name/MRP)
         LH      = QR_H + BOT_H   # 53mm total per label
         QR_SIZE = 18    # QR image size
-        COL_GAP = 60    # gap between 2 label columns
+        COL_GAP = 55   # gap between 2 label columns
         ROW_GAP = 4     # gap between label rows
         L_MAR   = 5     # fixed left margin
         PW      = 160   # page/roll width mm (wider to fit the gap)
@@ -117,7 +117,7 @@ class ProductLabelWizard(models.TransientModel):
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                    'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
+                    'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;''padding-top:5mm;'
                     'display:block;margin:0 auto;" alt=""/>'
                 )
 
@@ -150,7 +150,7 @@ class ProductLabelWizard(models.TransientModel):
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
-                    '<div style="font-size:12pt;font-weight:bold;margin-top:8mm;margin-right:10mm;text-align:center;">'
+                    '<div style="font-size:12pt;font-weight:bold;margin-right:8mm;text-align:center;">'
                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
 
@@ -158,7 +158,7 @@ class ProductLabelWizard(models.TransientModel):
                 '<tr><td style="'
                 'height:' + str(BOT_H) + 'mm;'
                 'padding-top:14mm;'
-                'margin-right:8mm;'
+                'margin-right:13mm;'
                 'vertical-align:middle;'
                 'text-align:center;'
                 '">'
