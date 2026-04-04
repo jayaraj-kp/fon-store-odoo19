@@ -17,6 +17,7 @@
                     </group>
                     <group string="Label Settings">
                         <group>
+                            <field name="label_type" widget="radio"/>
                             <field name="quantity"/>
                         </group>
                         <group>
@@ -24,12 +25,6 @@
                             <field name="show_label_code"/>
                             <field name="show_mrp"/>
                         </group>
-                    </group>
-                    <group string="Printer Info">
-                        <div class="text-muted" colspan="2">
-                            <p>GP-1125T | 152mm roll | 3-column die-cut labels (50mm × 30mm each)</p>
-                            <p>Layout: Left label — Blank spacer — Right label</p>
-                        </div>
                     </group>
                 </sheet>
                 <footer>
@@ -57,4 +52,65 @@
               sequence="50"/>
 
 </odoo>
+
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+
+<!--    <record id="product_label_wizard_view_form" model="ir.ui.view">-->
+<!--        <field name="name">product.label.wizard.form</field>-->
+<!--        <field name="model">product.label.wizard</field>-->
+<!--        <field name="arch" type="xml">-->
+<!--            <form string="Print Product Labels">-->
+<!--                <sheet>-->
+<!--                    <group string="Products">-->
+<!--                        <field name="product_tmpl_ids" widget="many2many_tags"-->
+<!--                               options="{'no_create': True}"-->
+<!--                               placeholder="Select product templates..."/>-->
+<!--                        <field name="product_ids" widget="many2many_tags"-->
+<!--                               options="{'no_create': True}"-->
+<!--                               placeholder="Or select product variants..."/>-->
+<!--                    </group>-->
+<!--                    <group string="Label Settings">-->
+<!--                        <group>-->
+<!--                            <field name="quantity"/>-->
+<!--                        </group>-->
+<!--                        <group>-->
+<!--                            <field name="show_qr"/>-->
+<!--                            <field name="show_label_code"/>-->
+<!--                            <field name="show_mrp"/>-->
+<!--                        </group>-->
+<!--                    </group>-->
+<!--                    <group string="Printer Info">-->
+<!--                        <div class="text-muted" colspan="2">-->
+<!--                            <p>GP-1125T | 152mm roll | 3-column die-cut labels (50mm × 30mm each)</p>-->
+<!--                            <p>Layout: Left label — Blank spacer — Right label</p>-->
+<!--                        </div>-->
+<!--                    </group>-->
+<!--                </sheet>-->
+<!--                <footer>-->
+<!--                    <button name="action_print_labels" type="object"-->
+<!--                            string="Print Labels" class="btn-primary"/>-->
+<!--                    <button string="Cancel" class="btn-secondary" special="cancel"/>-->
+<!--                </footer>-->
+<!--            </form>-->
+<!--        </field>-->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; Action to open wizard standalone (from menu) &ndash;&gt;-->
+<!--    <record id="action_product_label_wizard" model="ir.actions.act_window">-->
+<!--        <field name="name">Print Product Labels</field>-->
+<!--        <field name="res_model">product.label.wizard</field>-->
+<!--        <field name="view_mode">form</field>-->
+<!--        <field name="target">new</field>-->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; Menu item under Inventory > Operations &ndash;&gt;-->
+<!--    <menuitem id="menu_product_label_print"-->
+<!--              name="Print Product Labels"-->
+<!--              parent="stock.menu_stock_warehouse_mgmt"-->
+<!--              action="action_product_label_wizard"-->
+<!--              sequence="50"/>-->
+
+<!--</odoo>-->
 
