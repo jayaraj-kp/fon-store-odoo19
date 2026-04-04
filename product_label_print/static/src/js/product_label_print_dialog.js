@@ -152,12 +152,8 @@ export class ProductLabelPrintDialog extends Component {
 
         document.body.appendChild(iframe);
 
-        if (copies > 1) {
-            this.notification.add(
-                `Set Copies to ${copies} in the print dialog.`,
-                { type: 'info', sticky: false }
-            );
-        }
+        // No need to set copies in print dialog — each label pair is its own page.
+        // Printing all pages with Copies=1 prints all labels correctly.
     }
     onClose() { this.props.close(); }
 
