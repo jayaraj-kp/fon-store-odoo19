@@ -463,16 +463,6 @@ class ProductLabelWizard(models.TransientModel):
             else:
                 return 9
 
-        def _name_padding_top(name):
-            """Reduce top padding when the name is long enough to wrap."""
-            n = len(name or '')
-            if n <= 10:
-                return '7mm'
-            elif n <= 15:
-                return '5mm'
-            else:
-                return '3mm'
-
         def one_label(lbl):
             # ── Top cell: QR left-aligned, label code below QR ──
             qr_html = ''
@@ -513,7 +503,6 @@ class ProductLabelWizard(models.TransientModel):
             # ── Bottom cell: product name + MRP ──
             name      = lbl['name'] or ''
             name_fs   = str(_name_font_size(name)) + 'pt'
-            pad_top   = _name_padding_top(name)
 
             mrp_html = ''
             if self.show_mrp:
@@ -525,10 +514,10 @@ class ProductLabelWizard(models.TransientModel):
             bot_cell = (
                 '<tr><td style="'
                 'height:' + str(BOT_H) + 'mm;'
-                'padding-top:' + pad_top + ';'
+                'padding-bottom:3mm;'
                 'padding-left:4mm;'
                 'padding-right:2mm;'
-                'vertical-align:top;'
+                'vertical-align:bottom;'
                 'overflow:hidden;'
                 '">'
                 '<div style="'
