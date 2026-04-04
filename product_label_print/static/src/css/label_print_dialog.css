@@ -1,0 +1,94 @@
+/* ── Product Label Print Dialog ──────────────────────────────────────────── */
+
+.plpd-dialog-content {
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.plpd-body {
+    height: 82vh;
+    overflow: hidden;
+}
+
+/* ── Left: Preview panel ───────────────────────────────────────────────── */
+.plpd-preview-panel {
+    background: #525659;
+    min-width: 0;
+}
+
+.plpd-preview-toolbar {
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.plpd-iframe {
+    display: block;
+    border: none;
+    min-height: 0;
+    background: #525659;
+}
+
+.plpd-iframe--hidden {
+    visibility: hidden;
+    height: 0 !important;
+    flex-grow: 0 !important;
+}
+
+/* ── Right: Settings panel ─────────────────────────────────────────────── */
+.plpd-settings-panel {
+    width: 320px;
+    min-width: 290px;
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.plpd-settings-header {
+    flex-shrink: 0;
+}
+
+.plpd-settings-body {
+    font-size: 13px;
+}
+
+.plpd-group-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6c757d;
+    margin-bottom: 6px;
+}
+
+.plpd-radio-row {
+    transition: background 0.12s ease;
+}
+.plpd-radio-row:hover {
+    background: #f0f4ff;
+}
+
+.plpd-settings-footer {
+    flex-shrink: 0;
+    background: #fafafa;
+}
+
+.plpd-settings-footer .btn {
+    font-size: 14px;
+    padding: 9px 16px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+    .plpd-body {
+        flex-direction: column !important;
+        height: auto;
+    }
+    .plpd-settings-panel {
+        width: 100% !important;
+        min-width: unset !important;
+        border-left: none !important;
+        border-top: 1px solid #dee2e6;
+    }
+    .plpd-preview-panel {
+        height: 45vh;
+    }
+}
