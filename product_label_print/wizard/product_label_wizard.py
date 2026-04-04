@@ -157,10 +157,10 @@ class ProductLabelWizard(models.TransientModel):
             bot_cell = (
                 '<tr><td style="'
                 'height:' + str(BOT_H) + 'mm;'
-                'padding-top:10mm;'
+                'padding-top:8mm;'
                
-                'vertical-align:middle;'
-                'text-align:center;'
+                # 'vertical-align:middle;'
+                # 'text-align:center;'
                 '">'
                 '<div style="font-size:16pt;font-weight:bold;'
                 'text-transform:uppercase;white-space:nowrap;">'
