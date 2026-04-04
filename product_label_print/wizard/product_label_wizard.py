@@ -1728,7 +1728,7 @@ class ProductLabelWizard(models.TransientModel):
         # ── Label dimensions ──────────────────────────────────────────────────
         LW_MM       = 25.0
         LH_MM       = 15.0
-        QR_MM       = 7.0    # reduced from 10mm
+        QR_MM       = 7.0
         QR_COL_MM   = 12.0
         NAME_COL_MM = 8.0
         MRP_COL_MM  = 5.0
@@ -1739,9 +1739,7 @@ class ProductLabelWizard(models.TransientModel):
 
         LW = LW_MM  * MM
         LH = LH_MM  * MM
-        QR = QR_MM  * MM
         QC = QR_COL_MM   * MM
-        NC = NAME_COL_MM * MM
         MC = MRP_COL_MM  * MM
         PW = PW_MM  * MM
 
@@ -1760,7 +1758,11 @@ class ProductLabelWizard(models.TransientModel):
             else:         return '4pt'
 
         # ── Rotated-text helper ───────────────────────────────────────────────
-        def rotated_cell(text, col_w_mm, font_size, extra_style=''):
+        # The rotated div natural size = LH wide x col_w tall.
+        # After rotate(-90deg) it becomes col_w wide x LH tall.
+        # justify-content:flex-end  →  text pushed to the BOTTOM of the column
+        # (which visually = the RIGHT side of the label, near the label edge)
+        def rotated_cell(text, col_w_mm, font_size, extra_style='', align='center'):
             col_w = col_w_mm * MM
             shift = (LH - col_w) / 2.0
             transform = (
@@ -1769,6 +1771,13 @@ class ProductLabelWizard(models.TransientModel):
                 'transform-origin:50%% 50%%;'
                 '-webkit-transform-origin:50%% 50%%;'
             )
+            # justify-content controls vertical position BEFORE rotation.
+            # Before rotation the div is LH tall.
+            # 'flex-end' pushes content to the bottom of that LH height.
+            # After -90deg rotation, bottom-of-LH maps to the LEFT side of
+            # the label (the QR side), so we use 'flex-start' to push toward
+            # the label's bottom edge (right side before rotation).
+            justify = 'flex-start' if align == 'bottom' else 'center'
             rotated_div = (
                 '<div style="'
                 'width:' + str(round(LH, 2)) + 'px;'
@@ -1776,10 +1785,11 @@ class ProductLabelWizard(models.TransientModel):
                 'display:flex;'
                 'flex-direction:column;'
                 'align-items:center;'
-                'justify-content:center;'
+                'justify-content:' + justify + ';'
                 'overflow:hidden;'
                 'font-size:' + font_size + ';'
                 'font-weight:bold;'
+                'padding:1px 2px;'
                 + extra_style +
                 transform +
                 'margin-top:' + str(round(-shift, 2)) + 'px;'
@@ -1803,7 +1813,7 @@ class ProductLabelWizard(models.TransientModel):
             name = lbl['name'] or ''
             code = lbl.get('label_code') or ''
 
-            # ── Col 1: QR + label code ────────────────────────────────────────
+            # ── Col 1: QR top, label code bottom ─────────────────────────────
             qr_html = ''
             if self.show_qr:
                 qr_html = (
@@ -1830,7 +1840,7 @@ class ProductLabelWizard(models.TransientModel):
 
             div1 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 2: Product name — rotated -90deg with word wrap ───────────
+            # ── Col 2: Product name — rotated, pushed to bottom ───────────────
             def wrap_name(n, chars_per_line=7):
                 words = n.split()
                 lines = []
@@ -1850,21 +1860,33 @@ class ProductLabelWizard(models.TransientModel):
                 wrapped_name,
                 NAME_COL_MM,
                 _name_font(name),
-                'text-transform:uppercase;letter-spacing:0.2px;'
-                'white-space:normal;word-break:break-word;'
-                'text-align:center;line-height:1.2;'
+                extra_style=(
+                    'text-transform:uppercase;'
+                    'letter-spacing:0.2px;'
+                    'white-space:normal;'
+                    'word-break:break-word;'
+                    'text-align:center;'
+                    'line-height:1.2;'
+                ),
+                align='bottom',
             )
 
             div2 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 3: MRP — rotated -90deg ───────────────────────────────────
+            # ── Col 3: MRP — rotated, pushed to bottom ────────────────────────
             col3 = (
                 '<td style="width:' + str(round(MC, 2)) + 'px;'
                 'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
             )
             if self.show_mrp:
                 mrp_text = 'MRP Rs.' + str(lbl['mrp'])
-                col3 = rotated_cell(mrp_text, MRP_COL_MM, '5pt', '')
+                col3 = rotated_cell(
+                    mrp_text,
+                    MRP_COL_MM,
+                    '5pt',
+                    extra_style='white-space:nowrap;',
+                    align='bottom',
+                )
 
             return (
                 '<table style="'
