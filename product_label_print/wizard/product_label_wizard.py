@@ -106,64 +106,47 @@ class ProductLabelWizard(models.TransientModel):
         BOT_H   = 28    # bottom cell height (name/MRP)
         LH      = QR_H + BOT_H   # 53mm total per label
         QR_SIZE = 18    # QR image size
-        COL_GAP = 55    # gap between 2 label columns
+        COL_GAP = 60    # gap between 2 label columns
         ROW_GAP = 4     # gap between label rows
         L_MAR   = 5     # fixed left margin
         PW      = 160   # page/roll width mm (wider to fit the gap)
 
         def one_label(lbl):
-            # ── Top cell: QR image with label code vertically on right side ──
+            # ── Top cell: QR centered, KC110 below QR ──
             qr_html = ''
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
                     'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
-                    'display:block;" alt=""/>'
+                    'display:block;margin:0 auto;" alt=""/>'
                 )
 
             code_html = ''
             if self.show_label_code and lbl.get('label_code'):
-                # Use transform rotate on a fixed-size span — wkhtmltopdf does not support writing-mode
                 code_html = (
-                    '<td style="vertical-align:middle;width:6mm;padding-left:1mm;">'
                     '<div style="'
-                    'width:6mm;'
-                    'height:' + str(QR_SIZE) + 'mm;'
-                    'overflow:visible;'
-                    'position:relative;'
-                    '">'
-                    '<span style="'
-                    'position:absolute;'
-                    'top:50%;'
-                    'left:50%;'
-                    'white-space:nowrap;'
+                    'text-align:center;'
                     'font-size:10pt;font-weight:bold;'
-                    'letter-spacing:0.8mm;'
-                    'transform:translate(-50%,-50%) rotate(-90deg);'
-                    '-webkit-transform:translate(-50%,-50%) rotate(-90deg);'
+                    'letter-spacing:0.5mm;'
+                    'margin-top:1.5mm;'
                     '">'
                     + lbl['label_code'] +
-                    '</span>'
                     '</div>'
-                    '</td>'
                 )
 
             top_cell = (
                 '<tr><td style="'
                 'height:' + str(QR_H) + 'mm;'
-                'padding:4mm 1mm 1mm 1mm;'
-                'vertical-align:top;'
+                'padding:2mm 1mm 1mm 1mm;'
+                'vertical-align:middle;'
                 'text-align:center;'
                 'border-bottom:1.5px dashed #aaa;'
                 '">'
-                '<table style="border-collapse:collapse;margin:0 auto;"><tr>'
-                '<td style="vertical-align:middle;">' + qr_html + '</td>'
-                + code_html +
-                '</tr></table>'
+                + qr_html + code_html +
                 '</td></tr>'
             )
 
-            # ── Bottom cell: product name + MRP ──
+            # ── Bottom cell: product name + MRP centered ──
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
@@ -174,8 +157,8 @@ class ProductLabelWizard(models.TransientModel):
             bot_cell = (
                 '<tr><td style="'
                 'height:' + str(BOT_H) + 'mm;'
-                'padding:10mm 1mm 0mm 1mm;'
-                'vertical-align:top;'
+                'padding:0;'
+                'vertical-align:middle;'
                 'text-align:center;'
                 '">'
                 '<div style="font-size:16pt;font-weight:bold;'
