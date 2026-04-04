@@ -106,7 +106,7 @@ class ProductLabelWizard(models.TransientModel):
         BOT_H   = 28    # bottom cell height (name/MRP)
         LH      = QR_H + BOT_H   # 53mm total per label
         QR_SIZE = 18    # QR image size
-        COL_GAP = 60    # gap between 2 label columns
+        COL_GAP = 55    # gap between 2 label columns
         ROW_GAP = 4     # gap between label rows
         L_MAR   = 5     # fixed left margin
         PW      = 160   # page/roll width mm (wider to fit the gap)
@@ -328,10 +328,20 @@ class ProductLabelWizard(models.TransientModel):
             'res_id': self.id,
         })
 
+        pdf_url = '/web/content/' + str(attachment.id)
+        products = self._get_products()
+        product_names = ', '.join(products.mapped('name'))
+        record_name = product_names[:40] + ('...' if len(product_names) > 40 else '')
+
         return {
-            'type': 'ir.actions.act_url',
-            'url': '/web/content/' + str(attachment.id) + '?download=true',
-            'target': 'new',
+            'type': 'ir.actions.client',
+            'tag': 'product_label_print.open_print_dialog',
+            'params': {
+                'pdf_url':       pdf_url,
+                'record_name':   record_name,
+                'label_qty':     self.quantity,
+                'product_count': len(products),
+            },
         }
 # from odoo import models, fields, api, _
 # from odoo.exceptions import UserError
