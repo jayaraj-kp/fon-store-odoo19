@@ -9,64 +9,66 @@
             table.sheet {
                 border-collapse: separate;
                 border-spacing: 0;
-                width: 142mm;       /* 65mm label + 12mm gap + 65mm label */
-                margin-left: 5mm;
+                width: 132mm;       /* 65 + 2 + 65 */
+                margin-left: 10mm;
                 table-layout: fixed;
             }
 
-            /* Each label cell wrapper */
+            /* Shared label cell style */
             td.lbl {
-                width: 65mm;
-                border: 1.5px solid #888;
+                border: 1.5px solid #999;
                 border-radius: 3mm;
                 background: white;
                 overflow: hidden;
-                vertical-align: top;
+                vertical-align: middle;
                 text-align: center;
-                padding: 3mm 2mm 2mm 2mm;
             }
 
-            /* QR / barcode image */
+            /* QR label (top die-cut) */
+            td.lbl-qr {
+                width: 65mm;
+                height: 33mm;
+                padding: 2mm 1mm 1mm 1mm;
+            }
             .qr-img {
-                width: 54mm;
-                height: 20mm;
+                width: 8mm;
+                height: 8mm;
                 display: block;
-                margin: 0 auto 1mm auto;
+                margin: 0 auto 1.5mm auto;
             }
-
-            /* Small reference code below barcode */
             .lbl-code {
-                font-size: 6pt;
-                letter-spacing: 0.2mm;
+                font-size: 7pt;
+                font-weight: bold;
+                letter-spacing: 0.3mm;
                 white-space: nowrap;
-                text-align: left;
-                margin-bottom: 1mm;
-                padding-left: 1mm;
+                text-align: center;
             }
 
-            /* Product name */
+            /* Name label (bottom die-cut) */
+            td.lbl-name {
+                width: 65mm;
+                height: 25mm;
+                padding: 2mm 2mm;
+            }
             .prod-name {
-                font-size: 12pt;
+                font-size: 16pt;
                 font-weight: bold;
                 text-transform: uppercase;
                 white-space: nowrap;
-                text-align: center;
             }
-
-            /* MRP line */
             .prod-mrp {
-                font-size: 9pt;
+                font-size: 11pt;
                 font-weight: bold;
-                margin-top: 1mm;
-                text-align: right;
+                margin-top: 2mm;
                 white-space: nowrap;
             }
 
-            /* Column gap between two labels */
-            td.cgap { width: 12mm; border: none; padding: 0; }
+            /* Column gap */
+            td.cgap { width: 2mm; border: none; padding: 0; }
 
-            /* Row gap between product rows */
-            tr.rgap td { height: 4mm; border: none; padding: 0; }
+            /* Spacer rows */
+            tr.igap td { height: 2mm; border: none; padding: 0; }   /* QR↔Name gap */
+            tr.rgap td { height: 4mm; border: none; padding: 0; }   /* product pair gap */
         </style>
 
         <t t-foreach="docs" t-as="wizard">
@@ -74,47 +76,46 @@
 
                 <t t-foreach="wizard._get_label_rows()" t-as="row">
 
-                    <!-- ── LABEL ROW: each label is a single cell ── -->
+                    <!-- ── QR ROW ── -->
                     <tr>
                         <t t-foreach="row" t-as="lbl">
-
-                            <td class="lbl">
-                                <!-- QR / barcode image -->
+                            <td class="lbl lbl-qr">
                                 <t t-if="wizard.show_qr">
                                     <img class="qr-img"
                                          t-attf-src="data:image/png;base64,{{ lbl['qr_b64'] }}"
                                          alt="QR" />
                                 </t>
-
-                                <!-- Reference code (default_code) below image -->
                                 <t t-if="wizard.show_label_code and lbl['label_code']">
                                     <div class="lbl-code">
                                         <t t-esc="lbl['label_code']"/>
                                     </div>
                                 </t>
-
-                                <!-- Product name -->
-                                <div class="prod-name">
-                                    <t t-esc="lbl['name']"/>
-                                </div>
-
-                                <!-- MRP -->
-                                <t t-if="wizard.show_mrp">
-                                    <div class="prod-mrp">
-                                        MRP Rs.<t t-esc="lbl['mrp']"/>
-                                    </div>
-                                </t>
                             </td>
-
-                            <!-- Gap between left and right label -->
-                            <t t-if="lbl_index == 0">
-                                <td class="cgap"/>
-                            </t>
-
+                            <t t-if="lbl_index == 0"><td class="cgap"/></t>
                         </t>
                     </tr>
 
-                    <!-- ── Row gap before next product row ── -->
+                    <!-- ── inner gap between QR label and Name label ── -->
+                    <tr class="igap"><td colspan="3"/></tr>
+
+                    <!-- ── NAME ROW ── -->
+                    <tr>
+                        <t t-foreach="row" t-as="lbl">
+                            <td class="lbl lbl-name">
+                                <div class="prod-name">
+                                    <t t-esc="lbl['name']"/>
+                                </div>
+                                <t t-if="wizard.show_mrp">
+                                    <div class="prod-mrp">
+                                        MRP Rs. <t t-esc="lbl['mrp']"/>
+                                    </div>
+                                </t>
+                            </td>
+                            <t t-if="lbl_index == 0"><td class="cgap"/></t>
+                        </t>
+                    </tr>
+
+                    <!-- ── gap before next product pair ── -->
                     <t t-if="not row_last">
                         <tr class="rgap"><td colspan="3"/></tr>
                     </t>
@@ -127,136 +128,4 @@
     </t>
 </template>
 </odoo>
-
-
-<!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<odoo>-->
-<!--<template id="product_label_template">-->
-<!--    <t t-call="web.html_container">-->
-<!--        <style type="text/css">-->
-<!--            * { margin: 0; padding: 0; box-sizing: border-box; }-->
-<!--            body { font-family: Arial, Helvetica, sans-serif; background: white; }-->
-
-<!--            table.sheet {-->
-<!--                border-collapse: separate;-->
-<!--                border-spacing: 0;-->
-<!--                width: 132mm;       /* 65 + 2 + 65 */-->
-<!--                margin-left: 10mm;-->
-<!--                table-layout: fixed;-->
-<!--            }-->
-
-<!--            /* Shared label cell style */-->
-<!--            td.lbl {-->
-<!--                border: 1.5px solid #999;-->
-<!--                border-radius: 3mm;-->
-<!--                background: white;-->
-<!--                overflow: hidden;-->
-<!--                vertical-align: middle;-->
-<!--                text-align: center;-->
-<!--            }-->
-
-<!--            /* QR label (top die-cut) */-->
-<!--            td.lbl-qr {-->
-<!--                width: 65mm;-->
-<!--                height: 33mm;-->
-<!--                padding: 2mm 1mm 1mm 1mm;-->
-<!--            }-->
-<!--            .qr-img {-->
-<!--                width: 8mm;-->
-<!--                height: 8mm;-->
-<!--                display: block;-->
-<!--                margin: 0 auto 1.5mm auto;-->
-<!--            }-->
-<!--            .lbl-code {-->
-<!--                font-size: 7pt;-->
-<!--                font-weight: bold;-->
-<!--                letter-spacing: 0.3mm;-->
-<!--                white-space: nowrap;-->
-<!--                text-align: center;-->
-<!--            }-->
-
-<!--            /* Name label (bottom die-cut) */-->
-<!--            td.lbl-name {-->
-<!--                width: 65mm;-->
-<!--                height: 25mm;-->
-<!--                padding: 2mm 2mm;-->
-<!--            }-->
-<!--            .prod-name {-->
-<!--                font-size: 16pt;-->
-<!--                font-weight: bold;-->
-<!--                text-transform: uppercase;-->
-<!--                white-space: nowrap;-->
-<!--            }-->
-<!--            .prod-mrp {-->
-<!--                font-size: 11pt;-->
-<!--                font-weight: bold;-->
-<!--                margin-top: 2mm;-->
-<!--                white-space: nowrap;-->
-<!--            }-->
-
-<!--            /* Column gap */-->
-<!--            td.cgap { width: 2mm; border: none; padding: 0; }-->
-
-<!--            /* Spacer rows */-->
-<!--            tr.igap td { height: 2mm; border: none; padding: 0; }   /* QR↔Name gap */-->
-<!--            tr.rgap td { height: 4mm; border: none; padding: 0; }   /* product pair gap */-->
-<!--        </style>-->
-
-<!--        <t t-foreach="docs" t-as="wizard">-->
-<!--            <table class="sheet" cellspacing="0" cellpadding="0">-->
-
-<!--                <t t-foreach="wizard._get_label_rows()" t-as="row">-->
-
-<!--                    &lt;!&ndash; ── QR ROW ── &ndash;&gt;-->
-<!--                    <tr>-->
-<!--                        <t t-foreach="row" t-as="lbl">-->
-<!--                            <td class="lbl lbl-qr">-->
-<!--                                <t t-if="wizard.show_qr">-->
-<!--                                    <img class="qr-img"-->
-<!--                                         t-attf-src="data:image/png;base64,{{ lbl['qr_b64'] }}"-->
-<!--                                         alt="QR" />-->
-<!--                                </t>-->
-<!--                                <t t-if="wizard.show_label_code and lbl['label_code']">-->
-<!--                                    <div class="lbl-code">-->
-<!--                                        <t t-esc="lbl['label_code']"/>-->
-<!--                                    </div>-->
-<!--                                </t>-->
-<!--                            </td>-->
-<!--                            <t t-if="lbl_index == 0"><td class="cgap"/></t>-->
-<!--                        </t>-->
-<!--                    </tr>-->
-
-<!--                    &lt;!&ndash; ── inner gap between QR label and Name label ── &ndash;&gt;-->
-<!--                    <tr class="igap"><td colspan="3"/></tr>-->
-
-<!--                    &lt;!&ndash; ── NAME ROW ── &ndash;&gt;-->
-<!--                    <tr>-->
-<!--                        <t t-foreach="row" t-as="lbl">-->
-<!--                            <td class="lbl lbl-name">-->
-<!--                                <div class="prod-name">-->
-<!--                                    <t t-esc="lbl['name']"/>-->
-<!--                                </div>-->
-<!--                                <t t-if="wizard.show_mrp">-->
-<!--                                    <div class="prod-mrp">-->
-<!--                                        MRP Rs. <t t-esc="lbl['mrp']"/>-->
-<!--                                    </div>-->
-<!--                                </t>-->
-<!--                            </td>-->
-<!--                            <t t-if="lbl_index == 0"><td class="cgap"/></t>-->
-<!--                        </t>-->
-<!--                    </tr>-->
-
-<!--                    &lt;!&ndash; ── gap before next product pair ── &ndash;&gt;-->
-<!--                    <t t-if="not row_last">-->
-<!--                        <tr class="rgap"><td colspan="3"/></tr>-->
-<!--                    </t>-->
-
-<!--                </t>-->
-
-<!--            </table>-->
-<!--        </t>-->
-
-<!--    </t>-->
-<!--</template>-->
-<!--</odoo>-->
 
