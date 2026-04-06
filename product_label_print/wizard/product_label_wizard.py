@@ -1292,7 +1292,7 @@ class ProductLabelWizard(models.TransientModel):
         LW_MM = 25.0
         LH_MM = 15.0
 
-        QR_COL_MM  = 8.0
+        QR_COL_MM  = 18.0
         TXT_COL_MM = LW_MM - QR_COL_MM  # 17 mm
 
         QR_SIZE_MM = 15.0
