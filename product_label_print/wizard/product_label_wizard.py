@@ -1825,8 +1825,7 @@
 #                 'product_count': len(products),
 #             },
 #         }
-
-from odoo import models, fields, api, _
+from odoo import models, fields, _
 from odoo.exceptions import UserError
 import base64
 import io
@@ -1848,12 +1847,10 @@ class ProductLabelWizard(models.TransientModel):
     show_label_code = fields.Boolean(default=True)
 
     label_type = fields.Selection([
-        ('large', 'Large'),
-        ('small', 'Small'),
-        ('medium', 'Medium'),
-    ], default='large', required=True)
+        ('small', 'Small Label'),
+    ], default='small', required=True)
 
-    # ✅ FIXED QR
+    # ✅ FIXED QR GENERATOR
     def _make_qr_base64(self, value):
         try:
             import qrcode
@@ -1865,6 +1862,7 @@ class ProductLabelWizard(models.TransientModel):
             )
             qr.add_data(value or 'LABEL')
             qr.make(fit=True)
+
             img = qr.make_image(fill_color='black', back_color='white')
 
             buf = io.BytesIO()
@@ -1882,7 +1880,7 @@ class ProductLabelWizard(models.TransientModel):
                 products |= tmpl.product_variant_ids
         return products
 
-    # ✅ FIXED QR DATA
+    # ✅ FIXED QR DATA (NO PRODUCT NAME)
     def _get_label_list(self):
         products = self._get_products()
         label_list = []
@@ -1901,20 +1899,19 @@ class ProductLabelWizard(models.TransientModel):
             for _ in range(self.quantity):
                 label_list.append({
                     'name': tmpl.name or '',
-                    'label_code': tmpl.default_code or '',
+                    'label_code': product.default_code or '',
                     'mrp': int(tmpl.list_price or 0),
                     'qr_b64': qr_b64,
                 })
 
         return label_list
 
-    # ✅ FIXED SMALL LABEL
+    # ✅ FIXED SMALL LABEL (25x15mm)
     def _build_html_small(self, label_list):
         MM = 3.7795
 
         LW_MM = 25
         LH_MM = 15
-
         QR_SIZE_MM = 12
 
         def px(mm):
@@ -1925,14 +1922,16 @@ class ProductLabelWizard(models.TransientModel):
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                    'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';margin:auto;display:block;" />'
+                    'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';display:block;margin:auto;" />'
                 )
 
             return f"""
             <table style="width:{px(LW_MM)};height:{px(LH_MM)};
-            border:1px solid #444;">
+            border:1px solid #444;border-collapse:collapse;">
                 <tr>
-                    <td style="width:40%;text-align:center;">{qr_html}</td>
+                    <td style="width:40%;text-align:center;">
+                        {qr_html}
+                    </td>
                     <td style="padding:2px;font-size:7pt;">
                         {lbl['name']}<br/>
                         {lbl['label_code']}<br/>
@@ -1946,41 +1945,72 @@ class ProductLabelWizard(models.TransientModel):
 
         return f"<html><body>{html}</body></html>", 60, 20
 
+    # ✅ FINAL PRINT ACTION (FIXED 414 ERROR)
     def action_print_labels(self):
         self.ensure_one()
 
-        if not self._get_products():
-            raise UserError(_('No products selected'))
+        products = self._get_products()
+        if not products:
+            raise UserError(_('Please select at least one product.'))
 
-        labels = self._get_label_list()
+        label_list = self._get_label_list()
 
-        if self.label_type == 'small':
-            html, w, h = self._build_html_small(labels)
-        else:
-            raise UserError("Only small label handled here")
+        html_content, page_w, page_h = self._build_html_small(label_list)
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as f:
-            f.write(html.encode())
-            html_path = f.name
+        html_path = pdf_path = None
 
-        pdf_path = html_path.replace('.html', '.pdf')
+        try:
+            with tempfile.NamedTemporaryFile(
+                suffix='.html', delete=False, mode='w', encoding='utf-8'
+            ) as f:
+                f.write(html_content)
+                html_path = f.name
 
-        cmd = [
-            'wkhtmltopdf',
-            '--dpi', '300',
-            '--image-dpi', '300',
-            '--image-quality', '100',
-            html_path,
-            pdf_path
-        ]
+            pdf_path = html_path.replace('.html', '.pdf')
 
-        subprocess.run(cmd)
+            cmd = [
+                'wkhtmltopdf',
+                '--page-width', str(page_w) + 'mm',
+                '--page-height', str(page_h) + 'mm',
+                '--margin-top', '0',
+                '--margin-bottom', '0',
+                '--margin-left', '0',
+                '--margin-right', '0',
+                '--dpi', '300',
+                '--image-dpi', '300',
+                '--image-quality', '100',
+                html_path,
+                pdf_path
+            ]
 
-        with open(pdf_path, 'rb') as f:
-            pdf = f.read()
+            result = subprocess.run(cmd, capture_output=True)
+
+            if result.returncode not in (0, 1) or not os.path.exists(pdf_path):
+                raise UserError("PDF generation failed")
+
+            with open(pdf_path, 'rb') as f:
+                pdf_data = f.read()
+
+        finally:
+            for p in (html_path, pdf_path):
+                if p and os.path.exists(p):
+                    try:
+                        os.unlink(p)
+                    except Exception:
+                        pass
+
+        # ✅ SAVE AS ATTACHMENT (FIX FOR 414 ERROR)
+        attachment = self.env['ir.attachment'].create({
+            'name': 'Product_Labels.pdf',
+            'type': 'binary',
+            'datas': base64.b64encode(pdf_data),
+            'mimetype': 'application/pdf',
+            'res_model': self._name,
+            'res_id': self.id,
+        })
 
         return {
             'type': 'ir.actions.act_url',
-            'url': 'data:application/pdf;base64,' + base64.b64encode(pdf).decode(),
-            'target': 'new'
+            'url': '/web/content/%s?download=false' % attachment.id,
+            'target': 'new',
         }
