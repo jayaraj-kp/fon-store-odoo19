@@ -1606,7 +1606,7 @@ class ProductLabelWizard(models.TransientModel):
         BOT_H   = 28
         LH      = QR_H + BOT_H
         QR_SIZE = 18
-        COL_GAP = 64
+        COL_GAP = 60
         ROW_GAP = 4
         L_MAR   = 17
         PW      = 160
@@ -1630,7 +1630,7 @@ class ProductLabelWizard(models.TransientModel):
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
                     'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
-                    'display:block;margin:0 auto;" alt="" padding-left:30mm;/>'
+                    'display:block;margin:0 auto;" alt=""/>'
                 )
 
             code_html = ''
