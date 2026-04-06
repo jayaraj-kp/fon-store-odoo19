@@ -793,22 +793,22 @@ class ProductLabelWizard(models.TransientModel):
         def _name_font(name):
             n = len(name or '')
             if n <= 8:
-                return '7pt'
+                return '9pt'
             elif n <= 14:
-                return '5.5pt'
+                return '7.5pt'
             elif n <= 20:
-                return '4.5pt'
+                return '6.5pt'
             else:
-                return '3.8pt'
+                return '5.8pt'
 
         def _code_font(code):
             n = len(code or '')
             if n <= 8:
-                return '6pt'
+                return '8pt'
             elif n <= 12:
-                return '5pt'
+                return '6.5pt'
             else:
-                return '4pt'
+                return '5.5pt'
 
         # ── Single label ──────────────────────────────────────────────────────
         def one_label(lbl):
@@ -881,7 +881,7 @@ class ProductLabelWizard(models.TransientModel):
             if self.show_mrp:
                 mrp_line = (
                         '<div style="'
-                        'font-size:5.5pt;'
+                        'font-size:7.5pt;'
                         'font-weight:bold;'
                         'white-space:nowrap;'
                         'overflow:visible;'
