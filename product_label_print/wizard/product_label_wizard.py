@@ -1312,16 +1312,16 @@ class ProductLabelWizard(models.TransientModel):
 
         def _name_font(name):
             n = len(name or '')
-            if n <= 8:    return '8.5pt'
-            elif n <= 14: return '7pt'
-            elif n <= 20: return '6pt'
-            else:         return '5pt'
+            if n <= 8:    return '6.5pt'
+            elif n <= 14: return '6pt'
+            elif n <= 20: return '5pt'
+            else:         return '4pt'
 
         def _code_font(code):
             n = len(code or '')
-            if n <= 8:    return '7pt'
-            elif n <= 12: return '6pt'
-            else:         return '5pt'
+            if n <= 8:    return '6pt'
+            elif n <= 12: return '5pt'
+            else:         return '4pt'
 
         def one_label(lbl):
             name = lbl['name'] or ''
