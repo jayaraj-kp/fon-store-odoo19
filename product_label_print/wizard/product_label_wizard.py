@@ -2264,8 +2264,8 @@ class ProductLabelWizard(models.TransientModel):
         NAME_COL_MM = 6.5    # product-name column width
         MRP_COL_MM  = 3.0    # MRP column width
 
-        COL_GAP_MM = 8.0
-        L_MAR_MM   = 13.0
+        COL_GAP_MM = 7.0
+        L_MAR_MM   = 15.0
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
