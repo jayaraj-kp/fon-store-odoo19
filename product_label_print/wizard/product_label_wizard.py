@@ -1661,7 +1661,7 @@ class ProductLabelWizard(models.TransientModel):
 
             bot_cell = (
                 '<tr><td style="height:' + str(BOT_H) + 'mm;'
-                'padding-bottom:3mm;padding-left:6mm;padding-right:2mm;'
+                'padding-bottom:3mm;padding-left:10mm;padding-right:2mm;'
                 'vertical-align:bottom;overflow:hidden;">'
                 '<div style="font-size:' + name_fs + ';font-weight:bold;'
                 'text-transform:uppercase;word-break:break-word;'
