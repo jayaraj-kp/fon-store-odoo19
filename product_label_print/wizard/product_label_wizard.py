@@ -2323,7 +2323,8 @@ class ProductLabelWizard(models.TransientModel):
                 'overflow:hidden;'
                 'font-size:' + font_size + ';'
                 'font-weight:bold;'
-                'padding:1px 3px;'
+                # 'padding:1px 3px;'
+                'padding:5px 8px;'
                 + extra_style
                 + transform
                 + 'margin-top:' + str(round(-shift, 2)) + 'px;'
