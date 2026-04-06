@@ -1720,144 +1720,135 @@ class ProductLabelWizard(models.TransientModel):
         )
         return html, PW, page_h
 
-    # ── SMALL label HTML builder (25×15mm, 2 per row) ─────────────────────────
+    # ── SMALL label HTML builder — matches "for small" stock: 3.28in × 0.67in ──
 
     def _build_html_small(self, label_list):
-        MM = 3.7795
+        MM = 3.7795  # CSS px per mm  (96 dpi / 25.4)
 
-        # ── Label dimensions ──────────────────────────────────────────────────
-        LW_MM       = 25.0
-        LH_MM       = 15.0
-        QR_MM       = 7.0
-        QR_COL_MM   = 12.0
-        NAME_COL_MM = 8.0
-        MRP_COL_MM  = 5.0
+        # ── Physical dimensions to match "for small (3.28 in x 0.67 in)" stock ──
+        # Roll = 83.31mm wide  →  2 labels per row, each ~38mm wide
+        # Feed = 17.02mm tall  →  label height
+        LW_MM = 38.0  # each label width
+        LH_MM = 17.0  # label height (= 0.67 in)
+        QR_MM = 12.0  # QR image size
+        QR_COL_MM = 16.0  # left column  (QR + code)
+        NAME_COL_MM = 14.0  # middle column (product name, rotated)
+        MRP_COL_MM = 8.0  # right column  (MRP, rotated)
 
-        COL_GAP_MM = 7.0
-        L_MAR_MM   = 20.0
-        PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
+        COL_GAP_MM = 3.0  # gap between the two labels
+        L_MAR_MM = 2.0  # left margin
+        PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM  # = 83mm
 
-        LW = LW_MM  * MM
-        LH = LH_MM  * MM
-        QC = QR_COL_MM   * MM
-        MC = MRP_COL_MM  * MM
-        PW = PW_MM  * MM
+        # ── px equivalents ────────────────────────────────────────────────────────
+        LW = LW_MM * MM
+        LH = LH_MM * MM
+        QC = QR_COL_MM * MM
+        NC = NAME_COL_MM * MM
+        MC = MRP_COL_MM * MM
+        PW = PW_MM * MM
 
-        def px(mm): return str(round(mm * MM, 2)) + 'px'
+        def px(mm):
+            return str(round(mm * MM, 2)) + 'px'
 
         def _name_font(name):
             n = len(name or '')
-            if n <= 8:    return '7pt'
-            elif n <= 14: return '6pt'
-            else:         return '5pt'
+            if n <= 8:
+                return '7pt'
+            elif n <= 14:
+                return '6pt'
+            else:
+                return '5pt'
 
         def _code_font(code):
             n = len(code or '')
-            if n <= 8:    return '6pt'
-            elif n <= 12: return '5pt'
-            else:         return '4pt'
+            if n <= 8:
+                return '6pt'
+            elif n <= 12:
+                return '5pt'
+            else:
+                return '4pt'
 
-        # ── Rotated-text helper ───────────────────────────────────────────────
-        # The rotated div natural size = LH wide x col_w tall.
-        # After rotate(-90deg) it becomes col_w wide x LH tall.
-        # justify-content:flex-end  →  text pushed to the BOTTOM of the column
-        # (which visually = the RIGHT side of the label, near the label edge)
-        def rotated_cell(text, col_w_mm, font_size, extra_style='', align='center'):
+        # ── Rotated-text cell helper ───────────────────────────────────────────────
+        # The inner div is LH px wide × col_w px tall before rotation.
+        # rotate(-90deg) makes it col_w px wide × LH px tall — fitting the cell.
+        def rotated_cell(text, col_w_mm, font_size, extra_style=''):
             col_w = col_w_mm * MM
             shift = (LH - col_w) / 2.0
-            transform = (
-                'transform:rotate(-90deg);'
-                '-webkit-transform:rotate(-90deg);'
-                'transform-origin:50%% 50%%;'
-                '-webkit-transform-origin:50%% 50%%;'
-            )
-            # justify-content controls vertical position BEFORE rotation.
-            # Before rotation the div is LH tall.
-            # 'flex-end' pushes content to the bottom of that LH height.
-            # After -90deg rotation, bottom-of-LH maps to the LEFT side of
-            # the label (the QR side), so we use 'flex-start' to push toward
-            # the label's bottom edge (right side before rotation).
-            justify = 'flex-start' if align == 'bottom' else 'center'
-            rotated_div = (
-                '<div style="'
-                'width:' + str(round(LH, 2)) + 'px;'
-                'height:' + str(round(col_w, 2)) + 'px;'
-                'display:flex;'
-                'flex-direction:column;'
-                'align-items:center;'
-                'justify-content:' + justify + ';'
-                'overflow:hidden;'
-                'font-size:' + font_size + ';'
-                'font-weight:bold;'
-                'padding:1px 2px;'
-                + extra_style +
-                transform +
-                'margin-top:' + str(round(-shift, 2)) + 'px;'
-                'margin-left:' + str(round(-shift, 2)) + 'px;'
-                '">' + text + '</div>'
+            inner = (
+                    '<div style="'
+                    'width:' + str(round(LH, 2)) + 'px;'
+                                                   'height:' + str(round(col_w, 2)) + 'px;'
+                                                                                      'display:flex;flex-direction:column;'
+                                                                                      'align-items:center;justify-content:center;'
+                                                                                      'overflow:hidden;'
+                                                                                      'font-size:' + font_size + ';'
+                                                                                                                 'font-weight:bold;'
+                                                                                                                 'padding:1px 2px;'
+                    + extra_style +
+                    'transform:rotate(-90deg);'
+                    '-webkit-transform:rotate(-90deg);'
+                    'transform-origin:50% 50%;'
+                    '-webkit-transform-origin:50% 50%;'
+                    'margin-top:' + str(round(-shift, 2)) + 'px;'
+                                                            'margin-left:' + str(round(-shift, 2)) + 'px;'
+                                                                                                     '">' + text + '</div>'
             )
             return (
-                '<td style="'
-                'width:' + str(round(col_w, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;'
-                'overflow:hidden;'
-                'padding:0;'
-                'vertical-align:middle;'
-                'text-align:center;'
-                '">'
-                + rotated_div +
-                '</td>'
+                    '<td style="'
+                    'width:' + str(round(col_w, 2)) + 'px;'
+                                                      'height:' + str(round(LH, 2)) + 'px;'
+                                                                                      'overflow:hidden;padding:0;'
+                                                                                      'vertical-align:middle;text-align:center;">'
+                    + inner + '</td>'
             )
 
         def one_label(lbl):
             name = lbl['name'] or ''
             code = lbl.get('label_code') or ''
 
-            # ── Col 1: QR top, label code bottom ─────────────────────────────
+            # ── Col 1: QR image + label code ─────────────────────────────────────
             qr_html = ''
             if self.show_qr:
                 qr_html = (
-                    '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                    'style="width:' + px(QR_MM) + ';height:' + px(QR_MM) + ';'
-                    'display:block;margin:0 auto;" alt=""/>'
+                        '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
+                                                                             'style="width:' + px(
+                    QR_MM) + ';height:' + px(QR_MM) + ';'
+                                                      'display:block;margin:0 auto;" alt=""/>'
                 )
             code_html = ''
             if self.show_label_code and code:
                 code_html = (
-                    '<div style="text-align:center;font-size:' + _code_font(code) + ';'
-                    'font-weight:bold;margin-top:1px;white-space:nowrap;'
-                    'overflow:hidden;width:' + str(round(QC, 2)) + 'px;">'
-                    + code + '</div>'
+                        '<div style="text-align:center;font-size:' + _code_font(code) + ';'
+                                                                                        'font-weight:bold;margin-top:1px;white-space:nowrap;'
+                                                                                        'overflow:hidden;width:' + str(
+                    round(QC, 2)) + 'px;">'
+                        + code + '</div>'
                 )
             col1 = (
-                '<td style="width:' + str(round(QC, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;'
-                'vertical-align:middle;text-align:center;'
-                'padding:1px;overflow:hidden;">'
-                + qr_html + code_html +
-                '</td>'
+                    '<td style="width:' + str(round(QC, 2)) + 'px;'
+                                                              'height:' + str(round(LH, 2)) + 'px;'
+                                                                                              'vertical-align:middle;text-align:center;'
+                                                                                              'padding:1px;overflow:hidden;">'
+                    + qr_html + code_html + '</td>'
             )
 
             div1 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 2: Product name — rotated, pushed to bottom ───────────────
-            def wrap_name(n, chars_per_line=7):
+            # ── Col 2: Product name — rotated ─────────────────────────────────────
+            def wrap_name(n, chars=6):
                 words = n.split()
-                lines = []
-                current = ''
+                lines, cur = [], ''
                 for w in words:
-                    if current and len(current) + 1 + len(w) > chars_per_line:
-                        lines.append(current)
-                        current = w
+                    if cur and len(cur) + 1 + len(w) > chars:
+                        lines.append(cur);
+                        cur = w
                     else:
-                        current = (current + ' ' + w).strip()
-                if current:
-                    lines.append(current)
+                        cur = (cur + ' ' + w).strip()
+                if cur: lines.append(cur)
                 return '<br/>'.join(lines)
 
-            wrapped_name = wrap_name(name.upper())
             col2 = rotated_cell(
-                wrapped_name,
+                wrap_name(name.upper()),
                 NAME_COL_MM,
                 _name_font(name),
                 extra_style=(
@@ -1868,89 +1859,89 @@ class ProductLabelWizard(models.TransientModel):
                     'text-align:center;'
                     'line-height:1.2;'
                 ),
-                align='bottom',
             )
 
             div2 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 3: MRP — rotated, pushed to bottom ────────────────────────
-            col3 = (
-                '<td style="width:' + str(round(MC, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
-            )
+            # ── Col 3: MRP — rotated ───────────────────────────────────────────────
             if self.show_mrp:
-                mrp_text = 'MRP Rs.' + str(lbl['mrp'])
                 col3 = rotated_cell(
-                    mrp_text,
+                    'MRP Rs.' + str(lbl['mrp']),
                     MRP_COL_MM,
                     '5pt',
                     extra_style='white-space:nowrap;',
-                    align='bottom',
+                )
+            else:
+                col3 = (
+                        '<td style="width:' + str(round(MC, 2)) + 'px;'
+                                                                  'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
                 )
 
             return (
-                '<table style="'
-                'border-collapse:collapse;'
-                'width:' + str(round(LW, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;'
-                'border:1.5px solid #888;'
-                'border-radius:' + px(2) + ';'
-                'background:white;'
-                'table-layout:fixed;">'
-                '<tr>' + col1 + div1 + col2 + div2 + col3 + '</tr>'
-                '</table>'
+                    '<table style="'
+                    'border-collapse:collapse;'
+                    'width:' + str(round(LW, 2)) + 'px;'
+                                                   'height:' + str(round(LH, 2)) + 'px;'
+                                                                                   'border:1.5px solid #888;'
+                                                                                   'border-radius:' + px(1.5) + ';'
+                                                                                                                'background:white;'
+                                                                                                                'table-layout:fixed;">'
+                                                                                                                '<tr>' + col1 + div1 + col2 + div2 + col3 + '</tr>'
+                                                                                                                                                            '</table>'
             )
 
-        # ── Page layout: 2 labels per page ───────────────────────────────────
+        # ── Page layout: 1 row (2 labels) per page ────────────────────────────────
         GAP = COL_GAP_MM * MM
-        MAR = L_MAR_MM   * MM
-        PH  = (LH_MM + 2) * MM
+        MAR = L_MAR_MM * MM
+        PH = (LH_MM + 1) * MM  # tiny 1mm top margin
 
         pages_html = []
         i = 0
         while i < len(label_list):
-            left  = label_list[i]
+            left = label_list[i]
             right = label_list[i + 1] if (i + 1) < len(label_list) else None
             i += 2
 
             row = (
-                '<tr>'
-                '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">'
-                + one_label(left) + '</td>'
-                '<td style="width:' + str(round(GAP, 2)) + 'px;padding:0;border:none;"></td>'
-                '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">'
-                + (one_label(right) if right else '') + '</td>'
-                '</tr>'
+                    '<tr>'
+                    '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">'
+                    + one_label(left) + '</td>'
+                                        '<td style="width:' + str(round(GAP, 2)) + 'px;padding:0;border:none;"></td>'
+                                                                                   '<td style="width:' + str(
+                round(LW, 2)) + 'px;vertical-align:top;padding:0;">'
+                    + (one_label(right) if right else '') + '</td>'
+                                                            '</tr>'
             )
 
             pages_html.append(
                 '<div style="'
                 'width:' + str(round(PW, 2)) + 'px;'
-                'height:' + str(round(PH, 2)) + 'px;'
-                'padding-top:' + str(round(1 * MM, 2)) + 'px;'
-                'padding-left:' + str(round(MAR, 2)) + 'px;'
-                'page-break-after:always;'
-                'box-sizing:border-box;">'
-                '<table style="'
-                'width:' + str(round(2 * LW + GAP, 2)) + 'px;'
-                'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
+                                               'height:' + str(round(PH, 2)) + 'px;'
+                                                                               'padding-top:0.5mm;'
+                                                                               'padding-left:' + str(
+                    round(MAR, 2)) + 'px;'
+                                     'page-break-after:always;'
+                                     'box-sizing:border-box;">'
+                                     '<table style="'
+                                     'width:' + str(round(2 * LW + GAP, 2)) + 'px;'
+                                                                              'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
                 + row + '</table></div>'
             )
 
         html = (
-            '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
-            '<style>'
-            '* { margin:0; padding:0; box-sizing:border-box; }'
-            'html, body {'
-            "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
-            '  background:white;'
-            '}'
-            '@page { margin:0; size: ' + str(PW_MM) + 'mm ' + str(LH_MM + 2) + 'mm; }'
-            '</style></head><body>'
-            + ''.join(pages_html)
-            + '</body></html>'
+                '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
+                '<style>'
+                '* { margin:0; padding:0; box-sizing:border-box; }'
+                'html, body {'
+                "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
+                '  background:white;'
+                '}'
+                '@page { margin:0; size: ' + str(PW_MM) + 'mm ' + str(LH_MM + 1) + 'mm; }'
+                                                                                   '</style></head><body>'
+                + ''.join(pages_html)
+                + '</body></html>'
         )
-        return html, PW_MM, LH_MM + 2
+        return html, PW_MM, LH_MM + 1
 
     # ── Print action ──────────────────────────────────────────────────────────
 
