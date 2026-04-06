@@ -1736,7 +1736,7 @@ class ProductLabelWizard(models.TransientModel):
         MRP_COL_MM = 5.0  # right column  (MRP, rotated)
 
         COL_GAP_MM = 4.0  # gap between the two labels
-        L_MAR_MM = 20.0  # left margin
+        L_MAR_MM = 30.0  # left margin
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM  # = 83mm
 
         # ── px equivalents ────────────────────────────────────────────────────────
@@ -1784,6 +1784,7 @@ class ProductLabelWizard(models.TransientModel):
                                                                                       'font-size:' + font_size + ';'
                                                                                                                  'font-weight:bold;'
                                                                                                                  'padding:1px 2px;'
+                                                                                                                  'padding-left:5px;'
                     + extra_style +
                     'transform:rotate(-90deg);'
                     '-webkit-transform:rotate(-90deg);'
