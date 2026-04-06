@@ -1919,7 +1919,7 @@ class ProductLabelWizard(models.TransientModel):
         QR_SIZE_MM = 12.0  # ✅ FIXED (was 15)
 
         COL_GAP_MM = 8.0
-        L_MAR_MM = 28.0
+        L_MAR_MM = 66.0
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         def px(mm):
