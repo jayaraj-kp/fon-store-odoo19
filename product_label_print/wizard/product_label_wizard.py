@@ -775,7 +775,7 @@ class ProductLabelWizard(models.TransientModel):
 
         QR_SIZE_MM = 7.0
 
-        COL_GAP_MM = 6.0
+        COL_GAP_MM = 8.0
         L_MAR_MM = 28.0
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
@@ -793,22 +793,22 @@ class ProductLabelWizard(models.TransientModel):
         def _name_font(name):
             n = len(name or '')
             if n <= 8:
-                return '9pt'
+                return '8.5pt'
             elif n <= 14:
-                return '7.5pt'
+                return '7pt'
             elif n <= 20:
-                return '6.5pt'
+                return '6pt'
             else:
-                return '5.5pt'
+                return '5pt'
 
         def _code_font(code):
             n = len(code or '')
             if n <= 8:
-                return '8pt'
+                return '7pt'
             elif n <= 12:
-                return '6.5pt'
+                return '6pt'
             else:
-                return '5.5pt'
+                return '5pt'
 
         # ── Single label ──────────────────────────────────────────────────────
         def one_label(lbl):
