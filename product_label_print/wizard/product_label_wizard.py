@@ -1665,7 +1665,7 @@ class ProductLabelWizard(models.TransientModel):
                 'vertical-align:bottom;overflow:hidden;">'
                 '<div style="font-size:' + name_fs + ';'
                 'text-transform:uppercase;word-break:break-word;'
-                'word-wrap:break-word;white-space:normal;line-height:1.15;'
+                'word-wrap:break-word;white-space:normal;line-height:1.35;'
                 'overflow:hidden;">'
                 + name + '</div>' + mrp_html + '</td></tr>'
             )
