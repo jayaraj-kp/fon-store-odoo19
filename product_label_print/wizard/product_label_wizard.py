@@ -2265,7 +2265,7 @@ class ProductLabelWizard(models.TransientModel):
         MRP_COL_MM  = 3.0    # MRP column width
 
         COL_GAP_MM = 7.0
-        L_MAR_MM   = 27.0
+        L_MAR_MM   = 1.0
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
@@ -2277,15 +2277,15 @@ class ProductLabelWizard(models.TransientModel):
 
         def _name_font(name):
             n = len(name or '')
-            if n <= 8:    return '9pt'
-            elif n <= 14: return '8pt'
-            else:         return '7pt'
+            if n <= 8:    return '7pt'
+            elif n <= 14: return '6pt'
+            else:         return '5pt'
 
         def _code_font(code):
             n = len(code or '')
-            if n <= 8:    return '7pt'
-            elif n <= 12: return '6pt'
-            else:         return '5pt'
+            if n <= 8:    return '6pt'
+            elif n <= 12: return '5pt'
+            else:         return '4pt'
 
         # ── Rotated-text cell helper ──────────────────────────────────────────
         # Creates a <td> of width=col_w_mm, height=LH_MM.
