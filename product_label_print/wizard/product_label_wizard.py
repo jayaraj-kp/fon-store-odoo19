@@ -773,7 +773,7 @@ class ProductLabelWizard(models.TransientModel):
         QR_COL_MM = 8.0
         TXT_COL_MM = LW_MM - QR_COL_MM  # 17 mm
 
-        QR_SIZE_MM = 6.5
+        QR_SIZE_MM = 7.0
 
         COL_GAP_MM = 4.0
         L_MAR_MM = 28.0
@@ -855,7 +855,8 @@ class ProductLabelWizard(models.TransientModel):
                                                           'word-break:break-word;'
                                                           'overflow:hidden;'
                                                           'max-width:' + max_w + ';'
-                                                                                 'line-height:1.25;">'
+                                                                                 
+                                                                                 'line-height:1.25;''margin-top:5px;">'
                         + name.upper() + '</div>'
                 )
 
