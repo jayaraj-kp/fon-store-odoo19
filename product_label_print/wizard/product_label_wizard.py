@@ -1655,7 +1655,7 @@ class ProductLabelWizard(models.TransientModel):
             mrp_html = ''
             if self.show_mrp:
                 mrp_html = (
-                    '<div style="font-size:11pt;padding-left:6mm;margin-top:1mm;">'
+                    '<div style="font-size:14pt;padding-left:6mm;margin-top:1mm;">'
                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
                 )
 
@@ -1663,7 +1663,7 @@ class ProductLabelWizard(models.TransientModel):
                 '<tr><td style="height:' + str(BOT_H) + 'mm;'
                 'padding-bottom:3mm;padding-left:10mm;padding-right:2mm;'
                 'vertical-align:bottom;overflow:hidden;">'
-                '<div style="font-size:' + name_fs + ';font-weight:bold;'
+                '<div style="font-size:' + name_fs + ';'
                 'text-transform:uppercase;word-break:break-word;'
                 'word-wrap:break-word;white-space:normal;line-height:1.15;'
                 'overflow:hidden;">'
