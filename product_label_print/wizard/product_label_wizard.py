@@ -764,27 +764,27 @@ class ProductLabelWizard(models.TransientModel):
     # becoming TC px wide x LH px tall after -90 deg — exactly filling the cell.
 
     def _build_html_small(self, label_list):
-        MM = 3.7795   # mm -> px
+        MM = 3.7795  # mm -> px
 
         # ── Dimensions (mm) ───────────────────────────────────────────────────
-        LW_MM      = 25.0          # label width  (long / feed axis)
-        LH_MM      = 15.0          # label height (short axis)
+        LW_MM = 25.0  # label width  (long / feed axis)
+        LH_MM = 15.0  # label height (short axis)
 
-        QR_COL_MM  = 9.0           # QR column width
-        TXT_COL_MM = LW_MM - QR_COL_MM   # 16 mm text column
+        QR_COL_MM = 8.0  # QR column width (reduced slightly)
+        TXT_COL_MM = LW_MM - QR_COL_MM  # 17 mm text column
 
-        QR_SIZE_MM = 7.5           # QR image square size
+        QR_SIZE_MM = 6.5  # QR image square size
 
-        COL_GAP_MM = 4.0           # gap between the two side-by-side labels
-        L_MAR_MM   = 28.0           # left page margin
-        PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM   # ~58 mm
+        COL_GAP_MM = 4.0  # gap between the two side-by-side labels
+        L_MAR_MM = 28.0  # left page margin
+        PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         # Pixel equivalents
-        LW = LW_MM  * MM
-        LH = LH_MM  * MM
-        QC = QR_COL_MM  * MM
+        LW = LW_MM * MM
+        LH = LH_MM * MM
+        QC = QR_COL_MM * MM
         TC = TXT_COL_MM * MM
-        PW = PW_MM  * MM
+        PW = PW_MM * MM
 
         def px(mm):
             return str(round(mm * MM, 2)) + 'px'
@@ -792,40 +792,49 @@ class ProductLabelWizard(models.TransientModel):
         # ── Font helpers ──────────────────────────────────────────────────────
         def _name_font(name):
             n = len(name or '')
-            if n <= 10:   return '8pt'
-            elif n <= 18: return '6.5pt'
-            else:         return '5.5pt'
+            if n <= 8:
+                return '7pt'
+            elif n <= 14:
+                return '5.5pt'
+            elif n <= 20:
+                return '4.5pt'
+            else:
+                return '3.8pt'
 
         def _code_font(code):
             n = len(code or '')
-            if n <= 8:    return '7pt'
-            elif n <= 12: return '6pt'
-            else:         return '5pt'
+            if n <= 8:
+                return '6pt'
+            elif n <= 12:
+                return '5pt'
+            else:
+                return '4pt'
 
         # ── Single label ──────────────────────────────────────────────────────
         def one_label(lbl):
             name = lbl['name'] or ''
             code = lbl.get('label_code') or ''
-            mrp  = lbl.get('mrp', 0)
+            mrp = lbl.get('mrp', 0)
 
             # Col A — QR image, vertically centred
             qr_html = ''
             if self.show_qr:
                 qr_html = (
-                    '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                    'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';'
-                    'display:block;margin:0 auto;" alt=""/>'
+                        '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
+                                                                             'style="width:' + px(
+                    QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';'
+                                                                'display:block;margin:0 auto;" alt=""/>'
                 )
             col_qr = (
-                '<td style="'
-                'width:' + str(round(QC, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;'
-                'vertical-align:middle;'
-                'text-align:center;'
-                'padding:1px;'
-                'overflow:hidden;">'
-                + qr_html
-                + '</td>'
+                    '<td style="'
+                    'width:' + str(round(QC, 2)) + 'px;'
+                                                   'height:' + str(round(LH, 2)) + 'px;'
+                                                                                   'vertical-align:middle;'
+                                                                                   'text-align:center;'
+                                                                                   'padding:1px;'
+                                                                                   'overflow:hidden;">'
+                    + qr_html
+                    + '</td>'
             )
 
             divider = (
@@ -833,162 +842,160 @@ class ProductLabelWizard(models.TransientModel):
                 'border-left:1.5px dashed #aaa;"></td>'
             )
 
-            # Col B — three stacked text lines, all inside one rotated div.
-            #
-            # Pre-rotation div size : LH wide x TC tall
-            # Post-rotation div size: TC wide x LH tall  (fits the cell)
-            # shift compensates the CSS rotation origin translation.
-
-            # max-width of each text line = LH - 4px padding
-            max_w = str(round(LH - 4, 2)) + 'px'
+            # The rotated div:
+            # Before rotation: width=LH, height=TC
+            # After -90deg:    width=TC, height=LH  → fills text column perfectly
+            # max-width for each text line = LH - 6px (small padding each side)
+            max_w = str(round(LH - 6, 2)) + 'px'
+            shift = (LH - TC) / 2.0
 
             name_line = ''
             if name:
                 name_line = (
-                    '<div style="'
-                    'font-size:' + _name_font(name) + ';'
-                    'font-weight:bold;'
-                    'text-transform:uppercase;'
-                    'white-space:nowrap;'
-                    'overflow:hidden;'
-                    'text-overflow:ellipsis;'
-                    'max-width:' + max_w + ';'
-                    'line-height:1.3;">'
-                    + name.upper() + '</div>'
+                        '<div style="'
+                        'font-size:' + _name_font(name) + ';'
+                                                          'font-weight:bold;'
+                                                          'text-transform:uppercase;'
+                                                          'white-space:nowrap;'
+                                                          'overflow:visible;'
+                                                          'max-width:' + max_w + ';'
+                                                                                 'line-height:1.25;">'
+                        + name.upper() + '</div>'
                 )
 
             code_line = ''
             if self.show_label_code and code:
                 code_line = (
-                    '<div style="'
-                    'font-size:' + _code_font(code) + ';'
-                    'font-weight:bold;'
-                    'white-space:nowrap;'
-                    'overflow:hidden;'
-                    'text-overflow:ellipsis;'
-                    'max-width:' + max_w + ';'
-                    'margin-top:1px;'
-                    'line-height:1.2;">'
-                    + code + '</div>'
+                        '<div style="'
+                        'font-size:' + _code_font(code) + ';'
+                                                          'font-weight:bold;'
+                                                          'white-space:nowrap;'
+                                                          'overflow:visible;'
+                                                          'max-width:' + max_w + ';'
+                                                                                 'margin-top:1px;'
+                                                                                 'line-height:1.2;">'
+                        + code + '</div>'
                 )
 
             mrp_line = ''
             if self.show_mrp:
                 mrp_line = (
-                    '<div style="'
-                    'font-size:6pt;'
-                    'font-weight:bold;'
-                    'white-space:nowrap;'
-                    'overflow:hidden;'
-                    'text-overflow:ellipsis;'
-                    'max-width:' + max_w + ';'
-                    'margin-top:1px;'
-                    'line-height:1.2;">'
-                    'MRP Rs.' + str(mrp) + '</div>'
+                        '<div style="'
+                        'font-size:5.5pt;'
+                        'font-weight:bold;'
+                        'white-space:nowrap;'
+                        'overflow:visible;'
+                        'max-width:' + max_w + ';'
+                                               'margin-top:1px;'
+                                               'line-height:1.2;">'
+                                               'MRP Rs.' + str(mrp) + '</div>'
                 )
 
-            shift = (LH - TC) / 2.0
-
             rotated_div = (
-                '<div style="'
-                'width:' + str(round(LH, 2)) + 'px;'
-                'height:' + str(round(TC, 2)) + 'px;'
-                'display:flex;'
-                'flex-direction:column;'
-                'align-items:center;'
-                'justify-content:center;'
-                'overflow:hidden;'
-                'transform:rotate(-90deg);'
-                '-webkit-transform:rotate(-90deg);'
-                'transform-origin:50% 50%;'
-                '-webkit-transform-origin:50% 50%;'
-                'margin-top:' + str(round(-shift, 2)) + 'px;'
-                'margin-left:' + str(round(-shift, 2)) + 'px;">'
-                + name_line
-                + code_line
-                + mrp_line
-                + '</div>'
+                    '<div style="'
+                    'width:' + str(round(LH, 2)) + 'px;'
+                                                   'height:' + str(round(TC, 2)) + 'px;'
+                                                                                   'display:flex;'
+                                                                                   'flex-direction:column;'
+                                                                                   'align-items:flex-start;'
+                                                                                   'justify-content:center;'
+                                                                                   'overflow:visible;'
+                                                                                   'transform:rotate(-90deg);'
+                                                                                   '-webkit-transform:rotate(-90deg);'
+                                                                                   'transform-origin:50% 50%;'
+                                                                                   '-webkit-transform-origin:50% 50%;'
+                                                                                   'margin-top:' + str(
+                round(-shift, 2)) + 'px;'
+                                    'margin-left:' + str(round(-shift, 2)) + 'px;'
+                                                                             'padding:0 3px;">'
+                    + name_line
+                    + code_line
+                    + mrp_line
+                    + '</div>'
             )
 
             col_txt = (
-                '<td style="'
-                'width:' + str(round(TC, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;'
-                'vertical-align:middle;'
-                'text-align:center;'
-                'padding:0;'
-                'overflow:hidden;">'
-                + rotated_div
-                + '</td>'
+                    '<td style="'
+                    'width:' + str(round(TC, 2)) + 'px;'
+                                                   'height:' + str(round(LH, 2)) + 'px;'
+                                                                                   'vertical-align:middle;'
+                                                                                   'text-align:center;'
+                                                                                   'padding:0;'
+                                                                                   'overflow:hidden;">'
+                    + rotated_div
+                    + '</td>'
             )
 
             return (
-                '<table style="'
-                'border-collapse:collapse;'
-                'width:' + str(round(LW, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;'
-                'border:1.5px solid #888;'
-                'border-radius:' + px(1.5) + ';'
-                'background:white;'
-                'table-layout:fixed;">'
-                '<tr>' + col_qr + divider + col_txt + '</tr>'
-                '</table>'
+                    '<table style="'
+                    'border-collapse:collapse;'
+                    'width:' + str(round(LW, 2)) + 'px;'
+                                                   'height:' + str(round(LH, 2)) + 'px;'
+                                                                                   'border:1.5px solid #888;'
+                                                                                   'border-radius:' + px(1.5) + ';'
+                                                                                                                'background:white;'
+                                                                                                                'table-layout:fixed;">'
+                                                                                                                '<tr>' + col_qr + divider + col_txt + '</tr>'
+                                                                                                                                                      '</table>'
             )
 
         # ── Page layout: 2 labels per page ───────────────────────────────────
         GAP = COL_GAP_MM * MM
-        MAR = L_MAR_MM   * MM
-        PH  = (LH_MM + 2) * MM
+        MAR = L_MAR_MM * MM
+        PH = (LH_MM + 2) * MM
 
         pages_html = []
         i = 0
         while i < len(label_list):
-            left  = label_list[i]
+            left = label_list[i]
             right = label_list[i + 1] if (i + 1) < len(label_list) else None
             i += 2
 
             row = (
-                '<tr>'
-                '<td style="width:' + str(round(LW, 2)) + 'px;'
-                'vertical-align:top;padding:0;">'
-                + one_label(left) + '</td>'
-                '<td style="width:' + str(round(GAP, 2)) + 'px;'
-                'padding:0;border:none;"></td>'
-                '<td style="width:' + str(round(LW, 2)) + 'px;'
-                'vertical-align:top;padding:0;">'
-                + (one_label(right) if right else '') + '</td>'
-                '</tr>'
+                    '<tr>'
+                    '<td style="width:' + str(round(LW, 2)) + 'px;'
+                                                              'vertical-align:top;padding:0;">'
+                    + one_label(left) + '</td>'
+                                        '<td style="width:' + str(round(GAP, 2)) + 'px;'
+                                                                                   'padding:0;border:none;"></td>'
+                                                                                   '<td style="width:' + str(
+                round(LW, 2)) + 'px;'
+                                'vertical-align:top;padding:0;">'
+                    + (one_label(right) if right else '') + '</td>'
+                                                            '</tr>'
             )
 
             pages_html.append(
                 '<div style="'
                 'width:' + str(round(PW, 2)) + 'px;'
-                'height:' + str(round(PH, 2)) + 'px;'
-                'padding-top:' + str(round(1 * MM, 2)) + 'px;'
-                'padding-left:' + str(round(MAR, 2)) + 'px;'
-                'page-break-after:always;'
-                'box-sizing:border-box;">'
-                '<table style="'
-                'width:' + str(round(2 * LW + GAP, 2)) + 'px;'
-                'border-collapse:separate;'
-                'border-spacing:0;'
-                'table-layout:fixed;">'
+                                               'height:' + str(round(PH, 2)) + 'px;'
+                                                                               'padding-top:' + str(
+                    round(1 * MM, 2)) + 'px;'
+                                        'padding-left:' + str(round(MAR, 2)) + 'px;'
+                                                                               'page-break-after:always;'
+                                                                               'box-sizing:border-box;">'
+                                                                               '<table style="'
+                                                                               'width:' + str(
+                    round(2 * LW + GAP, 2)) + 'px;'
+                                              'border-collapse:separate;'
+                                              'border-spacing:0;'
+                                              'table-layout:fixed;">'
                 + row + '</table></div>'
             )
 
         html = (
-            '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
-            '<style>'
-            '* { margin:0; padding:0; box-sizing:border-box; }'
-            'html, body {'
-            "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
-            '  background:white;'
-            '}'
-            '@page { margin:0; size: ' + str(PW_MM) + 'mm '
-            + str(LH_MM + 2) + 'mm; }'
-            '</style></head><body>'
-            + ''.join(pages_html)
-            + '</body></html>'
+                '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
+                '<style>'
+                '* { margin:0; padding:0; box-sizing:border-box; }'
+                'html, body {'
+                "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
+                '  background:white;'
+                '}'
+                '@page { margin:0; size: ' + str(PW_MM) + 'mm '
+                + str(LH_MM + 2) + 'mm; }'
+                                   '</style></head><body>'
+                + ''.join(pages_html)
+                + '</body></html>'
         )
         return html, PW_MM, LH_MM + 2
 
