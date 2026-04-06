@@ -124,37 +124,9 @@
 
 /* Offer count badge */
 .sop-count-badge {
-    background:#fff0e8; color:#e05a28; border-radius:12px;
-    padding:2px 10px; font-size:12px; font-weight:700;
-}
-
-/* ── Refresh button ── */
-.sop-refresh-btn {
-    background: rgba(255,255,255,0.25);
-    color: #fff;
-    border: 1.5px solid rgba(255,255,255,0.6);
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-.sop-refresh-btn:hover { background: rgba(255,255,255,0.4); }
-.sop-refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.sop-count-badge {
-    background: #ff6b35; color: #fff;
-    border-radius: 20px; padding: 2px 10px;
-    font-size: 12px; font-weight: 700;
-}
-.sop-time-warning {
-    font-size: 11px; color: #e08000;
-    background: #fff8e1; border-radius: 4px;
-    padding: 2px 7px; margin-top: 4px; display: inline-block;
-}
-.sop-btn-apply-disabled {
-    background: #aaa !important; cursor: not-allowed !important;
+    background:#ff6b35; color:#fff;
+    border-radius:20px; padding:2px 10px;
+    font-size:12px; font-weight:700;
 }
 
 /* ── Scope badges ── */
@@ -171,4 +143,39 @@
     background: #e8f5e9;
     color: #2e7d32;
     font-weight: 600;
+}
+
+/* ══ Phone Step ══════════════════════════════════════════════════════════════*/
+.sop-phone-step {
+    animation: sop-fadein 0.2s ease;
+}
+
+@keyframes sop-fadein {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0);   }
+}
+
+.sop-phone-step .sop-coupon-section {
+    background: #f0f7ff;
+    border-color: #b3d4f5;
+}
+
+.sop-phone-step .sop-coupon-input:focus {
+    border-color: #1a6ab1;
+}
+
+.sop-phone-step .sop-btn-apply-coupon {
+    background: #1a6ab1;
+}
+.sop-phone-step .sop-btn-apply-coupon:hover {
+    background: #145a9a;
+}
+
+.sop-time-warning {
+    font-size: 11px; color: #e08000;
+    background: #fff8e1; border-radius: 4px;
+    padding: 2px 7px; margin-top: 4px; display: inline-block;
+}
+.sop-btn-apply-disabled {
+    background: #aaa !important; cursor: not-allowed !important;
 }

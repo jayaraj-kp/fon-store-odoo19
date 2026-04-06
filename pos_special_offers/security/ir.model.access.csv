@@ -4,3 +4,5 @@ access_pos_special_offer_user,pos.special.offer.user,model_pos_special_offer,poi
 access_pos_special_offer_coupon,pos.special.offer.coupon,model_pos_special_offer_coupon,point_of_sale.group_pos_manager,1,1,1,1
 access_pos_special_offer_coupon_user,pos.special.offer.coupon.user,model_pos_special_offer_coupon,point_of_sale.group_pos_user,1,1,0,0
 access_pos_special_offer_generate_wizard,pos.special.offer.generate.wizard,model_pos_special_offer_generate_wizard,point_of_sale.group_pos_manager,1,1,1,1
+access_pos_special_offer_phone_usage,pos.special.offer.phone.usage,model_pos_special_offer_phone_usage,point_of_sale.group_pos_manager,1,1,1,1
+access_pos_special_offer_phone_usage_user,pos.special.offer.phone.usage.user,model_pos_special_offer_phone_usage,point_of_sale.group_pos_user,1,1,1,0
