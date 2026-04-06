@@ -872,7 +872,7 @@ class ProductLabelWizard(models.TransientModel):
                                                           'white-space:nowrap;'
                                                           'overflow:visible;'
                                                           'max-width:' + max_w + ';'
-                                                                                 'margin-top:1px;'
+                                                                                 'margin-top:3px;'
                                                                                  'line-height:1.2;">'
                         + code + '</div>'
                 )
@@ -886,7 +886,7 @@ class ProductLabelWizard(models.TransientModel):
                         'white-space:nowrap;'
                         'overflow:visible;'
                         'max-width:' + max_w + ';'
-                                               'margin-top:1px;'
+                                               'margin-top:3px;'
                                                'line-height:1.2;">'
                                                'MRP Rs.' + str(mrp) + '</div>'
                 )
