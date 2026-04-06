@@ -2262,10 +2262,10 @@ class ProductLabelWizard(models.TransientModel):
         QR_COL_MM   = 8.0   # QR column width  (reduced to give more space to text)
         CODE_COL_MM = 4.5    # label-code column width  ← NEW rotated column
         NAME_COL_MM = 5.5    # product-name column width
-        MRP_COL_MM  = 1.0    # MRP column width
+        MRP_COL_MM  = 2.0    # MRP column width
 
-        COL_GAP_MM = 5.0
-        L_MAR_MM   = 10.0
+        COL_GAP_MM = 4.0
+        L_MAR_MM   = 15.0
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
