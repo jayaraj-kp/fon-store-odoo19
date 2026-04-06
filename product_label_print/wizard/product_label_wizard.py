@@ -1082,750 +1082,7 @@
 # #             },
 # #         }
 #
-# from odoo import models, fields, api, _
-# from odoo.exceptions import UserError
-# import base64
-# import io
-# import os
-# import subprocess
-# import tempfile
-#
-#
-# class ProductLabelWizard(models.TransientModel):
-#     _name = 'product.label.wizard'
-#     _description = 'Product Label Printing Wizard'
-#
-#     product_tmpl_ids = fields.Many2many('product.template', string='Product Templates')
-#     product_ids = fields.Many2many('product.product', string='Product Variants')
-#     quantity = fields.Integer(string='Number of Labels per Product', default=1, required=True)
-#     show_mrp = fields.Boolean(string='Show MRP', default=True)
-#     show_qr = fields.Boolean(string='Show QR Code', default=True)
-#     show_label_code = fields.Boolean(string='Show Label Code', default=True)
-#     label_type = fields.Selection([
-#         ('large', 'Large Label (65x54mm) — GP-1125T Roll'),
-#         ('small', 'Small Label (25x15mm)'),
-#         ('medium', 'Medium Label (40x25mm)'),
-#     ], string='Label Size', default='large', required=True)
-#
-#     # ── QR generator ──────────────────────────────────────────────────────────
-#
-#     def _make_qr_base64(self, value):
-#         try:
-#             import qrcode
-#             qr = qrcode.QRCode(
-#                 version=1,
-#                 error_correction=qrcode.constants.ERROR_CORRECT_L,
-#                 box_size=8,
-#                 border=1,
-#             )
-#             qr.add_data(value or 'LABEL')
-#             qr.make(fit=True)
-#             img = qr.make_image(fill_color='black', back_color='white')
-#             buf = io.BytesIO()
-#             img.save(buf, format='PNG')
-#             return base64.b64encode(buf.getvalue()).decode('ascii')
-#         except Exception:
-#             return (
-#                 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
-#                 'YAAAAAYAAjCB0C8AAAAASUVORK5CYII='
-#             )
-#
-#     # ── Product / label helpers ───────────────────────────────────────────────
-#
-#     def _get_products(self):
-#         products = self.env['product.product']
-#         if self.product_ids:
-#             products |= self.product_ids
-#         if self.product_tmpl_ids:
-#             for tmpl in self.product_tmpl_ids:
-#                 products |= tmpl.product_variant_ids
-#         return products
-#
-#     def _get_label_list(self):
-#         products = self._get_products()
-#         label_list = []
-#         for product in products:
-#             tmpl = product.product_tmpl_id
-#             label_code = (getattr(tmpl, 'label_code', None) or
-#                           product.default_code or '')
-#             mrp = int(tmpl.list_price or 0)
-#             qr_value = (product.barcode or product.default_code or
-#                         tmpl.name or str(product.id))
-#             qr_b64 = self._make_qr_base64(qr_value)
-#             for _i in range(self.quantity):
-#                 label_list.append({
-#                     'name': tmpl.name or '',
-#                     'label_code': label_code,
-#                     'mrp': mrp,
-#                     'qr_b64': qr_b64,
-#                 })
-#         return label_list
-#
-#     # ── LARGE label HTML builder (65x54mm, GP-1125T roll) ────────────────────
-#     # NOTE: Large label is completely unchanged.
-#
-#     def _build_html_large(self, label_list):
-#         LW      = 65
-#         QR_H    = 26
-#         BOT_H   = 28
-#         LH      = QR_H + BOT_H
-#         QR_SIZE = 18
-#         COL_GAP = 60
-#         ROW_GAP = 4
-#         L_MAR   = 13
-#         PW      = 160
-#
-#         def _name_font_size(name):
-#             n = len(name or '')
-#             if n <= 10:   return 20
-#             elif n <= 15: return 16
-#             elif n <= 22: return 13
-#             else:         return 10
-#
-#         def _code_font_size(code):
-#             n = len(code or '')
-#             if n <= 6:    return 18
-#             elif n <= 10: return 15
-#             else:         return 12
-#
-#         def one_label(lbl):
-#             qr_html = ''
-#             if self.show_qr:
-#                 qr_html = (
-#                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-#                     'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
-#                     'display:block;margin:0 auto;" alt=""/>'
-#                 )
-#
-#             code_html = ''
-#             if self.show_label_code and lbl.get('label_code'):
-#                 code_fs = str(_code_font_size(lbl['label_code'])) + 'pt'
-#                 code_html = (
-#                     '<div style="text-align:center;font-size:' + code_fs + ';'
-#                     'font-weight:bold;letter-spacing:0.3mm;margin-top:1mm;'
-#                     'word-break:break-all;overflow:hidden;">'
-#                     + lbl['label_code'] + '</div>'
-#                 )
-#
-#             top_cell = (
-#                 '<tr><td style="height:' + str(QR_H) + 'mm;'
-#                 'padding:3mm 1mm 1mm 5mm;vertical-align:top;'
-#                 'border-bottom:1.5px dashed #aaa;">'
-#                 + qr_html + code_html + '</td></tr>'
-#             )
-#
-#             name    = lbl['name'] or ''
-#             name_fs = str(_name_font_size(name)) + 'pt'
-#             mrp_html = ''
-#             if self.show_mrp:
-#                 mrp_html = (
-#                     '<div style="font-size:14pt;padding-left:4mm;margin-top:1mm;">'
-#                     'MRP Rs. ' + str(lbl['mrp']) + '</div>'
-#                 )
-#
-#             bot_cell = (
-#                 '<tr><td style="height:' + str(BOT_H) + 'mm;'
-#                 'padding-bottom:3mm;padding-left:12mm;padding-right:2mm;'
-#                 'vertical-align:bottom;overflow:hidden;">'
-#                 '<div style="font-size:' + name_fs + ';'
-#                 'text-transform:uppercase;word-break:break-word;'
-#                 'word-wrap:break-word;white-space:normal;line-height:2;'
-#                 'overflow:hidden;">'
-#                 + name + '</div>' + mrp_html + '</td></tr>'
-#             )
-#
-#             return (
-#                 '<table style="border-collapse:collapse;width:' + str(LW) + 'mm;'
-#                 'border:1.5px solid #888;border-radius:3mm;background:white;'
-#                 'table-layout:fixed;">'
-#                 + top_cell + bot_cell + '</table>'
-#             )
-#
-#         page_h = 2 + LH + ROW_GAP + 2
-#         pages_html = []
-#         i = 0
-#         while i < len(label_list):
-#             left  = label_list[i]
-#             right = label_list[i + 1] if (i + 1) < len(label_list) else None
-#             i += 2
-#
-#             row = (
-#                 '<tr>'
-#                 '<td style="width:' + str(LW) + 'mm;vertical-align:top;padding:0;">'
-#                 + one_label(left) + '</td>'
-#                 '<td style="width:' + str(COL_GAP) + 'mm;padding:0;border:none;"></td>'
-#                 '<td style="width:' + str(LW) + 'mm;vertical-align:top;padding:0;">'
-#                 + (one_label(right) if right else '') + '</td>'
-#                 '</tr>'
-#             )
-#
-#             pages_html.append(
-#                 '<div style="width:' + str(PW) + 'mm;height:' + str(page_h) + 'mm;'
-#                 'padding-top:2mm;padding-left:' + str(L_MAR) + 'mm;'
-#                 'page-break-after:always;box-sizing:border-box;">'
-#                 '<table style="width:' + str(2 * LW + COL_GAP) + 'mm;'
-#                 'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
-#                 + row + '</table></div>'
-#             )
-#
-#         html = (
-#             '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
-#             '<style>'
-#             '* { margin:0; padding:0; box-sizing:border-box; }'
-#             'html, body {'
-#             "  font-family: 'Arial Narrow', 'Liberation Sans', Arial, sans-serif;"
-#             '  background: white;'
-#             '  width: ' + str(PW) + 'mm;'
-#             '}'
-#             '@page { margin:0; size: ' + str(PW) + 'mm ' + str(page_h) + 'mm; }'
-#             '</style></head><body>'
-#             + ''.join(pages_html)
-#             + '</body></html>'
-#         )
-#         return html, PW, page_h
-#
-#     # ── SMALL label HTML builder (25x15mm, 2 per row) ─────────────────────────
-#
-#     def _build_html_small(self, label_list):
-#         MM = 3.7795  # mm -> px
-#
-#         LW_MM = 25.0
-#         LH_MM = 15.0
-#
-#         QR_COL_MM  = 8.0
-#         TXT_COL_MM = LW_MM - QR_COL_MM  # 17 mm
-#
-#         QR_SIZE_MM = 15.0
-#
-#         COL_GAP_MM = 8.0
-#         L_MAR_MM   = 28.0
-#         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
-#
-#         LW = LW_MM * MM
-#         LH = LH_MM * MM
-#         QC = QR_COL_MM * MM
-#         TC = TXT_COL_MM * MM
-#         PW = PW_MM * MM
-#
-#         def px(mm):
-#             return str(round(mm * MM, 2)) + 'px'
-#
-#         def _name_font(name):
-#             n = len(name or '')
-#             if n <= 8:    return '8.5pt'
-#             elif n <= 14: return '7pt'
-#             elif n <= 20: return '6pt'
-#             else:         return '5pt'
-#
-#         def _code_font(code):
-#             n = len(code or '')
-#             if n <= 8:    return '7pt'
-#             elif n <= 12: return '6pt'
-#             else:         return '5pt'
-#
-#         def one_label(lbl):
-#             name = lbl['name'] or ''
-#             code = lbl.get('label_code') or ''
-#             mrp  = lbl.get('mrp', 0)
-#
-#             qr_html = ''
-#             if self.show_qr:
-#                 qr_html = (
-#                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-#                     'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';'
-#                     'display:block;margin:0 auto;" alt="" margin-bottom:5px;/>'
-#                 )
-#             col_qr = (
-#                 '<td style="'
-#                 'width:' + str(round(QC, 2)) + 'px;'
-#                 'height:' + str(round(LH, 2)) + 'px;'
-#                 'vertical-align:middle;'
-#                 'text-align:center;'
-#                 'padding:1px;'
-#                 'overflow:hidden;">'
-#                 + qr_html
-#                 + '</td>'
-#             )
-#
-#             divider = (
-#                 '<td style="width:1px;padding:0;'
-#                 'border-left:1.5px dashed #aaa;"></td>'
-#             )
-#
-#             max_w = str(round(LH - 6, 2)) + 'px'
-#             shift = (LH - TC) / 2.0
-#
-#             name_line = ''
-#             if name:
-#                 name_line = (
-#                     '<div style="'
-#                     'font-size:' + _name_font(name) + ';'
-#                     'text-transform:uppercase;'
-#                     'white-space:normal;'
-#                     'word-break:break-word;'
-#                     'overflow:hidden;'
-#                     'max-width:' + max_w + ';'
-#                     'line-height:1.25;'
-#                     'margin-top:3px;">'
-#                     + name.upper() + '</div>'
-#                 )
-#
-#             code_line = ''
-#             if self.show_label_code and code:
-#                 code_line = (
-#                     '<div style="'
-#                     'font-size:' + _code_font(code) + ';'
-#                     'white-space:normal;'
-#                     'word-break:break-all;'
-#                     'overflow:hidden;'
-#                     'max-width:' + max_w + ';'
-#                     'margin-top:3px;'
-#                     'line-height:1.2;">'
-#                     + code + '</div>'
-#                 )
-#
-#             mrp_line = ''
-#             if self.show_mrp:
-#                 mrp_line = (
-#                     '<div style="'
-#                     'font-size:7pt;'
-#                     'white-space:normal;'
-#                     'word-break:break-word;'
-#                     'overflow:hidden;'
-#                     'max-width:' + max_w + ';'
-#                     'margin-top:3px;'
-#                     'line-height:1.2;">'
-#                     'MRP Rs.' + str(mrp) + '</div>'
-#                 )
-#
-#             rotated_div = (
-#                 '<div style="'
-#                 'width:' + str(round(LH, 2)) + 'px;'
-#                 'height:' + str(round(TC, 2)) + 'px;'
-#                 'display:flex;'
-#                 'flex-direction:column;'
-#                 'align-items:flex-start;'
-#                 'justify-content:center;'
-#                 'overflow:hidden;'
-#                 'transform:rotate(-90deg);'
-#                 '-webkit-transform:rotate(-90deg);'
-#                 'transform-origin:50% 50%;'
-#                 '-webkit-transform-origin:50% 50%;'
-#                 'margin-top:' + str(round(-shift, 2)) + 'px;'
-#                 'margin-left:' + str(round(-shift, 2)) + 'px;'
-#                 'padding:0 3px;">'
-#                 + name_line
-#                 + code_line
-#                 + mrp_line
-#                 + '</div>'
-#             )
-#
-#             col_txt = (
-#                 '<td style="'
-#                 'width:' + str(round(TC, 2)) + 'px;'
-#                 'height:' + str(round(LH, 2)) + 'px;'
-#                 'vertical-align:middle;'
-#                 'text-align:center;'
-#                 'padding:0;'
-#                 'overflow:hidden;">'
-#                 + rotated_div
-#                 + '</td>'
-#             )
-#
-#             return (
-#                 '<table style="'
-#                 'border-collapse:collapse;'
-#                 'width:' + str(round(LW, 2)) + 'px;'
-#                 'height:' + str(round(LH, 2)) + 'px;'
-#                 'border:1.5px solid #888;'
-#                 'border-radius:' + px(1.5) + ';'
-#                 'background:white;'
-#                 'table-layout:fixed;">'
-#                 '<tr>' + col_qr + divider + col_txt + '</tr>'
-#                 '</table>'
-#             )
-#
-#         GAP = COL_GAP_MM * MM
-#         MAR = L_MAR_MM * MM
-#         PH  = (LH_MM + 2) * MM
-#
-#         pages_html = []
-#         i = 0
-#         while i < len(label_list):
-#             left  = label_list[i]
-#             right = label_list[i + 1] if (i + 1) < len(label_list) else None
-#             i += 2
-#
-#             row = (
-#                 '<tr>'
-#                 '<td style="width:' + str(round(LW, 2)) + 'px;'
-#                 'vertical-align:top;padding:0;">'
-#                 + one_label(left) + '</td>'
-#                 '<td style="width:' + str(round(GAP, 2)) + 'px;'
-#                 'padding:0;border:none;"></td>'
-#                 '<td style="width:' + str(round(LW, 2)) + 'px;'
-#                 'vertical-align:top;padding:0;">'
-#                 + (one_label(right) if right else '') + '</td>'
-#                 '</tr>'
-#             )
-#
-#             pages_html.append(
-#                 '<div style="'
-#                 'width:' + str(round(PW, 2)) + 'px;'
-#                 'height:' + str(round(PH, 2)) + 'px;'
-#                 'padding-top:' + str(round(1 * MM, 2)) + 'px;'
-#                 'padding-left:' + str(round(MAR, 2)) + 'px;'
-#                 'page-break-after:always;'
-#                 'box-sizing:border-box;">'
-#                 '<table style="'
-#                 'width:' + str(round(2 * LW + GAP, 2)) + 'px;'
-#                 'border-collapse:separate;'
-#                 'border-spacing:0;'
-#                 'table-layout:fixed;">'
-#                 + row + '</table></div>'
-#             )
-#
-#         html = (
-#             '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
-#             '<style>'
-#             '* { margin:0; padding:0; box-sizing:border-box; }'
-#             'html, body {'
-#             "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
-#             '  background:white;'
-#             '}'
-#             '@page { margin:0; size: ' + str(PW_MM) + 'mm '
-#             + str(LH_MM + 2) + 'mm; }'
-#             '</style></head><body>'
-#             + ''.join(pages_html)
-#             + '</body></html>'
-#         )
-#         return html, PW_MM, LH_MM + 2
-#
-#         # ── MEDIUM label HTML builder (40x25mm, 2 per row) ────────────────────────
-#         #
-#         # Layout (landscape label, read normally):
-#         #
-#         #  ┌────────────────────────────────────────┐
-#         #  │         PRODUCT NAME (centred)         │
-#         #  │  ┌──────────────────────────────────┐  │
-#         #  │  │  |||||||||| BARCODE |||||||||||  │  │
-#         #  │  └──────────────────────────────────┘  │
-#         #  │  123456789            MRP Rs.1,00      │
-#         #  └────────────────────────────────────────┘
-#         #
-#         # Uses python-barcode (Code128) rendered as SVG embedded inline.
-#         # No QR code, no rotation.
-#
-#         def _build_html_medium(self, label_list):
-#             MM = 3.7795  # mm → px
-#
-#             LW_MM = 40.0
-#             LH_MM = 25.0
-#
-#             COL_GAP_MM = 6.0
-#             L_MAR_MM = 20.0
-#             PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
-#
-#             LW = LW_MM * MM
-#             LH = LH_MM * MM
-#             PW = PW_MM * MM
-#
-#             def px(mm):
-#                 return str(round(mm * MM, 2)) + 'px'
-#
-#             # ── Barcode generator (Code128 → base64 PNG) ─────────────────────────
-#             def _make_barcode_base64(value):
-#                 try:
-#                     import barcode as python_barcode
-#                     from barcode.writer import ImageWriter
-#                     import io as _io
-#                     code = python_barcode.get('code128', str(value or 'LABEL'),
-#                                               writer=ImageWriter())
-#                     buf = _io.BytesIO()
-#                     code.write(buf, options={
-#                         'module_height': 8.0,  # bar height in mm
-#                         'module_width': 0.18,  # narrow bar width in mm
-#                         'quiet_zone': 1.0,
-#                         'font_size': 5,
-#                         'text_distance': 2.0,
-#                         'write_text': False,  # we print the number ourselves below
-#                         'background': 'white',
-#                         'foreground': 'black',
-#                         'dpi': 203,
-#                     })
-#                     return base64.b64encode(buf.getvalue()).decode('ascii')
-#                 except Exception:
-#                     # 1×1 white pixel fallback
-#                     return (
-#                         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
-#                         'AAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII='
-#                     )
-#
-#             # ── Font helpers ──────────────────────────────────────────────────────
-#             def _name_font(name):
-#                 n = len(name or '')
-#                 if n <= 10:
-#                     return '9pt'
-#                 elif n <= 18:
-#                     return '7.5pt'
-#                 elif n <= 26:
-#                     return '6pt'
-#                 else:
-#                     return '5pt'
-#
-#             def _code_font(code):
-#                 n = len(code or '')
-#                 if n <= 10:
-#                     return '7pt'
-#                 elif n <= 16:
-#                     return '6pt'
-#                 else:
-#                     return '5pt'
-#
-#             # ── Single label ──────────────────────────────────────────────────────
-#             def one_label(lbl):
-#                 name = lbl['name'] or ''
-#                 code = lbl.get('label_code') or ''
-#                 mrp = lbl.get('mrp', 0)
-#                 bc_value = code or name  # use label_code for barcode if available
-#
-#                 # ── Name row ─────────────────────────────────────────────────────
-#                 name_row = (
-#                         '<tr><td colspan="2" style="'
-#                         'padding:1.5mm 2mm 0.5mm 2mm;'
-#                         'text-align:center;'
-#                         'font-size:' + _name_font(name) + ';'
-#                                                           'font-weight:bold;'
-#                                                           'text-transform:uppercase;'
-#                                                           'letter-spacing:0.3px;'
-#                                                           'white-space:normal;'
-#                                                           'word-break:break-word;'
-#                                                           'overflow:hidden;'
-#                                                           'line-height:1.2;'
-#                                                           'border-bottom:1px dashed #bbb;">'
-#                         + name.upper()
-#                         + '</td></tr>'
-#                 )
-#
-#                 # ── Barcode row ───────────────────────────────────────────────────
-#                 bc_b64 = _make_barcode_base64(bc_value)
-#                 barcode_row = (
-#                         '<tr><td colspan="2" style="'
-#                         'padding:1mm 2mm 0mm 2mm;'
-#                         'text-align:center;'
-#                         'vertical-align:middle;">'
-#                         '<img src="data:image/png;base64,' + bc_b64 + '" '
-#                                                                       'style="'
-#                                                                       'height:' + px(10) + ';'
-#                                                                                            'max-width:' + px(
-#                     LW_MM - 4) + ';'
-#                                  'display:block;margin:0 auto;" alt=""/>'
-#                                  '</td></tr>'
-#                 )
-#
-#                 # ── Bottom row: label code left, MRP right ────────────────────────
-#                 code_cell = ''
-#                 if self.show_label_code and code:
-#                     code_cell = (
-#                             '<td style="'
-#                             'padding:0.5mm 1mm 1mm 2mm;'
-#                             'text-align:left;'
-#                             'font-size:' + _code_font(code) + ';'
-#                                                               'font-weight:bold;'
-#                                                               'white-space:nowrap;'
-#                                                               'overflow:hidden;">'
-#                             + code
-#                             + '</td>'
-#                     )
-#                 else:
-#                     code_cell = '<td></td>'
-#
-#                 mrp_cell = ''
-#                 if self.show_mrp:
-#                     mrp_cell = (
-#                             '<td style="'
-#                             'padding:0.5mm 2mm 1mm 1mm;'
-#                             'text-align:right;'
-#                             'font-size:8pt;'
-#                             'font-weight:bold;'
-#                             'white-space:nowrap;'
-#                             'overflow:hidden;">'
-#                             'MRP Rs.' + str(mrp)
-#                             + '</td>'
-#                     )
-#                 else:
-#                     mrp_cell = '<td></td>'
-#
-#                 bottom_row = (
-#                         '<tr>'
-#                         + code_cell
-#                         + mrp_cell
-#                         + '</tr>'
-#                 )
-#
-#                 return (
-#                         '<table style="'
-#                         'border-collapse:collapse;'
-#                         'width:' + str(round(LW, 2)) + 'px;'
-#                                                        'height:' + str(round(LH, 2)) + 'px;'
-#                                                                                        'border:1.5px solid #888;'
-#                                                                                        'border-radius:' + px(2) + ';'
-#                                                                                                                   'background:white;'
-#                                                                                                                   'table-layout:fixed;">'
-#                         + name_row
-#                         + barcode_row
-#                         + bottom_row
-#                         + '</table>'
-#                 )
-#
-#             # ── Page layout: 2 labels per row ─────────────────────────────────────
-#             GAP = COL_GAP_MM * MM
-#             MAR = L_MAR_MM * MM
-#             PH = (LH_MM + 2) * MM
-#
-#             pages_html = []
-#             i = 0
-#             while i < len(label_list):
-#                 left = label_list[i]
-#                 right = label_list[i + 1] if (i + 1) < len(label_list) else None
-#                 i += 2
-#
-#                 row = (
-#                         '<tr>'
-#                         '<td style="width:' + str(round(LW, 2)) + 'px;'
-#                                                                   'vertical-align:top;padding:0;">'
-#                         + one_label(left) + '</td>'
-#                                             '<td style="width:' + str(round(GAP, 2)) + 'px;'
-#                                                                                        'padding:0;border:none;"></td>'
-#                                                                                        '<td style="width:' + str(
-#                     round(LW, 2)) + 'px;'
-#                                     'vertical-align:top;padding:0;">'
-#                         + (one_label(right) if right else '') + '</td>'
-#                                                                 '</tr>'
-#                 )
-#
-#                 pages_html.append(
-#                     '<div style="'
-#                     'width:' + str(round(PW, 2)) + 'px;'
-#                                                    'height:' + str(round(PH, 2)) + 'px;'
-#                                                                                    'padding-top:' + str(
-#                         round(1 * MM, 2)) + 'px;'
-#                                             'padding-left:' + str(round(MAR, 2)) + 'px;'
-#                                                                                    'page-break-after:always;'
-#                                                                                    'box-sizing:border-box;">'
-#                                                                                    '<table style="'
-#                                                                                    'width:' + str(
-#                         round(2 * LW + GAP, 2)) + 'px;'
-#                                                   'border-collapse:separate;'
-#                                                   'border-spacing:0;'
-#                                                   'table-layout:fixed;">'
-#                     + row + '</table></div>'
-#                 )
-#
-#             html = (
-#                     '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
-#                     '<style>'
-#                     '* { margin:0; padding:0; box-sizing:border-box; }'
-#                     'html, body {'
-#                     "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
-#                     '  background:white;'
-#                     '}'
-#                     '@page { margin:0; size: ' + str(PW_MM) + 'mm '
-#                     + str(LH_MM + 2) + 'mm; }'
-#                                        '</style></head><body>'
-#                     + ''.join(pages_html)
-#                     + '</body></html>'
-#             )
-#             return html, PW_MM, LH_MM + 2
-#
-#     # ── Print action ──────────────────────────────────────────────────────────
-#
-#     def action_print_labels(self):
-#         self.ensure_one()
-#         products = self._get_products()
-#         if not products:
-#             raise UserError(_('Please select at least one product.'))
-#
-#         label_list = self._get_label_list()
-#
-#         if self.label_type == 'small':
-#             html_content, page_w, page_h = self._build_html_small(label_list)
-#         elif self.label_type == 'medium':
-#             html_content, page_w, page_h = self._build_html_medium(label_list)
-#         else:
-#             html_content, page_w, page_h = self._build_html_large(label_list)
-#
-#         html_path = pdf_path = None
-#         try:
-#             with tempfile.NamedTemporaryFile(
-#                     suffix='.html', delete=False,
-#                     mode='w', encoding='utf-8') as fh:
-#                 fh.write(html_content)
-#                 html_path = fh.name
-#
-#             pdf_path = html_path.replace('.html', '.pdf')
-#
-#             cmd = [
-#                 'wkhtmltopdf',
-#                 '--page-width',    str(page_w) + 'mm',
-#                 '--page-height',   str(page_h) + 'mm',
-#                 '--margin-top',    '0',
-#                 '--margin-bottom', '0',
-#                 '--margin-left',   '0',
-#                 '--margin-right',  '0',
-#                 '--disable-smart-shrinking',
-#                 '--zoom',          '1',
-#                 '--dpi',           '203',
-#                 '--no-stop-slow-scripts',
-#                 '--encoding',      'UTF-8',
-#                 html_path,
-#                 pdf_path,
-#             ]
-#             result = subprocess.run(cmd, capture_output=True)
-#
-#             if result.returncode not in (0, 1) or not os.path.exists(pdf_path):
-#                 err = result.stderr.decode('utf-8', errors='replace')
-#                 raise UserError(
-#                     _('wkhtmltopdf failed (exit %s):\n%s')
-#                     % (result.returncode, err)
-#                 )
-#
-#             with open(pdf_path, 'rb') as f:
-#                 pdf_data = f.read()
-#
-#         finally:
-#             for p in (html_path, pdf_path):
-#                 if p and os.path.exists(p):
-#                     try:
-#                         os.unlink(p)
-#                     except Exception:
-#                         pass
-#
-#         attachment = self.env['ir.attachment'].create({
-#             'name': 'Product_Labels.pdf',
-#             'type': 'binary',
-#             'datas': base64.b64encode(pdf_data),
-#             'mimetype': 'application/pdf',
-#             'res_model': self._name,
-#             'res_id': self.id,
-#         })
-#
-#         pdf_url = '/web/content/' + str(attachment.id)
-#         products = self._get_products()
-#         product_names = ', '.join(products.mapped('name'))
-#         record_name = product_names[:40] + ('...' if len(product_names) > 40 else '')
-#
-#         return {
-#             'type': 'ir.actions.client',
-#             'tag': 'product_label_print.open_print_dialog',
-#             'params': {
-#                 'pdf_url':       pdf_url,
-#                 'record_name':   record_name,
-#                 'label_qty':     self.quantity,
-#                 'product_count': len(products),
-#             },
-#         }
-from odoo import models, fields, _
+from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
 import io
@@ -1838,38 +1095,42 @@ class ProductLabelWizard(models.TransientModel):
     _name = 'product.label.wizard'
     _description = 'Product Label Printing Wizard'
 
-    product_tmpl_ids = fields.Many2many('product.template')
-    product_ids = fields.Many2many('product.product')
-    quantity = fields.Integer(default=1, required=True)
-
-    show_mrp = fields.Boolean(default=True)
-    show_qr = fields.Boolean(default=True)
-    show_label_code = fields.Boolean(default=True)
-
+    product_tmpl_ids = fields.Many2many('product.template', string='Product Templates')
+    product_ids = fields.Many2many('product.product', string='Product Variants')
+    quantity = fields.Integer(string='Number of Labels per Product', default=1, required=True)
+    show_mrp = fields.Boolean(string='Show MRP', default=True)
+    show_qr = fields.Boolean(string='Show QR Code', default=True)
+    show_label_code = fields.Boolean(string='Show Label Code', default=True)
     label_type = fields.Selection([
-        ('small', 'Small Label'),
-    ], default='small', required=True)
+        ('large', 'Large Label (65x54mm) — GP-1125T Roll'),
+        ('small', 'Small Label (25x15mm)'),
+        ('medium', 'Medium Label (40x25mm)'),
+    ], string='Label Size', default='large', required=True)
 
-    # ✅ FIXED QR (ONLY CHANGE)
+    # ── QR generator ──────────────────────────────────────────────────────────
+
     def _make_qr_base64(self, value):
         try:
             import qrcode
             qr = qrcode.QRCode(
-                version=2,
-                error_correction=qrcode.constants.ERROR_CORRECT_M,
-                box_size=10,
-                border=2,
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=8,
+                border=1,
             )
             qr.add_data(value or 'LABEL')
             qr.make(fit=True)
-
             img = qr.make_image(fill_color='black', back_color='white')
-
             buf = io.BytesIO()
             img.save(buf, format='PNG')
-            return base64.b64encode(buf.getvalue()).decode()
+            return base64.b64encode(buf.getvalue()).decode('ascii')
         except Exception:
-            return ''
+            return (
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
+                'YAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+            )
+
+    # ── Product / label helpers ───────────────────────────────────────────────
 
     def _get_products(self):
         products = self.env['product.product']
@@ -1880,145 +1141,884 @@ class ProductLabelWizard(models.TransientModel):
                 products |= tmpl.product_variant_ids
         return products
 
-    # ✅ FIXED QR DATA ONLY
     def _get_label_list(self):
         products = self._get_products()
         label_list = []
-
         for product in products:
             tmpl = product.product_tmpl_id
-
-            qr_value = (
-                product.barcode
-                or product.default_code
-                or str(product.id)
-            )
-
+            label_code = (getattr(tmpl, 'label_code', None) or
+                          product.default_code or '')
+            mrp = int(tmpl.list_price or 0)
+            qr_value = (product.barcode or product.default_code or
+                        tmpl.name or str(product.id))
             qr_b64 = self._make_qr_base64(qr_value)
-
-            for _ in range(self.quantity):
+            for _i in range(self.quantity):
                 label_list.append({
                     'name': tmpl.name or '',
-                    'label_code': product.default_code or '',
-                    'mrp': int(tmpl.list_price or 0),
+                    'label_code': label_code,
+                    'mrp': mrp,
                     'qr_b64': qr_b64,
                 })
-
         return label_list
 
-    # ✅ YOUR ORIGINAL LAYOUT (FIXED QR SIZE ONLY)
-    def _build_html_small(self, label_list):
-        MM = 3.7795
+    # ── LARGE label HTML builder (65x54mm, GP-1125T roll) ────────────────────
+    # NOTE: Large label is completely unchanged.
 
-        LW_MM = 25.0
-        LH_MM = 15.0
+    def _build_html_large(self, label_list):
+        LW      = 65
+        QR_H    = 26
+        BOT_H   = 28
+        LH      = QR_H + BOT_H
+        QR_SIZE = 18
+        COL_GAP = 60
+        ROW_GAP = 4
+        L_MAR   = 13
+        PW      = 160
 
-        QR_COL_MM = 8.0
-        TXT_COL_MM = LW_MM - QR_COL_MM
+        def _name_font_size(name):
+            n = len(name or '')
+            if n <= 10:   return 20
+            elif n <= 15: return 16
+            elif n <= 22: return 13
+            else:         return 10
 
-        QR_SIZE_MM = 12.0  # ✅ FIXED (was 15)
-
-        COL_GAP_MM = 8.0
-        L_MAR_MM = 66.0
-        PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
-
-        def px(mm):
-            return str(round(mm * MM, 2)) + 'px'
+        def _code_font_size(code):
+            n = len(code or '')
+            if n <= 6:    return 18
+            elif n <= 10: return 15
+            else:         return 12
 
         def one_label(lbl):
             qr_html = ''
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                    'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';margin:auto;display:block;" />'
+                    'style="width:' + str(QR_SIZE) + 'mm;height:' + str(QR_SIZE) + 'mm;'
+                    'display:block;margin:0 auto;" alt=""/>'
                 )
 
+            code_html = ''
+            if self.show_label_code and lbl.get('label_code'):
+                code_fs = str(_code_font_size(lbl['label_code'])) + 'pt'
+                code_html = (
+                    '<div style="text-align:center;font-size:' + code_fs + ';'
+                    'font-weight:bold;letter-spacing:0.3mm;margin-top:1mm;'
+                    'word-break:break-all;overflow:hidden;">'
+                    + lbl['label_code'] + '</div>'
+                )
+
+            top_cell = (
+                '<tr><td style="height:' + str(QR_H) + 'mm;'
+                'padding:3mm 1mm 1mm 5mm;vertical-align:top;'
+                'border-bottom:1.5px dashed #aaa;">'
+                + qr_html + code_html + '</td></tr>'
+            )
+
+            name    = lbl['name'] or ''
+            name_fs = str(_name_font_size(name)) + 'pt'
+            mrp_html = ''
+            if self.show_mrp:
+                mrp_html = (
+                    '<div style="font-size:14pt;padding-left:4mm;margin-top:1mm;">'
+                    'MRP Rs. ' + str(lbl['mrp']) + '</div>'
+                )
+
+            bot_cell = (
+                '<tr><td style="height:' + str(BOT_H) + 'mm;'
+                'padding-bottom:3mm;padding-left:12mm;padding-right:2mm;'
+                'vertical-align:bottom;overflow:hidden;">'
+                '<div style="font-size:' + name_fs + ';'
+                'text-transform:uppercase;word-break:break-word;'
+                'word-wrap:break-word;white-space:normal;line-height:2;'
+                'overflow:hidden;">'
+                + name + '</div>' + mrp_html + '</td></tr>'
+            )
+
+            return (
+                '<table style="border-collapse:collapse;width:' + str(LW) + 'mm;'
+                'border:1.5px solid #888;border-radius:3mm;background:white;'
+                'table-layout:fixed;">'
+                + top_cell + bot_cell + '</table>'
+            )
+
+        page_h = 2 + LH + ROW_GAP + 2
+        pages_html = []
+        i = 0
+        while i < len(label_list):
+            left  = label_list[i]
+            right = label_list[i + 1] if (i + 1) < len(label_list) else None
+            i += 2
+
+            row = (
+                '<tr>'
+                '<td style="width:' + str(LW) + 'mm;vertical-align:top;padding:0;">'
+                + one_label(left) + '</td>'
+                '<td style="width:' + str(COL_GAP) + 'mm;padding:0;border:none;"></td>'
+                '<td style="width:' + str(LW) + 'mm;vertical-align:top;padding:0;">'
+                + (one_label(right) if right else '') + '</td>'
+                '</tr>'
+            )
+
+            pages_html.append(
+                '<div style="width:' + str(PW) + 'mm;height:' + str(page_h) + 'mm;'
+                'padding-top:2mm;padding-left:' + str(L_MAR) + 'mm;'
+                'page-break-after:always;box-sizing:border-box;">'
+                '<table style="width:' + str(2 * LW + COL_GAP) + 'mm;'
+                'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
+                + row + '</table></div>'
+            )
+
+        html = (
+            '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
+            '<style>'
+            '* { margin:0; padding:0; box-sizing:border-box; }'
+            'html, body {'
+            "  font-family: 'Arial Narrow', 'Liberation Sans', Arial, sans-serif;"
+            '  background: white;'
+            '  width: ' + str(PW) + 'mm;'
+            '}'
+            '@page { margin:0; size: ' + str(PW) + 'mm ' + str(page_h) + 'mm; }'
+            '</style></head><body>'
+            + ''.join(pages_html)
+            + '</body></html>'
+        )
+        return html, PW, page_h
+
+    # ── SMALL label HTML builder (25x15mm, 2 per row) ─────────────────────────
+
+    def _build_html_small(self, label_list):
+        MM = 3.7795  # mm -> px
+
+        LW_MM = 25.0
+        LH_MM = 15.0
+
+        QR_COL_MM  = 8.0
+        TXT_COL_MM = LW_MM - QR_COL_MM  # 17 mm
+
+        QR_SIZE_MM = 15.0
+
+        COL_GAP_MM = 8.0
+        L_MAR_MM   = 28.0
+        PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
+
+        LW = LW_MM * MM
+        LH = LH_MM * MM
+        QC = QR_COL_MM * MM
+        TC = TXT_COL_MM * MM
+        PW = PW_MM * MM
+
+        def px(mm):
+            return str(round(mm * MM, 2)) + 'px'
+
+        def _name_font(name):
+            n = len(name or '')
+            if n <= 8:    return '5pt'
+            elif n <= 14: return '6pt'
+            elif n <= 20: return '6.5pt'
+            else:         return '4.5pt'
+
+        def _code_font(code):
+            n = len(code or '')
+            if n <= 8:    return '6pt'
+            elif n <= 12: return '5pt'
+            else:         return '4pt'
+
+        def one_label(lbl):
             name = lbl['name'] or ''
-            code = lbl['label_code'] or ''
-            mrp = lbl['mrp']
+            code = lbl.get('label_code') or ''
+            mrp  = lbl.get('mrp', 0)
 
-            text_block = f"""
-                <div style="font-size:6pt;text-transform:uppercase;">{name}</div>
-                <div style="font-size:6pt;">{code}</div>
-                <div style="font-size:6pt;">Rs.{mrp}</div>
-            """
+            qr_html = ''
+            if self.show_qr:
+                qr_html = (
+                    '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
+                    'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';'
+                    'display:block;margin:0 auto;" alt="" margin-bottom:5px;/>'
+                )
+            col_qr = (
+                '<td style="'
+                'width:' + str(round(QC, 2)) + 'px;'
+                'height:' + str(round(LH, 2)) + 'px;'
+                'vertical-align:middle;'
+                'text-align:center;'
+                'padding:1px;'
+                'overflow:hidden;">'
+                + qr_html
+                + '</td>'
+            )
 
-            rotated = f"""
-            <div style="
-                transform: rotate(-90deg);
-                transform-origin: center;
-                width:{px(LH_MM)};
-                height:{px(TXT_COL_MM)};
-                display:flex;
-                flex-direction:column;
-                justify-content:center;
-            ">
-                {text_block}
-            </div>
-            """
+            divider = (
+                '<td style="width:1px;padding:0;'
+                'border-left:1.5px dashed #aaa;"></td>'
+            )
 
-            return f"""
-            <table style="border:1px solid #555;
-                          width:{px(LW_MM)};
-                          height:{px(LH_MM)};
-                          border-collapse:collapse;">
-                <tr>
-                    <td style="width:{px(QR_COL_MM)};text-align:center;">
-                        {qr_html}
-                    </td>
-                    <td style="border-left:1px dashed #aaa;">
-                        {rotated}
-                    </td>
-                </tr>
-            </table>
-            """
+            max_w = str(round(LH - 6, 2)) + 'px'
+            shift = (LH - TC) / 2.0
 
-        html = ''.join([one_label(l) for l in label_list])
+            name_line = ''
+            if name:
+                name_line = (
+                    '<div style="'
+                    'font-size:' + _name_font(name) + ';'
+                    'text-transform:uppercase;'
+                    'white-space:normal;'
+                    'word-break:break-word;'
+                    'overflow:hidden;'
+                    'max-width:' + max_w + ';'
+                    'line-height:1.25;'
+                    'margin-top:3px;">'
+                    + name.upper() + '</div>'
+                )
 
-        return f"<html><body>{html}</body></html>", PW_MM, LH_MM + 2
+            code_line = ''
+            if self.show_label_code and code:
+                code_line = (
+                    '<div style="'
+                    'font-size:' + _code_font(code) + ';'
+                    'white-space:normal;'
+                    'word-break:break-all;'
+                    'overflow:hidden;'
+                    'max-width:' + max_w + ';'
+                    'margin-top:3px;'
+                    'line-height:1.2;">'
+                    + code + '</div>'
+                )
 
-    # ✅ FIXED PRINT ACTION (NO 414)
+            mrp_line = ''
+            if self.show_mrp:
+                mrp_line = (
+                    '<div style="'
+                    'font-size:7pt;'
+                    'white-space:normal;'
+                    'word-break:break-word;'
+                    'overflow:hidden;'
+                    'max-width:' + max_w + ';'
+                    'margin-top:3px;'
+                    'line-height:1.2;">'
+                    'MRP Rs.' + str(mrp) + '</div>'
+                )
+
+            rotated_div = (
+                '<div style="'
+                'width:' + str(round(LH, 2)) + 'px;'
+                'height:' + str(round(TC, 2)) + 'px;'
+                'display:flex;'
+                'flex-direction:column;'
+                'align-items:flex-start;'
+                'justify-content:center;'
+                'overflow:hidden;'
+                'transform:rotate(-90deg);'
+                '-webkit-transform:rotate(-90deg);'
+                'transform-origin:50% 50%;'
+                '-webkit-transform-origin:50% 50%;'
+                'margin-top:' + str(round(-shift, 2)) + 'px;'
+                'margin-left:' + str(round(-shift, 2)) + 'px;'
+                'padding:0 3px;">'
+                + name_line
+                + code_line
+                + mrp_line
+                + '</div>'
+            )
+
+            col_txt = (
+                '<td style="'
+                'width:' + str(round(TC, 2)) + 'px;'
+                'height:' + str(round(LH, 2)) + 'px;'
+                'vertical-align:middle;'
+                'text-align:center;'
+                'padding:0;'
+                'overflow:hidden;">'
+                + rotated_div
+                + '</td>'
+            )
+
+            return (
+                '<table style="'
+                'border-collapse:collapse;'
+                'width:' + str(round(LW, 2)) + 'px;'
+                'height:' + str(round(LH, 2)) + 'px;'
+                'border:1.5px solid #888;'
+                'border-radius:' + px(1.5) + ';'
+                'background:white;'
+                'table-layout:fixed;">'
+                '<tr>' + col_qr + divider + col_txt + '</tr>'
+                '</table>'
+            )
+
+        GAP = COL_GAP_MM * MM
+        MAR = L_MAR_MM * MM
+        PH  = (LH_MM + 2) * MM
+
+        pages_html = []
+        i = 0
+        while i < len(label_list):
+            left  = label_list[i]
+            right = label_list[i + 1] if (i + 1) < len(label_list) else None
+            i += 2
+
+            row = (
+                '<tr>'
+                '<td style="width:' + str(round(LW, 2)) + 'px;'
+                'vertical-align:top;padding:0;">'
+                + one_label(left) + '</td>'
+                '<td style="width:' + str(round(GAP, 2)) + 'px;'
+                'padding:0;border:none;"></td>'
+                '<td style="width:' + str(round(LW, 2)) + 'px;'
+                'vertical-align:top;padding:0;">'
+                + (one_label(right) if right else '') + '</td>'
+                '</tr>'
+            )
+
+            pages_html.append(
+                '<div style="'
+                'width:' + str(round(PW, 2)) + 'px;'
+                'height:' + str(round(PH, 2)) + 'px;'
+                'padding-top:' + str(round(1 * MM, 2)) + 'px;'
+                'padding-left:' + str(round(MAR, 2)) + 'px;'
+                'page-break-after:always;'
+                'box-sizing:border-box;">'
+                '<table style="'
+                'width:' + str(round(2 * LW + GAP, 2)) + 'px;'
+                'border-collapse:separate;'
+                'border-spacing:0;'
+                'table-layout:fixed;">'
+                + row + '</table></div>'
+            )
+
+        html = (
+            '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
+            '<style>'
+            '* { margin:0; padding:0; box-sizing:border-box; }'
+            'html, body {'
+            "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
+            '  background:white;'
+            '}'
+            '@page { margin:0; size: ' + str(PW_MM) + 'mm '
+            + str(LH_MM + 2) + 'mm; }'
+            '</style></head><body>'
+            + ''.join(pages_html)
+            + '</body></html>'
+        )
+        return html, PW_MM, LH_MM + 2
+
+        # ── MEDIUM label HTML builder (40x25mm, 2 per row) ────────────────────────
+        #
+        # Layout (landscape label, read normally):
+        #
+        #  ┌────────────────────────────────────────┐
+        #  │         PRODUCT NAME (centred)         │
+        #  │  ┌──────────────────────────────────┐  │
+        #  │  │  |||||||||| BARCODE |||||||||||  │  │
+        #  │  └──────────────────────────────────┘  │
+        #  │  123456789            MRP Rs.1,00      │
+        #  └────────────────────────────────────────┘
+        #
+        # Uses python-barcode (Code128) rendered as SVG embedded inline.
+        # No QR code, no rotation.
+
+        def _build_html_medium(self, label_list):
+            MM = 3.7795  # mm → px
+
+            LW_MM = 40.0
+            LH_MM = 25.0
+
+            COL_GAP_MM = 6.0
+            L_MAR_MM = 20.0
+            PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
+
+            LW = LW_MM * MM
+            LH = LH_MM * MM
+            PW = PW_MM * MM
+
+            def px(mm):
+                return str(round(mm * MM, 2)) + 'px'
+
+            # ── Barcode generator (Code128 → base64 PNG) ─────────────────────────
+            def _make_barcode_base64(value):
+                try:
+                    import barcode as python_barcode
+                    from barcode.writer import ImageWriter
+                    import io as _io
+                    code = python_barcode.get('code128', str(value or 'LABEL'),
+                                              writer=ImageWriter())
+                    buf = _io.BytesIO()
+                    code.write(buf, options={
+                        'module_height': 8.0,  # bar height in mm
+                        'module_width': 0.18,  # narrow bar width in mm
+                        'quiet_zone': 1.0,
+                        'font_size': 5,
+                        'text_distance': 2.0,
+                        'write_text': False,  # we print the number ourselves below
+                        'background': 'white',
+                        'foreground': 'black',
+                        'dpi': 203,
+                    })
+                    return base64.b64encode(buf.getvalue()).decode('ascii')
+                except Exception:
+                    # 1×1 white pixel fallback
+                    return (
+                        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+                        'AAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII='
+                    )
+
+            # ── Font helpers ──────────────────────────────────────────────────────
+            def _name_font(name):
+                n = len(name or '')
+                if n <= 10:
+                    return '9pt'
+                elif n <= 18:
+                    return '7.5pt'
+                elif n <= 26:
+                    return '6pt'
+                else:
+                    return '5pt'
+
+            def _code_font(code):
+                n = len(code or '')
+                if n <= 10:
+                    return '7pt'
+                elif n <= 16:
+                    return '6pt'
+                else:
+                    return '5pt'
+
+            # ── Single label ──────────────────────────────────────────────────────
+            def one_label(lbl):
+                name = lbl['name'] or ''
+                code = lbl.get('label_code') or ''
+                mrp = lbl.get('mrp', 0)
+                bc_value = code or name  # use label_code for barcode if available
+
+                # ── Name row ─────────────────────────────────────────────────────
+                name_row = (
+                        '<tr><td colspan="2" style="'
+                        'padding:1.5mm 2mm 0.5mm 2mm;'
+                        'text-align:center;'
+                        'font-size:' + _name_font(name) + ';'
+                                                          'font-weight:bold;'
+                                                          'text-transform:uppercase;'
+                                                          'letter-spacing:0.3px;'
+                                                          'white-space:normal;'
+                                                          'word-break:break-word;'
+                                                          'overflow:hidden;'
+                                                          'line-height:1.2;'
+                                                          'border-bottom:1px dashed #bbb;">'
+                        + name.upper()
+                        + '</td></tr>'
+                )
+
+                # ── Barcode row ───────────────────────────────────────────────────
+                bc_b64 = _make_barcode_base64(bc_value)
+                barcode_row = (
+                        '<tr><td colspan="2" style="'
+                        'padding:1mm 2mm 0mm 2mm;'
+                        'text-align:center;'
+                        'vertical-align:middle;">'
+                        '<img src="data:image/png;base64,' + bc_b64 + '" '
+                                                                      'style="'
+                                                                      'height:' + px(10) + ';'
+                                                                                           'max-width:' + px(
+                    LW_MM - 4) + ';'
+                                 'display:block;margin:0 auto;" alt=""/>'
+                                 '</td></tr>'
+                )
+
+                # ── Bottom row: label code left, MRP right ────────────────────────
+                code_cell = ''
+                if self.show_label_code and code:
+                    code_cell = (
+                            '<td style="'
+                            'padding:0.5mm 1mm 1mm 2mm;'
+                            'text-align:left;'
+                            'font-size:' + _code_font(code) + ';'
+                                                              'font-weight:bold;'
+                                                              'white-space:nowrap;'
+                                                              'overflow:hidden;">'
+                            + code
+                            + '</td>'
+                    )
+                else:
+                    code_cell = '<td></td>'
+
+                mrp_cell = ''
+                if self.show_mrp:
+                    mrp_cell = (
+                            '<td style="'
+                            'padding:0.5mm 2mm 1mm 1mm;'
+                            'text-align:right;'
+                            'font-size:8pt;'
+                            'font-weight:bold;'
+                            'white-space:nowrap;'
+                            'overflow:hidden;">'
+                            'MRP Rs.' + str(mrp)
+                            + '</td>'
+                    )
+                else:
+                    mrp_cell = '<td></td>'
+
+                bottom_row = (
+                        '<tr>'
+                        + code_cell
+                        + mrp_cell
+                        + '</tr>'
+                )
+
+                return (
+                        '<table style="'
+                        'border-collapse:collapse;'
+                        'width:' + str(round(LW, 2)) + 'px;'
+                                                       'height:' + str(round(LH, 2)) + 'px;'
+                                                                                       'border:1.5px solid #888;'
+                                                                                       'border-radius:' + px(2) + ';'
+                                                                                                                  'background:white;'
+                                                                                                                  'table-layout:fixed;">'
+                        + name_row
+                        + barcode_row
+                        + bottom_row
+                        + '</table>'
+                )
+
+            # ── Page layout: 2 labels per row ─────────────────────────────────────
+            GAP = COL_GAP_MM * MM
+            MAR = L_MAR_MM * MM
+            PH = (LH_MM + 2) * MM
+
+            pages_html = []
+            i = 0
+            while i < len(label_list):
+                left = label_list[i]
+                right = label_list[i + 1] if (i + 1) < len(label_list) else None
+                i += 2
+
+                row = (
+                        '<tr>'
+                        '<td style="width:' + str(round(LW, 2)) + 'px;'
+                                                                  'vertical-align:top;padding:0;">'
+                        + one_label(left) + '</td>'
+                                            '<td style="width:' + str(round(GAP, 2)) + 'px;'
+                                                                                       'padding:0;border:none;"></td>'
+                                                                                       '<td style="width:' + str(
+                    round(LW, 2)) + 'px;'
+                                    'vertical-align:top;padding:0;">'
+                        + (one_label(right) if right else '') + '</td>'
+                                                                '</tr>'
+                )
+
+                pages_html.append(
+                    '<div style="'
+                    'width:' + str(round(PW, 2)) + 'px;'
+                                                   'height:' + str(round(PH, 2)) + 'px;'
+                                                                                   'padding-top:' + str(
+                        round(1 * MM, 2)) + 'px;'
+                                            'padding-left:' + str(round(MAR, 2)) + 'px;'
+                                                                                   'page-break-after:always;'
+                                                                                   'box-sizing:border-box;">'
+                                                                                   '<table style="'
+                                                                                   'width:' + str(
+                        round(2 * LW + GAP, 2)) + 'px;'
+                                                  'border-collapse:separate;'
+                                                  'border-spacing:0;'
+                                                  'table-layout:fixed;">'
+                    + row + '</table></div>'
+                )
+
+            html = (
+                    '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
+                    '<style>'
+                    '* { margin:0; padding:0; box-sizing:border-box; }'
+                    'html, body {'
+                    "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
+                    '  background:white;'
+                    '}'
+                    '@page { margin:0; size: ' + str(PW_MM) + 'mm '
+                    + str(LH_MM + 2) + 'mm; }'
+                                       '</style></head><body>'
+                    + ''.join(pages_html)
+                    + '</body></html>'
+            )
+            return html, PW_MM, LH_MM + 2
+
+    # ── Print action ──────────────────────────────────────────────────────────
+
     def action_print_labels(self):
         self.ensure_one()
-
-        if not self._get_products():
+        products = self._get_products()
+        if not products:
             raise UserError(_('Please select at least one product.'))
 
-        labels = self._get_label_list()
+        label_list = self._get_label_list()
 
-        html, w, h = self._build_html_small(labels)
+        if self.label_type == 'small':
+            html_content, page_w, page_h = self._build_html_small(label_list)
+        elif self.label_type == 'medium':
+            html_content, page_w, page_h = self._build_html_medium(label_list)
+        else:
+            html_content, page_w, page_h = self._build_html_large(label_list)
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as f:
-            f.write(html.encode())
-            html_path = f.name
+        html_path = pdf_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                    suffix='.html', delete=False,
+                    mode='w', encoding='utf-8') as fh:
+                fh.write(html_content)
+                html_path = fh.name
 
-        pdf_path = html_path.replace('.html', '.pdf')
+            pdf_path = html_path.replace('.html', '.pdf')
 
-        cmd = [
-            'wkhtmltopdf',
-            '--dpi', '300',
-            '--image-dpi', '300',
-            '--image-quality', '100',
-            html_path,
-            pdf_path
-        ]
+            cmd = [
+                'wkhtmltopdf',
+                '--page-width',    str(page_w) + 'mm',
+                '--page-height',   str(page_h) + 'mm',
+                '--margin-top',    '0',
+                '--margin-bottom', '0',
+                '--margin-left',   '0',
+                '--margin-right',  '0',
+                '--disable-smart-shrinking',
+                '--zoom',          '1',
+                '--dpi',           '203',
+                '--no-stop-slow-scripts',
+                '--encoding',      'UTF-8',
+                html_path,
+                pdf_path,
+            ]
+            result = subprocess.run(cmd, capture_output=True)
 
-        subprocess.run(cmd)
+            if result.returncode not in (0, 1) or not os.path.exists(pdf_path):
+                err = result.stderr.decode('utf-8', errors='replace')
+                raise UserError(
+                    _('wkhtmltopdf failed (exit %s):\n%s')
+                    % (result.returncode, err)
+                )
 
-        with open(pdf_path, 'rb') as f:
-            pdf = f.read()
+            with open(pdf_path, 'rb') as f:
+                pdf_data = f.read()
+
+        finally:
+            for p in (html_path, pdf_path):
+                if p and os.path.exists(p):
+                    try:
+                        os.unlink(p)
+                    except Exception:
+                        pass
 
         attachment = self.env['ir.attachment'].create({
             'name': 'Product_Labels.pdf',
             'type': 'binary',
-            'datas': base64.b64encode(pdf),
+            'datas': base64.b64encode(pdf_data),
             'mimetype': 'application/pdf',
             'res_model': self._name,
             'res_id': self.id,
         })
 
+        pdf_url = '/web/content/' + str(attachment.id)
+        products = self._get_products()
+        product_names = ', '.join(products.mapped('name'))
+        record_name = product_names[:40] + ('...' if len(product_names) > 40 else '')
+
         return {
-            'type': 'ir.actions.act_url',
-            'url': '/web/content/%s?download=false' % attachment.id,
-            'target': 'new',
+            'type': 'ir.actions.client',
+            'tag': 'product_label_print.open_print_dialog',
+            'params': {
+                'pdf_url':       pdf_url,
+                'record_name':   record_name,
+                'label_qty':     self.quantity,
+                'product_count': len(products),
+            },
         }
+# from odoo import models, fields, _
+# from odoo.exceptions import UserError
+# import base64
+# import io
+# import os
+# import subprocess
+# import tempfile
+#
+#
+# class ProductLabelWizard(models.TransientModel):
+#     _name = 'product.label.wizard'
+#     _description = 'Product Label Printing Wizard'
+#
+#     product_tmpl_ids = fields.Many2many('product.template')
+#     product_ids = fields.Many2many('product.product')
+#     quantity = fields.Integer(default=1, required=True)
+#
+#     show_mrp = fields.Boolean(default=True)
+#     show_qr = fields.Boolean(default=True)
+#     show_label_code = fields.Boolean(default=True)
+#
+#     label_type = fields.Selection([
+#         ('small', 'Small Label'),
+#     ], default='small', required=True)
+#
+#     # ✅ FIXED QR (ONLY CHANGE)
+#     def _make_qr_base64(self, value):
+#         try:
+#             import qrcode
+#             qr = qrcode.QRCode(
+#                 version=2,
+#                 error_correction=qrcode.constants.ERROR_CORRECT_M,
+#                 box_size=10,
+#                 border=2,
+#             )
+#             qr.add_data(value or 'LABEL')
+#             qr.make(fit=True)
+#
+#             img = qr.make_image(fill_color='black', back_color='white')
+#
+#             buf = io.BytesIO()
+#             img.save(buf, format='PNG')
+#             return base64.b64encode(buf.getvalue()).decode()
+#         except Exception:
+#             return ''
+#
+#     def _get_products(self):
+#         products = self.env['product.product']
+#         if self.product_ids:
+#             products |= self.product_ids
+#         if self.product_tmpl_ids:
+#             for tmpl in self.product_tmpl_ids:
+#                 products |= tmpl.product_variant_ids
+#         return products
+#
+#     # ✅ FIXED QR DATA ONLY
+#     def _get_label_list(self):
+#         products = self._get_products()
+#         label_list = []
+#
+#         for product in products:
+#             tmpl = product.product_tmpl_id
+#
+#             qr_value = (
+#                 product.barcode
+#                 or product.default_code
+#                 or str(product.id)
+#             )
+#
+#             qr_b64 = self._make_qr_base64(qr_value)
+#
+#             for _ in range(self.quantity):
+#                 label_list.append({
+#                     'name': tmpl.name or '',
+#                     'label_code': product.default_code or '',
+#                     'mrp': int(tmpl.list_price or 0),
+#                     'qr_b64': qr_b64,
+#                 })
+#
+#         return label_list
+#
+#     # ✅ YOUR ORIGINAL LAYOUT (FIXED QR SIZE ONLY)
+#     def _build_html_small(self, label_list):
+#         MM = 3.7795
+#
+#         LW_MM = 25.0
+#         LH_MM = 15.0
+#
+#         QR_COL_MM = 8.0
+#         TXT_COL_MM = LW_MM - QR_COL_MM
+#
+#         QR_SIZE_MM = 12.0  # ✅ FIXED (was 15)
+#
+#         COL_GAP_MM = 8.0
+#         L_MAR_MM = 66.0
+#         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
+#
+#         def px(mm):
+#             return str(round(mm * MM, 2)) + 'px'
+#
+#         def one_label(lbl):
+#             qr_html = ''
+#             if self.show_qr:
+#                 qr_html = (
+#                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
+#                     'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';margin:auto;display:block;" />'
+#                 )
+#
+#             name = lbl['name'] or ''
+#             code = lbl['label_code'] or ''
+#             mrp = lbl['mrp']
+#
+#             text_block = f"""
+#                 <div style="font-size:6pt;text-transform:uppercase;">{name}</div>
+#                 <div style="font-size:6pt;">{code}</div>
+#                 <div style="font-size:6pt;">Rs.{mrp}</div>
+#             """
+#
+#             rotated = f"""
+#             <div style="
+#                 transform: rotate(-90deg);
+#                 transform-origin: center;
+#                 width:{px(LH_MM)};
+#                 height:{px(TXT_COL_MM)};
+#                 display:flex;
+#                 flex-direction:column;
+#                 justify-content:center;
+#             ">
+#                 {text_block}
+#             </div>
+#             """
+#
+#             return f"""
+#             <table style="border:1px solid #555;
+#                           width:{px(LW_MM)};
+#                           height:{px(LH_MM)};
+#                           border-collapse:collapse;">
+#                 <tr>
+#                     <td style="width:{px(QR_COL_MM)};text-align:center;">
+#                         {qr_html}
+#                     </td>
+#                     <td style="border-left:1px dashed #aaa;">
+#                         {rotated}
+#                     </td>
+#                 </tr>
+#             </table>
+#             """
+#
+#         html = ''.join([one_label(l) for l in label_list])
+#
+#         return f"<html><body>{html}</body></html>", PW_MM, LH_MM + 2
+#
+#     # ✅ FIXED PRINT ACTION (NO 414)
+#     def action_print_labels(self):
+#         self.ensure_one()
+#
+#         if not self._get_products():
+#             raise UserError(_('Please select at least one product.'))
+#
+#         labels = self._get_label_list()
+#
+#         html, w, h = self._build_html_small(labels)
+#
+#         with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as f:
+#             f.write(html.encode())
+#             html_path = f.name
+#
+#         pdf_path = html_path.replace('.html', '.pdf')
+#
+#         cmd = [
+#             'wkhtmltopdf',
+#             '--dpi', '300',
+#             '--image-dpi', '300',
+#             '--image-quality', '100',
+#             html_path,
+#             pdf_path
+#         ]
+#
+#         subprocess.run(cmd)
+#
+#         with open(pdf_path, 'rb') as f:
+#             pdf = f.read()
+#
+#         attachment = self.env['ir.attachment'].create({
+#             'name': 'Product_Labels.pdf',
+#             'type': 'binary',
+#             'datas': base64.b64encode(pdf),
+#             'mimetype': 'application/pdf',
+#             'res_model': self._name,
+#             'res_id': self.id,
+#         })
+#
+#         return {
+#             'type': 'ir.actions.act_url',
+#             'url': '/web/content/%s?download=false' % attachment.id,
+#             'target': 'new',
+#         }
