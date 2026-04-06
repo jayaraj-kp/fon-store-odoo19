@@ -1784,7 +1784,7 @@ class ProductLabelWizard(models.TransientModel):
                                                                                       'font-size:' + font_size + ';'
                                                                                                                  'font-weight:bold;'
                                                                                                                  'padding:1px 2px;'
-                                                                                                                  'padding-left:5px;'
+                                                                                                                  'padding-right:15px;'
                     + extra_style +
                     'transform:rotate(-90deg);'
                     '-webkit-transform:rotate(-90deg);'
