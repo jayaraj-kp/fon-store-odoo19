@@ -1736,7 +1736,7 @@ class ProductLabelWizard(models.TransientModel):
         MRP_COL_MM = 5.0  # right column  (MRP, rotated)
 
         COL_GAP_MM = 4.0  # gap between the two labels
-        L_MAR_MM = 345.0  # left margin
+        L_MAR_MM = 45.0  # left margin
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM  # = 83mm
 
         # ── px equivalents ────────────────────────────────────────────────────────
