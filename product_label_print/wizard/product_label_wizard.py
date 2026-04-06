@@ -1289,7 +1289,7 @@ class ProductLabelWizard(models.TransientModel):
     def _build_html_small(self, label_list):
         MM = 3.7795  # mm -> px
 
-        LW_MM = 25.0
+        LW_MM = 45.0
         LH_MM = 15.0
 
         QR_COL_MM  = 8.0
