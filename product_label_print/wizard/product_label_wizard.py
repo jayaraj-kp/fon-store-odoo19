@@ -776,7 +776,7 @@ class ProductLabelWizard(models.TransientModel):
         QR_SIZE_MM = 7.5           # QR image square size
 
         COL_GAP_MM = 4.0           # gap between the two side-by-side labels
-        L_MAR_MM   = 2.0           # left page margin
+        L_MAR_MM   = 10.0           # left page margin
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM   # ~58 mm
 
         # Pixel equivalents
