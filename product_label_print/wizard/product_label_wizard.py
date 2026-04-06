@@ -1333,7 +1333,7 @@ class ProductLabelWizard(models.TransientModel):
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
                     'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';'
-                    'display:block;margin:0 auto;" alt=""/>'
+                    'display:block;margin:0 auto;" alt="" margin-bottom:5px;/>'
                 )
             col_qr = (
                 '<td style="'
