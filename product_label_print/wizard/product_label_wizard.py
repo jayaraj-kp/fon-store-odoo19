@@ -2265,7 +2265,7 @@ class ProductLabelWizard(models.TransientModel):
         MRP_COL_MM  = 3.0    # MRP column width
 
         COL_GAP_MM = 4.0
-        L_MAR_MM   = 66.0
+        L_MAR_MM   = 59.0
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
@@ -2358,7 +2358,7 @@ class ProductLabelWizard(models.TransientModel):
                 '<td style="width:' + str(round(QC, 2)) + 'px;'
                 'height:' + str(round(LH, 2)) + 'px;'
                 'vertical-align:middle;text-align:center;'
-                'padding:1px;overflow:hidden;">'
+                'padding-right:30px;overflow:hidden;">'
                 + qr_html
                 + '</td>'
             )
@@ -2392,6 +2392,7 @@ class ProductLabelWizard(models.TransientModel):
                     'word-break:break-word;'
                     'text-align:center;'
                     'line-height:1.2;'
+                    'padding-right:30px;'
                 ),
                 align='bottom',
             )
@@ -2401,7 +2402,7 @@ class ProductLabelWizard(models.TransientModel):
             # ── Col 3: Label code — rotated, pushed to bottom ─────────────────
             col3_empty = (
                 '<td style="width:' + str(round(CODE_COL_MM * MM, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+                'height:' + str(round(LH, 2)) + 'px;padding-right:30px;"></td>'
             )
             if self.show_label_code and code:
                 col3 = rotated_cell(
@@ -2419,7 +2420,7 @@ class ProductLabelWizard(models.TransientModel):
             # ── Col 4: MRP — rotated, pushed to bottom ────────────────────────
             col4_empty = (
                 '<td style="width:' + str(round(MRP_COL_MM * MM, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+                'height:' + str(round(LH, 2)) + 'px;padding-right:30px;"></td>'
             )
             if self.show_mrp:
                 mrp_text = 'MRP Rs.' + str(lbl['mrp'])
