@@ -2264,8 +2264,8 @@ class ProductLabelWizard(models.TransientModel):
         NAME_COL_MM = 6.5    # product-name column width
         MRP_COL_MM  = 3.0    # MRP column width
 
-        COL_GAP_MM = 4.0
-        L_MAR_MM   = 30.0
+        COL_GAP_MM = 7.0
+        L_MAR_MM   = 27.0
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
@@ -2277,15 +2277,15 @@ class ProductLabelWizard(models.TransientModel):
 
         def _name_font(name):
             n = len(name or '')
-            if n <= 8:    return '7pt'
-            elif n <= 14: return '6pt'
-            else:         return '5pt'
+            if n <= 8:    return '9pt'
+            elif n <= 14: return '8pt'
+            else:         return '7pt'
 
         def _code_font(code):
             n = len(code or '')
-            if n <= 8:    return '6pt'
-            elif n <= 12: return '5pt'
-            else:         return '4pt'
+            if n <= 8:    return '7pt'
+            elif n <= 12: return '6pt'
+            else:         return '5pt'
 
         # ── Rotated-text cell helper ──────────────────────────────────────────
         # Creates a <td> of width=col_w_mm, height=LH_MM.
@@ -2352,13 +2352,13 @@ class ProductLabelWizard(models.TransientModel):
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
                     'style="width:' + px(QR_MM) + ';height:' + px(QR_MM) + ';'
-                    'display:block;margin:0 auto;padding-right:30px;" alt=""/>'
+                    'display:block;margin:0 auto;" alt=""/>'
                 )
             col1 = (
                 '<td style="width:' + str(round(QC, 2)) + 'px;'
                 'height:' + str(round(LH, 2)) + 'px;'
                 'vertical-align:middle;text-align:center;'
-                'padding:1px;overflow:hidden;padding-right:30px;">'
+                'padding:1px;overflow:hidden;">'
                 + qr_html
                 + '</td>'
             )
@@ -2392,7 +2392,6 @@ class ProductLabelWizard(models.TransientModel):
                     'word-break:break-word;'
                     'text-align:center;'
                     'line-height:1.2;'
-                    'padding-right:30px;'
                 ),
                 align='bottom',
             )
@@ -2402,7 +2401,7 @@ class ProductLabelWizard(models.TransientModel):
             # ── Col 3: Label code — rotated, pushed to bottom ─────────────────
             col3_empty = (
                 '<td style="width:' + str(round(CODE_COL_MM * MM, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;padding-right:30px;"></td>'
+                'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
             )
             if self.show_label_code and code:
                 col3 = rotated_cell(
@@ -2420,7 +2419,7 @@ class ProductLabelWizard(models.TransientModel):
             # ── Col 4: MRP — rotated, pushed to bottom ────────────────────────
             col4_empty = (
                 '<td style="width:' + str(round(MRP_COL_MM * MM, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;padding-right:30px;"></td>'
+                'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
             )
             if self.show_mrp:
                 mrp_text = 'MRP Rs.' + str(lbl['mrp'])
