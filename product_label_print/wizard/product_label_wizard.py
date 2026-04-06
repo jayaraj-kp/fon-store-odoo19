@@ -2593,6 +2593,7 @@
 #             },
 #         }
 
+
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
@@ -2804,153 +2805,177 @@ class ProductLabelWizard(models.TransientModel):
         return html, PW, page_h
 
     # ── SMALL label HTML builder (25×15mm, 2 per row) ─────────────────────────
-    #
-    # FIX SUMMARY (v2):
-    #   1. Switched all dimensions to pure mm — no more px arithmetic that
-    #      clashed with wkhtmltopdf's 96-dpi screen model.
-    #   2. Added explicit right margin (R_MAR_MM) so the right label is never
-    #      clipped. Both L_MAR and R_MAR are reflected in PW_MM.
-    #   3. Vertical text cells now use a proper mm-sized inner div so
-    #      max-height constrains the rotated text correctly.
-    # ──────────────────────────────────────────────────────────────────────────
 
     def _build_html_small(self, label_list):
+        MM = 3.7795
+
         # ── Label dimensions (mm) ─────────────────────────────────────────────
-        LW_MM = 25.0  # label width
-        LH_MM = 15.0  # label height
-        QR_COL_MM = 9.5  # QR image column
-        CODE_COL_MM = 5.5  # ref-code column
-        NAME_COL_MM = 7.0  # product name column
-        MRP_COL_MM = 3.0  # MRP column
+        # Layout: [QR] | [Name vertical] | [Code vertical] | [MRP vertical]
+        # Uses writing-mode:vertical-rl + rotate(180deg).
+        # Text reads bottom-to-top; vertical-align:bottom keeps it at
+        # the bottom edge of the label. white-space:normal allows wrapping
+        # so full text fits within the label height (= column width after rotation).
+        LW_MM = 25.0
+        LH_MM = 15.0
+        QR_MM = 7.5
+        QR_COL_MM = 9.0  # QR column - enough for the image
+        NAME_COL_MM = 9.0  # product name column (wide - text wraps here)
+        CODE_COL_MM = 5.0  # label code column
+        MRP_COL_MM = 4.0  # MRP column (e.g. "MRP Rs.300")
+        # Total: 9+9+5+4 = 27 but dividers add ~1mm each (3 dividers = ~0.8mm)
+        # Actual label width = 25mm, we scale via MM constant
 
-        COL_GAP_MM = 8.0  # gap between the two labels
-        L_MAR_MM = 19.0  # left margin
-        R_MAR_MM = 2.0  # right margin  ← FIX: was missing
-        PW_MM = 2 * LW_MM + COL_GAP_MM + L_MAR_MM + R_MAR_MM  # 58 mm
-        PH_MM = LH_MM + 2.0  # page height with tiny top pad
+        COL_GAP_MM = 7.0
+        L_MAR_MM = 20.0
+        PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
-        # Scale the 4 columns so they fill exactly LW_MM minus border overhead
-        total_col_mm = QR_COL_MM + CODE_COL_MM + NAME_COL_MM + MRP_COL_MM
-        avail_mm = LW_MM - 0.8  # ~24.2 mm after borders + dividers
-        scale = avail_mm / total_col_mm
-        QC = round(QR_COL_MM * scale, 3)
-        CC = round(CODE_COL_MM * scale, 3)
-        NC = round(NAME_COL_MM * scale, 3)
-        MC = round(MRP_COL_MM * scale, 3)
+        LW = LW_MM * MM
+        LH = LH_MM * MM
+        PW = PW_MM * MM
 
-        def mm(v):
-            return str(round(v, 3)) + 'mm'
+        # Recalculate column widths to exactly fill label width
+        # Total text cols = NAME + CODE + MRP = 9+5+4 = 18mm
+        # QR col = 9mm, 3 dividers ~0.3px each (negligible in mm)
+        # 9 + 18 = 27mm > 25mm so scale down proportionally
+        total_mm = QR_COL_MM + NAME_COL_MM + CODE_COL_MM + MRP_COL_MM  # 27
+        scale = (LW_MM - 0.5) / total_mm  # fit into 24.5mm leaving 0.5 for borders
+        QC = QR_COL_MM * scale * MM
+        NC = NAME_COL_MM * scale * MM
+        CC = CODE_COL_MM * scale * MM
+        MC = MRP_COL_MM * scale * MM
+
+        def px(mm):
+            return str(round(mm * MM, 2)) + 'px'
 
         def _name_font(name):
             n = len(name or '')
             if n <= 8:
-                return '9pt'
-            elif n <= 14:
                 return '8pt'
-            else:
+            elif n <= 14:
                 return '7pt'
+            else:
+                return '6pt'
 
         def _code_font(code):
             n = len(code or '')
             if n <= 8:
-                return '9pt'
-            elif n <= 12:
-                return '8pt'
-            else:
                 return '7pt'
+            elif n <= 12:
+                return '6pt'
+            else:
+                return '5pt'
 
-        # ── Vertical text cell (all mm, no px) ───────────────────────────────
-        # writing-mode:vertical-rl + rotate(180deg) → text reads bottom→top ↑
-        # vertical-align:bottom → text sits at the BOTTOM edge of the label
-        def vertical_cell(text, col_mm, font_size, extra_style=''):
+        # ── Vertical text cell (writing-mode, wkhtmltopdf-safe) ───────────────
+        # writing-mode:vertical-rl  → text flows top-to-bottom rotated right
+        # rotate(180deg)            → flips to bottom-to-top (reads upward ↑)
+        # vertical-align:bottom     → pushes text block to bottom of the <td>
+        # text-align:right on td    → after rotation maps to bottom of label ✓
+        # white-space:normal        → allows text to wrap across multiple "lines"
+        #                             (in vertical mode, lines are horizontal stacks)
+        # max-width on inner div    → limits how wide the text can grow = LH px
+        def vertical_cell(text, col_px, font_size, extra_style=''):
             return (
-                    '<td style="'
-                    'width:' + mm(col_mm) + ';'
-                                            'height:' + mm(LH_MM) + ';'
-                                                                    'vertical-align:bottom;'
-                                                                    'text-align:center;'
-                                                                    'padding:0 0 0.3mm 0;'
-                                                                    'overflow:hidden;">'
-                                                                    '<div style="'
-                                                                    'display:inline-block;'
-                                                                    'writing-mode:vertical-rl;'
-                                                                    '-webkit-writing-mode:vertical-rl;'
-                                                                    'transform:rotate(180deg);'
-                                                                    '-webkit-transform:rotate(180deg);'
-                                                                    'font-size:' + font_size + ';'
-                                                                                               'font-weight:bold;'
-                                                                                               'white-space:normal;'
-                                                                                               'word-break:break-all;'
-                                                                                               'overflow:hidden;'
-                                                                                               'max-height:' + mm(
-                LH_MM - 0.6) + ';'
-                               'text-align:left;'
-                    + extra_style +
-                    '">' + text + '</div>'
-                                  '</td>'
+                    '<td style="' +
+                    'width:' + str(round(col_px, 2)) + 'px;' +
+                    'height:' + str(round(LH, 2)) + 'px;' +
+                    'vertical-align:bottom;' +
+                    'text-align:center;' +
+                    'padding:0 0 1px 0;' +
+                    'overflow:hidden;">' +
+                    '<div style="' +
+                    'display:inline-block;' +
+                    'writing-mode:vertical-rl;' +
+                    '-webkit-writing-mode:vertical-rl;' +
+                    'transform:rotate(180deg);' +
+                    '-webkit-transform:rotate(180deg);' +
+                    'font-size:' + font_size + ';' +
+                    'font-weight:bold;' +
+                    'white-space:normal;' +
+                    'word-break:break-all;' +
+                    'overflow:hidden;' +
+                    'max-width:' + str(round(LH - 2, 2)) + 'px;' +
+                    'text-align:left;' +
+                    extra_style +
+                    '">' + text + '</div>' +
+                    '</td>'
             )
 
         def one_label(lbl):
             name = lbl['name'] or ''
             code = lbl.get('label_code') or ''
 
-            # Col 1: QR image
+            # ── Col 1: QR image ───────────────────────────────────────────────
             qr_html = ''
             if self.show_qr:
-                qr_size = mm(QC - 0.5)
                 qr_html = (
                         '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                                                                             'style="width:' + qr_size + ';height:' + qr_size + ';'
-                                                                                                                                'display:block;margin:0 auto;" alt=""/>'
+                                                                             'style="width:' + str(
+                    round(QC - 2, 2)) + 'px;' +
+                        'height:' + str(round(QC - 2, 2)) + 'px;' +
+                        'display:block;margin:0 auto;" alt=""/>'
                 )
             col1 = (
-                    '<td style="width:' + mm(QC) + ';height:' + mm(LH_MM) + ';'
-                                                                            'vertical-align:middle;text-align:center;'
-                                                                            'padding:0.5mm;overflow:hidden;">'
-                    + qr_html + '</td>'
+                    '<td style="width:' + str(round(QC, 2)) + 'px;' +
+                    'height:' + str(round(LH, 2)) + 'px;' +
+                    'vertical-align:middle;text-align:center;' +
+                    'padding:1px;overflow:hidden;">' +
+                    qr_html + '</td>'
             )
 
-            div0 = '<td style="width:0.3mm;padding:0;border-left:1px dashed #999;"></td>'
+            div0 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # Col 2: Label / ref code — vertical, bottom-aligned
+            # ── Col 2: Product name vertical ──────────────────────────────────
+            col2 = vertical_cell(
+                name.upper(),
+                NC,
+                _name_font(name),
+                extra_style='letter-spacing:0.3px;',
+            )
+
+            div1 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
+
+            # ── Col 3: Label code vertical ────────────────────────────────────
             if self.show_label_code and code:
-                col2 = vertical_cell(code, CC, _code_font(code),
-                                     extra_style='letter-spacing:0.3px;')
+                col3 = vertical_cell(code, CC, _code_font(code))
             else:
-                col2 = ('<td style="width:' + mm(CC) + ';height:' + mm(LH_MM) + ';'
-                                                                                'padding:0;"></td>')
+                col3 = (
+                        '<td style="width:' + str(round(CC, 2)) + 'px;' +
+                        'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+                )
 
-            div1 = '<td style="width:0.3mm;padding:0;border-left:1px dashed #999;"></td>'
+            div2 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # Col 3: Product name — vertical, bottom-aligned
-            col3 = vertical_cell(
-                name.upper(), NC, _name_font(name),
-                extra_style='letter-spacing:0.3px;'
-            )
-
-            div2 = '<td style="width:0.3mm;padding:0;border-left:1px dashed #999;"></td>'
-
-            # Col 4: MRP — vertical, bottom-aligned
+            # ── Col 4: MRP vertical ───────────────────────────────────────────
             if self.show_mrp:
-                col4 = vertical_cell('MRP Rs.' + str(lbl['mrp']), MC, '8pt')
+                col4 = vertical_cell(
+                    'MRP Rs.' + str(lbl['mrp']),
+                    MC,
+                    '5pt',
+                )
             else:
-                col4 = ('<td style="width:' + mm(MC) + ';height:' + mm(LH_MM) + ';'
-                                                                                'padding:0;"></td>')
+                col4 = (
+                        '<td style="width:' + str(round(MC, 2)) + 'px;' +
+                        'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+                )
 
             return (
-                    '<table style="'
-                    'border-collapse:collapse;'
-                    'width:' + mm(LW_MM) + ';'
-                                           'height:' + mm(LH_MM) + ';'
-                                                                   'border:1.5px solid #888;'
-                                                                   'border-radius:1.5mm;'
-                                                                   'background:white;'
-                                                                   'table-layout:fixed;">'
-                                                                   '<tr>' + col1 + div0 + col2 + div1 + col3 + div2 + col4 + '</tr>'
-                                                                                                                             '</table>'
+                    '<table style="' +
+                    'border-collapse:collapse;' +
+                    'width:' + str(round(LW, 2)) + 'px;' +
+                    'height:' + str(round(LH, 2)) + 'px;' +
+                    'border:1.5px solid #888;' +
+                    'border-radius:' + px(2) + ';' +
+                    'background:white;' +
+                    'table-layout:fixed;">' +
+                    '<tr>' + col1 + div0 + col2 + div1 + col3 + div2 + col4 + '</tr>' +
+                    '</table>'
             )
 
         # ── Page layout: 2 labels per page ───────────────────────────────────
+        GAP = COL_GAP_MM * MM
+        MAR = L_MAR_MM * MM
+        PH = (LH_MM + 2) * MM
+
         pages_html = []
         i = 0
         while i < len(label_list):
@@ -2959,47 +2984,43 @@ class ProductLabelWizard(models.TransientModel):
             i += 2
 
             row = (
-                    '<tr>'
-                    '<td style="width:' + mm(LW_MM) + ';vertical-align:top;padding:0;">'
-                    + one_label(left) + '</td>'
-                                        '<td style="width:' + mm(COL_GAP_MM) + ';padding:0;border:none;"></td>'
-                                                                               '<td style="width:' + mm(
-                LW_MM) + ';vertical-align:top;padding:0;">'
-                    + (one_label(right) if right else '') + '</td>'
-                                                            '</tr>'
+                    '<tr>' +
+                    '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">' +
+                    one_label(left) + '</td>' +
+                    '<td style="width:' + str(round(GAP, 2)) + 'px;padding:0;border:none;"></td>' +
+                    '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">' +
+                    (one_label(right) if right else '') + '</td>' +
+                    '</tr>'
             )
 
             pages_html.append(
-                '<div style="'
-                'width:' + mm(PW_MM) + ';'
-                                       'height:' + mm(PH_MM) + ';'
-                                                               'padding-top:1mm;'
-                                                               'padding-left:' + mm(L_MAR_MM) + ';'
-                                                                                                'padding-right:' + mm(
-                    R_MAR_MM) + ';'  # ← FIX: explicit right margin
-                                'page-break-after:always;'
-                                'box-sizing:border-box;">'
-                                '<table style="'
-                                'width:' + mm(2 * LW_MM + COL_GAP_MM) + ';'
-                                                                        'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
-                + row + '</table></div>'
+                '<div style="' +
+                'width:' + str(round(PW, 2)) + 'px;' +
+                'height:' + str(round(PH, 2)) + 'px;' +
+                'padding-top:' + str(round(1 * MM, 2)) + 'px;' +
+                'padding-left:' + str(round(MAR, 2)) + 'px;' +
+                'page-break-after:always;' +
+                'box-sizing:border-box;">' +
+                '<table style="' +
+                'width:' + str(round(2 * LW + GAP, 2)) + 'px;' +
+                'border-collapse:separate;border-spacing:0;table-layout:fixed;">' +
+                row + '</table></div>'
             )
 
         html = (
-                '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
-                '<style>'
-                '* { margin:0; padding:0; box-sizing:border-box; }'
-                'html, body {'
-                "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
-                '  background:white;'
-                '  width:' + mm(PW_MM) + ';'
-                                         '}'
-                                         '@page { margin:0; size: ' + mm(PW_MM) + ' ' + mm(PH_MM) + '; }'
-                                                                                                    '</style></head><body>'
-                + ''.join(pages_html)
-                + '</body></html>'
+                '<!DOCTYPE html><html><head><meta charset="utf-8"/>' +
+                '<style>' +
+                '* { margin:0; padding:0; box-sizing:border-box; }' +
+                'html, body {' +
+                "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;" +
+                '  background:white;' +
+                '}' +
+                '@page { margin:0; size: ' + str(PW_MM) + 'mm ' + str(LH_MM + 2) + 'mm; }' +
+                '</style></head><body>' +
+                ''.join(pages_html) +
+                '</body></html>'
         )
-        return html, PW_MM, PH_MM
+        return html, PW_MM, LH_MM + 2
 
     # ── Print action ──────────────────────────────────────────────────────────
 
@@ -3026,12 +3047,6 @@ class ProductLabelWizard(models.TransientModel):
 
             pdf_path = html_path.replace('.html', '.pdf')
 
-            # FIX: --dpi 203 was scaling content up ~2× on Linux/wkhtmltopdf,
-            # causing the right label to be clipped off the page on small labels.
-            # Use 96 dpi (screen default) for small labels; keep 203 for large
-            # thermal roll where the GP-1125T driver handles final scaling.
-            dpi = '96' if self.label_type == 'small' else '203'
-
             cmd = [
                 'wkhtmltopdf',
                 '--page-width', str(page_w) + 'mm',
@@ -3042,7 +3057,7 @@ class ProductLabelWizard(models.TransientModel):
                 '--margin-right', '0',
                 '--disable-smart-shrinking',
                 '--zoom', '1',
-                '--dpi', dpi,  # ← FIX: 96 for small labels
+                '--dpi', '203',
                 '--no-stop-slow-scripts',
                 '--encoding', 'UTF-8',
                 html_path,
