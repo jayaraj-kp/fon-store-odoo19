@@ -2815,7 +2815,7 @@ class ProductLabelWizard(models.TransientModel):
         # Text reads bottom-to-top; vertical-align:bottom keeps it at
         # the bottom edge of the label. white-space:normal allows wrapping
         # so full text fits within the label height (= column width after rotation).
-        LW_MM = 30.0
+        LW_MM = 25.0
         LH_MM = 15.0
         QR_MM = 7.5
         QR_COL_MM = 9.0  # QR column - enough for the image
@@ -2826,7 +2826,7 @@ class ProductLabelWizard(models.TransientModel):
         # Actual label width = 25mm, we scale via MM constant
 
         COL_GAP_MM = 7.0
-        L_MAR_MM = 20.0
+        L_MAR_MM = 16.0
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
