@@ -1734,7 +1734,7 @@ class ProductLabelWizard(models.TransientModel):
         MRP_COL_MM  = 5.0
 
         COL_GAP_MM = 4.0
-        L_MAR_MM   = 2.0
+        L_MAR_MM   = 20.0
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM  * MM
