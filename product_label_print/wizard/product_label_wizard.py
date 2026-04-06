@@ -2810,33 +2810,38 @@ class ProductLabelWizard(models.TransientModel):
         MM = 3.7795
 
         # ── Label dimensions (mm) ─────────────────────────────────────────────
-        # Column order: [QR] | [Code vertical] | [Name vertical] | [MRP vertical]
-        # writing-mode:vertical-rl + rotate(180deg) → text reads bottom-to-top ↑
-        # vertical-align:bottom on <td> → text sits at BOTTOM edge of label
+        # Layout: [QR] | [Name vertical] | [Code vertical] | [MRP vertical]
+        # Uses writing-mode:vertical-rl + rotate(180deg).
+        # Text reads bottom-to-top; vertical-align:bottom keeps it at
+        # the bottom edge of the label. white-space:normal allows wrapping
+        # so full text fits within the label height (= column width after rotation).
         LW_MM = 25.0
         LH_MM = 15.0
-        QR_MM = 7.5  # QR image size
-        QR_COL_MM = 9.5  # QR column width
-        CODE_COL_MM = 5.5  # ref code column (next to QR)
-        NAME_COL_MM = 7.0  # product name column
-        MRP_COL_MM = 3.0  # MRP column (narrowest - short text)
+        QR_MM = 7.5
+        QR_COL_MM = 9.0  # QR column - enough for the image
+        NAME_COL_MM = 9.0  # product name column (wide - text wraps here)
+        CODE_COL_MM = 5.0  # label code column
+        MRP_COL_MM = 4.0  # MRP column (e.g. "MRP Rs.300")
+        # Total: 9+9+5+4 = 27 but dividers add ~1mm each (3 dividers = ~0.8mm)
+        # Actual label width = 25mm, we scale via MM constant
 
-        COL_GAP_MM = 4.0
-        L_MAR_MM = 2.0
+        COL_GAP_MM = 7.0
+        L_MAR_MM = 18.0
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
         LH = LH_MM * MM
         PW = PW_MM * MM
 
-        # Scale all columns to fit exactly within label width (25mm)
-        # 3 dashed dividers each 1px ≈ 0.26mm total, leave 0.3mm for borders
-        total_col_mm = QR_COL_MM + CODE_COL_MM + NAME_COL_MM + MRP_COL_MM  # 25mm
-        avail_mm = LW_MM - 0.8  # 24.2mm available after borders+dividers
-        scale = avail_mm / total_col_mm
+        # Recalculate column widths to exactly fill label width
+        # Total text cols = NAME + CODE + MRP = 9+5+4 = 18mm
+        # QR col = 9mm, 3 dividers ~0.3px each (negligible in mm)
+        # 9 + 18 = 27mm > 25mm so scale down proportionally
+        total_mm = QR_COL_MM + NAME_COL_MM + CODE_COL_MM + MRP_COL_MM  # 27
+        scale = (LW_MM - 0.5) / total_mm  # fit into 24.5mm leaving 0.5 for borders
         QC = QR_COL_MM * scale * MM
-        CC = CODE_COL_MM * scale * MM
         NC = NAME_COL_MM * scale * MM
+        CC = CODE_COL_MM * scale * MM
         MC = MRP_COL_MM * scale * MM
 
         def px(mm):
@@ -2845,53 +2850,54 @@ class ProductLabelWizard(models.TransientModel):
         def _name_font(name):
             n = len(name or '')
             if n <= 8:
-                return '9pt'
-            elif n <= 14:
                 return '8pt'
-            else:
+            elif n <= 14:
                 return '7pt'
+            else:
+                return '6pt'
 
         def _code_font(code):
             n = len(code or '')
             if n <= 8:
-                return '9pt'
-            elif n <= 12:
-                return '8pt'
-            else:
                 return '7pt'
+            elif n <= 12:
+                return '6pt'
+            else:
+                return '5pt'
 
-        # ── Vertical text cell ────────────────────────────────────────────────
-        # writing-mode:vertical-rl  text flows vertically, rotated right
-        # rotate(180deg)            flips so text reads bottom→top (↑)
-        # vertical-align:bottom     pushes text to bottom edge of label
-        # white-space:normal        text wraps within column width = LH px
-        # word-break:break-all      ensures long codes/names wrap fully
+        # ── Vertical text cell (writing-mode, wkhtmltopdf-safe) ───────────────
+        # writing-mode:vertical-rl  → text flows top-to-bottom rotated right
+        # rotate(180deg)            → flips to bottom-to-top (reads upward ↑)
+        # vertical-align:bottom     → pushes text block to bottom of the <td>
+        # text-align:right on td    → after rotation maps to bottom of label ✓
+        # white-space:normal        → allows text to wrap across multiple "lines"
+        #                             (in vertical mode, lines are horizontal stacks)
+        # max-width on inner div    → limits how wide the text can grow = LH px
         def vertical_cell(text, col_px, font_size, extra_style=''):
             return (
-                    '<td style="'
-                    'width:' + str(round(col_px, 2)) + 'px;'
-                                                       'height:' + str(round(LH, 2)) + 'px;'
-                                                                                       'vertical-align:bottom;'
-                                                                                       'text-align:center;'
-                                                                                       'padding:0 0 1px 0;'
-                                                                                       'overflow:hidden;">'
-                                                                                       '<div style="'
-                                                                                       'display:inline-block;'
-                                                                                       'writing-mode:vertical-rl;'
-                                                                                       '-webkit-writing-mode:vertical-rl;'
-                                                                                       'transform:rotate(180deg);'
-                                                                                       '-webkit-transform:rotate(180deg);'
-                                                                                       'font-size:' + font_size + ';'
-                                                                                                                  'font-weight:bold;'
-                                                                                                                  'white-space:normal;'
-                                                                                                                  'word-break:break-all;'
-                                                                                                                  'overflow:hidden;'
-                                                                                                                  'max-width:' + str(
-                round(LH - 2, 2)) + 'px;'
-                                    'text-align:left;'
-                    + extra_style +
-                    '">' + text + '</div>'
-                                  '</td>'
+                    '<td style="' +
+                    'width:' + str(round(col_px, 2)) + 'px;' +
+                    'height:' + str(round(LH, 2)) + 'px;' +
+                    'vertical-align:bottom;' +
+                    'text-align:center;' +
+                    'padding:0 0 1px 0;' +
+                    'overflow:hidden;">' +
+                    '<div style="' +
+                    'display:inline-block;' +
+                    'writing-mode:vertical-rl;' +
+                    '-webkit-writing-mode:vertical-rl;' +
+                    'transform:rotate(180deg);' +
+                    '-webkit-transform:rotate(180deg);' +
+                    'font-size:' + font_size + ';' +
+                    'font-weight:bold;' +
+                    'white-space:normal;' +
+                    'word-break:break-all;' +
+                    'overflow:hidden;' +
+                    'max-width:' + str(round(LH - 2, 2)) + 'px;' +
+                    'text-align:left;' +
+                    extra_style +
+                    '">' + text + '</div>' +
+                    '</td>'
             )
 
         def one_label(lbl):
@@ -2904,62 +2910,65 @@ class ProductLabelWizard(models.TransientModel):
                 qr_html = (
                         '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
                                                                              'style="width:' + str(
-                    round(QC - 2, 2)) + 'px;'
-                                        'height:' + str(round(QC - 2, 2)) + 'px;'
-                                                                            'display:block;margin:0 auto;" alt=""/>'
+                    round(QC - 2, 2)) + 'px;' +
+                        'height:' + str(round(QC - 2, 2)) + 'px;' +
+                        'display:block;margin:0 auto;" alt=""/>'
                 )
             col1 = (
-                    '<td style="width:' + str(round(QC, 2)) + 'px;'
-                                                              'height:' + str(round(LH, 2)) + 'px;'
-                                                                                              'vertical-align:middle;text-align:center;'
-                                                                                              'padding:1px;overflow:hidden;">'
-                    + qr_html + '</td>'
+                    '<td style="width:' + str(round(QC, 2)) + 'px;' +
+                    'height:' + str(round(LH, 2)) + 'px;' +
+                    'vertical-align:middle;text-align:center;' +
+                    'padding:1px;overflow:hidden;">' +
+                    qr_html + '</td>'
             )
 
             div0 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 2: Label/ref code — vertical, bottom-aligned ─────────────
-            if self.show_label_code and code:
-                col2 = vertical_cell(code, CC, _code_font(code),
-                                     extra_style='letter-spacing:0.3px;')
-            else:
-                col2 = (
-                        '<td style="width:' + str(round(CC, 2)) + 'px;'
-                                                                  'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
-                )
+            # ── Col 2: Product name vertical ──────────────────────────────────
+            col2 = vertical_cell(
+                name.upper(),
+                NC,
+                _name_font(name),
+                extra_style='letter-spacing:0.3px;',
+            )
 
             div1 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 3: Product name — vertical, bottom-aligned ────────────────
-            col3 = vertical_cell(
-                name.upper(), NC, _name_font(name),
-                extra_style='letter-spacing:0.3px;'
-            )
+            # ── Col 3: Label code vertical ────────────────────────────────────
+            if self.show_label_code and code:
+                col3 = vertical_cell(code, CC, _code_font(code))
+            else:
+                col3 = (
+                        '<td style="width:' + str(round(CC, 2)) + 'px;' +
+                        'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+                )
 
             div2 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 4: MRP — vertical, bottom-aligned ─────────────────────────
+            # ── Col 4: MRP vertical ───────────────────────────────────────────
             if self.show_mrp:
                 col4 = vertical_cell(
-                    'MRP Rs.' + str(lbl['mrp']), MC, '8pt'
+                    'MRP Rs.' + str(lbl['mrp']),
+                    MC,
+                    '5pt',
                 )
             else:
                 col4 = (
-                        '<td style="width:' + str(round(MC, 2)) + 'px;'
-                                                                  'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+                        '<td style="width:' + str(round(MC, 2)) + 'px;' +
+                        'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
                 )
 
             return (
-                    '<table style="'
-                    'border-collapse:collapse;'
-                    'width:' + str(round(LW, 2)) + 'px;'
-                                                   'height:' + str(round(LH, 2)) + 'px;'
-                                                                                   'border:1.5px solid #888;'
-                                                                                   'border-radius:' + px(2) + ';'
-                                                                                                              'background:white;'
-                                                                                                              'table-layout:fixed;">'
-                                                                                                              '<tr>' + col1 + div0 + col2 + div1 + col3 + div2 + col4 + '</tr>'
-                                                                                                                                                                        '</table>'
+                    '<table style="' +
+                    'border-collapse:collapse;' +
+                    'width:' + str(round(LW, 2)) + 'px;' +
+                    'height:' + str(round(LH, 2)) + 'px;' +
+                    'border:1.5px solid #888;' +
+                    'border-radius:' + px(2) + ';' +
+                    'background:white;' +
+                    'table-layout:fixed;">' +
+                    '<tr>' + col1 + div0 + col2 + div1 + col3 + div2 + col4 + '</tr>' +
+                    '</table>'
             )
 
         # ── Page layout: 2 labels per page ───────────────────────────────────
@@ -2975,44 +2984,41 @@ class ProductLabelWizard(models.TransientModel):
             i += 2
 
             row = (
-                    '<tr>'
-                    '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">'
-                    + one_label(left) + '</td>'
-                                        '<td style="width:' + str(round(GAP, 2)) + 'px;padding:0;border:none;"></td>'
-                                                                                   '<td style="width:' + str(
-                round(LW, 2)) + 'px;vertical-align:top;padding:0;">'
-                    + (one_label(right) if right else '') + '</td>'
-                                                            '</tr>'
+                    '<tr>' +
+                    '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">' +
+                    one_label(left) + '</td>' +
+                    '<td style="width:' + str(round(GAP, 2)) + 'px;padding:0;border:none;"></td>' +
+                    '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">' +
+                    (one_label(right) if right else '') + '</td>' +
+                    '</tr>'
             )
 
             pages_html.append(
-                '<div style="'
-                'width:' + str(round(PW, 2)) + 'px;'
-                                               'height:' + str(round(PH, 2)) + 'px;'
-                                                                               'padding-top:' + str(
-                    round(1 * MM, 2)) + 'px;'
-                                        'padding-left:' + str(round(MAR, 2)) + 'px;'
-                                                                               'page-break-after:always;'
-                                                                               'box-sizing:border-box;">'
-                                                                               '<table style="'
-                                                                               'width:' + str(
-                    round(2 * LW + GAP, 2)) + 'px;'
-                                              'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
-                + row + '</table></div>'
+                '<div style="' +
+                'width:' + str(round(PW, 2)) + 'px;' +
+                'height:' + str(round(PH, 2)) + 'px;' +
+                'padding-top:' + str(round(1 * MM, 2)) + 'px;' +
+                'padding-left:' + str(round(MAR, 2)) + 'px;' +
+                'page-break-after:always;' +
+                'box-sizing:border-box;">' +
+                '<table style="' +
+                'width:' + str(round(2 * LW + GAP, 2)) + 'px;' +
+                'border-collapse:separate;border-spacing:0;table-layout:fixed;">' +
+                row + '</table></div>'
             )
 
         html = (
-                '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
-                '<style>'
-                '* { margin:0; padding:0; box-sizing:border-box; }'
-                'html, body {'
-                "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
-                '  background:white;'
-                '}'
-                '@page { margin:0; size: ' + str(PW_MM) + 'mm ' + str(LH_MM + 2) + 'mm; }'
-                                                                                   '</style></head><body>'
-                + ''.join(pages_html)
-                + '</body></html>'
+                '<!DOCTYPE html><html><head><meta charset="utf-8"/>' +
+                '<style>' +
+                '* { margin:0; padding:0; box-sizing:border-box; }' +
+                'html, body {' +
+                "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;" +
+                '  background:white;' +
+                '}' +
+                '@page { margin:0; size: ' + str(PW_MM) + 'mm ' + str(LH_MM + 2) + 'mm; }' +
+                '</style></head><body>' +
+                ''.join(pages_html) +
+                '</body></html>'
         )
         return html, PW_MM, LH_MM + 2
 
