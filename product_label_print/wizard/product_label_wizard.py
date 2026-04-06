@@ -767,16 +767,16 @@ class ProductLabelWizard(models.TransientModel):
         MM = 3.7795  # mm -> px
 
         # ── Dimensions (mm) ───────────────────────────────────────────────────
-        LW_MM = 25.0  # label width  (long / feed axis)
-        LH_MM = 15.0  # label height (short axis)
+        LW_MM = 25.0
+        LH_MM = 15.0
 
-        QR_COL_MM = 8.0  # QR column width (reduced slightly)
-        TXT_COL_MM = LW_MM - QR_COL_MM  # 17 mm text column
+        QR_COL_MM = 8.0
+        TXT_COL_MM = LW_MM - QR_COL_MM  # 17 mm
 
-        QR_SIZE_MM = 6.5  # QR image square size
+        QR_SIZE_MM = 6.5
 
-        COL_GAP_MM = 4.0  # gap between the two side-by-side labels
-        L_MAR_MM = 28.0  # left page margin
+        COL_GAP_MM = 4.0
+        L_MAR_MM = 28.0
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         # Pixel equivalents
@@ -793,22 +793,22 @@ class ProductLabelWizard(models.TransientModel):
         def _name_font(name):
             n = len(name or '')
             if n <= 8:
-                return '9pt'
+                return '8pt'
             elif n <= 14:
-                return '7.5pt'
-            elif n <= 20:
                 return '6.5pt'
+            elif n <= 20:
+                return '5.5pt'
             else:
-                return '5.8pt'
+                return '4.5pt'
 
         def _code_font(code):
             n = len(code or '')
             if n <= 8:
-                return '8pt'
+                return '7pt'
             elif n <= 12:
-                return '6.5pt'
+                return '6pt'
             else:
-                return '5.5pt'
+                return '5pt'
 
         # ── Single label ──────────────────────────────────────────────────────
         def one_label(lbl):
@@ -842,10 +842,6 @@ class ProductLabelWizard(models.TransientModel):
                 'border-left:1.5px dashed #aaa;"></td>'
             )
 
-            # The rotated div:
-            # Before rotation: width=LH, height=TC
-            # After -90deg:    width=TC, height=LH  → fills text column perfectly
-            # max-width for each text line = LH - 6px (small padding each side)
             max_w = str(round(LH - 6, 2)) + 'px'
             shift = (LH - TC) / 2.0
 
@@ -854,10 +850,10 @@ class ProductLabelWizard(models.TransientModel):
                 name_line = (
                         '<div style="'
                         'font-size:' + _name_font(name) + ';'
-                                                          'font-weight:bold;'
                                                           'text-transform:uppercase;'
-                                                          'white-space:nowrap;'
-                                                          'overflow:visible;'
+                                                          'white-space:normal;'
+                                                          'word-break:break-word;'
+                                                          'overflow:hidden;'
                                                           'max-width:' + max_w + ';'
                                                                                  'line-height:1.25;">'
                         + name.upper() + '</div>'
@@ -868,9 +864,9 @@ class ProductLabelWizard(models.TransientModel):
                 code_line = (
                         '<div style="'
                         'font-size:' + _code_font(code) + ';'
-                                                          'font-weight:bold;'
-                                                          'white-space:nowrap;'
-                                                          'overflow:visible;'
+                                                          'white-space:normal;'
+                                                          'word-break:break-all;'
+                                                          'overflow:hidden;'
                                                           'max-width:' + max_w + ';'
                                                                                  'margin-top:3px;'
                                                                                  'line-height:1.2;">'
@@ -881,10 +877,10 @@ class ProductLabelWizard(models.TransientModel):
             if self.show_mrp:
                 mrp_line = (
                         '<div style="'
-                        'font-size:7.5pt;'
-                        'font-weight:bold;'
-                        'white-space:nowrap;'
-                        'overflow:visible;'
+                        'font-size:7pt;'
+                        'white-space:normal;'
+                        'word-break:break-word;'
+                        'overflow:hidden;'
                         'max-width:' + max_w + ';'
                                                'margin-top:3px;'
                                                'line-height:1.2;">'
@@ -899,7 +895,7 @@ class ProductLabelWizard(models.TransientModel):
                                                                                    'flex-direction:column;'
                                                                                    'align-items:flex-start;'
                                                                                    'justify-content:center;'
-                                                                                   'overflow:visible;'
+                                                                                   'overflow:hidden;'
                                                                                    'transform:rotate(-90deg);'
                                                                                    '-webkit-transform:rotate(-90deg);'
                                                                                    'transform-origin:50% 50%;'
