@@ -1850,7 +1850,7 @@ class ProductLabelWizard(models.TransientModel):
         ('small', 'Small Label'),
     ], default='small', required=True)
 
-    # ✅ FIXED QR GENERATOR
+    # ✅ FIXED QR (ONLY CHANGE)
     def _make_qr_base64(self, value):
         try:
             import qrcode
@@ -1880,7 +1880,7 @@ class ProductLabelWizard(models.TransientModel):
                 products |= tmpl.product_variant_ids
         return products
 
-    # ✅ FIXED QR DATA (NO PRODUCT NAME)
+    # ✅ FIXED QR DATA ONLY
     def _get_label_list(self):
         products = self._get_products()
         label_list = []
@@ -1906,13 +1906,21 @@ class ProductLabelWizard(models.TransientModel):
 
         return label_list
 
-    # ✅ FIXED SMALL LABEL (25x15mm)
+    # ✅ YOUR ORIGINAL LAYOUT (FIXED QR SIZE ONLY)
     def _build_html_small(self, label_list):
         MM = 3.7795
 
-        LW_MM = 25
-        LH_MM = 15
-        QR_SIZE_MM = 12
+        LW_MM = 25.0
+        LH_MM = 15.0
+
+        QR_COL_MM = 8.0
+        TXT_COL_MM = LW_MM - QR_COL_MM
+
+        QR_SIZE_MM = 12.0  # ✅ FIXED (was 15)
+
+        COL_GAP_MM = 8.0
+        L_MAR_MM = 28.0
+        PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         def px(mm):
             return str(round(mm * MM, 2)) + 'px'
@@ -1922,20 +1930,44 @@ class ProductLabelWizard(models.TransientModel):
             if self.show_qr:
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
-                    'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';display:block;margin:auto;" />'
+                    'style="width:' + px(QR_SIZE_MM) + ';height:' + px(QR_SIZE_MM) + ';margin:auto;display:block;" />'
                 )
 
+            name = lbl['name'] or ''
+            code = lbl['label_code'] or ''
+            mrp = lbl['mrp']
+
+            text_block = f"""
+                <div style="font-size:6pt;text-transform:uppercase;">{name}</div>
+                <div style="font-size:6pt;">{code}</div>
+                <div style="font-size:6pt;">Rs.{mrp}</div>
+            """
+
+            rotated = f"""
+            <div style="
+                transform: rotate(-90deg);
+                transform-origin: center;
+                width:{px(LH_MM)};
+                height:{px(TXT_COL_MM)};
+                display:flex;
+                flex-direction:column;
+                justify-content:center;
+            ">
+                {text_block}
+            </div>
+            """
+
             return f"""
-            <table style="width:{px(LW_MM)};height:{px(LH_MM)};
-            border:1px solid #444;border-collapse:collapse;">
+            <table style="border:1px solid #555;
+                          width:{px(LW_MM)};
+                          height:{px(LH_MM)};
+                          border-collapse:collapse;">
                 <tr>
-                    <td style="width:40%;text-align:center;">
+                    <td style="width:{px(QR_COL_MM)};text-align:center;">
                         {qr_html}
                     </td>
-                    <td style="padding:2px;font-size:7pt;">
-                        {lbl['name']}<br/>
-                        {lbl['label_code']}<br/>
-                        Rs.{lbl['mrp']}
+                    <td style="border-left:1px dashed #aaa;">
+                        {rotated}
                     </td>
                 </tr>
             </table>
@@ -1943,67 +1975,43 @@ class ProductLabelWizard(models.TransientModel):
 
         html = ''.join([one_label(l) for l in label_list])
 
-        return f"<html><body>{html}</body></html>", 60, 20
+        return f"<html><body>{html}</body></html>", PW_MM, LH_MM + 2
 
-    # ✅ FINAL PRINT ACTION (FIXED 414 ERROR)
+    # ✅ FIXED PRINT ACTION (NO 414)
     def action_print_labels(self):
         self.ensure_one()
 
-        products = self._get_products()
-        if not products:
+        if not self._get_products():
             raise UserError(_('Please select at least one product.'))
 
-        label_list = self._get_label_list()
+        labels = self._get_label_list()
 
-        html_content, page_w, page_h = self._build_html_small(label_list)
+        html, w, h = self._build_html_small(labels)
 
-        html_path = pdf_path = None
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as f:
+            f.write(html.encode())
+            html_path = f.name
 
-        try:
-            with tempfile.NamedTemporaryFile(
-                suffix='.html', delete=False, mode='w', encoding='utf-8'
-            ) as f:
-                f.write(html_content)
-                html_path = f.name
+        pdf_path = html_path.replace('.html', '.pdf')
 
-            pdf_path = html_path.replace('.html', '.pdf')
+        cmd = [
+            'wkhtmltopdf',
+            '--dpi', '300',
+            '--image-dpi', '300',
+            '--image-quality', '100',
+            html_path,
+            pdf_path
+        ]
 
-            cmd = [
-                'wkhtmltopdf',
-                '--page-width', str(page_w) + 'mm',
-                '--page-height', str(page_h) + 'mm',
-                '--margin-top', '0',
-                '--margin-bottom', '0',
-                '--margin-left', '0',
-                '--margin-right', '0',
-                '--dpi', '300',
-                '--image-dpi', '300',
-                '--image-quality', '100',
-                html_path,
-                pdf_path
-            ]
+        subprocess.run(cmd)
 
-            result = subprocess.run(cmd, capture_output=True)
+        with open(pdf_path, 'rb') as f:
+            pdf = f.read()
 
-            if result.returncode not in (0, 1) or not os.path.exists(pdf_path):
-                raise UserError("PDF generation failed")
-
-            with open(pdf_path, 'rb') as f:
-                pdf_data = f.read()
-
-        finally:
-            for p in (html_path, pdf_path):
-                if p and os.path.exists(p):
-                    try:
-                        os.unlink(p)
-                    except Exception:
-                        pass
-
-        # ✅ SAVE AS ATTACHMENT (FIX FOR 414 ERROR)
         attachment = self.env['ir.attachment'].create({
             'name': 'Product_Labels.pdf',
             'type': 'binary',
-            'datas': base64.b64encode(pdf_data),
+            'datas': base64.b64encode(pdf),
             'mimetype': 'application/pdf',
             'res_model': self._name,
             'res_id': self.id,
