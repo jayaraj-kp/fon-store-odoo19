@@ -856,7 +856,7 @@ class ProductLabelWizard(models.TransientModel):
                                                           'overflow:hidden;'
                                                           'max-width:' + max_w + ';'
                                                                                  
-                                                                                 'line-height:1.25;''margin-top:5px;">'
+                                                                                 'line-height:1.25;''margin-top:3px;">'
                         + name.upper() + '</div>'
                 )
 
