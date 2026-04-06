@@ -73,6 +73,7 @@
 <!--                    </group>-->
 <!--                    <group string="Label Settings">-->
 <!--                        <group>-->
+<!--                            <field name="label_type" widget="radio"/>-->
 <!--                            <field name="quantity"/>-->
 <!--                        </group>-->
 <!--                        <group>-->
@@ -80,12 +81,6 @@
 <!--                            <field name="show_label_code"/>-->
 <!--                            <field name="show_mrp"/>-->
 <!--                        </group>-->
-<!--                    </group>-->
-<!--                    <group string="Printer Info">-->
-<!--                        <div class="text-muted" colspan="2">-->
-<!--                            <p>GP-1125T | 152mm roll | 3-column die-cut labels (50mm × 30mm each)</p>-->
-<!--                            <p>Layout: Left label — Blank spacer — Right label</p>-->
-<!--                        </div>-->
 <!--                    </group>-->
 <!--                </sheet>-->
 <!--                <footer>-->
@@ -113,4 +108,65 @@
 <!--              sequence="50"/>-->
 
 <!--</odoo>-->
+
+
+<!--&lt;!&ndash;<?xml version="1.0" encoding="utf-8"?>&ndash;&gt;-->
+<!--&lt;!&ndash;<odoo>&ndash;&gt;-->
+
+<!--&lt;!&ndash;    <record id="product_label_wizard_view_form" model="ir.ui.view">&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="name">product.label.wizard.form</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="model">product.label.wizard</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="arch" type="xml">&ndash;&gt;-->
+<!--&lt;!&ndash;            <form string="Print Product Labels">&ndash;&gt;-->
+<!--&lt;!&ndash;                <sheet>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <group string="Products">&ndash;&gt;-->
+<!--&lt;!&ndash;                        <field name="product_tmpl_ids" widget="many2many_tags"&ndash;&gt;-->
+<!--&lt;!&ndash;                               options="{'no_create': True}"&ndash;&gt;-->
+<!--&lt;!&ndash;                               placeholder="Select product templates..."/>&ndash;&gt;-->
+<!--&lt;!&ndash;                        <field name="product_ids" widget="many2many_tags"&ndash;&gt;-->
+<!--&lt;!&ndash;                               options="{'no_create': True}"&ndash;&gt;-->
+<!--&lt;!&ndash;                               placeholder="Or select product variants..."/>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </group>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <group string="Label Settings">&ndash;&gt;-->
+<!--&lt;!&ndash;                        <group>&ndash;&gt;-->
+<!--&lt;!&ndash;                            <field name="quantity"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                        </group>&ndash;&gt;-->
+<!--&lt;!&ndash;                        <group>&ndash;&gt;-->
+<!--&lt;!&ndash;                            <field name="show_qr"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                            <field name="show_label_code"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                            <field name="show_mrp"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                        </group>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </group>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <group string="Printer Info">&ndash;&gt;-->
+<!--&lt;!&ndash;                        <div class="text-muted" colspan="2">&ndash;&gt;-->
+<!--&lt;!&ndash;                            <p>GP-1125T | 152mm roll | 3-column die-cut labels (50mm × 30mm each)</p>&ndash;&gt;-->
+<!--&lt;!&ndash;                            <p>Layout: Left label — Blank spacer — Right label</p>&ndash;&gt;-->
+<!--&lt;!&ndash;                        </div>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </group>&ndash;&gt;-->
+<!--&lt;!&ndash;                </sheet>&ndash;&gt;-->
+<!--&lt;!&ndash;                <footer>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <button name="action_print_labels" type="object"&ndash;&gt;-->
+<!--&lt;!&ndash;                            string="Print Labels" class="btn-primary"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <button string="Cancel" class="btn-secondary" special="cancel"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                </footer>&ndash;&gt;-->
+<!--&lt;!&ndash;            </form>&ndash;&gt;-->
+<!--&lt;!&ndash;        </field>&ndash;&gt;-->
+<!--&lt;!&ndash;    </record>&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &lt;!&ndash; Action to open wizard standalone (from menu) &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <record id="action_product_label_wizard" model="ir.actions.act_window">&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="name">Print Product Labels</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="res_model">product.label.wizard</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="view_mode">form</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="target">new</field>&ndash;&gt;-->
+<!--&lt;!&ndash;    </record>&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &lt;!&ndash; Menu item under Inventory > Operations &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <menuitem id="menu_product_label_print"&ndash;&gt;-->
+<!--&lt;!&ndash;              name="Print Product Labels"&ndash;&gt;-->
+<!--&lt;!&ndash;              parent="stock.menu_stock_warehouse_mgmt"&ndash;&gt;-->
+<!--&lt;!&ndash;              action="action_product_label_wizard"&ndash;&gt;-->
+<!--&lt;!&ndash;              sequence="50"/>&ndash;&gt;-->
+
+<!--&lt;!&ndash;</odoo>&ndash;&gt;-->
 
