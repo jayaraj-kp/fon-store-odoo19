@@ -2352,13 +2352,13 @@ class ProductLabelWizard(models.TransientModel):
                 qr_html = (
                     '<img src="data:image/png;base64,' + lbl['qr_b64'] + '" '
                     'style="width:' + px(QR_MM) + ';height:' + px(QR_MM) + ';'
-                    'display:block;margin:0 auto;" alt=""/>'
+                    'display:block;margin:0 auto;padding-right:30px;" alt=""/>'
                 )
             col1 = (
                 '<td style="width:' + str(round(QC, 2)) + 'px;'
                 'height:' + str(round(LH, 2)) + 'px;'
                 'vertical-align:middle;text-align:center;'
-                'padding:1px;overflow:hidden;">'
+                'padding:1px;overflow:hidden;padding-right:30px;">'
                 + qr_html
                 + '</td>'
             )
@@ -2392,6 +2392,7 @@ class ProductLabelWizard(models.TransientModel):
                     'word-break:break-word;'
                     'text-align:center;'
                     'line-height:1.2;'
+                    'padding-right:30px;'
                 ),
                 align='bottom',
             )
@@ -2401,7 +2402,7 @@ class ProductLabelWizard(models.TransientModel):
             # ── Col 3: Label code — rotated, pushed to bottom ─────────────────
             col3_empty = (
                 '<td style="width:' + str(round(CODE_COL_MM * MM, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+                'height:' + str(round(LH, 2)) + 'px;padding-right:30px;"></td>'
             )
             if self.show_label_code and code:
                 col3 = rotated_cell(
@@ -2419,7 +2420,7 @@ class ProductLabelWizard(models.TransientModel):
             # ── Col 4: MRP — rotated, pushed to bottom ────────────────────────
             col4_empty = (
                 '<td style="width:' + str(round(MRP_COL_MM * MM, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;padding:0;"></td>'
+                'height:' + str(round(LH, 2)) + 'px;padding-right:30px;"></td>'
             )
             if self.show_mrp:
                 mrp_text = 'MRP Rs.' + str(lbl['mrp'])
