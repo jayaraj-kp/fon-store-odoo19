@@ -17,138 +17,85 @@
 
             <div class="sop-body">
 
-                <!-- ══ STEP 1: Normal coupon entry (default view) ══ -->
-                <t t-if="!state.awaitingPhone">
-
-                    <!-- ── Coupon code input ── -->
-                    <div class="sop-coupon-section">
-                        <div class="sop-section-title">🏷️ Apply Coupon / QR Code</div>
-                        <div class="sop-coupon-row">
-                            <input type="text" class="sop-coupon-input"
-                                placeholder="Enter or scan coupon code..."
-                                t-att-value="state.couponInput"
-                                t-on-input="onCouponInput"/>
-                            <button class="sop-btn-apply-coupon" t-on-click="applyCoupon">Apply</button>
-                        </div>
-                        <div style="margin-top:8px; font-size:12px; color:#888;">
-                            💡 Enter or scan the QR coupon code, then press Apply.
-                            If the offer requires phone verification, you will be asked next.
-                        </div>
+                <!-- ── Coupon code input ── -->
+                <div class="sop-coupon-section">
+                    <div class="sop-section-title">🏷️ Apply Coupon Code</div>
+                    <div class="sop-coupon-row">
+                        <input type="text" class="sop-coupon-input"
+                            placeholder="Enter coupon code..."
+                            t-att-value="state.couponInput"
+                            t-on-input="onCouponInput"/>
+                        <button class="sop-btn-apply-coupon" t-on-click="applyCoupon">Apply</button>
                     </div>
-
-                    <!-- ── Flat discount offers list ── -->
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
-                        <div class="sop-section-title" style="margin:0;">🔖 Active Flat Discount Offers</div>
-                        <span class="sop-count-badge"><t t-esc="allFlatOffers.length"/> offer(s)</span>
+                    <!-- Info: what the coupon will deduct -->
+                    <div style="margin-top:8px; font-size:12px; color:#888;">
+                        💡 Coupon codes deduct a fixed amount or percentage from the matching product price.
                     </div>
+                </div>
 
-                    <t t-if="allFlatOffers.length === 0">
-                        <div class="sop-empty">
-                            No active flat discount offers found.<br/>
-                            Check offers are Active and within date range in POS → Special Offers.
-                        </div>
-                    </t>
+                <!-- ── Flat discount offers list ── -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+                    <div class="sop-section-title" style="margin:0;">🔖 Active Flat Discount Offers</div>
+                    <span class="sop-count-badge"><t t-esc="allFlatOffers.length"/> offer(s)</span>
+                </div>
 
-                    <t t-foreach="allFlatOffers" t-as="offer" t-key="offer.id">
-                        <div class="sop-offer-card">
-                            <div class="sop-offer-info">
-                                <div class="sop-offer-name"><t t-esc="offer.name"/></div>
-                                <div class="sop-offer-meta">
-                                    <t t-if="offer.discount_type === 'percentage'">
-                                        <span class="sop-badge sop-badge-pct"><t t-esc="offer.discount_value"/>% OFF</span>
-                                    </t>
-                                    <t t-else="">
-                                        <span class="sop-badge sop-badge-fixed">- ₹<t t-esc="offer.discount_value"/> OFF</span>
-                                    </t>
-                                    <span class="sop-offer-dates">
-                                        <t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/>
-                                    </span>
-                                    <t t-if="offer.purchase_limit > 0">
-                                        <span class="sop-offer-limit">
-                                            Uses: <t t-esc="offer.usage_count"/>/<t t-esc="offer.purchase_limit"/>
-                                        </span>
-                                    </t>
-                                </div>
-                                <div class="sop-offer-scope">
-                                    <t t-if="offer.all_products">
-                                        <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>
-                                    </t>
-                                    <t t-elif="offer.all_categories">
-                                        <span class="sop-scope-badge sop-scope-all">🌐 All Categories</span>
-                                    </t>
-                                    <t t-elif="offer.product_ids.length > 0">
-                                        <span class="sop-scope-badge">Selected products only</span>
-                                    </t>
-                                    <t t-elif="offer.category_ids.length > 0">
-                                        <span class="sop-scope-badge">Selected categories only</span>
-                                    </t>
-                                    <t t-else="">
-                                        <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>
-                                    </t>
-                                </div>
-                            </div>
-                            <button class="sop-btn-apply" t-on-click="() => this.applyOffer(offer)">
-                                Apply
-                            </button>
-                        </div>
-                    </t>
-
-                    <t t-if="state.errorMsg">
-                        <div class="sop-error" style="margin-top:12px;"><t t-esc="state.errorMsg"/></div>
-                    </t>
-                    <t t-if="state.appliedMsg">
-                        <div class="sop-success" style="margin-top:12px;"><t t-esc="state.appliedMsg"/></div>
-                    </t>
-
+                <t t-if="allFlatOffers.length === 0">
+                    <div class="sop-empty">
+                        No active flat discount offers found.<br/>
+                        Check offers are Active and within date range in POS → Special Offers.
+                    </div>
                 </t>
 
-                <!-- ══ STEP 2: Phone number verification (shown after coupon matched, phone_lock=true) ══ -->
-                <t t-if="state.awaitingPhone">
-                    <div class="sop-phone-step">
-
-                        <div style="text-align:center; margin-bottom:18px;">
-                            <div style="font-size:40px; margin-bottom:8px;">📱</div>
-                            <div style="font-size:16px; font-weight:700; color:#333;">Phone Verification Required</div>
-                            <div style="font-size:13px; color:#666; margin-top:6px;">
-                                Coupon <strong><t t-esc="state.pendingCouponCode"/></strong> matched offer
-                                <strong><t t-esc="state.pendingOfferName"/></strong>.
+                <t t-foreach="allFlatOffers" t-as="offer" t-key="offer.id">
+                    <div class="sop-offer-card">
+                        <div class="sop-offer-info">
+                            <div class="sop-offer-name"><t t-esc="offer.name"/></div>
+                            <div class="sop-offer-meta">
+                                <t t-if="offer.discount_type === 'percentage'">
+                                    <span class="sop-badge sop-badge-pct"><t t-esc="offer.discount_value"/>% OFF</span>
+                                </t>
+                                <t t-else="">
+                                    <span class="sop-badge sop-badge-fixed">- ₹<t t-esc="offer.discount_value"/> OFF</span>
+                                </t>
+                                <span class="sop-offer-dates">
+                                    <t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/>
+                                </span>
+                                <t t-if="offer.purchase_limit > 0">
+                                    <span class="sop-offer-limit">
+                                        Uses: <t t-esc="offer.usage_count"/>/<t t-esc="offer.purchase_limit"/>
+                                    </span>
+                                </t>
+                            </div>
+                            <!-- Scope badge -->
+                            <div class="sop-offer-scope">
+                                <t t-if="offer.all_products">
+                                    <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>
+                                </t>
+                                <t t-elif="offer.all_categories">
+                                    <span class="sop-scope-badge sop-scope-all">🌐 All Categories</span>
+                                </t>
+                                <t t-elif="offer.product_ids.length > 0">
+                                    <span class="sop-scope-badge">Selected products only</span>
+                                </t>
+                                <t t-elif="offer.category_ids.length > 0">
+                                    <span class="sop-scope-badge">Selected categories only</span>
+                                </t>
+                                <t t-else="">
+                                    <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>
+                                </t>
                             </div>
                         </div>
-
-                        <div class="sop-coupon-section">
-                            <div class="sop-section-title">📞 Enter Customer Mobile Number</div>
-                            <div style="font-size:12px;color:#888;margin-bottom:10px;">
-                                Each mobile number can redeem this offer only once.
-                                This prevents one customer from using multiple QR coupons.
-                            </div>
-                            <div class="sop-coupon-row">
-                                <input type="tel" class="sop-coupon-input"
-                                    placeholder="e.g. 9876543210"
-                                    t-att-value="state.phoneInput"
-                                    t-on-input="onPhoneInput"
-                                    t-on-keydown="onPhoneKeydown"/>
-                                <button class="sop-btn-apply-coupon"
-                                    t-on-click="confirmCouponWithPhone">
-                                    Confirm
-                                </button>
-                            </div>
-                            <div style="margin-top:8px;font-size:11px;color:#aaa;">
-                                ⚠️ Ask the customer for their registered mobile number.
-                                The system will block repeated redemptions from the same number.
-                            </div>
-                        </div>
-
-                        <t t-if="state.errorMsg">
-                            <div class="sop-error" style="margin-top:12px;"><t t-esc="state.errorMsg"/></div>
-                        </t>
-
-                        <div style="margin-top:16px; text-align:center;">
-                            <button class="sop-btn-cancel" t-on-click="cancelPhoneStep"
-                                style="margin-right:8px;">
-                                ← Back / Cancel
-                            </button>
-                        </div>
+                        <button class="sop-btn-apply" t-on-click="() => this.applyOffer(offer)">
+                            Apply
+                        </button>
                     </div>
+                </t>
+
+                <t t-if="state.errorMsg">
+                    <div class="sop-error" style="margin-top:12px;"><t t-esc="state.errorMsg"/></div>
+                </t>
+                <t t-if="state.appliedMsg">
+                    <div class="sop-success" style="margin-top:12px;"><t t-esc="state.appliedMsg"/></div>
                 </t>
 
             </div>
@@ -161,115 +108,3 @@
     </div>
 </t>
 </templates>
-
-
-<!--<?xml version="1.0" encoding="UTF-8"?>-->
-<!--<templates xml:space="preserve">-->
-<!--<t t-name="pos_special_offers.SpecialOfferPopup">-->
-<!--    <div class="sop-overlay">-->
-<!--        <div class="sop-popup">-->
-
-<!--            <div class="sop-header">-->
-<!--                <span>🎁 Special Offers</span>-->
-<!--                <div style="display:flex;align-items:center;gap:10px;">-->
-<!--                    <button class="sop-refresh-btn" t-on-click="onRefresh" t-att-disabled="state.refreshing">-->
-<!--                        <t t-if="state.refreshing">↻</t>-->
-<!--                        <t t-else="">↻ Refresh</t>-->
-<!--                    </button>-->
-<!--                    <span class="sop-close" t-on-click="props.close">✕</span>-->
-<!--                </div>-->
-<!--            </div>-->
-
-<!--            <div class="sop-body">-->
-
-<!--                &lt;!&ndash; ── Coupon code input ── &ndash;&gt;-->
-<!--                <div class="sop-coupon-section">-->
-<!--                    <div class="sop-section-title">🏷️ Apply Coupon Code</div>-->
-<!--                    <div class="sop-coupon-row">-->
-<!--                        <input type="text" class="sop-coupon-input"-->
-<!--                            placeholder="Enter coupon code..."-->
-<!--                            t-att-value="state.couponInput"-->
-<!--                            t-on-input="onCouponInput"/>-->
-<!--                        <button class="sop-btn-apply-coupon" t-on-click="applyCoupon">Apply</button>-->
-<!--                    </div>-->
-<!--                    &lt;!&ndash; Info: what the coupon will deduct &ndash;&gt;-->
-<!--                    <div style="margin-top:8px; font-size:12px; color:#888;">-->
-<!--                        💡 Coupon codes deduct a fixed amount or percentage from the matching product price.-->
-<!--                    </div>-->
-<!--                </div>-->
-
-<!--                &lt;!&ndash; ── Flat discount offers list ── &ndash;&gt;-->
-<!--                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">-->
-<!--                    <div class="sop-section-title" style="margin:0;">🔖 Active Flat Discount Offers</div>-->
-<!--                    <span class="sop-count-badge"><t t-esc="allFlatOffers.length"/> offer(s)</span>-->
-<!--                </div>-->
-
-<!--                <t t-if="allFlatOffers.length === 0">-->
-<!--                    <div class="sop-empty">-->
-<!--                        No active flat discount offers found.<br/>-->
-<!--                        Check offers are Active and within date range in POS → Special Offers.-->
-<!--                    </div>-->
-<!--                </t>-->
-
-<!--                <t t-foreach="allFlatOffers" t-as="offer" t-key="offer.id">-->
-<!--                    <div class="sop-offer-card">-->
-<!--                        <div class="sop-offer-info">-->
-<!--                            <div class="sop-offer-name"><t t-esc="offer.name"/></div>-->
-<!--                            <div class="sop-offer-meta">-->
-<!--                                <t t-if="offer.discount_type === 'percentage'">-->
-<!--                                    <span class="sop-badge sop-badge-pct"><t t-esc="offer.discount_value"/>% OFF</span>-->
-<!--                                </t>-->
-<!--                                <t t-else="">-->
-<!--                                    <span class="sop-badge sop-badge-fixed">- ₹<t t-esc="offer.discount_value"/> OFF</span>-->
-<!--                                </t>-->
-<!--                                <span class="sop-offer-dates">-->
-<!--                                    <t t-esc="offer.date_from"/> → <t t-esc="offer.date_to"/>-->
-<!--                                </span>-->
-<!--                                <t t-if="offer.purchase_limit > 0">-->
-<!--                                    <span class="sop-offer-limit">-->
-<!--                                        Uses: <t t-esc="offer.usage_count"/>/<t t-esc="offer.purchase_limit"/>-->
-<!--                                    </span>-->
-<!--                                </t>-->
-<!--                            </div>-->
-<!--                            &lt;!&ndash; Scope badge &ndash;&gt;-->
-<!--                            <div class="sop-offer-scope">-->
-<!--                                <t t-if="offer.all_products">-->
-<!--                                    <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>-->
-<!--                                </t>-->
-<!--                                <t t-elif="offer.all_categories">-->
-<!--                                    <span class="sop-scope-badge sop-scope-all">🌐 All Categories</span>-->
-<!--                                </t>-->
-<!--                                <t t-elif="offer.product_ids.length > 0">-->
-<!--                                    <span class="sop-scope-badge">Selected products only</span>-->
-<!--                                </t>-->
-<!--                                <t t-elif="offer.category_ids.length > 0">-->
-<!--                                    <span class="sop-scope-badge">Selected categories only</span>-->
-<!--                                </t>-->
-<!--                                <t t-else="">-->
-<!--                                    <span class="sop-scope-badge sop-scope-all">🌐 All Products</span>-->
-<!--                                </t>-->
-<!--                            </div>-->
-<!--                        </div>-->
-<!--                        <button class="sop-btn-apply" t-on-click="() => this.applyOffer(offer)">-->
-<!--                            Apply-->
-<!--                        </button>-->
-<!--                    </div>-->
-<!--                </t>-->
-
-<!--                <t t-if="state.errorMsg">-->
-<!--                    <div class="sop-error" style="margin-top:12px;"><t t-esc="state.errorMsg"/></div>-->
-<!--                </t>-->
-<!--                <t t-if="state.appliedMsg">-->
-<!--                    <div class="sop-success" style="margin-top:12px;"><t t-esc="state.appliedMsg"/></div>-->
-<!--                </t>-->
-
-<!--            </div>-->
-
-<!--            <div class="sop-footer">-->
-<!--                <button class="sop-btn-cancel" t-on-click="props.close">Close</button>-->
-<!--            </div>-->
-
-<!--        </div>-->
-<!--    </div>-->
-<!--</t>-->
-<!--</templates>-->
