@@ -1728,8 +1728,8 @@ class ProductLabelWizard(models.TransientModel):
         # ── Physical dimensions to match "for small (3.28 in x 0.67 in)" stock ──
         # Roll = 83.31mm wide  →  2 labels per row, each ~38mm wide
         # Feed = 17.02mm tall  →  label height
-        LW_MM = 38.0  # each label width
-        LH_MM = 17.0  # label height (= 0.67 in)
+        LW_MM = 28.0  # each label width
+        LH_MM = 13.0  # label height (= 0.67 in)
         QR_MM = 10.0  # QR image size
         QR_COL_MM = 13.0  # left column  (QR + code)
         NAME_COL_MM = 10.0  # middle column (product name, rotated)
