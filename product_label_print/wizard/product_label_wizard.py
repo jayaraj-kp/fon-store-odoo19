@@ -1366,7 +1366,7 @@ class ProductLabelWizard(models.TransientModel):
                     'overflow:hidden;'
                     'max-width:' + max_w + ';'
                     'line-height:1.25;'
-                    'margin-top:3px;">'
+                    'margin-top:2px;">'
                     + name.upper() + '</div>'
                 )
 
@@ -1379,7 +1379,7 @@ class ProductLabelWizard(models.TransientModel):
                     'word-break:break-all;'
                     'overflow:hidden;'
                     'max-width:' + max_w + ';'
-                    'margin-top:3px;'
+                    'margin-top:2px;'
                     'line-height:1.2;">'
                     + code + '</div>'
                 )
@@ -1393,7 +1393,7 @@ class ProductLabelWizard(models.TransientModel):
                     'word-break:break-word;'
                     'overflow:hidden;'
                     'max-width:' + max_w + ';'
-                    'margin-top:3px;'
+                    'margin-top:2px;'
                     'line-height:1.2;">'
                     'MRP Rs.' + str(mrp) + '</div>'
                 )
