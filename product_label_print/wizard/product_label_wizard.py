@@ -2826,7 +2826,7 @@ class ProductLabelWizard(models.TransientModel):
         # Actual label width = 25mm, we scale via MM constant
 
         COL_GAP_MM = 7.0
-        L_MAR_MM = 19.0
+        L_MAR_MM = 23.0
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
