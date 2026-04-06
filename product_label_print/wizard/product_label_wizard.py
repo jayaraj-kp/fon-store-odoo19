@@ -2810,16 +2810,16 @@ class ProductLabelWizard(models.TransientModel):
         MM = 3.7795
 
         # ── Label dimensions (mm) ─────────────────────────────────────────────
-        # Layout: [QR col] | [Name col (rotated)] | [Code col (rotated)] | [MRP col (rotated)]
-        # All text columns rotated -90deg, reading bottom-to-top.
-        # "bottom" alignment = text pushed toward the BOTTOM edge of the label.
-        LW_MM = 25.0  # total label width
-        LH_MM = 15.0  # total label height
-        QR_MM = 7.5  # QR image size
-        QR_COL_MM = 10.0  # QR column width
-        NAME_COL_MM = 7.0  # product-name column width (rotated)
-        CODE_COL_MM = 5.0  # label-code column width (rotated)
-        MRP_COL_MM = 3.0  # MRP column width (rotated)
+        # Uses writing-mode:vertical-rl + rotate(180deg) so text reads
+        # bottom-to-top. vertical-align:bottom on the <td> pushes text
+        # to the BOTTOM edge of the label — reliable in wkhtmltopdf.
+        LW_MM = 25.0
+        LH_MM = 15.0
+        QR_MM = 7.5
+        QR_COL_MM = 10.0
+        NAME_COL_MM = 7.0
+        CODE_COL_MM = 5.0
+        MRP_COL_MM = 3.0
 
         COL_GAP_MM = 4.0
         L_MAR_MM = 2.0
@@ -2851,75 +2851,43 @@ class ProductLabelWizard(models.TransientModel):
             else:
                 return '4pt'
 
-        # ── Rotated-text cell helper ──────────────────────────────────────────
-        # The inner div is LH_px wide × col_w_px tall (pre-rotation).
-        # After rotate(-90deg) it becomes col_w_px wide × LH_px tall.
-        # Negative margin correction re-centres it inside the <td>.
-        #
-        # ROTATION AXIS MAPPING for rotate(-90deg):
-        #   pre-rotation LEFT  → visually BOTTOM of label (cut edge)
-        #   pre-rotation RIGHT → visually TOP of label (QR side)
-        #
-        # justify-content works on the pre-rotation vertical axis (LH tall):
-        #   flex-start → content at pre-rotation TOP → visually RIGHT (QR side) ✗
-        #   flex-end   → content at pre-rotation BOTTOM → visually LEFT (cut edge)
-        #
-        # Wait — after -90deg rotation the pre-rotation horizontal axis becomes
-        # vertical on screen. Let's be precise:
-        #   rotate(-90deg) maps: x→y, y→-x
-        #   So pre-rotation BOTTOM of the flex column → LEFT on screen (near QR)
-        #   And pre-rotation TOP → RIGHT on screen (far from QR = label bottom edge)
-        #
-        # We want text at the BOTTOM edge of the label = RIGHT on screen = TOP
-        # of pre-rotation axis = justify-content: flex-start.
-        #
-        # BUT the image showed flex-start sending text to TOP of label (wrong).
-        # Reason: wkhtmltopdf renders transforms differently — it maps:
-        #   flex-end   → bottom of label ✓  (confirmed by actual output)
-        #   flex-start → top of label   ✓
-        # So: use flex-end for "bottom of label".
-        def rotated_cell(text, col_w_mm, font_size, extra_style='', align='bottom'):
+        # ── Vertical text cell using writing-mode (wkhtmltopdf-safe) ─────────
+        # writing-mode:vertical-rl makes text flow top→bottom rotated 90° right.
+        # Adding rotate(180deg) flips it so text reads bottom→top.
+        # vertical-align:bottom on the outer <td> pushes content to label bottom.
+        # No flexbox needed — wkhtmltopdf handles writing-mode reliably.
+        def vertical_cell(text, col_w_mm, font_size, extra_style=''):
             col_w = col_w_mm * MM
-            shift = (LH - col_w) / 2.0
-            rotated_div = (
-                    '<div style="'
-                    'width:' + str(round(LH, 2)) + 'px;'
-                                                   'height:' + str(round(col_w, 2)) + 'px;'
-                                                                                      'display:flex;'
-                                                                                      'flex-direction:column;'
-                                                                                      'align-items:center;'
-                                                                                      'justify-content:' + (
-                        'flex-end' if align == 'bottom' else 'center') + ';'
-                                                                         'overflow:hidden;'
-                                                                         'font-size:' + font_size + ';'
-                                                                                                    'font-weight:bold;'
-                                                                                                    'padding:1px 4px;'
-                    + extra_style
-                    + 'transform:rotate(-90deg);'
-                      '-webkit-transform:rotate(-90deg);'
-                      'transform-origin:50% 50%;'
-                      '-webkit-transform-origin:50% 50%;'
-                      'margin-top:' + str(round(-shift, 2)) + 'px;'
-                                                              'margin-left:' + str(round(-shift, 2)) + 'px;'
-                                                                                                       '">' + text + '</div>'
-            )
             return (
                     '<td style="'
                     'width:' + str(round(col_w, 2)) + 'px;'
                                                       'height:' + str(round(LH, 2)) + 'px;'
-                                                                                      'overflow:hidden;'
-                                                                                      'padding:0;'
-                                                                                      'vertical-align:middle;'
-                                                                                      'text-align:center;">'
-                    + rotated_div
-                    + '</td>'
+                                                                                      'vertical-align:bottom;'
+                                                                                      'text-align:center;'
+                                                                                      'padding:0 0 1px 0;'
+                                                                                      'overflow:hidden;">'
+                                                                                      '<div style="'
+                                                                                      'display:inline-block;'
+                                                                                      'writing-mode:vertical-rl;'
+                                                                                      '-webkit-writing-mode:vertical-rl;'
+                                                                                      'transform:rotate(180deg);'
+                                                                                      '-webkit-transform:rotate(180deg);'
+                                                                                      'font-size:' + font_size + ';'
+                                                                                                                 'font-weight:bold;'
+                                                                                                                 'white-space:nowrap;'
+                                                                                                                 'overflow:hidden;'
+                                                                                                                 'max-height:' + str(
+                round(col_w, 2)) + 'px;'
+                    + extra_style +
+                    '">' + text + '</div>'
+                                  '</td>'
             )
 
         def one_label(lbl):
             name = lbl['name'] or ''
             code = lbl.get('label_code') or ''
 
-            # ── Col 1: QR image only ──────────────────────────────────────────
+            # ── Col 1: QR image ───────────────────────────────────────────────
             qr_html = ''
             if self.show_qr:
                 qr_html = (
@@ -2933,51 +2901,28 @@ class ProductLabelWizard(models.TransientModel):
                                                               'height:' + str(round(LH, 2)) + 'px;'
                                                                                               'vertical-align:middle;text-align:center;'
                                                                                               'padding:1px;overflow:hidden;">'
-                    + qr_html
-                    + '</td>'
+                    + qr_html + '</td>'
             )
 
             div0 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 2: Product name — rotated, pushed to bottom edge ──────────
-            def wrap_name(n, chars_per_line=7):
-                words = n.split()
-                lines, current = [], ''
-                for w in words:
-                    if current and len(current) + 1 + len(w) > chars_per_line:
-                        lines.append(current)
-                        current = w
-                    else:
-                        current = (current + ' ' + w).strip()
-                if current:
-                    lines.append(current)
-                return '<br/>'.join(lines)
-
-            col2 = rotated_cell(
-                wrap_name(name.upper()),
+            # ── Col 2: Product name — vertical, bottom-aligned ────────────────
+            col2 = vertical_cell(
+                name.upper(),
                 NAME_COL_MM,
                 _name_font(name),
-                extra_style=(
-                    'text-transform:uppercase;'
-                    'letter-spacing:0.2px;'
-                    'white-space:normal;'
-                    'word-break:break-word;'
-                    'text-align:center;'
-                    'line-height:1.2;'
-                ),
-                align='bottom',
+                extra_style='letter-spacing:0.3px;',
             )
 
             div1 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 3: Label code — rotated, pushed to bottom edge ────────────
+            # ── Col 3: Label code — vertical, bottom-aligned ──────────────────
             if self.show_label_code and code:
-                col3 = rotated_cell(
+                col3 = vertical_cell(
                     code,
                     CODE_COL_MM,
                     _code_font(code),
-                    extra_style='white-space:nowrap;letter-spacing:0.3px;',
-                    align='bottom',
+                    extra_style='letter-spacing:0.3px;',
                 )
             else:
                 col3 = (
@@ -2988,14 +2933,12 @@ class ProductLabelWizard(models.TransientModel):
 
             div2 = '<td style="width:1px;padding:0;border-left:1px dashed #999;"></td>'
 
-            # ── Col 4: MRP — rotated, pushed to bottom edge ───────────────────
+            # ── Col 4: MRP — vertical, bottom-aligned ─────────────────────────
             if self.show_mrp:
-                col4 = rotated_cell(
+                col4 = vertical_cell(
                     'MRP Rs.' + str(lbl['mrp']),
                     MRP_COL_MM,
                     '5pt',
-                    extra_style='white-space:nowrap;',
-                    align='bottom',
                 )
             else:
                 col4 = (
