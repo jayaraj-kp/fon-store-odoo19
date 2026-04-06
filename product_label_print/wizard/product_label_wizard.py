@@ -2823,8 +2823,8 @@ class ProductLabelWizard(models.TransientModel):
         NAME_COL_MM = 7.0  # product name column
         MRP_COL_MM = 3.0  # MRP column
 
-        COL_GAP_MM = 4.0  # gap between the two labels
-        L_MAR_MM = 2.0  # left margin
+        COL_GAP_MM = 8.0  # gap between the two labels
+        L_MAR_MM = 19.0  # left margin
         R_MAR_MM = 2.0  # right margin  ← FIX: was missing
         PW_MM = 2 * LW_MM + COL_GAP_MM + L_MAR_MM + R_MAR_MM  # 58 mm
         PH_MM = LH_MM + 2.0  # page height with tiny top pad
