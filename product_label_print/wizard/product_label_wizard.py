@@ -1730,13 +1730,13 @@ class ProductLabelWizard(models.TransientModel):
         # Feed = 17.02mm tall  →  label height
         LW_MM = 38.0  # each label width
         LH_MM = 17.0  # label height (= 0.67 in)
-        QR_MM = 12.0  # QR image size
+        QR_MM = 10.0  # QR image size
         QR_COL_MM = 16.0  # left column  (QR + code)
         NAME_COL_MM = 14.0  # middle column (product name, rotated)
         MRP_COL_MM = 8.0  # right column  (MRP, rotated)
 
-        COL_GAP_MM = 3.0  # gap between the two labels
-        L_MAR_MM = 2.0  # left margin
+        COL_GAP_MM = 7.0  # gap between the two labels
+        L_MAR_MM = 15.0  # left margin
         PW_MM = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM  # = 83mm
 
         # ── px equivalents ────────────────────────────────────────────────────────
