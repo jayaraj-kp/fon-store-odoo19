@@ -762,6 +762,7 @@
 #                 'product_count': len(products),
 #             },
 #         }
+
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
@@ -823,9 +824,9 @@ class ProductLabelWizard(models.TransientModel):
             )
             buf = io.BytesIO()
             code.write(buf, options={
-                'module_height': 10.0,
-                'module_width':  0.22,
-                'quiet_zone':    2.0,
+                'module_height': 12.0,
+                'module_width':  0.28,
+                'quiet_zone':    1.5,
                 'font_size':     0,
                 'text_distance': 1.0,
                 'write_text':    False,
@@ -1006,7 +1007,7 @@ class ProductLabelWizard(models.TransientModel):
         LH_MM = 15.0
 
         QR_COL_MM  = 11.0
-        TXT_COL_MM = LW_MM - QR_COL_MM   # 14 mm
+        TXT_COL_MM = LW_MM - QR_COL_MM
 
         QR_SIZE_MM = 11.0
 
@@ -1052,18 +1053,12 @@ class ProductLabelWizard(models.TransientModel):
                 '<td style="'
                 'width:' + str(round(QC, 2)) + 'px;'
                 'height:' + str(round(LH, 2)) + 'px;'
-                'vertical-align:middle;'
-                'text-align:center;'
-                'padding:1px;'
-                'overflow:hidden;">'
-                + qr_html
-                + '</td>'
+                'vertical-align:middle;text-align:center;'
+                'padding:1px;overflow:hidden;">'
+                + qr_html + '</td>'
             )
 
-            divider = (
-                '<td style="width:1px;padding:0;'
-                'border-left:1.5px dashed #aaa;"></td>'
-            )
+            divider = '<td style="width:1px;padding:0;border-left:1.5px dashed #aaa;"></td>'
 
             max_w = str(round(LH - 6, 2)) + 'px'
             shift = (LH - TC) / 2.0
@@ -1071,91 +1066,54 @@ class ProductLabelWizard(models.TransientModel):
             name_line = ''
             if name:
                 name_line = (
-                    '<div style="'
-                    'font-size:' + _name_font(name) + ';'
-                    'text-transform:uppercase;'
-                    'white-space:normal;'
-                    'word-break:break-word;'
-                    'overflow:hidden;'
-                    'max-width:' + max_w + ';'
-                    'line-height:1.25;'
-                    'margin-top:2px;">'
+                    '<div style="font-size:' + _name_font(name) + ';'
+                    'text-transform:uppercase;white-space:normal;word-break:break-word;'
+                    'overflow:hidden;max-width:' + max_w + ';line-height:1.25;margin-top:2px;">'
                     + name.upper() + '</div>'
                 )
 
             code_line = ''
             if self.show_label_code and code:
                 code_line = (
-                    '<div style="'
-                    'font-size:' + _code_font(code) + ';'
-                    'white-space:normal;'
-                    'word-break:break-all;'
-                    'overflow:hidden;'
-                    'max-width:' + max_w + ';'
-                    'margin-top:2px;'
-                    'line-height:1.2;">'
+                    '<div style="font-size:' + _code_font(code) + ';'
+                    'white-space:normal;word-break:break-all;overflow:hidden;'
+                    'max-width:' + max_w + ';margin-top:2px;line-height:1.2;">'
                     + code + '</div>'
                 )
 
             mrp_line = ''
             if self.show_mrp:
                 mrp_line = (
-                    '<div style="'
-                    'font-size:7pt;'
-                    'white-space:normal;'
-                    'word-break:break-word;'
-                    'overflow:hidden;'
-                    'max-width:' + max_w + ';'
-                    'margin-top:2px;'
-                    'line-height:1.2;">'
+                    '<div style="font-size:7pt;white-space:normal;word-break:break-word;'
+                    'overflow:hidden;max-width:' + max_w + ';margin-top:2px;line-height:1.2;">'
                     'MRP Rs.' + str(mrp) + '</div>'
                 )
 
             rotated_div = (
-                '<div style="'
-                'width:' + str(round(LH, 2)) + 'px;'
+                '<div style="width:' + str(round(LH, 2)) + 'px;'
                 'height:' + str(round(TC, 2)) + 'px;'
-                'display:flex;'
-                'flex-direction:column;'
-                'align-items:flex-start;'
-                'justify-content:center;'
-                'overflow:hidden;'
-                'transform:rotate(-90deg);'
-                '-webkit-transform:rotate(-90deg);'
-                'transform-origin:50% 50%;'
-                '-webkit-transform-origin:50% 50%;'
+                'display:flex;flex-direction:column;align-items:flex-start;'
+                'justify-content:center;overflow:hidden;'
+                'transform:rotate(-90deg);-webkit-transform:rotate(-90deg);'
+                'transform-origin:50% 50%;-webkit-transform-origin:50% 50%;'
                 'margin-top:' + str(round(-shift, 2)) + 'px;'
-                'margin-left:' + str(round(-shift, 2)) + 'px;'
-                'padding:0 3px;">'
-                + name_line
-                + code_line
-                + mrp_line
-                + '</div>'
+                'margin-left:' + str(round(-shift, 2)) + 'px;padding:0 3px;">'
+                + name_line + code_line + mrp_line + '</div>'
             )
 
             col_txt = (
-                '<td style="'
-                'width:' + str(round(TC, 2)) + 'px;'
+                '<td style="width:' + str(round(TC, 2)) + 'px;'
                 'height:' + str(round(LH, 2)) + 'px;'
-                'vertical-align:middle;'
-                'text-align:center;'
-                'padding:0;'
-                'overflow:hidden;">'
-                + rotated_div
-                + '</td>'
+                'vertical-align:middle;text-align:center;padding:0;overflow:hidden;">'
+                + rotated_div + '</td>'
             )
 
             return (
-                '<table style="'
-                'border-collapse:collapse;'
-                'width:' + str(round(LW, 2)) + 'px;'
-                'height:' + str(round(LH, 2)) + 'px;'
-                'border:1.5px solid #888;'
-                'border-radius:' + px(1.5) + ';'
-                'background:white;'
-                'table-layout:fixed;">'
-                '<tr>' + col_qr + divider + col_txt + '</tr>'
-                '</table>'
+                '<table style="border-collapse:collapse;'
+                'width:' + str(round(LW, 2)) + 'px;height:' + str(round(LH, 2)) + 'px;'
+                'border:1.5px solid #888;border-radius:' + px(1.5) + ';'
+                'background:white;table-layout:fixed;">'
+                '<tr>' + col_qr + divider + col_txt + '</tr></table>'
             )
 
         GAP = COL_GAP_MM * MM
@@ -1171,30 +1129,22 @@ class ProductLabelWizard(models.TransientModel):
 
             row = (
                 '<tr>'
-                '<td style="width:' + str(round(LW, 2)) + 'px;'
-                'vertical-align:top;padding:0;">'
+                '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">'
                 + one_label(left) + '</td>'
-                '<td style="width:' + str(round(GAP, 2)) + 'px;'
-                'padding:0;border:none;"></td>'
-                '<td style="width:' + str(round(LW, 2)) + 'px;'
-                'vertical-align:top;padding:0;">'
+                '<td style="width:' + str(round(GAP, 2)) + 'px;padding:0;border:none;"></td>'
+                '<td style="width:' + str(round(LW, 2)) + 'px;vertical-align:top;padding:0;">'
                 + (one_label(right) if right else '') + '</td>'
                 '</tr>'
             )
 
             pages_html.append(
-                '<div style="'
-                'width:' + str(round(PW, 2)) + 'px;'
+                '<div style="width:' + str(round(PW, 2)) + 'px;'
                 'height:' + str(round(PH, 2)) + 'px;'
                 'padding-top:' + str(round(1 * MM, 2)) + 'px;'
                 'padding-left:' + str(round(MAR, 2)) + 'px;'
-                'page-break-after:always;'
-                'box-sizing:border-box;">'
-                '<table style="'
-                'width:' + str(round(2 * LW + GAP, 2)) + 'px;'
-                'border-collapse:separate;'
-                'border-spacing:0;'
-                'table-layout:fixed;">'
+                'page-break-after:always;box-sizing:border-box;">'
+                '<table style="width:' + str(round(2 * LW + GAP, 2)) + 'px;'
+                'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
                 + row + '</table></div>'
             )
 
@@ -1202,12 +1152,8 @@ class ProductLabelWizard(models.TransientModel):
             '<!DOCTYPE html><html><head><meta charset="utf-8"/>'
             '<style>'
             '* { margin:0; padding:0; box-sizing:border-box; }'
-            'html, body {'
-            "  font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;"
-            '  background:white;'
-            '}'
-            '@page { margin:0; size: ' + str(PW_MM) + 'mm '
-            + str(LH_MM + 2) + 'mm; }'
+            "html, body { font-family: 'Arial Narrow', Arial, Helvetica, sans-serif; background:white; }"
+            '@page { margin:0; size: ' + str(PW_MM) + 'mm ' + str(LH_MM + 2) + 'mm; }'
             '</style></head><body>'
             + ''.join(pages_html)
             + '</body></html>'
@@ -1216,36 +1162,43 @@ class ProductLabelWizard(models.TransientModel):
 
     # ── MEDIUM label HTML builder (40x25mm, 2 per row) ───────────────────────
     #
-    # Matches your physical label exactly:
+    # Layout matches your physical label:
     #
     #  ┌────────────────────────────────────────┐
-    #  │         I PHONE POUCH  (centred)       │  ← name, bold, uppercase
-    #  │  ┌──────────────────────────────────┐  │
-    #  │  │  |||||||||| BARCODE |||||||||||  │  │  ← Code128 barcode
-    #  │  └──────────────────────────────────┘  │
-    #  │  123456789            MRP Rs.1,00      │  ← code left | MRP right
+    #  │         KEYCHAIN MINI BIKE             │  ← bold uppercase, centred
+    #  │- - - - - - - - - - - - - - - - - - - -│  ← dashed separator
+    #  │  ||||||||||||||||||||||||||||||||||||  │  ← barcode, full width
+    #  │  KC11034                MRP Rs.9999   │  ← code left, MRP right
     #  └────────────────────────────────────────┘
+    #
+    # KEY FIXES vs previous version:
+    #   • Page width = exactly 2×LW + small gap + tiny margin → Scale = 100%
+    #   • Left margin is minimal (1mm) so labels start at the left edge
+    #   • Barcode is wider (uses max-width:38mm) and taller (12mm)
+    #   • Fonts are larger throughout
 
     def _build_html_medium(self, label_list):
-        LW_MM      = 40.0
-        LH_MM      = 25.0
-        COL_GAP_MM = 8.0
-        L_MAR_MM   = 1.0
-        PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM   # 94 mm
-        PH_MM      = LH_MM + 2                                  # 27 mm
+        # ── Dimensions ────────────────────────────────────────────────────────
+        LW_MM      = 40.0          # label width
+        LH_MM      = 25.0          # label height
+        COL_GAP_MM = 2.0           # gap between the two labels
+        L_MAR_MM   = 1.0           # left margin on the page
+        # Total page width = left_margin + label + gap + label + left_margin
+        PW_MM      = L_MAR_MM + LW_MM + COL_GAP_MM + LW_MM + L_MAR_MM   # 84 mm
+        PH_MM      = LH_MM + 2     # 27 mm  (tiny top/bottom breathing room)
 
         def _name_font(name):
             n = len(name or '')
-            if n <= 10:   return '9pt'
-            elif n <= 18: return '7.5pt'
-            elif n <= 26: return '6pt'
-            else:         return '5pt'
+            if n <= 12:   return '11pt'
+            elif n <= 20: return '9pt'
+            elif n <= 28: return '7.5pt'
+            else:         return '6pt'
 
         def _code_font(code):
             n = len(code or '')
-            if n <= 10:   return '7pt'
-            elif n <= 16: return '6pt'
-            else:         return '5pt'
+            if n <= 10:   return '9pt'
+            elif n <= 16: return '8pt'
+            else:         return '7pt'
 
         def one_label(lbl):
             name   = lbl['name'] or ''
@@ -1253,47 +1206,53 @@ class ProductLabelWizard(models.TransientModel):
             mrp    = lbl.get('mrp', 0)
             bc_b64 = lbl.get('bc_b64', '')
 
-            # Row 1: Product name
+            # ── Row 1: Product name ───────────────────────────────────────────
             name_row = (
                 '<tr><td style="'
-                'padding:1.5mm 2mm 1mm 2mm;'
+                'padding:2mm 2mm 1mm 2mm;'
                 'text-align:center;'
                 'font-size:' + _name_font(name) + ';'
                 'font-weight:bold;'
                 'text-transform:uppercase;'
-                'letter-spacing:0.4px;'
+                'letter-spacing:0.5px;'
                 'white-space:normal;'
                 'word-break:break-word;'
                 'line-height:1.2;'
                 'overflow:hidden;'
-                'border-bottom:1px dashed #ccc;">'
+                'border-bottom:1.5px dashed #aaa;">'
                 + name.upper()
                 + '</td></tr>'
             )
 
-            # Row 2: Barcode image
+            # ── Row 2: Barcode ────────────────────────────────────────────────
             barcode_img = ''
             if bc_b64:
                 barcode_img = (
                     '<img src="data:image/png;base64,' + bc_b64 + '" '
-                    'style="height:10mm;max-width:36mm;'
-                    'display:block;margin:0 auto;" alt=""/>'
+                    'style="'
+                    'height:12mm;'
+                    'width:38mm;'
+                    'display:block;'
+                    'margin:0 auto;" alt=""/>'
                 )
             barcode_row = (
                 '<tr><td style="'
-                'padding:1mm 2mm 0.5mm 2mm;'
+                'padding:1mm 1mm 1mm 1mm;'
                 'text-align:center;'
                 'vertical-align:middle;">'
                 + barcode_img
                 + '</td></tr>'
             )
 
-            # Row 3: code left, MRP right
+            # ── Row 3: Code left, MRP right ───────────────────────────────────
             code_cell = ''
             if self.show_label_code and code:
                 code_cell = (
-                    '<td style="text-align:left;vertical-align:bottom;'
-                    'font-size:' + _code_font(code) + ';font-weight:bold;">'
+                    '<td style="'
+                    'text-align:left;vertical-align:middle;'
+                    'font-size:' + _code_font(code) + ';'
+                    'font-weight:bold;'
+                    'white-space:nowrap;">'
                     + code + '</td>'
                 )
             else:
@@ -1302,8 +1261,11 @@ class ProductLabelWizard(models.TransientModel):
             mrp_cell = ''
             if self.show_mrp:
                 mrp_cell = (
-                    '<td style="text-align:right;vertical-align:bottom;'
-                    'font-size:7pt;font-weight:bold;">'
+                    '<td style="'
+                    'text-align:right;vertical-align:middle;'
+                    'font-size:9pt;'
+                    'font-weight:bold;'
+                    'white-space:nowrap;">'
                     'MRP Rs.' + str(mrp) + '</td>'
                 )
             else:
@@ -1322,7 +1284,7 @@ class ProductLabelWizard(models.TransientModel):
                 'border-collapse:collapse;'
                 'width:' + str(LW_MM) + 'mm;'
                 'height:' + str(LH_MM) + 'mm;'
-                'border:1px solid #888;'
+                'border:1.5px solid #888;'
                 'border-radius:1.5mm;'
                 'background:white;'
                 'table-layout:fixed;">'
@@ -1332,7 +1294,7 @@ class ProductLabelWizard(models.TransientModel):
                 + '</table>'
             )
 
-        # Page layout: 2 labels per page
+        # ── Page layout: 2 labels per page, no scaling needed ─────────────────
         pages_html = []
         i = 0
         while i < len(label_list):
@@ -1359,7 +1321,7 @@ class ProductLabelWizard(models.TransientModel):
                 'page-break-after:always;'
                 'box-sizing:border-box;">'
                 '<table style="'
-                'width:' + str(2 * LW_MM + COL_GAP_MM) + 'mm;'
+                'width:' + str(LW_MM + COL_GAP_MM + LW_MM) + 'mm;'
                 'border-collapse:separate;border-spacing:0;table-layout:fixed;">'
                 + row + '</table></div>'
             )
