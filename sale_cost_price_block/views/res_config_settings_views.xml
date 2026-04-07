@@ -1,27 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!--
+        Odoo 19 CE Settings View Structure:
+        <form> > <app string="Sales" name="sale"> > <block> > <setting>
+
+        We inherit sale.res_config_settings_view_form and append
+        a new block inside the Sales app using the 'name' attribute
+        (more stable than matching on 'string' which can be translated).
+    -->
     <record id="res_config_settings_view_form_cost_block" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.cost.block</field>
         <field name="model">res.config.settings</field>
         <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="priority">20</field>
         <field name="arch" type="xml">
-            <xpath expr="//div[hasclass('settings')]" position="before">
-                <app string="Cost Price Protection" name="sale_cost_price_block"
-                     groups="base.group_system">
-                    <block title="Cost Price Protection" name="cost_price_block_section">
-                        <setting id="block_sale_below_cost" string="Block Sales Below Cost Price"
-                                 help="Prevent confirming sales orders or POS orders when any product is priced below its cost price.">
-                            <field name="block_sale_below_cost"/>
-                            <div class="content-group" attrs="{'invisible': [('block_sale_below_cost', '=', False)]}">
-                                <setting string="Allow Sales Manager Override"
-                                         help="If enabled, users with the Sales Manager role can confirm orders even if a product is priced below cost.">
-                                    <field name="allow_manager_override"/>
-                                </setting>
-                            </div>
-                        </setting>
-                    </block>
-                </app>
+            <xpath expr="//app[@name='sale']" position="inside">
+                <block title="Cost Price Protection" name="cost_price_block_section">
+                    <setting id="block_sale_below_cost_setting"
+                             string="Block Sales Below Cost Price"
+                             help="Prevent confirming orders when a product is priced below its cost price.">
+                        <field name="block_sale_below_cost"/>
+                    </setting>
+                    <setting id="allow_manager_override_setting"
+                             string="Allow Sales Manager Override"
+                             help="Sales Managers can confirm orders even if a product is priced below cost."
+                             attrs="{'invisible': [('block_sale_below_cost', '=', False)]}">
+                        <field name="allow_manager_override"/>
+                    </setting>
+                </block>
             </xpath>
         </field>
     </record>
