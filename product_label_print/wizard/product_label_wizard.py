@@ -883,7 +883,7 @@ class ProductLabelWizard(models.TransientModel):
         QR_H    = 26
         BOT_H   = 28
         LH      = QR_H + BOT_H
-        QR_SIZE = 20
+        QR_SIZE = 22
         COL_GAP = 60
         ROW_GAP = 4
         L_MAR   = 10
