@@ -1249,10 +1249,11 @@ class ProductLabelWizard(models.TransientModel):
             if self.show_label_code and code:
                 code_cell = (
                     '<td style="'
+                    'width:50%;'
                     'text-align:left;vertical-align:middle;'
                     'font-size:' + _code_font(code) + ';'
                     'font-weight:bold;'
-                    'white-space:nowrap;padding-left:2px;">'
+                    'white-space:nowrap;">'
                     + code + '</td>'
                 )
             else:
@@ -1262,6 +1263,7 @@ class ProductLabelWizard(models.TransientModel):
             if self.show_mrp:
                 mrp_cell = (
                     '<td style="'
+                    'width:50%;'
                     'text-align:right;vertical-align:middle;'
                     'font-size:9pt;'
                     'font-weight:bold;'
@@ -1273,7 +1275,7 @@ class ProductLabelWizard(models.TransientModel):
 
             bottom_row = (
                 '<tr><td style="padding:0.5mm 2mm 1.5mm 2mm;">'
-                '<table style="width:100%;border-collapse:collapse;">'
+                '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
                 '<tr>' + code_cell + mrp_cell + '</tr>'
                 '</table>'
                 '</td></tr>'
