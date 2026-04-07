@@ -7,24 +7,23 @@
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
 
-            <!-- Insert inside the main sheet -->
+            <!-- SAFE anchor -->
             <xpath expr="//sheet" position="inside">
 
+                <!-- Add tab safely -->
                 <notebook>
-                    <page string="Barcode" name="barcode_autogen_page">
-                        <group string="Auto-Generated Barcode">
+                    <page string="Barcode">
+                        <group>
                             <field name="barcode"/>
                         </group>
 
-                        <div class="o_row mt-2">
-                            <button
-                                name="action_regenerate_barcode"
-                                string="↻ Regenerate Barcode"
-                                type="object"
-                                class="btn btn-secondary"
-                                attrs="{'invisible': [('id', '=', False)]}"
-                            />
-                        </div>
+                        <button
+                            name="action_regenerate_barcode"
+                            string="Regenerate Barcode"
+                            type="object"
+                            class="btn btn-secondary"
+                            attrs="{'invisible': [('id', '=', False)]}"
+                        />
                     </page>
                 </notebook>
 
