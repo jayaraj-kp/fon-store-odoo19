@@ -1,74 +1,80 @@
-<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
     <record id="product_template_form_barcode_autogen" model="ir.ui.view">
         <field name="name">product.template.form.barcode.autogen</field>
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
 
-            <!-- SAFE anchor -->
+            <!-- PASTE HERE -->
             <xpath expr="//sheet" position="inside">
 
-                <!-- Add tab safely -->
-                <notebook>
-                    <page string="Barcode">
-                        <group>
-                            <field name="barcode"/>
-                        </group>
+                <separator string="Package Barcodes, Quantities &amp; Combo Limits"/>
 
-                        <button
-                            name="action_regenerate_barcode"
-                            string="Regenerate Barcode"
-                            type="object"
-                            class="btn btn-secondary"
-                            attrs="{'invisible': [('id', '=', False)]}"
-                        />
-                    </page>
-                </notebook>
+                <group string="Package 1 (e.g. 1 Dozen = 12 units)" col="2">
+                    <field name="barcode2"/>
+                    <field name="custom_qty1"/>
+                    <field name="custom_price1" widget="monetary"
+                           options="{'currency_field': 'currency_id'}"/>
+                    <field name="max_combo_qty1"/>
+                </group>
+
+                <group string="Package 2 (e.g. 10 Dozen = 120 units)" col="2">
+                    <field name="barcode3"/>
+                    <field name="custom_qty2"/>
+                    <field name="custom_price2" widget="monetary"
+                           options="{'currency_field': 'currency_id'}"/>
+                    <field name="max_combo_qty2"/>
+                </group>
+
+                <button
+                        name="action_regenerate_barcode"
+                        string="Regenerate Barcode"
+                        type="object"
+                        class="btn btn-secondary"
+                        invisible="id == False"
+                />
 
             </xpath>
 
         </field>
     </record>
-
 </odoo>
 
 
-<!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<odoo>-->
+        <!--<?xml version="1.0" encoding="utf-8"?>-->
+        <!--<odoo>-->
 
-<!--    &lt;!&ndash; ================================================================-->
-<!--         Product Template Form — Adds a "Barcode" tab with:-->
-<!--           - barcode field (auto-filled on product creation)-->
-<!--           - Regenerate button to get a new barcode anytime-->
+        <!--    &lt;!&ndash; ================================================================-->
+        <!--         Product Template Form — Adds a "Barcode" tab with:-->
+        <!--           - barcode field (auto-filled on product creation)-->
+        <!--           - Regenerate button to get a new barcode anytime-->
 
-<!--         Uses <notebook position="inside"> which is guaranteed to exist-->
-<!--         in Odoo 19 CE base product form view.-->
-<!--    ================================================================ &ndash;&gt;-->
+        <!--         Uses <notebook position="inside"> which is guaranteed to exist-->
+        <!--         in Odoo 19 CE base product form view.-->
+        <!--    ================================================================ &ndash;&gt;-->
 
-<!--    <record id="product_template_form_barcode_autogen" model="ir.ui.view">-->
-<!--        <field name="name">product.template.form.barcode.autogen</field>-->
-<!--        <field name="model">product.template</field>-->
-<!--        <field name="inherit_id" ref="product.product_template_form_view"/>-->
-<!--        <field name="arch" type="xml">-->
-<!--            <notebook position="inside">-->
-<!--                <page string="Barcode" name="barcode_autogen_page">-->
-<!--                    <group string="Auto-Generated Barcode">-->
-<!--                        <field name="barcode" string="Barcode"/>-->
-<!--                    </group>-->
-<!--                    <div class="o_row mt-2">-->
-<!--                        <button-->
-<!--                            name="action_regenerate_barcode"-->
-<!--                            string="↻ Regenerate Barcode"-->
-<!--                            type="object"-->
-<!--                            class="btn btn-secondary"-->
-<!--                            invisible="not id"-->
-<!--                        />-->
-<!--                    </div>-->
-<!--                </page>-->
-<!--            </notebook>-->
-<!--        </field>-->
-<!--    </record>-->
+        <!--    <record id="product_template_form_barcode_autogen" model="ir.ui.view">-->
+        <!--        <field name="name">product.template.form.barcode.autogen</field>-->
+        <!--        <field name="model">product.template</field>-->
+        <!--        <field name="inherit_id" ref="product.product_template_form_view"/>-->
+        <!--        <field name="arch" type="xml">-->
+        <!--            <notebook position="inside">-->
+        <!--                <page string="Barcode" name="barcode_autogen_page">-->
+        <!--                    <group string="Auto-Generated Barcode">-->
+        <!--                        <field name="barcode" string="Barcode"/>-->
+        <!--                    </group>-->
+        <!--                    <div class="o_row mt-2">-->
+        <!--                        <button-->
+        <!--                            name="action_regenerate_barcode"-->
+        <!--                            string="↻ Regenerate Barcode"-->
+        <!--                            type="object"-->
+        <!--                            class="btn btn-secondary"-->
+        <!--                            invisible="not id"-->
+        <!--                        />-->
+        <!--                    </div>-->
+        <!--                </page>-->
+        <!--            </notebook>-->
+        <!--        </field>-->
+        <!--    </record>-->
 
-<!--</odoo>-->
+        <!--</odoo>-->
