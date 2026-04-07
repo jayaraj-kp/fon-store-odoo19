@@ -880,13 +880,13 @@ class ProductLabelWizard(models.TransientModel):
 
     def _build_html_large(self, label_list):
         LW      = 65
-        QR_H    = 26
+        QR_H    = 27
         BOT_H   = 28
         LH      = QR_H + BOT_H
-        QR_SIZE = 26
+        QR_SIZE = 27
         COL_GAP = 60
         ROW_GAP = 4
-        L_MAR   = 10
+        L_MAR   = 9
         PW      = 160
 
         def _name_font_size(name):
@@ -923,7 +923,7 @@ class ProductLabelWizard(models.TransientModel):
 
             top_cell = (
                 '<tr><td style="height:' + str(QR_H) + 'mm;'
-                'padding:3mm 1mm 1mm 5mm;vertical-align:top;'
+                'padding:3mm 1mm 1mm 2mm;vertical-align:top;'
                 'border-bottom:1.5px dashed #aaa;">'
                 + qr_html + code_html + '</td></tr>'
             )
