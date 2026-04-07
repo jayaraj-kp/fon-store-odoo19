@@ -921,7 +921,7 @@ class ProductLabelWizard(models.TransientModel):
         QR_SIZE_MM = 11.0
 
         COL_GAP_MM = 5.0
-        L_MAR_MM   = 32.0
+        L_MAR_MM   = 33.0
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 
         LW = LW_MM * MM
