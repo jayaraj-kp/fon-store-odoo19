@@ -3,11 +3,26 @@
     <!-- Default system parameters for barcode generation -->
     <record id="param_barcode_prefix" model="ir.config_parameter">
         <field name="key">product_barcode_autogen.barcode_prefix</field>
-        <field name="value">BC</field>
+        <field name="value"></field>
     </record>
 
     <record id="param_barcode_length" model="ir.config_parameter">
         <field name="key">product_barcode_autogen.barcode_length</field>
-        <field name="value">12</field>
+        <field name="value">8</field>
     </record>
 </odoo>
+
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+<!--    &lt;!&ndash; Default system parameters for barcode generation &ndash;&gt;-->
+<!--    <record id="param_barcode_prefix" model="ir.config_parameter">-->
+<!--        <field name="key">product_barcode_autogen.barcode_prefix</field>-->
+<!--        <field name="value">BC</field>-->
+<!--    </record>-->
+
+<!--    <record id="param_barcode_length" model="ir.config_parameter">-->
+<!--        <field name="key">product_barcode_autogen.barcode_length</field>-->
+<!--        <field name="value">12</field>-->
+<!--    </record>-->
+<!--</odoo>-->
