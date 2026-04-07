@@ -1229,8 +1229,8 @@ class ProductLabelWizard(models.TransientModel):
     def _build_html_medium(self, label_list):
         LW_MM      = 40.0
         LH_MM      = 25.0
-        COL_GAP_MM = 4.0
-        L_MAR_MM   = 5.0
+        COL_GAP_MM = 8.0
+        L_MAR_MM   = 1.0
         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM   # 94 mm
         PH_MM      = LH_MM + 2                                  # 27 mm
 
