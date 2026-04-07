@@ -6,47 +6,84 @@
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
 
-            <xpath expr="//field[@name='barcode']" position="after">
+            <xpath expr="//sheet" position="inside">
 
                 <separator string="Package Barcodes, Quantities &amp; Combo Limits"/>
 
-                <group string="Package 1  (e.g. 1 Dozen = 12 units)" name="package_barcode_group1" col="2">
-                    <field name="barcode2"
-                           string="Barcode 2"
-                           placeholder="Scan or type package barcode…"
-                           widget="char"/>
-                    <field name="custom_qty1"
-                           string="Package Qty 1"
-                           help="Quantity added when Barcode 2 is scanned."/>
+                <group string="Package 1 (e.g. 1 Dozen = 12 units)" col="2">
+                    <field name="barcode2"/>
+                    <field name="custom_qty1"/>
                     <field name="custom_price1"
-                           string="Package Price 1"
                            widget="monetary"
-                           options="{'currency_field': 'currency_id'}"
-                           help="Fixed selling price for this package. Set 0 to calculate as unit price × qty."/>
-                    <field name="max_combo_qty1"
-                           string="Max Combo Qty 1"
-                           help="Maximum number of times Barcode 2 can be scanned per bill. Set 0 for unlimited."/>
+                           options="{'currency_field': 'currency_id'}"/>
+                    <field name="max_combo_qty1"/>
                 </group>
 
-                <group string="Package 2  (e.g. 10 Dozen = 120 units)" name="package_barcode_group2" col="2">
-                    <field name="barcode3"
-                           string="Barcode 3"
-                           placeholder="Scan or type bulk-pack barcode…"
-                           widget="char"/>
-                    <field name="custom_qty2"
-                           string="Package Qty 2"
-                           help="Quantity added when Barcode 3 is scanned."/>
+                <group string="Package 2 (e.g. 10 Dozen = 120 units)" col="2">
+                    <field name="barcode3"/>
+                    <field name="custom_qty2"/>
                     <field name="custom_price2"
-                           string="Package Price 2"
                            widget="monetary"
-                           options="{'currency_field': 'currency_id'}"
-                           help="Fixed selling price for this package. Set 0 to calculate as unit price × qty."/>
-                    <field name="max_combo_qty2"
-                           string="Max Combo Qty 2"
-                           help="Maximum number of times Barcode 3 can be scanned per bill. Set 0 for unlimited."/>
+                           options="{'currency_field': 'currency_id'}"/>
+                    <field name="max_combo_qty2"/>
                 </group>
 
             </xpath>
+
         </field>
     </record>
 </odoo>
+
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+<!--    <record id="product_template_form_view_barcode_inherit" model="ir.ui.view">-->
+<!--        <field name="name">product.template.form.multi.barcode</field>-->
+<!--        <field name="model">product.template</field>-->
+<!--        <field name="inherit_id" ref="product.product_template_form_view"/>-->
+<!--        <field name="arch" type="xml">-->
+
+<!--            <xpath expr="//field[@name='barcode']" position="after">-->
+
+<!--                <separator string="Package Barcodes, Quantities &amp; Combo Limits"/>-->
+
+<!--                <group string="Package 1  (e.g. 1 Dozen = 12 units)" name="package_barcode_group1" col="2">-->
+<!--                    <field name="barcode2"-->
+<!--                           string="Barcode 2"-->
+<!--                           placeholder="Scan or type package barcode…"-->
+<!--                           widget="char"/>-->
+<!--                    <field name="custom_qty1"-->
+<!--                           string="Package Qty 1"-->
+<!--                           help="Quantity added when Barcode 2 is scanned."/>-->
+<!--                    <field name="custom_price1"-->
+<!--                           string="Package Price 1"-->
+<!--                           widget="monetary"-->
+<!--                           options="{'currency_field': 'currency_id'}"-->
+<!--                           help="Fixed selling price for this package. Set 0 to calculate as unit price × qty."/>-->
+<!--                    <field name="max_combo_qty1"-->
+<!--                           string="Max Combo Qty 1"-->
+<!--                           help="Maximum number of times Barcode 2 can be scanned per bill. Set 0 for unlimited."/>-->
+<!--                </group>-->
+
+<!--                <group string="Package 2  (e.g. 10 Dozen = 120 units)" name="package_barcode_group2" col="2">-->
+<!--                    <field name="barcode3"-->
+<!--                           string="Barcode 3"-->
+<!--                           placeholder="Scan or type bulk-pack barcode…"-->
+<!--                           widget="char"/>-->
+<!--                    <field name="custom_qty2"-->
+<!--                           string="Package Qty 2"-->
+<!--                           help="Quantity added when Barcode 3 is scanned."/>-->
+<!--                    <field name="custom_price2"-->
+<!--                           string="Package Price 2"-->
+<!--                           widget="monetary"-->
+<!--                           options="{'currency_field': 'currency_id'}"-->
+<!--                           help="Fixed selling price for this package. Set 0 to calculate as unit price × qty."/>-->
+<!--                    <field name="max_combo_qty2"-->
+<!--                           string="Max Combo Qty 2"-->
+<!--                           help="Maximum number of times Barcode 3 can be scanned per bill. Set 0 for unlimited."/>-->
+<!--                </group>-->
+
+<!--            </xpath>-->
+<!--        </field>-->
+<!--    </record>-->
+<!--</odoo>-->
