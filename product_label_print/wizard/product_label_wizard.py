@@ -1252,7 +1252,7 @@ class ProductLabelWizard(models.TransientModel):
                     'text-align:left;vertical-align:middle;'
                     'font-size:' + _code_font(code) + ';'
                     'font-weight:bold;'
-                    'white-space:nowrap;">'
+                    'white-space:nowrap;padding-left:2px;">'
                     + code + '</td>'
                 )
             else:
