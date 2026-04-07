@@ -880,10 +880,10 @@ class ProductLabelWizard(models.TransientModel):
 
     def _build_html_large(self, label_list):
         LW      = 65
-        QR_H    = 27
+        QR_H    = 28
         BOT_H   = 28
         LH      = QR_H + BOT_H
-        QR_SIZE = 27
+        QR_SIZE = 28
         COL_GAP = 60
         ROW_GAP = 4
         L_MAR   = 9
