@@ -1230,7 +1230,7 @@ class ProductLabelWizard(models.TransientModel):
                 barcode_img = (
                     '<img src="data:image/png;base64,' + bc_b64 + '" '
                     'style="'
-                    'height:12mm;'
+                    'height:16mm;'
                     'max-width:38mm;'
                     'display:block;'
                     'margin:0 auto;" alt=""/>'
