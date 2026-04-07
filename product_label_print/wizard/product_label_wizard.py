@@ -887,7 +887,7 @@ class ProductLabelWizard(models.TransientModel):
         COL_GAP = 60
         ROW_GAP = 4
         L_MAR   = 9
-        PW      = 140
+        PW      = 155
 
         def _name_font_size(name):
             n = len(name or '')
