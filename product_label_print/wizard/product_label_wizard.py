@@ -1091,7 +1091,7 @@ class ProductLabelWizard(models.TransientModel):
         LW_MM      = 40.0
         LH_MM      = 25.0
         COL_GAP_MM = 7.0
-        L_MAR_MM   = 9.0
+        L_MAR_MM   = 7.0
         PW_MM      = L_MAR_MM + LW_MM + COL_GAP_MM + LW_MM + L_MAR_MM   # 109 mm
         PH_MM      = LH_MM + 2                                            # 27 mm
 
