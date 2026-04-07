@@ -1231,7 +1231,7 @@ class ProductLabelWizard(models.TransientModel):
                     '<img src="data:image/png;base64,' + bc_b64 + '" '
                     'style="'
                     'height:16mm;'
-                    'max-width:38mm;'
+                    'max-width:39mm;'
                     'display:block;'
                     'margin:0 auto;" alt=""/>'
                 )
