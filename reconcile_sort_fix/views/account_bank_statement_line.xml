@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <record id="bank_statement_line_form_reconcile_view_sort" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.reconcile.sort</field>
+        <field name="model">account.bank.statement.line</field>
+        <field name="inherit_id"
+               ref="account_reconcile_oca.bank_statement_line_form_reconcile_view"/>
+        <field name="arch" type="xml">
+            <!--
+                Inherit the reconcile tab field and inject the current statement
+                line's amount into the context so our Python sort can use it.
+
+                reconcile_amount_sort  → abs amount of the selected statement line
+                reconcile_currency_id  → currency id for precision rounding
+            -->
+            <xpath
+                expr="//field[@name='add_account_move_line_id']"
+                position="replace">
+                <field
+                    name="add_account_move_line_id"
+                    widget="account_reconcile_oca_match"
+                    domain="[
+                        ('parent_state', '=', 'posted'),
+                        ('amount_residual', '!=', 0),
+                        ('account_id.reconcile', '=', True),
+                        ('company_id', '=', company_id),
+                        ('statement_line_id', '!=', id)
+                    ]"
+                    context="{
+                        'list_view_ref': 'account_reconcile_oca.account_move_line_tree_reconcile_view',
+                        'search_view_ref': 'account_reconcile_oca.account_move_line_search_reconcile_view',
+                        'reconcile_amount_sort': amount,
+                        'reconcile_currency_id': currency_id
+                    }"
+                />
+            </xpath>
+        </field>
+    </record>
+</odoo>
