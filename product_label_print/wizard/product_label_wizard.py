@@ -1181,8 +1181,8 @@ class ProductLabelWizard(models.TransientModel):
         # ── Dimensions ────────────────────────────────────────────────────────
         LW_MM      = 40.0          # label width
         LH_MM      = 25.0          # label height
-        COL_GAP_MM = 7.0           # gap between the two labels
-        L_MAR_MM   = 9.0           # left margin on the page
+        COL_GAP_MM = 9.0           # gap between the two labels
+        L_MAR_MM   = 10.0           # left margin on the page
         # Total page width = left_margin + label + gap + label + left_margin
         PW_MM      = L_MAR_MM + LW_MM + COL_GAP_MM + LW_MM + L_MAR_MM   # 84 mm
         PH_MM      = LH_MM + 2     # 27 mm  (tiny top/bottom breathing room)
