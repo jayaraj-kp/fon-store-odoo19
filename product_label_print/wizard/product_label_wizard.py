@@ -1088,8 +1088,8 @@ class ProductLabelWizard(models.TransientModel):
     #   6. wkhtmltopdf --zoom 1 already set → no additional scaling
 
     def _build_html_medium(self, label_list):
-        LW_MM      = 40.0
-        LH_MM      = 25.0
+        LW_MM      = 50.0
+        LH_MM      = 30.0
         COL_GAP_MM = 7.0
         L_MAR_MM   = 6.0
         PW_MM      = L_MAR_MM + LW_MM + COL_GAP_MM + LW_MM + L_MAR_MM   # 109 mm
