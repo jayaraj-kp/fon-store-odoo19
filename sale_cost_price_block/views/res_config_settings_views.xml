@@ -26,7 +26,7 @@
                         </div>
                     </div>
                     <div class="o_setting_box"
-                         attrs="{'invisible': [('block_sale_below_cost', '=', False)]}">
+                         invisible="not block_sale_below_cost">
                         <div class="o_setting_left_pane">
                             <field name="allow_manager_override"/>
                         </div>
