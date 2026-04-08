@@ -811,11 +811,10 @@ class ProductLabelWizard(models.TransientModel):
 
         def _name_font_size(name):
             n = len(name or '')
-            if n <= 10:   return 20
-            elif n <= 15: return 19
-            elif n <= 22: return 13
-            else:         return 10
-
+            if n <= 10:   return 23
+            elif n <= 15: return 21
+            elif n <= 22: return 20
+            else:         return 19
         def _code_font_size(code):
             n = len(code or '')
             if n <= 6:    return 18
