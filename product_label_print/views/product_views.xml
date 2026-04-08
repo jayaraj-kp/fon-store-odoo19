@@ -16,11 +16,11 @@
                         string="Print Labels"/>
             </xpath>
             <!-- Add Label Code field after product name (safe location in all Odoo 19 product views) -->
-            <xpath expr="//field[@name='name']" position="after">
-                <field name="label_code"
-                       placeholder="e.g. KC110"
-                       help="Short code shown on printed label. If empty, uses internal reference."/>
-            </xpath>
+<!--            <xpath expr="//field[@name='name']" position="after">-->
+<!--                <field name="label_code"-->
+<!--                       placeholder="e.g. KC110"-->
+<!--                       help="Short code shown on printed label. If empty, uses internal reference."/>-->
+<!--            </xpath>-->
         </field>
     </record>
 
