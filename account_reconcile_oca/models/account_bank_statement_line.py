@@ -1393,6 +1393,23 @@ class AccountBankStatementLine(models.Model):
             or self.company_id.currency_id
         )
 
+    # In class AccountBankStatementLine
+
+    def get_move_lines_sorted_by_amount(self, domain, limit=80):
+        """Return move line IDs sorted so lines matching the statement amount appear first."""
+        self.ensure_one()
+        stmt_amount = abs(self.amount)
+        lines = self.env["account.move.line"].search(domain, limit=limit)
+
+        def sort_key(line):
+            residual = abs(line.amount_residual_currency or line.amount_residual or 0)
+            diff = abs(residual - stmt_amount)
+            # Exact match = 0, close match = small number → sorts first
+            return diff
+
+        sorted_lines = sorted(lines, key=sort_key)
+        return [line.id for line in sorted_lines]
+
     def add_multiple_lines(self, domain):
         res = super().add_multiple_lines(domain)
         lines = self.env["account.move.line"].search(domain)
