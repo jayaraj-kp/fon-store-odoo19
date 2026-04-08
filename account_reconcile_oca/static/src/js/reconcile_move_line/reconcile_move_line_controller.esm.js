@@ -72,67 +72,62 @@
 import {ListController} from "@web/views/list/list_controller";
 import {useService} from "@web/core/utils/hooks";
 
-const {onMounted, onWillUpdateProps} = owl;
+const {onMounted, useEffect} = owl;
 
 export class ReconcileMoveLineController extends ListController {
     setup() {
         super.setup();
         this.orm = useService("orm");
-        onMounted(async () => {
-            await this._applySmartSort();
-        });
-        // Re-sort whenever the parent record changes (user clicks a different statement line)
-        onWillUpdateProps(async () => {
-            await this._applySmartSort();
+
+        // Re-sort whenever the parent record's amount changes
+        // (i.e. when user clicks a different statement line on the left)
+        useEffect(
+            (parentRecord) => {
+                if (parentRecord) {
+                    this._applySmartSort();
+                }
+            },
+            () => [this.props.parentRecord]
+        );
+
+        onMounted(() => {
+            this._applySmartSort();
         });
     }
 
-    async _applySmartSort() {
+    _getStatementAmount() {
         const parentRecord = this.props.parentRecord;
-        if (!parentRecord) return;
+        if (!parentRecord) return 0;
+        return parentRecord.data?.amount ?? 0;
+    }
 
-        const statementId = parentRecord.resId;
-        if (!statementId) return;
-
-        const records = this.model.root.records;
+    _applySmartSort() {
+        const records = this.model?.root?.records;
         if (!records || records.length === 0) return;
 
-        const amount = parentRecord.data?.amount || 0;
-        if (amount === 0) return;
+        const stmtAmount = this._getStatementAmount();
+        if (stmtAmount === 0) return;
 
-        try {
-            // Ask the server for IDs sorted by closest-amount-match
-            const sortedIds = await this.orm.call(
-                "account.bank.statement.line",
-                "get_move_lines_sorted_by_amount",
-                [[statementId], this.model.root.domain]
-            );
+        const absStmt = Math.abs(stmtAmount);
 
-            if (!sortedIds || sortedIds.length === 0) return;
+        records.sort((a, b) => {
+            const aRes = a.data?.amount_residual ?? 0;
+            const bRes = b.data?.amount_residual ?? 0;
+            // Closest absolute difference to statement amount sorts first
+            const aDiff = Math.abs(Math.abs(aRes) - absStmt);
+            const bDiff = Math.abs(Math.abs(bRes) - absStmt);
+            return aDiff - bDiff;
+        });
 
-            // Build an index map: id → position
-            const orderMap = {};
-            sortedIds.forEach((id, idx) => { orderMap[id] = idx; });
-
-            // Sort the already-loaded records using that map
-            records.sort((a, b) => {
-                const aPos = orderMap[a.resId] ?? 9999;
-                const bPos = orderMap[b.resId] ?? 9999;
-                return aPos - bPos;
-            });
-
-            this.model.notify();
-        } catch (e) {
-            // Graceful degradation — if RPC fails, keep default order
-            console.warn("Smart sort failed:", e);
-        }
+        this.model.notify();
     }
 
     async openRecord(record) {
-        var data = {};
-        const displayName = record.data?.name ||
-                            record.data?.move_id?.display_name ||
-                            String(record.resId);
+        const data = {};
+        const displayName =
+            record.data?.name ||
+            record.data?.move_id?.display_name ||
+            String(record.resId);
         data[this.props.parentField] = {
             id: record.resId,
             display_name: displayName,
