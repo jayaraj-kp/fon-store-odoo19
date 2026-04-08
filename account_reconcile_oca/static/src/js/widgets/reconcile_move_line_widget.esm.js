@@ -8,7 +8,6 @@ const {Component, useSubEnv} = owl;
 
 export class AccountReconcileMatchWidget extends Component {
     setup() {
-        // Necessary in order to avoid a loop
         useSubEnv({
             config: {},
             parentController: this.env.parentController,
@@ -22,12 +21,31 @@ export class AccountReconcileMatchWidget extends Component {
         }
         return domain;
     }
+
+    getStatementAmount() {
+        return this.props.record.data.amount || 0;
+    }
+
+    getOrderString() {
+        const amount = this.getStatementAmount();
+        if (amount > 0) {
+            // Positive statement (money IN): show positive residuals first
+            // e.g. ₹500 in → match invoices with +500 residual
+            return "amount_residual_currency desc";
+        } else if (amount < 0) {
+            // Negative statement (money OUT): show negative residuals first
+            // e.g. ₹-500 out → match bills with -500 residual
+            return "amount_residual_currency asc";
+        }
+        return "date desc";
+    }
+
     get listViewProperties() {
+        const amount = this.getStatementAmount();
         return {
             type: "list",
             display: {
                 controlPanel: {
-                    // Hiding the control panel buttons
                     "top-left": false,
                     "bottom-left": true,
                     layoutActions: false,
@@ -40,10 +58,10 @@ export class AccountReconcileMatchWidget extends Component {
             context: {
                 ...this.props.context,
                 ...getFieldContext(this.props.record, this.props.name),
+                order: this.getOrderString(),
+                reconcile_statement_amount: amount,
             },
-            // Disables selector
             allowSelectors: false,
-            // We need to force the search view in order to show the right one
             searchViewId: false,
             parentRecord: this.props.record,
             parentField: this.props.name,
@@ -51,6 +69,7 @@ export class AccountReconcileMatchWidget extends Component {
         };
     }
 }
+
 AccountReconcileMatchWidget.props = {
     ...standardFieldProps,
     placeholder: {type: String, optional: true},
