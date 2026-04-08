@@ -71,6 +71,7 @@
 //};
 import {ListController} from "@web/views/list/list_controller";
 import {useService} from "@web/core/utils/hooks";
+import {useBus} from "@web/core/utils/hooks";
 
 const {onMounted, useEffect} = owl;
 
@@ -78,59 +79,85 @@ export class ReconcileMoveLineController extends ListController {
     setup() {
         super.setup();
         this.orm = useService("orm");
+        this._sortDone = false;
+
+        // Listen to model bus — fires when records finish loading
+        useBus(this.model.bus, "update", () => {
+            console.log("🚌 model.bus 'update' fired");
+            console.log("🚌 records length now:", this.model?.root?.records?.length);
+            if (this.model?.root?.records?.length > 0) {
+                this._applySmartSort();
+            }
+        });
 
         useEffect(
             (parentRecord) => {
-                console.log("🔄 useEffect triggered, parentRecord:", parentRecord);
-                console.log("🔄 parentRecord.data:", parentRecord?.data);
-                console.log("🔄 amount from parentRecord:", parentRecord?.data?.amount);
-                if (parentRecord) {
+                console.log("🔄 useEffect - parentRecord changed");
+                // Reset sort flag when parent changes (new statement line selected)
+                this._sortDone = false;
+                const records = this.model?.root?.records;
+                console.log("🔄 records length at useEffect:", records?.length);
+                if (records?.length > 0) {
                     this._applySmartSort();
                 }
             },
-            () => [this.props.parentRecord]
+            () => [this.props.parentRecord?.resId]
         );
 
         onMounted(() => {
             console.log("✅ onMounted fired");
-            console.log("✅ this.props.parentRecord:", this.props.parentRecord);
-            console.log("✅ this.props.parentRecord.data:", this.props.parentRecord?.data);
-            console.log("✅ amount:", this.props.parentRecord?.data?.amount);
-            console.log("✅ this.model:", this.model);
-            console.log("✅ this.model.root:", this.model?.root);
-            console.log("✅ this.model.root.records:", this.model?.root?.records);
-            if (this.model?.root?.records) {
-                console.log("✅ records count:", this.model.root.records.length);
-                console.log("✅ first record data keys:", Object.keys(this.model.root.records[0]?.data || {}));
-                console.log("✅ first record amount_residual:", this.model.root.records[0]?.data?.amount_residual);
-                console.log("✅ first record amount_residual_currency:", this.model.root.records[0]?.data?.amount_residual_currency);
-            }
-            this._applySmartSort();
+            const records = this.model?.root?.records;
+            console.log("✅ records length at onMounted:", records?.length);
         });
     }
 
     _getStatementAmount() {
         const parentRecord = this.props.parentRecord;
-        console.log("💰 _getStatementAmount - parentRecord:", parentRecord);
-        console.log("💰 _getStatementAmount - data:", parentRecord?.data);
-        // Try all possible field names
-        const amount1 = parentRecord?.data?.amount;
-        const amount2 = parentRecord?.data?.amount_currency;
-        const amount3 = parentRecord?.data?.amount_total_signed;
-        console.log("💰 amount (data.amount):", amount1);
-        console.log("💰 amount_currency (data.amount_currency):", amount2);
-        console.log("💰 amount_total_signed (data.amount_total_signed):", amount3);
-        return amount1 ?? 0;
+        if (!parentRecord) return 0;
+
+        // Log ALL data fields to find the amount field
+        const data = parentRecord.data;
+        console.log("💰 ALL parentRecord.data fields:", JSON.stringify(
+            Object.fromEntries(
+                Object.entries(data).filter(([k, v]) =>
+                    typeof v === "number" || (typeof v === "string" && !isNaN(v))
+                )
+            )
+        ));
+
+        // Try every possible amount field
+        const candidates = [
+            "amount",
+            "amount_currency",
+            "amount_total_signed",
+            "amount_residual",
+            "amount_company_currency_signed",
+        ];
+        for (const field of candidates) {
+            if (data[field] !== undefined && data[field] !== false) {
+                console.log(`💰 Found amount in field '${field}':`, data[field]);
+                return data[field];
+            }
+        }
+
+        // Fallback: get from reconcile_data_info liquidity line
+        const reconcileInfo = data?.reconcile_data_info;
+        if (reconcileInfo?.data) {
+            const liquidityLine = reconcileInfo.data.find(l => l.kind === "liquidity");
+            if (liquidityLine) {
+                console.log("💰 Got amount from reconcile_data_info liquidity line:", liquidityLine.amount);
+                return liquidityLine.amount;
+            }
+        }
+
+        console.warn("💰 Could not find amount field!");
+        return 0;
     }
 
     _applySmartSort() {
-        console.log("🔀 _applySmartSort called");
         const records = this.model?.root?.records;
-        console.log("🔀 records:", records);
-        console.log("🔀 records length:", records?.length);
-
         if (!records || records.length === 0) {
-            console.warn("🔀 No records to sort, returning early");
+            console.warn("🔀 No records, skipping sort");
             return;
         }
 
@@ -138,36 +165,32 @@ export class ReconcileMoveLineController extends ListController {
         console.log("🔀 stmtAmount:", stmtAmount);
 
         if (stmtAmount === 0) {
-            console.warn("🔀 stmtAmount is 0, returning early");
+            console.warn("🔀 stmtAmount is 0, skipping sort");
             return;
         }
 
         const absStmt = Math.abs(stmtAmount);
-        console.log("🔀 absStmt:", absStmt);
 
-        // Log all records before sort
-        console.log("📋 BEFORE SORT:");
-        records.forEach((r, i) => {
-            console.log(`  [${i}] id=${r.resId} amount_residual=${r.data?.amount_residual} amount_residual_currency=${r.data?.amount_residual_currency} name=${r.data?.name}`);
+        console.log("📋 BEFORE SORT (first 5):");
+        records.slice(0, 5).forEach((r, i) => {
+            console.log(`  [${i}] id=${r.resId} residual=${r.data?.amount_residual} residual_cur=${r.data?.amount_residual_currency}`);
         });
 
         records.sort((a, b) => {
-            const aRes = a.data?.amount_residual ?? 0;
-            const bRes = b.data?.amount_residual ?? 0;
-            const aDiff = Math.abs(Math.abs(aRes) - absStmt);
-            const bDiff = Math.abs(Math.abs(bRes) - absStmt);
+            const aRes = Math.abs(a.data?.amount_residual ?? 0);
+            const bRes = Math.abs(b.data?.amount_residual ?? 0);
+            const aDiff = Math.abs(aRes - absStmt);
+            const bDiff = Math.abs(bRes - absStmt);
             return aDiff - bDiff;
         });
 
-        // Log all records after sort
-        console.log("📋 AFTER SORT:");
-        records.forEach((r, i) => {
-            console.log(`  [${i}] id=${r.resId} amount_residual=${r.data?.amount_residual} amount_residual_currency=${r.data?.amount_residual_currency} name=${r.data?.name}`);
+        console.log("📋 AFTER SORT (first 5):");
+        records.slice(0, 5).forEach((r, i) => {
+            console.log(`  [${i}] id=${r.resId} residual=${r.data?.amount_residual} residual_cur=${r.data?.amount_residual_currency}`);
         });
 
-        console.log("🔔 calling model.notify()");
         this.model.notify();
-        console.log("🔔 model.notify() done");
+        console.log("✅ Sort applied and model notified");
     }
 
     async openRecord(record) {
