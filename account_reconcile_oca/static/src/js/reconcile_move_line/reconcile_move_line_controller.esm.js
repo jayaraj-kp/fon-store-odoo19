@@ -79,10 +79,11 @@ export class ReconcileMoveLineController extends ListController {
         super.setup();
         this.orm = useService("orm");
 
-        // Re-sort whenever the parent record's amount changes
-        // (i.e. when user clicks a different statement line on the left)
         useEffect(
             (parentRecord) => {
+                console.log("🔄 useEffect triggered, parentRecord:", parentRecord);
+                console.log("🔄 parentRecord.data:", parentRecord?.data);
+                console.log("🔄 amount from parentRecord:", parentRecord?.data?.amount);
                 if (parentRecord) {
                     this._applySmartSort();
                 }
@@ -91,35 +92,82 @@ export class ReconcileMoveLineController extends ListController {
         );
 
         onMounted(() => {
+            console.log("✅ onMounted fired");
+            console.log("✅ this.props.parentRecord:", this.props.parentRecord);
+            console.log("✅ this.props.parentRecord.data:", this.props.parentRecord?.data);
+            console.log("✅ amount:", this.props.parentRecord?.data?.amount);
+            console.log("✅ this.model:", this.model);
+            console.log("✅ this.model.root:", this.model?.root);
+            console.log("✅ this.model.root.records:", this.model?.root?.records);
+            if (this.model?.root?.records) {
+                console.log("✅ records count:", this.model.root.records.length);
+                console.log("✅ first record data keys:", Object.keys(this.model.root.records[0]?.data || {}));
+                console.log("✅ first record amount_residual:", this.model.root.records[0]?.data?.amount_residual);
+                console.log("✅ first record amount_residual_currency:", this.model.root.records[0]?.data?.amount_residual_currency);
+            }
             this._applySmartSort();
         });
     }
 
     _getStatementAmount() {
         const parentRecord = this.props.parentRecord;
-        if (!parentRecord) return 0;
-        return parentRecord.data?.amount ?? 0;
+        console.log("💰 _getStatementAmount - parentRecord:", parentRecord);
+        console.log("💰 _getStatementAmount - data:", parentRecord?.data);
+        // Try all possible field names
+        const amount1 = parentRecord?.data?.amount;
+        const amount2 = parentRecord?.data?.amount_currency;
+        const amount3 = parentRecord?.data?.amount_total_signed;
+        console.log("💰 amount (data.amount):", amount1);
+        console.log("💰 amount_currency (data.amount_currency):", amount2);
+        console.log("💰 amount_total_signed (data.amount_total_signed):", amount3);
+        return amount1 ?? 0;
     }
 
     _applySmartSort() {
+        console.log("🔀 _applySmartSort called");
         const records = this.model?.root?.records;
-        if (!records || records.length === 0) return;
+        console.log("🔀 records:", records);
+        console.log("🔀 records length:", records?.length);
+
+        if (!records || records.length === 0) {
+            console.warn("🔀 No records to sort, returning early");
+            return;
+        }
 
         const stmtAmount = this._getStatementAmount();
-        if (stmtAmount === 0) return;
+        console.log("🔀 stmtAmount:", stmtAmount);
+
+        if (stmtAmount === 0) {
+            console.warn("🔀 stmtAmount is 0, returning early");
+            return;
+        }
 
         const absStmt = Math.abs(stmtAmount);
+        console.log("🔀 absStmt:", absStmt);
+
+        // Log all records before sort
+        console.log("📋 BEFORE SORT:");
+        records.forEach((r, i) => {
+            console.log(`  [${i}] id=${r.resId} amount_residual=${r.data?.amount_residual} amount_residual_currency=${r.data?.amount_residual_currency} name=${r.data?.name}`);
+        });
 
         records.sort((a, b) => {
             const aRes = a.data?.amount_residual ?? 0;
             const bRes = b.data?.amount_residual ?? 0;
-            // Closest absolute difference to statement amount sorts first
             const aDiff = Math.abs(Math.abs(aRes) - absStmt);
             const bDiff = Math.abs(Math.abs(bRes) - absStmt);
             return aDiff - bDiff;
         });
 
+        // Log all records after sort
+        console.log("📋 AFTER SORT:");
+        records.forEach((r, i) => {
+            console.log(`  [${i}] id=${r.resId} amount_residual=${r.data?.amount_residual} amount_residual_currency=${r.data?.amount_residual_currency} name=${r.data?.name}`);
+        });
+
+        console.log("🔔 calling model.notify()");
         this.model.notify();
+        console.log("🔔 model.notify() done");
     }
 
     async openRecord(record) {
