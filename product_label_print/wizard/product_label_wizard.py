@@ -935,7 +935,7 @@ class ProductLabelWizard(models.TransientModel):
 
         def _name_font(name):
             n = len(name or '')
-            if n <= 8:    return '6.5pt'
+            if n <= 8:    return '7.5pt'
             elif n <= 14: return '6pt'
             elif n <= 20: return '5pt'
             else:         return '4pt'
