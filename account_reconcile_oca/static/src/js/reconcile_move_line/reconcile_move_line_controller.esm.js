@@ -79,24 +79,20 @@ export class ReconcileMoveLineController extends ListController {
     setup() {
         super.setup();
         this.orm = useService("orm");
-        this._sortDone = false;
+        this._isSorting = false;  // Guard flag to prevent infinite loop
 
-        // Listen to model bus — fires when records finish loading
         useBus(this.model.bus, "update", () => {
-            console.log("🚌 model.bus 'update' fired");
-            console.log("🚌 records length now:", this.model?.root?.records?.length);
+            // Skip if WE triggered this update (prevents infinite loop)
+            if (this._isSorting) return;
             if (this.model?.root?.records?.length > 0) {
                 this._applySmartSort();
             }
         });
 
         useEffect(
-            (parentRecord) => {
-                console.log("🔄 useEffect - parentRecord changed");
-                // Reset sort flag when parent changes (new statement line selected)
-                this._sortDone = false;
+            () => {
+                this._isSorting = false;
                 const records = this.model?.root?.records;
-                console.log("🔄 records length at useEffect:", records?.length);
                 if (records?.length > 0) {
                     this._applySmartSort();
                 }
@@ -105,27 +101,19 @@ export class ReconcileMoveLineController extends ListController {
         );
 
         onMounted(() => {
-            console.log("✅ onMounted fired");
             const records = this.model?.root?.records;
-            console.log("✅ records length at onMounted:", records?.length);
+            if (records?.length > 0) {
+                this._applySmartSort();
+            }
         });
     }
 
     _getStatementAmount() {
         const parentRecord = this.props.parentRecord;
         if (!parentRecord) return 0;
-
-        // Log ALL data fields to find the amount field
         const data = parentRecord.data;
-        console.log("💰 ALL parentRecord.data fields:", JSON.stringify(
-            Object.fromEntries(
-                Object.entries(data).filter(([k, v]) =>
-                    typeof v === "number" || (typeof v === "string" && !isNaN(v))
-                )
-            )
-        ));
 
-        // Try every possible amount field
+        // Try direct fields first
         const candidates = [
             "amount",
             "amount_currency",
@@ -134,63 +122,43 @@ export class ReconcileMoveLineController extends ListController {
             "amount_company_currency_signed",
         ];
         for (const field of candidates) {
-            if (data[field] !== undefined && data[field] !== false) {
-                console.log(`💰 Found amount in field '${field}':`, data[field]);
+            if (data[field] !== undefined && data[field] !== false && data[field] !== 0) {
                 return data[field];
             }
         }
 
-        // Fallback: get from reconcile_data_info liquidity line
+        // Fallback: read from reconcile_data_info liquidity line
         const reconcileInfo = data?.reconcile_data_info;
         if (reconcileInfo?.data) {
             const liquidityLine = reconcileInfo.data.find(l => l.kind === "liquidity");
             if (liquidityLine) {
-                console.log("💰 Got amount from reconcile_data_info liquidity line:", liquidityLine.amount);
                 return liquidityLine.amount;
             }
         }
 
-        console.warn("💰 Could not find amount field!");
         return 0;
     }
 
     _applySmartSort() {
         const records = this.model?.root?.records;
-        if (!records || records.length === 0) {
-            console.warn("🔀 No records, skipping sort");
-            return;
-        }
+        if (!records || records.length === 0) return;
 
         const stmtAmount = this._getStatementAmount();
-        console.log("🔀 stmtAmount:", stmtAmount);
-
-        if (stmtAmount === 0) {
-            console.warn("🔀 stmtAmount is 0, skipping sort");
-            return;
-        }
+        if (stmtAmount === 0) return;
 
         const absStmt = Math.abs(stmtAmount);
-
-        console.log("📋 BEFORE SORT (first 5):");
-        records.slice(0, 5).forEach((r, i) => {
-            console.log(`  [${i}] id=${r.resId} residual=${r.data?.amount_residual} residual_cur=${r.data?.amount_residual_currency}`);
-        });
 
         records.sort((a, b) => {
             const aRes = Math.abs(a.data?.amount_residual ?? 0);
             const bRes = Math.abs(b.data?.amount_residual ?? 0);
-            const aDiff = Math.abs(aRes - absStmt);
-            const bDiff = Math.abs(bRes - absStmt);
-            return aDiff - bDiff;
+            return Math.abs(aRes - absStmt) - Math.abs(bRes - absStmt);
         });
 
-        console.log("📋 AFTER SORT (first 5):");
-        records.slice(0, 5).forEach((r, i) => {
-            console.log(`  [${i}] id=${r.resId} residual=${r.data?.amount_residual} residual_cur=${r.data?.amount_residual_currency}`);
-        });
-
+        // Set guard BEFORE notify to block the re-entrant bus event
+        this._isSorting = true;
         this.model.notify();
-        console.log("✅ Sort applied and model notified");
+        // Reset guard after a tick so future legitimate updates still sort
+        Promise.resolve().then(() => { this._isSorting = false; });
     }
 
     async openRecord(record) {
