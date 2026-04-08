@@ -503,7 +503,7 @@ class ProductTemplate(models.Model):
             length = int(ICP.get_param('product_barcode_autogen.barcode_length') or 8)
             length = max(4, min(20, length))
         except (ValueError, TypeError):
-            length = 13
+            length = 10
 
         chars = string.ascii_uppercase + string.digits  # A-Z + 0-9
 
