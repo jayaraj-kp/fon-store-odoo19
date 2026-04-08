@@ -10,13 +10,13 @@
 
                 <separator string="Package Barcodes, Quantities &amp; Combo Limits"/>
 
-                <group string="Package 1 (e.g. 1 Dozen = 12 units)" col="2">
-                    <field name="barcode2"/>
-                    <field name="custom_qty1"/>
-                    <field name="custom_price1" widget="monetary"
-                           options="{'currency_field': 'currency_id'}"/>
-                    <field name="max_combo_qty1"/>
-                </group>
+<!--                <group string="Package 1 (e.g. 1 Dozen = 12 units)" col="2">-->
+<!--                    <field name="barcode2"/>-->
+<!--                    <field name="custom_qty1"/>-->
+<!--                    <field name="custom_price1" widget="monetary"-->
+<!--                           options="{'currency_field': 'currency_id'}"/>-->
+<!--                    <field name="max_combo_qty1"/>-->
+<!--                </group>-->
 
                 <group string="Package 2 (e.g. 10 Dozen = 120 units)" col="2">
                     <field name="barcode3"/>
