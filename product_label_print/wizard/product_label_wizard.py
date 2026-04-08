@@ -699,7 +699,7 @@ class ProductLabelWizard(models.TransientModel):
     show_qr = fields.Boolean(string='Show QR Code', default=True)
     show_label_code = fields.Boolean(string='Show Label Code', default=True)
     label_type = fields.Selection([
-        ('large', 'Large Label (65x54mm) — GP-1125T Roll'),
+        ('large', 'Key chain size(65x54mm) — GP-1125T Roll'),
         ('small', 'Small Label (25x15mm)'),
         ('medium', 'Medium Label (40x25mm) — Barcode'),
     ], string='Label Size', default='large', required=True)
