@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Optional: Modify Purchase Order form view if needed -->
+        <!-- You can add custom modifications here in the future -->
+        <!-- Example: Make the name field appear with a specific widget or color -->
+    </data>
+</odoo>
