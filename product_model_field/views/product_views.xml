@@ -9,7 +9,7 @@
             <field name="inherit_id" ref="product.product_template_form_view"/>
             <field name="arch" type="xml">
                 <!-- Add Model field after the name field in the form -->
-                <xpath expr="//field[@name='name']" position="after">
+                <xpath expr="//sheet" position="inside">
                     <field name="model_number" placeholder="e.g., MODEL-2024-001"/>
                 </xpath>
             </field>
@@ -22,7 +22,7 @@
             <field name="inherit_id" ref="product.product_template_tree_view"/>
             <field name="arch" type="xml">
                 <!-- Add Model column after name in list view -->
-                <xpath expr="//field[@name='name']" position="after">
+                <xpath expr="//sheet" position="inside">
                     <field name="model_number"/>
                 </xpath>
             </field>
@@ -35,7 +35,7 @@
             <field name="inherit_id" ref="product.product_form_view"/>
             <field name="arch" type="xml">
                 <!-- Add Model field after the name field in the form -->
-                <xpath expr="//field[@name='name']" position="after">
+                <xpath expr="//sheet" position="inside">
                     <field name="model_number" placeholder="e.g., MODEL-2024-001"/>
                 </xpath>
             </field>
@@ -48,7 +48,7 @@
             <field name="inherit_id" ref="product.product_list_view"/>
             <field name="arch" type="xml">
                 <!-- Add Model column after name in list view -->
-                <xpath expr="//field[@name='name']" position="after">
+                <xpath expr="//sheet" position="inside">
                     <field name="model_number"/>
                 </xpath>
             </field>
