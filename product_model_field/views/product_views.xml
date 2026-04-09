@@ -20,8 +20,7 @@
             <field name="model">product.template</field>
             <field name="inherit_id" ref="product.product_template_tree_view"/>
             <field name="arch" type="xml">
-                <!-- SAFE insertion -->
-                <xpath expr="//tree" position="inside">
+                <xpath expr="//field[@name='name']" position="after">
                     <field name="model_number"/>
                 </xpath>
             </field>
@@ -45,8 +44,7 @@
             <field name="model">product.product</field>
             <field name="inherit_id" ref="product.product_tree_view"/>
             <field name="arch" type="xml">
-                <!-- SAFE insertion -->
-                <xpath expr="//tree" position="inside">
+                <xpath expr="//field[@name='name']" position="after">
                     <field name="model_number"/>
                 </xpath>
             </field>
