@@ -15,14 +15,15 @@
             </field>
         </record>
 
-        <!-- Product Template List View (for Excel export) -->
-        <record id="product_template_list_view_model" model="ir.ui.view">
-            <field name="name">product.template.list.model</field>
+        <!-- Product Template List View -->
+        <record id="product_template_tree_view_model" model="ir.ui.view">
+            <field name="name">product.template.tree.model</field>
             <field name="model">product.template</field>
+            <!-- FIXED external ID -->
             <field name="inherit_id" ref="product.view_product_template_tree"/>
             <field name="arch" type="xml">
-                <!-- Add Model column after name in list view -->
-                <xpath expr="//field[@name='name']" position="after">
+                <!-- Safer XPath -->
+                <xpath expr="//tree/field[@name='name']" position="after">
                     <field name="model_number"/>
                 </xpath>
             </field>
@@ -34,21 +35,22 @@
             <field name="model">product.product</field>
             <field name="inherit_id" ref="product.product_form_view"/>
             <field name="arch" type="xml">
-                <!-- Add Model field after the name field in the form -->
+                <!-- Add Model field after the name field -->
                 <xpath expr="//field[@name='name']" position="after">
                     <field name="model_number" placeholder="e.g., MODEL-2024-001"/>
                 </xpath>
             </field>
         </record>
 
-        <!-- Product Variant List View (for Excel export) -->
-        <record id="product_product_list_view_model" model="ir.ui.view">
-            <field name="name">product.product.list.model</field>
+        <!-- Product Variant List View -->
+        <record id="product_product_tree_view_model" model="ir.ui.view">
+            <field name="name">product.product.tree.model</field>
             <field name="model">product.product</field>
-            <field name="inherit_id" ref="product.product_list_view"/>
+            <!-- FIXED external ID -->
+            <field name="inherit_id" ref="product.product_tree_view"/>
             <field name="arch" type="xml">
-                <!-- Add Model column after name in list view -->
-                <xpath expr="//field[@name='name']" position="after">
+                <!-- Safer XPath -->
+                <xpath expr="//tree/field[@name='name']" position="after">
                     <field name="model_number"/>
                 </xpath>
             </field>
@@ -56,3 +58,62 @@
 
     </data>
 </odoo>
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+<!--    <data>-->
+
+<!--        &lt;!&ndash; Product Template Form View &ndash;&gt;-->
+<!--        <record id="product_template_form_view_model" model="ir.ui.view">-->
+<!--            <field name="name">product.template.form.model</field>-->
+<!--            <field name="model">product.template</field>-->
+<!--            <field name="inherit_id" ref="product.product_template_form_view"/>-->
+<!--            <field name="arch" type="xml">-->
+<!--                &lt;!&ndash; Add Model field after the name field in the form &ndash;&gt;-->
+<!--                <xpath expr="//field[@name='name']" position="after">-->
+<!--                    <field name="model_number" placeholder="e.g., MODEL-2024-001"/>-->
+<!--                </xpath>-->
+<!--            </field>-->
+<!--        </record>-->
+
+<!--        &lt;!&ndash; Product Template List View (for Excel export) &ndash;&gt;-->
+<!--        <record id="product_template_list_view_model" model="ir.ui.view">-->
+<!--            <field name="name">product.template.list.model</field>-->
+<!--            <field name="model">product.template</field>-->
+<!--            <field name="inherit_id" ref="product.product_template_tree_view"/>-->
+<!--            <field name="arch" type="xml">-->
+<!--                &lt;!&ndash; Add Model column after name in list view &ndash;&gt;-->
+<!--                <xpath expr="//field[@name='name']" position="after">-->
+<!--                    <field name="model_number"/>-->
+<!--                </xpath>-->
+<!--            </field>-->
+<!--        </record>-->
+
+<!--        &lt;!&ndash; Product Variant Form View &ndash;&gt;-->
+<!--        <record id="product_product_form_view_model" model="ir.ui.view">-->
+<!--            <field name="name">product.product.form.model</field>-->
+<!--            <field name="model">product.product</field>-->
+<!--            <field name="inherit_id" ref="product.product_form_view"/>-->
+<!--            <field name="arch" type="xml">-->
+<!--                &lt;!&ndash; Add Model field after the name field in the form &ndash;&gt;-->
+<!--                <xpath expr="//field[@name='name']" position="after">-->
+<!--                    <field name="model_number" placeholder="e.g., MODEL-2024-001"/>-->
+<!--                </xpath>-->
+<!--            </field>-->
+<!--        </record>-->
+
+<!--        &lt;!&ndash; Product Variant List View (for Excel export) &ndash;&gt;-->
+<!--        <record id="product_product_list_view_model" model="ir.ui.view">-->
+<!--            <field name="name">product.product.list.model</field>-->
+<!--            <field name="model">product.product</field>-->
+<!--            <field name="inherit_id" ref="product.product_list_view"/>-->
+<!--            <field name="arch" type="xml">-->
+<!--                &lt;!&ndash; Add Model column after name in list view &ndash;&gt;-->
+<!--                <xpath expr="//field[@name='name']" position="after">-->
+<!--                    <field name="model_number"/>-->
+<!--                </xpath>-->
+<!--            </field>-->
+<!--        </record>-->
+
+<!--    </data>-->
+<!--</odoo>-->
