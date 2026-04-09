@@ -18,7 +18,7 @@
         <record id="product_product_form_view_model" model="ir.ui.view">
             <field name="name">product.product.form.model</field>
             <field name="model">product.product</field>
-            <field name="inherit_id" ref="product_normal_form_view"/>
+            <field name="inherit_id" ref="product.product_normal_form_view"/>
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='name']" position="after">
                     <field name="model_number" placeholder="e.g., MODEL-2024-001"/>
