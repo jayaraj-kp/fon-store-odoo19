@@ -720,6 +720,7 @@ class AccountReconcileModelLine(models.Model):
             "currency_id": currency.id,
             "analytic_distribution": self.analytic_distribution,
             "reconcile_model_id": self.model_id.id,
-            "journal_id": self.journal_id.id,
+            # "journal_id": self.journal_id.id,
+            "journal_id": self.journal_id.id if hasattr(self, 'journal_id') and self.journal_id else False,
             "tax_ids": [],
         }
