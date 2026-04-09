@@ -1,0 +1,1 @@
+from . import stock_putaway_rule
