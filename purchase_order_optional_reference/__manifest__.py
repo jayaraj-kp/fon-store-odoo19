@@ -1,12 +1,15 @@
 {
-    'name': 'Purchase Order Optional Reference',
+    'name': 'Purchase Order Optional Fields',
     'version': '1.0',
     'category': 'Purchases',
-    'summary': 'Make Order Reference field optional in Purchase Order',
+    'summary': 'Make Purchase Order and Order Line fields optional during import',
     'description': """
-        This module makes the 'Order Reference' (name) field optional in Purchase Order.
-        By default, Odoo makes this field required, but this module changes it to optional.
-        This allows you to import purchase orders without providing an Order Reference value.
+        This module makes optional the following fields in Purchase Order and Purchase Order Lines:
+        - Purchase Order: 'Order Reference' (name) field
+        - Purchase Order Line: 'Description' (name) field
+        
+        This allows you to import purchase orders and order lines without providing these values,
+        which are normally mandatory. Values can be set later if needed.
     """,
     'author': 'Your Company',
     'depends': ['purchase'],

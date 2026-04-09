@@ -19,3 +19,18 @@ class PurchaseOrder(models.Model):
         tracking=True,
         help='The purchase order reference number. This field is optional.'
     )
+
+
+class PurchaseOrderLine(models.Model):
+    """
+    Inherit Purchase Order Line model to make the name field optional.
+    This allows importing purchase order lines without requiring a product name/description.
+    """
+    _inherit = 'purchase.order.line'
+
+    # Override the name field to make it optional (not required)
+    name = fields.Text(
+        string='Description',
+        required=False,
+        help='Product description. This field is optional during import.'
+    )

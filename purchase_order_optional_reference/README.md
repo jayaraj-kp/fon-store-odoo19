@@ -1,13 +1,18 @@
-# Purchase Order Optional Reference Module
+# Purchase Order Optional Fields Module
 
 ## Overview
-This custom Odoo module makes the **Order Reference** field optional in the **Purchase Order** model. This is useful when importing purchase orders that don't have a reference value yet.
+This custom Odoo module makes **two critical fields** optional in the **Purchase Order** system:
+1. **Purchase Order**: Order Reference field (`name`)
+2. **Purchase Order Lines**: Description field (`name`)
 
-## Problem Solved
-By default, Odoo makes the `name` (Order Reference) field mandatory in the Purchase Order model. This module changes it to optional, allowing you to:
+This is useful when importing purchase orders and order line items that don't have these values yet.
+
+## Problems Solved
+By default, Odoo makes both these fields mandatory. This module changes them to optional, allowing you to:
 - Import purchase orders without providing an Order Reference
-- Create purchase orders programmatically without a reference
-- Set the reference later if needed
+- Import purchase order line items without product descriptions
+- Create orders and lines programmatically without these fields
+- Set these values later if needed
 
 ## Installation
 
@@ -36,7 +41,7 @@ By default, Odoo makes the `name` (Order Reference) field mandatory in the Purch
    - Wait for the update to complete
 
 5. **Install the Module:**
-   - In Apps, search for "Purchase Order Optional Reference"
+   - In Apps, search for "Purchase Order Optional Fields"
    - Click the module
    - Click "Install"
 
@@ -61,17 +66,28 @@ purchase_order_optional_reference/
 ```
 
 ### Key Changes
-The module overrides the `name` field in `purchase.order` model:
-- **Before:** `required=True` (mandatory)
-- **After:** `required=False` (optional)
+
+#### 1. Purchase Order (`purchase.order.name`)
+- **Field**: Order Reference (name)
+- **Before**: `required=True` (mandatory)
+- **After**: `required=False` (optional)
+- **Impact**: Allows importing POs without requiring a reference
+
+#### 2. Purchase Order Line (`purchase_order_line.name`)
+- **Field**: Description (name)
+- **Before**: `required=True` (mandatory)
+- **After**: `required=False` (optional)
+- **Impact**: Allows importing line items without requiring product descriptions
 
 ## Testing
 
 After installation, you should be able to:
 
 1. **Import Purchase Orders** without the "Order Reference" column
-2. **Create Purchase Orders** programmatically without a name value
-3. **Update existing imports** that were failing due to missing Order Reference
+2. **Import Purchase Order Lines** without product descriptions
+3. **Create Purchase Orders** programmatically without a name value
+4. **Create Order Lines** without requiring descriptions
+5. **Update existing imports** that were failing due to missing Order Reference or Line Descriptions
 
 ## Compatibility
 
@@ -84,7 +100,7 @@ After installation, you should be able to:
 To remove this module:
 
 1. Go to **Apps**
-2. Search for "Purchase Order Optional Reference"
+2. Search for "Purchase Order Optional Fields"
 3. Click the module
 4. Click "Uninstall"
 
@@ -99,10 +115,13 @@ If you encounter any issues:
 
 ## Additional Notes
 
-- This module only modifies the `name` field requirement
+- This module modifies the `name` field requirement in both:
+  - `purchase.order` (Order Reference)
+  - `purchase_order_line` (Description)
 - It does not affect any other Purchase Order functionality
 - The module is compatible with other purchase modules
 - Auto-increment sequences still work normally
+- Product associations are not affected by this change
 
 ---
 
