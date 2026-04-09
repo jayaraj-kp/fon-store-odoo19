@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <!--
+        CUSTOMIZATION: Putaway Rule - All Locations
+
+        PURPOSE: Display all locations in "When product arrives in" field
+        RATIONALE: Original implementation restricts to parent locations only,
+                   which limits warehouse flexibility.
+
+        ORIGINAL DOMAIN: [('company_id', 'in', [company_id] + [False])] +
+                        ([('child_ids', '!=', False)]) or [('company_id', '=', False)]
+        REASON: Only showed locations with child_ids (parent locations)
+
+        NEW DOMAIN: [('company_id', 'in', [company_id, False])]
+        BENEFIT: Shows all locations regardless of hierarchy level
+        -->
+
+        <record id="view_putaway_rule_form_all_locations" model="ir.ui.view">
+            <field name="name">stock.putaway.rule.form.all.locations</field>
+            <field name="model">stock.putaway.rule</field>
+            <field name="inherit_id" ref="stock.view_putaway_rule_form"/>
+            <field name="priority">20</field>
+            <field name="arch" type="xml">
+
+                <!--
+                Using xpath for better forward compatibility with future Odoo updates.
+                If the field disappears or changes position, xpath will handle it gracefully.
+                -->
+                <xpath expr="//field[@name='location_in_id']" position="attributes">
+                    <attribute name="domain">[('company_id', 'in', [company_id, False])]</attribute>
+                </xpath>
+
+            </field>
+        </record>
+
+    </data>
+</odoo>
