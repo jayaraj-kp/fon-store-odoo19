@@ -2,67 +2,48 @@
 <odoo>
 
     <!-- ================================================================
-         Standalone Settings Form for Cost Price Protection
-         Avoids all XPath issues by NOT inheriting the Settings view.
-         Accessible via Sales > Configuration > Cost Price Protection
+         Inject "Cost Price Protection" block into Sales Settings page.
+         We anchor after the "Margins" setting (group_sale_margin field)
+         which is clearly visible in the Pricing section of Sales Settings.
          ================================================================ -->
 
-    <record id="view_cost_price_settings_form" model="ir.ui.view">
-        <field name="name">cost.price.settings.form</field>
+    <record id="res_config_settings_view_form_cost_block" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.cost.block</field>
         <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <form string="Cost Price Protection Settings">
-                <sheet>
-                    <div class="o_setting_box">
-                        <div class="o_setting_left_pane">
-                            <field name="block_sale_below_cost"/>
-                        </div>
-                        <div class="o_setting_right_pane">
-                            <label for="block_sale_below_cost" string="Block Sales Below Cost Price"/>
-                            <div class="text-muted">
-                                Prevent confirming sales orders or POS orders when any
-                                product line is priced below its cost price.
-                            </div>
+
+            <!-- Target the setting box that contains group_sale_margin (Margins checkbox) -->
+            <!-- This is visible in the Pricing section of Sales > Configuration > Settings -->
+            <xpath expr="//field[@name='group_sale_margin']/.." position="after">
+                <div class="o_setting_box">
+                    <div class="o_setting_left_pane">
+                        <field name="block_sale_below_cost"/>
+                    </div>
+                    <div class="o_setting_right_pane">
+                        <label for="block_sale_below_cost"
+                               string="Block Sales Below Cost Price"/>
+                        <div class="text-muted">
+                            Prevent confirming sales orders or POS orders when
+                            any product is priced below its cost price.
                         </div>
                     </div>
-                    <div class="o_setting_box"
-                         invisible="not block_sale_below_cost">
-                        <div class="o_setting_left_pane">
-                            <field name="allow_manager_override"/>
-                        </div>
-                        <div class="o_setting_right_pane">
-                            <label for="allow_manager_override" string="Allow Sales Manager Override"/>
-                            <div class="text-muted">
-                                Users with the Sales Manager role can confirm orders
-                                even if a product is priced below cost.
-                            </div>
+                </div>
+                <div class="o_setting_box" invisible="not block_sale_below_cost">
+                    <div class="o_setting_left_pane">
+                        <field name="allow_manager_override"/>
+                    </div>
+                    <div class="o_setting_right_pane">
+                        <label for="allow_manager_override"
+                               string="Allow Sales Manager Override"/>
+                        <div class="text-muted">
+                            Sales Managers can confirm orders even if priced below cost.
                         </div>
                     </div>
-                </sheet>
-                <footer>
-                    <button name="execute" type="object" string="Save" class="btn-primary"/>
-                    <button special="cancel" string="Discard" class="btn-secondary"/>
-                </footer>
-            </form>
+                </div>
+            </xpath>
+
         </field>
     </record>
-
-    <!-- Action to open the settings wizard -->
-    <record id="action_cost_price_settings" model="ir.actions.act_window">
-        <field name="name">Cost Price Protection</field>
-        <field name="res_model">res.config.settings</field>
-        <field name="view_mode">form</field>
-        <field name="view_id" ref="view_cost_price_settings_form"/>
-        <field name="target">current</field>
-        <field name="context">{'module': 'sale_cost_price_block'}</field>
-    </record>
-
-    <!-- Menu entry under Sales > Configuration -->
-    <menuitem id="menu_cost_price_settings"
-              name="Cost Price Protection"
-              parent="sale.menu_sale_config"
-              action="action_cost_price_settings"
-              sequence="100"
-              groups="sales_team.group_sale_manager"/>
 
 </odoo>
