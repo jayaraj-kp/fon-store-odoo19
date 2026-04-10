@@ -1,1 +1,12 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_account_analytic_account_all,account.analytic.account all users,analytic.model_account_analytic_account,,1,0,0,0
+access_stock_warehouse_all,stock.warehouse all users,stock.model_stock_warehouse,,1,1,1,0
+access_stock_warehouse_manager,stock.warehouse warehouse manager,stock.model_stock_warehouse,stock.group_stock_manager,1,1,1,0
+access_sale_order_line_all,sale.order.line all users,sale.model_sale_order_line,,1,1,1,0
+access_purchase_order_line_all,purchase.order.line all users,purchase.model_purchase_order_line,,1,1,1,0
+access_account_move_line_all,account.move.line all users,account.model_account_move_line,,1,1,1,0
+access_stock_move_all,stock.move all users,stock.model_stock_move,,1,1,1,0
+access_stock_picking_all,stock.picking all users,stock.model_stock_picking,,1,1,1,0
+access_pos_order_all,pos.order all users,point_of_sale.model_pos_order,,1,1,1,1
+access_pos_order_line_all,pos.order.line all users,point_of_sale.model_pos_order_line,,1,1,1,1
+access_pos_order_manager,pos.order manager,point_of_sale.model_pos_order,point_of_sale.group_pos_manager,1,1,1,1

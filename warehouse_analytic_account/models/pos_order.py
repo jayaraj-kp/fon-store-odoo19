@@ -8,7 +8,10 @@ _WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse
 
 
 def _get_user_warehouse(user):
-    """Helper function to get the default warehouse from user across Odoo versions."""
+    """
+    Safely retrieve user's default warehouse from various field names.
+    Handles compatibility across Odoo versions.
+    """
     for fname in _WAREHOUSE_FIELDS:
         if fname in user._fields:
             return getattr(user, fname, False)
@@ -19,16 +22,27 @@ class PosOrder(models.Model):
     _inherit = 'pos.order'
 
     def _get_warehouse_analytic_account(self):
-        """Get the analytic account from the user's default warehouse."""
+        """
+        Retrieve the analytic account from the user's default warehouse.
+        Falls back to session's location warehouse if user warehouse not found.
+        """
+        # Try user's default warehouse first
         wh = _get_user_warehouse(self.env.user)
+
+        # If no user warehouse, try session's location warehouse
+        if not wh and self.session_id and self.session_id.config_id:
+            location = self.session_id.config_id.stock_location_id
+            if location and location.warehouse_id:
+                wh = location.warehouse_id
+
         if wh and wh.analytic_account_id:
             return wh.analytic_account_id
         return False
 
     def _apply_warehouse_analytic_to_lines(self):
         """
-        Apply warehouse analytic account to all POS order lines.
-        This ensures analytic tracking from point of sale through to accounting.
+        Stamp warehouse analytic account on all POS order lines.
+        Applies 100% distribution to each line.
         """
         analytic_account = self._get_warehouse_analytic_account()
         if not analytic_account:
@@ -36,35 +50,49 @@ class PosOrder(models.Model):
 
         key = str(analytic_account.id)
         for order in self:
-            for line in order.lines:
+            # Process all order lines (filter out section lines)
+            for line in order.lines_ids.filtered(lambda l: l.product_id):
                 existing = line.analytic_distribution or {}
+
+                # Only add if not already present
                 if key not in existing:
                     new_dist = dict(existing)
                     new_dist[key] = 100.0
                     line.analytic_distribution = new_dist
                     _logger.debug(
-                        'Warehouse analytic %s applied to POS line %s',
-                        analytic_account.name, line.id,
+                        'Warehouse analytic %s applied to POS order line %s (product: %s)',
+                        analytic_account.name, line.id, line.product_id.name,
                     )
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Apply warehouse analytic when POS order is created."""
+        """Apply warehouse analytic on POS order creation."""
         orders = super().create(vals_list)
         orders._apply_warehouse_analytic_to_lines()
         return orders
 
     def write(self, vals):
-        """Re-apply warehouse analytic when order lines are modified."""
+        """Re-apply warehouse analytic when order is modified."""
         result = super().write(vals)
-        if 'lines' in vals:
+        if 'lines_ids' in vals:
             self._apply_warehouse_analytic_to_lines()
         return result
 
     def action_pos_order_paid(self):
-        """Apply warehouse analytic before marking order as paid."""
+        """
+        Called when order is marked as paid.
+        Re-apply analytic before payment to ensure correct distribution.
+        """
         self._apply_warehouse_analytic_to_lines()
         return super().action_pos_order_paid()
+
+    def action_pos_order_done(self):
+        """
+        Called when order is finalized.
+        Final check to ensure analytics are applied.
+        """
+        self._apply_warehouse_analytic_to_lines()
+        return super().action_pos_order_done()
 
 
 class PosOrderLine(models.Model):
@@ -72,31 +100,51 @@ class PosOrderLine(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Apply warehouse analytic when order lines are created."""
+        """Apply warehouse analytic when POS order lines are created."""
         lines = super().create(vals_list)
-        if lines:
-            lines.order_id._apply_warehouse_analytic_to_lines()
+
+        # Trigger analytic application on parent order
+        for line in lines:
+            if line.order_id:
+                line.order_id._apply_warehouse_analytic_to_lines()
+
         return lines
 
     def write(self, vals):
-        """Re-apply warehouse analytic when order line details change."""
+        """Re-apply analytic when POS order line is modified."""
         result = super().write(vals)
-        if any(k in vals for k in ('product_id', 'qty', 'price_unit', 'analytic_distribution')):
-            self.order_id._apply_warehouse_analytic_to_lines()
+
+        # Re-apply if product or analytic distribution changed
+        if any(k in vals for k in ('product_id', 'analytic_distribution', 'qty')):
+            for line in self:
+                if line.order_id:
+                    line.order_id._apply_warehouse_analytic_to_lines()
+
         return result
 
     @api.onchange('product_id')
     def _onchange_product_apply_warehouse_analytic(self):
         """
-        When product is selected in POS, immediately apply warehouse analytic.
-        This provides real-time feedback in the POS interface.
+        Apply warehouse analytic when product is selected in a POS order line.
+        This provides instant feedback in the POS interface.
         """
+        if not self.order_id:
+            return
+
         wh = _get_user_warehouse(self.env.user)
+
+        # Also try session warehouse if user warehouse not found
+        if not wh and self.order_id.session_id and self.order_id.session_id.config_id:
+            location = self.order_id.session_id.config_id.stock_location_id
+            if location and location.warehouse_id:
+                wh = location.warehouse_id
+
         if not wh or not wh.analytic_account_id:
             return
 
         key = str(wh.analytic_account_id.id)
         existing = self.analytic_distribution or {}
+
         if key not in existing:
             new_dist = dict(existing)
             new_dist[key] = 100.0
