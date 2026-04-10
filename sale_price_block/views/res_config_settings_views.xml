@@ -7,22 +7,16 @@
             <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
             <field name="arch" type="xml">
                 <!--
-                    Adds a toggle under Sales > Configuration > Settings
+                    Adds a new block with a toggle under Sales > Configuration > Settings
                     to enable or disable the below-cost price block.
                 -->
-                <xpath expr="//group" position="inside">
-                    <div class="col-12 col-lg-6 o_setting_box" id="block_sale_below_cost_box">
-                        <div class="o_setting_left_pane">
+                <xpath expr="//app[@name='sale_management']" position="inside">
+                    <block title="Sale Price Controls" name="sale_price_block_settings">
+                        <setting id="block_below_cost" help="Prevent confirming sale orders when product unit price is below cost price">
                             <field name="block_sale_below_cost" widget="boolean_toggle"/>
-                        </div>
-                        <div class="o_setting_right_pane">
                             <label for="block_sale_below_cost" string="Block Sale Below Cost Price"/>
-                            <div class="text-muted mt-1">
-                                Prevent confirming a sale order if any product's
-                                unit price is lower than its cost price.
-                            </div>
-                        </div>
-                    </div>
+                        </setting>
+                    </block>
                 </xpath>
             </field>
         </record>
