@@ -10,7 +10,7 @@
                     Adds a toggle under Sales > Configuration > Settings
                     to enable or disable the below-cost price block.
                 -->
-                <xpath expr="//sheet" position="inside">
+                <xpath expr="//group" position="inside">
                     <div class="col-12 col-lg-6 o_setting_box" id="block_sale_below_cost_box">
                         <div class="o_setting_left_pane">
                             <field name="block_sale_below_cost" widget="boolean_toggle"/>
