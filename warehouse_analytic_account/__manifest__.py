@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Warehouse Analytic Account',
-    'version': '19.0.4.0.0',
+    'version': '19.0.5.0.0',
     'category': 'Inventory/Configuration',
     'summary': 'Auto-apply warehouse analytic account on sales, purchases, invoices and POS',
     'description': """

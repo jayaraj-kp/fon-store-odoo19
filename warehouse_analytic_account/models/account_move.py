@@ -25,9 +25,9 @@ class AccountMove(models.Model):
 
     def _apply_warehouse_analytic_to_lines(self):
         """
-        Stamp warehouse analytic on all invoice/bill lines:
-        - in_invoice / in_refund  → vendor bills & refunds
-        - out_invoice / out_refund → customer invoices & credit notes
+        Stamp warehouse analytic on ALL invoice lines AND journal entry lines
+        so every entry is fully tagged for branch-level reporting.
+        Covers vendor bills, customer invoices, credit notes and refunds.
         """
         analytic_account = self._get_warehouse_analytic_account()
         if not analytic_account:
@@ -35,8 +35,12 @@ class AccountMove(models.Model):
 
         key = str(analytic_account.id)
         for move in self:
-            if move.move_type not in ('in_invoice', 'in_refund', 'out_invoice', 'out_refund'):
+            if move.move_type not in (
+                'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
+            ):
                 continue
+
+            # Apply to invoice lines (visible in Invoice Lines tab)
             for line in move.invoice_line_ids.filtered(
                 lambda l: l.account_id and not l.display_type
             ):
@@ -45,9 +49,20 @@ class AccountMove(models.Model):
                     new_dist = dict(existing)
                     new_dist[key] = 100.0
                     line.analytic_distribution = new_dist
+
+            # Also apply to ALL journal entry lines (visible in Journal Items tab)
+            # This includes receivable, payable, tax lines — for full branch visibility
+            for line in move.line_ids.filtered(
+                lambda l: l.account_id and not l.display_type
+            ):
+                existing = line.analytic_distribution or {}
+                if key not in existing:
+                    new_dist = dict(existing)
+                    new_dist[key] = 100.0
+                    line.analytic_distribution = new_dist
                     _logger.debug(
-                        'Warehouse analytic %s applied to move line %s',
-                        analytic_account.name, line.id,
+                        'Warehouse analytic %s applied to journal line %s (%s)',
+                        analytic_account.name, line.id, line.account_id.code,
                     )
 
     @api.model_create_multi
