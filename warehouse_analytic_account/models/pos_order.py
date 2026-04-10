@@ -29,7 +29,6 @@ def _apply_analytic_to_move(move, analytic, label=''):
     """
     Stamp analytic_distribution on ALL lines of an account.move
     (including receivable, payable, cash, tax lines).
-    This gives full visibility in journal entries for branch tracking.
     Skips lines that already carry this analytic.
     """
     if not move or not analytic:
@@ -66,14 +65,18 @@ class PosSession(models.Model):
     def _apply_pos_session_analytic(self):
         """
         After session closing, stamp the warehouse analytic account on
-        ALL journal entry lines (revenue, receivable, cash, tax, etc.)
-        so every entry is fully tagged for branch-level reporting.
+        ALL journal entry lines so every entry is fully tagged for
+        branch-level reporting.
+        Covers:
+          1. The session summary move (self.move_id)
+          2. Every individual order move inside the session
+          3. Payment account moves — found safely via order payment lines
         """
         for session in self:
             analytic = _get_pos_analytic(session.config_id)
             if not analytic:
                 _logger.debug(
-                    'No analytic account on warehouse for POS config %s — skipping',
+                    'No analytic on warehouse for POS config %s — skipping',
                     session.config_id.name,
                 )
                 continue
@@ -81,19 +84,18 @@ class PosSession(models.Model):
             # 1. Session closing / summary move (POSS/ entry)
             _apply_analytic_to_move(session.move_id, analytic, label='session')
 
-            # 2. Individual order moves inside the session
+            # 2. Individual order moves + their payment moves
             for order in session.order_ids:
+                # Order account move (POSJ/ or INV/)
                 _apply_analytic_to_move(
                     order.account_move, analytic, label='order'
                 )
-
-            # 3. Payment moves linked to the session
-            for payment in session.payment_ids:
-                _apply_analytic_to_move(
-                    getattr(payment, 'move_id', False),
-                    analytic,
-                    label='payment',
-                )
+                # Payment moves linked to this order — safe way without payment_ids
+                for payment in order.payment_ids:
+                    pay_move = getattr(payment, 'account_move_id', False)
+                    if not pay_move:
+                        pay_move = getattr(payment, 'move_id', False)
+                    _apply_analytic_to_move(pay_move, analytic, label='payment')
 
 
 class PosOrder(models.Model):
