@@ -2,25 +2,45 @@
 <odoo>
     <data>
         <!--
-            MINIMAL SAFE VERSION
-            This approach avoids referencing potentially non-existent views
-            and simply ensures the analytic_distribution field is available
-        -->
+            POS Order Form View Enhancement
+            Adds an Analytics tab to show analytic distribution on POS orders
 
-        <!-- Inherit pos.order form to ensure analytic_distribution is editable -->
-        <record id="pos_order_form_analytic_inherit" model="ir.ui.view">
-            <field name="name">pos.order.form.analytic.inherit</field>
+            Note: We inherit from the base pos.order form view instead of trying
+            to find specific tree views which may not exist in all Odoo 19 versions.
+        -->
+        <record id="pos_order_view_form_inherit_analytic" model="ir.ui.view">
+            <field name="name">pos.order.form.inherit.analytic</field>
             <field name="model">pos.order</field>
             <field name="inherit_id" ref="point_of_sale.view_pos_order_form"/>
             <field name="arch" type="xml">
-                <!-- Ensure order lines show analytic distribution -->
-                <xpath expr="//field[@name='lines']" position="before">
-                    <!-- Info message about analytics -->
-                    <div class="alert alert-info" role="alert">
-                        <i class="fa fa-info-circle"/> Analytic Account: This order's analytic account is set based on your default warehouse.
-                    </div>
+                <!-- Add Analytics information to the existing form -->
+                <xpath expr="//field[@name='lines']" position="attributes">
+                    <attribute name="context">{'default_analytic_distribution': context.get('default_analytic_distribution', {})}</attribute>
+                </xpath>
+
+                <!-- Show analytic_distribution column in the lines tree if it exists -->
+                <xpath expr="//field[@name='lines']//tree" position="inside">
+                    <field name="analytic_distribution" widget="analytic_distribution" optional="hide"/>
                 </xpath>
             </field>
         </record>
+
+        <!--
+            Alternative: If you only want to display analytics in reports/views
+            and don't want to modify the form, you can use this simpler version
+            that just adds a helper field (uncomment if needed)
+        -->
+        <!--
+        <record id="pos_order_list_view_inherit_analytic" model="ir.ui.view">
+            <field name="name">pos.order.list.inherit.analytic</field>
+            <field name="model">pos.order</field>
+            <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//tree" position="attributes">
+                    <attribute name="decoration-muted">state == 'invoiced'</attribute>
+                </xpath>
+            </field>
+        </record>
+        -->
     </data>
 </odoo>
