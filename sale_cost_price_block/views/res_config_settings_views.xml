@@ -1,49 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ================================================================
-         Inject "Cost Price Protection" block into Sales Settings page.
-         We anchor after the "Margins" setting (group_sale_margin field)
-         which is clearly visible in the Pricing section of Sales Settings.
-         ================================================================ -->
+    <!-- ============================================================
+         Cost Price Protection Settings
+         Own dedicated form - no inheritance, no XPath, guaranteed safe
+         Access: Sales > Configuration > Cost Price Protection
+         ============================================================ -->
 
-    <record id="res_config_settings_view_form_cost_block" model="ir.ui.view">
-        <field name="name">res.config.settings.view.form.cost.block</field>
-        <field name="model">res.config.settings</field>
-        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+    <record id="view_cost_price_protection_wizard" model="ir.ui.view">
+        <field name="name">cost.price.protection.wizard.form</field>
+        <field name="model">cost.price.protection.wizard</field>
         <field name="arch" type="xml">
-
-            <!-- Target the setting box that contains group_sale_margin (Margins checkbox) -->
-            <!-- This is visible in the Pricing section of Sales > Configuration > Settings -->
-            <xpath expr="//field[@name='group_sale_margin']/.." position="after">
-                <div class="o_setting_box">
-                    <div class="o_setting_left_pane">
-                        <field name="block_sale_below_cost"/>
+            <form string="Cost Price Protection">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Cost Price Protection</h1>
+                        <p class="text-muted">
+                            Configure rules to prevent selling products below their cost price.
+                        </p>
                     </div>
-                    <div class="o_setting_right_pane">
-                        <label for="block_sale_below_cost"
-                               string="Block Sales Below Cost Price"/>
-                        <div class="text-muted">
-                            Prevent confirming sales orders or POS orders when
-                            any product is priced below its cost price.
-                        </div>
-                    </div>
-                </div>
-                <div class="o_setting_box" invisible="not block_sale_below_cost">
-                    <div class="o_setting_left_pane">
-                        <field name="allow_manager_override"/>
-                    </div>
-                    <div class="o_setting_right_pane">
-                        <label for="allow_manager_override"
-                               string="Allow Sales Manager Override"/>
-                        <div class="text-muted">
-                            Sales Managers can confirm orders even if priced below cost.
-                        </div>
-                    </div>
-                </div>
-            </xpath>
-
+                    <group string="Settings">
+                        <group>
+                            <field name="block_sale_below_cost"
+                                   widget="boolean_toggle"/>
+                            <field name="allow_manager_override"
+                                   widget="boolean_toggle"
+                                   invisible="not block_sale_below_cost"/>
+                        </group>
+                        <group>
+                            <div invisible="not block_sale_below_cost" class="alert alert-info" role="alert">
+                                <strong>Active:</strong> Orders with prices below cost will be blocked.
+                            </div>
+                            <div invisible="block_sale_below_cost" class="alert alert-warning" role="alert">
+                                <strong>Inactive:</strong> No cost price checks are applied.
+                            </div>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_save" type="object"
+                            string="Save Settings" class="btn-primary"/>
+                    <button special="cancel" string="Close" class="btn-secondary"/>
+                </footer>
+            </form>
         </field>
     </record>
+
+    <record id="action_cost_price_protection_wizard" model="ir.actions.act_window">
+        <field name="name">Cost Price Protection</field>
+        <field name="res_model">cost.price.protection.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_cost_price_protection"
+              name="Cost Price Protection"
+              parent="sale.menu_sale_config"
+              action="action_cost_price_protection_wizard"
+              sequence="99"
+              groups="sales_team.group_sale_manager"/>
 
 </odoo>
