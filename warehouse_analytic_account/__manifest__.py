@@ -66,7 +66,7 @@
         'security/ir.model.access.csv',
         'views/stock_warehouse_views.xml',
         'views/res_users_views.xml',
-        # 'views/pos_order_views.xml',
+
 
     ],
     'installable': True,
