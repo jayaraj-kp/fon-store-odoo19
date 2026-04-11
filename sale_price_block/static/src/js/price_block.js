@@ -1,119 +1,107 @@
-/** @odoo-module **/
-
-import { patch } from "@web/core/utils/patch";
-import { _t } from "@web/core/l10n/translation";
-
 /**
- * ODOO 19 POS - CORRECT IMPLEMENTATION
+ * VERIFY pendingOrder STRUCTURE
  *
- * Key difference: Uses posmodel.pendingOrder instead of get_order()
- * which is the way Odoo 19 POS stores the current order
+ * In Odoo 19 POS, the current order is stored in posmodel.pendingOrder
+ * NOT get_order() like older versions
  */
 
-// We need to patch the POS model to add our validation
-patch(Object.getPrototypeOf(window.posmodel), {
-    /**
-     * Validate if current order has any items below cost price
-     * Returns: {valid: boolean, message: string, items: array}
-     */
-    validatePricesBeforePayment() {
-        const order = this.pendingOrder;
+console.clear();
+console.log("=== VERIFYING pendingOrder ===\n");
 
-        if (!order || !order.lines) {
-            return { valid: true, message: '', items: [] };
-        }
+// 1. Check if pendingOrder exists
+console.log("posmodel.pendingOrder:", posmodel.pendingOrder);
+console.log("Type:", typeof posmodel.pendingOrder);
 
-        const belowCostLines = [];
+if (posmodel.pendingOrder) {
+    const order = posmodel.pendingOrder;
 
-        // Check each line in the order
-        order.lines.forEach((line) => {
-            if (!line.product_id) return;
+    console.log("\n=== ORDER STRUCTURE ===");
+    console.log("Order object:", order);
+    console.log("Order keys:", Object.keys(order).slice(0, 30));
 
-            const product = line.product_id;
-            const costPrice = product.standard_price || 0;
-            const salePrice = line.price_unit || 0;
+    // 2. Look for order lines
+    console.log("\n=== LOOKING FOR ORDER LINES ===");
 
-            if (salePrice < costPrice) {
-                belowCostLines.push({
-                    name: product.display_name,
-                    salePrice: salePrice,
-                    costPrice: costPrice,
-                    symbol: this.currency?.symbol || '$',
-                });
+    const lineKeys = Object.keys(order).filter(k =>
+        k.toLowerCase().includes('line') ||
+        k.toLowerCase().includes('items') ||
+        k.toLowerCase().includes('products')
+    );
+
+    console.log("Line-related keys:", lineKeys);
+
+    // Try common names
+    const possibleLineKeys = ['lines', 'orderLines', 'order_lines', 'items', 'products', 'line_ids'];
+    possibleLineKeys.forEach(key => {
+        if (key in order) {
+            console.log(`\n✅ Found lines at: order.${key}`);
+            const lines = order[key];
+            console.log(`   Type: ${typeof lines}`);
+            console.log(`   Length: ${lines?.length || 'N/A'}`);
+
+            if (lines && lines.length > 0) {
+                console.log(`   First line:`, lines[0]);
+
+                // Check if first line has product info
+                if (lines[0]) {
+                    console.log(`   First line keys:`, Object.keys(lines[0]).slice(0, 20));
+                }
             }
-        });
-
-        if (belowCostLines.length > 0) {
-            let message = _t("Cannot process this order.\n\n");
-            message += _t("The following product(s) have a unit price BELOW their cost price:\n\n");
-
-            belowCostLines.forEach((item) => {
-                message += `• ${item.name}  →  `;
-                message += `Sale Price: ${item.symbol} ${item.salePrice.toFixed(2)}  |  `;
-                message += `Cost Price: ${item.symbol} ${item.costPrice.toFixed(2)}\n`;
-            });
-
-            message += _t("\n\nPlease adjust the sale prices before proceeding to payment.");
-
-            return {
-                valid: false,
-                message: message,
-                items: belowCostLines
-            };
         }
+    });
 
-        return { valid: true, message: '', items: [] };
-    }
-});
-
-/**
- * Patch the pay() method in posmodel
- * This is called when user clicks any payment button
- */
-patch(window.posmodel, {
-    async pay() {
-        // Validate prices before payment
-        const validation = this.validatePricesBeforePayment();
-
-        if (!validation.valid) {
-            // Show error dialog
-            await this.dialog.add({
-                body: validation.message,
-                title: _t("Invalid Order"),
-                buttons: [
-                    { text: _t("OK"), click: () => true }
-                ]
-            });
-
-            // Block payment
-            return;
+    // 3. Check for methods
+    console.log("\n=== ORDER METHODS ===");
+    const methods = [];
+    for (let key of Object.keys(order)) {
+        if (typeof order[key] === 'function') {
+            methods.push(key);
         }
-
-        // If validation passes, proceed with original payment
-        return this._super();
     }
-});
+    console.log("Methods:", methods.slice(0, 20));
 
-/**
- * Also patch validateOrderFast() which might be used for quick validation
- */
-patch(window.posmodel, {
-    async validateOrderFast() {
-        // Quick validation for below-cost items
-        const validation = this.validatePricesBeforePayment();
+    // Look for "get" methods
+    const getMethods = methods.filter(m => m.startsWith('get'));
+    console.log("'get' methods:", getMethods);
 
-        if (!validation.valid) {
-            await this.dialog.add({
-                body: validation.message,
-                title: _t("Invalid Order"),
-                buttons: [
-                    { text: _t("OK"), click: () => true }
-                ]
-            });
-            return false;
-        }
+} else {
+    console.log("❌ pendingOrder is null/undefined");
 
-        // If validation passes, proceed with original method
-        return this._super();
+    // If no pending order, check if there's a way to create one or get the current one
+    console.log("\n=== ALTERNATIVE PATHS ===");
+
+    // Check if order might be accessed differently
+    if (posmodel.models?.Order) {
+        console.log("✅ posmodel.models.Order exists");
     }
-});
+
+    if (posmodel.mainScreen) {
+        console.log("✅ posmodel.mainScreen exists");
+        console.log("   Keys:", Object.keys(posmodel.mainScreen).slice(0, 10));
+    }
+}
+
+console.log("\n\n=== TEST THE PAYMENT VALIDATION ===");
+
+// Now test if we can validate using the correct structure
+if (posmodel.pendingOrder?.lines) {
+    console.log("✅ Can access order lines!");
+
+    const lines = posmodel.pendingOrder.lines;
+    console.log(`   Total lines: ${lines.length}`);
+
+    // Check each line
+    lines.forEach((line, i) => {
+        console.log(`\n   Line ${i + 1}:`);
+        console.log(`     Product:`, line.product_id?.display_name || 'Unknown');
+
+        // Try to get price info
+        console.log(`     Keys:`, Object.keys(line).slice(0, 15));
+    });
+
+    console.log("\n✅ Successfully accessed order lines!");
+    console.log("✅ Can use for validation!");
+
+} else {
+    console.log("⚠️ Cannot access order.lines yet");
+}
