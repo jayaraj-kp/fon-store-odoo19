@@ -42,11 +42,11 @@
         'security/ir.model.access.csv',
         'views/res_config_settings_views.xml',
     ],
-    'assets': {
-        'point_of_sale.assets_qweb': [
-            'sale_price_block/static/src/js/price_block.js',
-        ],
-    },
+    # 'assets': {
+    #     'point_of_sale.assets_qweb': [
+    #         'sale_price_block/static/src/js/price_block.js',
+    #     ],
+    # },
     'installable': True,
     'application': False,
     'auto_install': False,
