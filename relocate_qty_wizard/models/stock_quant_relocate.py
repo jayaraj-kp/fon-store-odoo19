@@ -13,11 +13,15 @@ class StockQuantRelocate(models.TransientModel):
     @api.model
     def default_get(self, fields_list):
         defaults = super().default_get(fields_list)
-        # quant_ids is set by the standard wizard via context
-        quant_ids = defaults.get('quant_ids') or []
-        # quant_ids may come as ORM command list [(6,0,[ids])] or plain list
-        if quant_ids and isinstance(quant_ids[0], (list, tuple)):
-            quant_ids = quant_ids[0][2]
+        # Extract quant ids from context (set by the Relocate button)
+        quant_ids = self.env.context.get('active_ids') or []
+        if not quant_ids:
+            # fallback: parse from defaults['quant_ids'] ORM commands
+            raw = defaults.get('quant_ids') or []
+            for cmd in raw:
+                if isinstance(cmd, (list, tuple)) and len(cmd) >= 3:
+                    quant_ids = cmd[2]
+                    break
         quants = self.env['stock.quant'].browse(quant_ids)
         lines = []
         for quant in quants:
@@ -37,12 +41,18 @@ class StockQuantRelocate(models.TransientModel):
         if not self.dest_location_id:
             raise UserError(_('Please select a destination location.'))
 
-        StockMove = self.env['stock.move']
+        lines_with_quant = self.line_ids.filtered(lambda l: l.quant_id)
+        if not lines_with_quant:
+            # No lines with quant — fall back to standard behaviour
+            return super().action_relocate_quants()
 
-        for line in self.line_ids:
+        StockMove = self.env['stock.move']
+        move_note = getattr(self, 'message', None) or _('Product Relocated')
+
+        for line in lines_with_quant:
             quant = line.quant_id
-            move = StockMove.create({
-                'name': self.message or _('Product Relocated'),
+            StockMove.create({
+                'name': move_note,
                 'product_id': quant.product_id.id,
                 'product_uom': quant.product_uom_id.id,
                 'product_uom_qty': line.qty,
@@ -59,9 +69,6 @@ class StockQuantRelocate(models.TransientModel):
                     'package_id': quant.package_id.id if quant.package_id else False,
                     'owner_id': quant.owner_id.id if quant.owner_id else False,
                 })],
-            })
-            move._action_confirm()
-            move._action_assign()
-            move._action_done()
+            })._action_confirm()._action_assign()._action_done()
 
         return {'type': 'ir.actions.act_window_close'}

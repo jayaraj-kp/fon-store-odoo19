@@ -10,7 +10,7 @@ class StockQuantRelocateLine(models.TransientModel):
     wizard_id = fields.Many2one(
         'stock.quant.relocate', required=True, ondelete='cascade'
     )
-    quant_id = fields.Many2one('stock.quant', required=True)
+    quant_id = fields.Many2one('stock.quant', required=False, ondelete='set null')
     product_id = fields.Many2one(
         related='quant_id.product_id', string='Product', readonly=True
     )
