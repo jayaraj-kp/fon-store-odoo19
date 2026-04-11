@@ -1,215 +1,119 @@
-///** @odoo-module **/
-//
-//import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
-//import { patch } from "@web/core/utils/patch";
-//import { _t } from "@web/core/l10n/translation";
-//
-///**
-// * Patch PaymentScreen to add below-cost price validation
-// * Blocks payment if any product is sold below its cost price
-// * Uses unified 'sale_price_block.block_below_cost' setting
-// */
-//patch(PaymentScreen.prototype, {
-//    async validateOrderBeforePayment() {
-//        const order = this.pos.get_order();
-//
-//        if (!order) {
-//            return true;
-//        }
-//
-//        // Check if any order line has a price below cost
-//        const belowCostLines = [];
-//
-//        order.get_orderlines().forEach((line) => {
-//            const product = line.get_product();
-//            if (product) {
-//                const costPrice = product.standard_price || 0.0;
-//                const salePrice = line.price_unit || 0.0;
-//
-//                if (salePrice < costPrice) {
-//                    belowCostLines.push({
-//                        name: product.display_name,
-//                        salePrice: salePrice,
-//                        costPrice: costPrice,
-//                        symbol: this.pos.currency.symbol,
-//                    });
-//                }
-//            }
-//        });
-//
-//        // If below-cost items found, show error dialog
-//        if (belowCostLines.length > 0) {
-//            let message = _t("Cannot process this order.\n\n");
-//            message += _t("The following product(s) have a unit price BELOW their cost price:\n\n");
-//
-//            belowCostLines.forEach((item) => {
-//                message += `• ${item.name}  →  Sale Price: ${item.symbol} ${item.salePrice.toFixed(2)}  |  Cost Price: ${item.symbol} ${item.costPrice.toFixed(2)}\n`;
-//            });
-//
-//            message += _t("\n\nPlease adjust the sale prices before proceeding to payment.");
-//
-//            // Show error dialog
-//            await this.showPopup("ErrorPopup", {
-//                title: _t("Invalid Order"),
-//                body: message,
-//            });
-//
-//            return false;
-//        }
-//
-//        return true;
-//    },
-//
-//    async validateAndProceed() {
-//        // Validate before allowing payment
-//        const isValid = await this.validateOrderBeforePayment();
-//
-//        if (!isValid) {
-//            return; // Block payment
-//        }
-//
-//        // If valid, proceed with original flow
-//        return this._super();
-//    }
-//});
-//
-///**
-// * Additional patch to intercept the payment button click
-// * This provides an extra layer of protection
-// */
-//patch(PaymentScreen.prototype, {
-//    async handlePaymentButtonClick() {
-//        const isValid = await this.validateOrderBeforePayment();
-//
-//        if (!isValid) {
-//            return; // Don't proceed with payment
-//        }
-//
-//        // Call original handler if validation passed
-//        return this._super();
-//    }
-//});
-/** @odoo-module **/
 /** @odoo-module **/
 
-import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
 
 /**
- * SIMPLE APPROACH: Validate only when payment is actually being processed
- * This ensures payment buttons remain responsive while validation happens
+ * ODOO 19 POS - CORRECT IMPLEMENTATION
+ *
+ * Key difference: Uses posmodel.pendingOrder instead of get_order()
+ * which is the way Odoo 19 POS stores the current order
  */
 
-patch(PaymentScreen.prototype, {
+// We need to patch the POS model to add our validation
+patch(Object.getPrototypeOf(window.posmodel), {
     /**
-     * Check if order has items below cost price
+     * Validate if current order has any items below cost price
+     * Returns: {valid: boolean, message: string, items: array}
      */
-    getOrderBelowCostItems() {
-        const order = this.pos.get_order();
+    validatePricesBeforePayment() {
+        const order = this.pendingOrder;
+
+        if (!order || !order.lines) {
+            return { valid: true, message: '', items: [] };
+        }
+
         const belowCostLines = [];
 
-        if (!order) return belowCostLines;
+        // Check each line in the order
+        order.lines.forEach((line) => {
+            if (!line.product_id) return;
 
-        (order.get_orderlines() || []).forEach((line) => {
-            if (!line.get_product()) return;
+            const product = line.product_id;
+            const costPrice = product.standard_price || 0;
+            const salePrice = line.price_unit || 0;
 
-            const product = line.get_product();
-            const cost = product.standard_price || 0;
-            const price = line.price_unit || 0;
-
-            if (price < cost) {
+            if (salePrice < costPrice) {
                 belowCostLines.push({
                     name: product.display_name,
-                    price: price,
-                    cost: cost,
-                    symbol: this.pos.currency.symbol || '$'
+                    salePrice: salePrice,
+                    costPrice: costPrice,
+                    symbol: this.currency?.symbol || '$',
                 });
             }
         });
 
-        return belowCostLines;
-    },
+        if (belowCostLines.length > 0) {
+            let message = _t("Cannot process this order.\n\n");
+            message += _t("The following product(s) have a unit price BELOW their cost price:\n\n");
 
-    /**
-     * Build error message from below-cost items
-     */
-    buildErrorMessage(items) {
-        if (!items || items.length === 0) return '';
-
-        let msg = _t("Cannot process this order.\n\n");
-        msg += _t("The following product(s) have a unit price BELOW their cost price:\n\n");
-
-        items.forEach((item) => {
-            msg += `• ${item.name}  →  `;
-            msg += `Sale Price: ${item.symbol} ${item.price.toFixed(2)}  |  `;
-            msg += `Cost Price: ${item.symbol} ${item.cost.toFixed(2)}\n`;
-        });
-
-        msg += _t("\n\nPlease adjust the sale prices before proceeding to payment.");
-        return msg;
-    },
-
-    /**
-     * Intercept payment submission
-     * This is called right before payment is processed
-     */
-    async validateAndProcessPayment() {
-        const belowCostItems = this.getOrderBelowCostItems();
-
-        if (belowCostItems.length > 0) {
-            const errorMsg = this.buildErrorMessage(belowCostItems);
-
-            await this.showPopup("ErrorPopup", {
-                title: _t("Invalid Order"),
-                body: errorMsg,
+            belowCostLines.forEach((item) => {
+                message += `• ${item.name}  →  `;
+                message += `Sale Price: ${item.symbol} ${item.salePrice.toFixed(2)}  |  `;
+                message += `Cost Price: ${item.symbol} ${item.costPrice.toFixed(2)}\n`;
             });
 
-            // Return false to prevent payment
-            return false;
+            message += _t("\n\nPlease adjust the sale prices before proceeding to payment.");
+
+            return {
+                valid: false,
+                message: message,
+                items: belowCostLines
+            };
         }
 
-        // Payment is valid, allow it to proceed
-        return true;
-    },
+        return { valid: true, message: '', items: [] };
+    }
+});
 
-    /**
-     * Override the main payment processing
-     * This ensures validation happens at the right time
-     */
-    async _processPayment() {
-        const isValid = await this.validateAndProcessPayment();
+/**
+ * Patch the pay() method in posmodel
+ * This is called when user clicks any payment button
+ */
+patch(window.posmodel, {
+    async pay() {
+        // Validate prices before payment
+        const validation = this.validatePricesBeforePayment();
 
-        if (!isValid) {
-            return; // Block payment
+        if (!validation.valid) {
+            // Show error dialog
+            await this.dialog.add({
+                body: validation.message,
+                title: _t("Invalid Order"),
+                buttons: [
+                    { text: _t("OK"), click: () => true }
+                ]
+            });
+
+            // Block payment
+            return;
         }
 
-        // Proceed with parent method
+        // If validation passes, proceed with original payment
         return this._super();
     }
 });
 
 /**
- * Override pay button processing
- * This is a safer approach that intercepts at the pay button level
+ * Also patch validateOrderFast() which might be used for quick validation
  */
-patch(PaymentScreen.prototype, {
-    async onClickPay() {
-        const belowCostItems = this.getOrderBelowCostItems();
+patch(window.posmodel, {
+    async validateOrderFast() {
+        // Quick validation for below-cost items
+        const validation = this.validatePricesBeforePayment();
 
-        if (belowCostItems.length > 0) {
-            const errorMsg = this.buildErrorMessage(belowCostItems);
-
-            await this.showPopup("ErrorPopup", {
+        if (!validation.valid) {
+            await this.dialog.add({
+                body: validation.message,
                 title: _t("Invalid Order"),
-                body: errorMsg,
+                buttons: [
+                    { text: _t("OK"), click: () => true }
+                ]
             });
-
-            // Return to prevent payment
             return false;
         }
 
-        // Valid order, proceed with parent
+        // If validation passes, proceed with original method
         return this._super();
     }
 });
