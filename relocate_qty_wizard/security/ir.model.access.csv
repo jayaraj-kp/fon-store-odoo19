@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_relocate_qty_wizard,access_relocate_qty_wizard,model_relocate_qty_wizard,stock.group_stock_user,1,1,1,1
+access_relocate_qty_wizard_line,access_relocate_qty_wizard_line,model_relocate_qty_wizard_line,stock.group_stock_user,1,1,1,1
