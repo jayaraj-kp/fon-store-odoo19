@@ -1,107 +1,88 @@
 /**
- * VERIFY pendingOrder STRUCTURE
- *
- * In Odoo 19 POS, the current order is stored in posmodel.pendingOrder
- * NOT get_order() like older versions
+ * SIMPLE TEST - Just check if we can access pendingOrder and its data
  */
 
 console.clear();
-console.log("=== VERIFYING pendingOrder ===\n");
+console.log("🔍 TESTING pendingOrder ACCESS\n");
 
-// 1. Check if pendingOrder exists
-console.log("posmodel.pendingOrder:", posmodel.pendingOrder);
-console.log("Type:", typeof posmodel.pendingOrder);
-
-if (posmodel.pendingOrder) {
+// Test 1: Does pendingOrder exist?
+try {
     const order = posmodel.pendingOrder;
-
-    console.log("\n=== ORDER STRUCTURE ===");
-    console.log("Order object:", order);
-    console.log("Order keys:", Object.keys(order).slice(0, 30));
-
-    // 2. Look for order lines
-    console.log("\n=== LOOKING FOR ORDER LINES ===");
-
-    const lineKeys = Object.keys(order).filter(k =>
-        k.toLowerCase().includes('line') ||
-        k.toLowerCase().includes('items') ||
-        k.toLowerCase().includes('products')
-    );
-
-    console.log("Line-related keys:", lineKeys);
-
-    // Try common names
-    const possibleLineKeys = ['lines', 'orderLines', 'order_lines', 'items', 'products', 'line_ids'];
-    possibleLineKeys.forEach(key => {
-        if (key in order) {
-            console.log(`\n✅ Found lines at: order.${key}`);
-            const lines = order[key];
-            console.log(`   Type: ${typeof lines}`);
-            console.log(`   Length: ${lines?.length || 'N/A'}`);
-
-            if (lines && lines.length > 0) {
-                console.log(`   First line:`, lines[0]);
-
-                // Check if first line has product info
-                if (lines[0]) {
-                    console.log(`   First line keys:`, Object.keys(lines[0]).slice(0, 20));
-                }
-            }
-        }
-    });
-
-    // 3. Check for methods
-    console.log("\n=== ORDER METHODS ===");
-    const methods = [];
-    for (let key of Object.keys(order)) {
-        if (typeof order[key] === 'function') {
-            methods.push(key);
-        }
-    }
-    console.log("Methods:", methods.slice(0, 20));
-
-    // Look for "get" methods
-    const getMethods = methods.filter(m => m.startsWith('get'));
-    console.log("'get' methods:", getMethods);
-
-} else {
-    console.log("❌ pendingOrder is null/undefined");
-
-    // If no pending order, check if there's a way to create one or get the current one
-    console.log("\n=== ALTERNATIVE PATHS ===");
-
-    // Check if order might be accessed differently
-    if (posmodel.models?.Order) {
-        console.log("✅ posmodel.models.Order exists");
-    }
-
-    if (posmodel.mainScreen) {
-        console.log("✅ posmodel.mainScreen exists");
-        console.log("   Keys:", Object.keys(posmodel.mainScreen).slice(0, 10));
-    }
+    console.log("✅ posmodel.pendingOrder exists");
+    console.log("   Order object:", order);
+} catch (e) {
+    console.log("❌ Error accessing pendingOrder:", e.message);
 }
 
-console.log("\n\n=== TEST THE PAYMENT VALIDATION ===");
-
-// Now test if we can validate using the correct structure
-if (posmodel.pendingOrder?.lines) {
-    console.log("✅ Can access order lines!");
-
+// Test 2: Can we access lines?
+try {
     const lines = posmodel.pendingOrder.lines;
-    console.log(`   Total lines: ${lines.length}`);
+    console.log("\n✅ posmodel.pendingOrder.lines exists");
+    console.log("   Number of lines:", lines.length);
 
-    // Check each line
-    lines.forEach((line, i) => {
-        console.log(`\n   Line ${i + 1}:`);
-        console.log(`     Product:`, line.product_id?.display_name || 'Unknown');
+    if (lines.length > 0) {
+        const firstLine = lines[0];
+        console.log("   First line:", firstLine);
+    }
+} catch (e) {
+    console.log("\n❌ Error accessing lines:", e.message);
+}
 
-        // Try to get price info
-        console.log(`     Keys:`, Object.keys(line).slice(0, 15));
+// Test 3: Can we access product info?
+try {
+    const firstLine = posmodel.pendingOrder.lines[0];
+    const product = firstLine.product_id;
+    const salePrice = firstLine.price_unit;
+    const costPrice = product.standard_price;
+
+    console.log("\n✅ Can access product info:");
+    console.log("   Product:", product.display_name);
+    console.log("   Sale Price:", salePrice);
+    console.log("   Cost Price:", costPrice);
+    console.log("   Is valid (>= cost)?", salePrice >= costPrice ? "YES ✅" : "NO ❌");
+} catch (e) {
+    console.log("\n❌ Error accessing product info:", e.message);
+}
+
+// Test 4: Test the validation logic
+console.log("\n=== VALIDATION TEST ===");
+
+try {
+    const order = posmodel.pendingOrder;
+    const lines = order.lines;
+
+    let belowCostCount = 0;
+    const belowCostItems = [];
+
+    lines.forEach((line, index) => {
+        const salePrice = line.price_unit;
+        const costPrice = line.product_id.standard_price;
+
+        if (salePrice < costPrice) {
+            belowCostCount++;
+            belowCostItems.push({
+                name: line.product_id.display_name,
+                sale: salePrice,
+                cost: costPrice
+            });
+        }
     });
 
-    console.log("\n✅ Successfully accessed order lines!");
-    console.log("✅ Can use for validation!");
+    console.log(`Items below cost: ${belowCostCount}`);
 
-} else {
-    console.log("⚠️ Cannot access order.lines yet");
+    if (belowCostCount > 0) {
+        console.log("❌ ORDER IS INVALID - Items below cost:");
+        belowCostItems.forEach(item => {
+            console.log(`  • ${item.name}: Sale ₹${item.sale} < Cost ₹${item.cost}`);
+        });
+    } else {
+        console.log("✅ ORDER IS VALID - All prices are OK");
+    }
+
+} catch (e) {
+    console.log("❌ Error in validation test:", e.message);
 }
+
+console.log("\n=== SUMMARY ===");
+console.log("If everything above shows ✅, then the data is accessible!");
+console.log("If you see ❌ errors, that's the issue we need to fix.");
