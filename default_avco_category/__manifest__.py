@@ -10,8 +10,9 @@
         category is pre-filled with AVCO without any manual selection.
     """,
     'author': 'Custom',
-    'depends': ['stock'],          # 'stock' provides product.category costing fields
+    'depends': ['stock_account'],
     'data': [],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'auto_install': False,
     'license': 'LGPL-3',
