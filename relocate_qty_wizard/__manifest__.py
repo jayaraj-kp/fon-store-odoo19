@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'Relocate Stock Quant with Quantity Adjustment',
+    'name': 'Relocate Stock Quant - Quantity Adjustment',
     'version': '19.0.1.0.0',
     'category': 'Inventory',
-    'summary': 'Adds a product/quantity table to the Relocate wizard so users can adjust quantities before confirming.',
+    'summary': 'Adds an editable product/quantity table to the existing Relocate wizard.',
     'author': 'Custom',
     'depends': ['stock'],
     'data': [
         'security/ir.model.access.csv',
-        'wizard/relocate_qty_wizard_views.xml',
+        'views/relocate_qty_line_views.xml',
     ],
     'installable': True,
     'auto_install': False,
