@@ -173,7 +173,7 @@
                                 <field name="manual_account_id" string="Account"
                                        modifiers="{'readonly': ['|', '|', '|', ('manual_exchange_counterpart', '=', True),('manual_reference', '=', False), ('is_reconciled', '=', True), ('manual_line_id', '!=', False)]}"/>
                                 <field name="manual_partner_id" string="Partner"
-                                       domain="[('parent_id', '=', False), ('customer_rank', '&gt;', 0)]"
+                                       domain="[('parent_id', '=', False)]"
                                        modifiers="{'readonly': ['|', '|', '|', ('manual_exchange_counterpart', '=', True),('manual_reference', '=', False), ('is_reconciled', '=', True), '&amp;', ('manual_line_id', '!=', False), ('manual_kind', '!=', 'liquidity')]}"/>
                                 <field name="manual_tax_ids" string="Taxes" widget="many2many_tags"
                                        invisible="manual_kind == 'liquidity' or manual_reference == False"
