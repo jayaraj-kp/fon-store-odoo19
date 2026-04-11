@@ -34,8 +34,9 @@ class StockQuantRelocate(models.TransientModel):
 
     def action_relocate_quants(self):
         """
-        Override to use the adjusted quantities from line_ids
-        instead of the original quant quantities.
+        Override to use adjusted quantities from line_ids.
+        Uses stock.quant._update_available_quantity to move stock
+        without manually creating stock.move (avoids field name issues).
         """
         self.ensure_one()
         if not self.dest_location_id:
@@ -43,32 +44,32 @@ class StockQuantRelocate(models.TransientModel):
 
         lines_with_quant = self.line_ids.filtered(lambda l: l.quant_id)
         if not lines_with_quant:
-            # No lines with quant — fall back to standard behaviour
+            # No custom lines — fall back to standard behaviour
             return super().action_relocate_quants()
 
-        StockMove = self.env['stock.move']
-        move_note = getattr(self, 'message', None) or _('Product Relocated')
+        StockQuant = self.env['stock.quant']
 
         for line in lines_with_quant:
             quant = line.quant_id
-            StockMove.create({
-                'name': move_note,
-                'product_id': quant.product_id.id,
-                'product_uom': quant.product_uom_id.id,
-                'product_uom_qty': line.qty,
-                'location_id': quant.location_id.id,
-                'location_dest_id': self.dest_location_id.id,
-                'state': 'draft',
-                'move_line_ids': [(0, 0, {
-                    'product_id': quant.product_id.id,
-                    'product_uom_id': quant.product_uom_id.id,
-                    'qty_done': line.qty,
-                    'location_id': quant.location_id.id,
-                    'location_dest_id': self.dest_location_id.id,
-                    'lot_id': quant.lot_id.id if quant.lot_id else False,
-                    'package_id': quant.package_id.id if quant.package_id else False,
-                    'owner_id': quant.owner_id.id if quant.owner_id else False,
-                })],
-            })._action_confirm()._action_assign()._action_done()
+            qty = line.qty
+
+            # Remove qty from source location
+            StockQuant._update_available_quantity(
+                quant.product_id,
+                quant.location_id,
+                -qty,
+                lot_id=quant.lot_id or None,
+                package_id=quant.package_id or None,
+                owner_id=quant.owner_id or None,
+            )
+            # Add qty to destination location
+            StockQuant._update_available_quantity(
+                quant.product_id,
+                self.dest_location_id,
+                qty,
+                lot_id=quant.lot_id or None,
+                package_id=quant.package_id or None,
+                owner_id=quant.owner_id or None,
+            )
 
         return {'type': 'ir.actions.act_window_close'}
