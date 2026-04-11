@@ -64,9 +64,9 @@ class StockQuantRelocate(models.TransientModel):
             line_data.append({
                 'product_id': quant.product_id,
                 'location_id': quant.location_id,
-                'lot_id': quant.lot_id or self.env['stock.lot'],
-                'package_id': quant.package_id or self.env['stock.quant.package'],
-                'owner_id': quant.owner_id or self.env['res.partner'],
+                'lot_id': quant.lot_id or None,
+                'package_id': quant.package_id or None,
+                'owner_id': quant.owner_id or None,
                 'full_qty': quant.quantity,
                 'move_qty': line.qty,
                 'remainder': quant.quantity - line.qty,
