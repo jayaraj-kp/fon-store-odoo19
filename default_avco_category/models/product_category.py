@@ -1,16 +1,22 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields
+from odoo import models, api
 
 
 class ProductCategory(models.Model):
     """
-    Inherits product.category (defined in stock/product_category.py) and
-    overrides the default value of `cost_method` so that every new category
-    is pre-filled with 'average_price' (AVCO) instead of 'standard'.
+    Inherits product.category and overrides default_get so that every new
+    category form opens with 'average_price' (AVCO) pre-selected.
+
+    We use default_get instead of re-declaring the Selection field because
+    Odoo 19 raises:
+        AssertionError: Field product.category.cost_method without selection
+    when a Selection field is overridden without repeating the full selection list.
     """
     _inherit = 'product.category'
 
-    # Override the field to change only its default; everything else is kept.
-    cost_method = fields.Selection(
-        default='average_price',   # 'standard' | 'average_price' | 'fifo'
-    )
+    @api.model
+    def default_get(self, fields_list):
+        defaults = super().default_get(fields_list)
+        if 'cost_method' in fields_list and 'cost_method' not in defaults:
+            defaults['cost_method'] = 'average_price'
+        return defaults
