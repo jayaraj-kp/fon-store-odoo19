@@ -1,91 +1,71 @@
-/** @odoo-module **/
-
-import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
-import { patch } from "@web/core/utils/patch";
-import { _t } from "@web/core/l10n/translation";
-
 /**
- * Patch PaymentScreen to add below-cost price validation
- * Blocks payment if any product is sold below its cost price
- * Uses unified 'sale_price_block.block_below_cost' setting
+ * TRACE ACTUAL METHOD CALLS
+ *
+ * Let's hook into posmodel and track EVERY method call to see
+ * which ones are actually invoked when user clicks payment buttons
  */
-patch(PaymentScreen.prototype, {
-    async validateOrderBeforePayment() {
-        const order = this.pos.get_order();
 
-        if (!order) {
-            return true;
+console.clear();
+console.log("🔍 TRACING METHOD CALLS\n");
+
+// Create a proxy to intercept all method calls
+const originalModel = window.posmodel;
+const methodTracer = new Proxy(originalModel, {
+    get(target, prop) {
+        const value = target[prop];
+
+        // If it's a function, wrap it to trace calls
+        if (typeof value === 'function') {
+            return function(...args) {
+                console.log(`📞 METHOD CALLED: ${String(prop)}()`);
+                console.log(`   Args:`, args);
+
+                // Call original method
+                return value.apply(target, args);
+            };
         }
 
-        // Check if any order line has a price below cost
-        const belowCostLines = [];
-
-        order.get_orderlines().forEach((line) => {
-            const product = line.get_product();
-            if (product) {
-                const costPrice = product.standard_price || 0.0;
-                const salePrice = line.price_unit || 0.0;
-
-                if (salePrice < costPrice) {
-                    belowCostLines.push({
-                        name: product.display_name,
-                        salePrice: salePrice,
-                        costPrice: costPrice,
-                        symbol: this.pos.currency.symbol,
-                    });
-                }
-            }
-        });
-
-        // If below-cost items found, show error dialog
-        if (belowCostLines.length > 0) {
-            let message = _t("Cannot process this order.\n\n");
-            message += _t("The following product(s) have a unit price BELOW their cost price:\n\n");
-
-            belowCostLines.forEach((item) => {
-                message += `• ${item.name}  →  Sale Price: ${item.symbol} ${item.salePrice.toFixed(2)}  |  Cost Price: ${item.symbol} ${item.costPrice.toFixed(2)}\n`;
-            });
-
-            message += _t("\n\nPlease adjust the sale prices before proceeding to payment.");
-
-            // Show error dialog
-            await this.showPopup("ErrorPopup", {
-                title: _t("Invalid Order"),
-                body: message,
-            });
-
-            return false;
-        }
-
-        return true;
-    },
-
-    async validateAndProceed() {
-        // Validate before allowing payment
-        const isValid = await this.validateOrderBeforePayment();
-
-        if (!isValid) {
-            return; // Block payment
-        }
-
-        // If valid, proceed with original flow
-        return this._super();
+        return value;
     }
 });
 
-/**
- * Additional patch to intercept the payment button click
- * This provides an extra layer of protection
- */
-patch(PaymentScreen.prototype, {
-    async handlePaymentButtonClick() {
-        const isValid = await this.validateOrderBeforePayment();
+// Replace posmodel with traced version
+window.posmodel = methodTracer;
 
-        if (!isValid) {
-            return; // Don't proceed with payment
+console.log("✅ Method tracer activated!");
+console.log("\n📝 NOW:");
+console.log("1. Create order with price BELOW cost (₹20, cost ₹100)");
+console.log("2. Click Cash KDTY button");
+console.log("3. Watch console for method calls");
+console.log("4. Share the methods you see!\n");
+
+// Also create a manual method logger
+window.logPosMethods = function() {
+    console.log("\n=== ALL POSMODEL METHODS ===\n");
+
+    const methods = [];
+    for (let key of Object.keys(originalModel)) {
+        if (typeof originalModel[key] === 'function') {
+            methods.push(key);
         }
-
-        // Call original handler if validation passed
-        return this._super();
     }
-});
+
+    // Group by category
+    const payMethods = methods.filter(m => m.toLowerCase().includes('pay'));
+    const orderMethods = methods.filter(m => m.toLowerCase().includes('order'));
+    const validMethods = methods.filter(m => m.toLowerCase().includes('valid'));
+
+    console.log("Payment methods:");
+    payMethods.forEach(m => console.log(`  - ${m}()`));
+
+    console.log("\nOrder methods:");
+    orderMethods.forEach(m => console.log(`  - ${m}()`));
+
+    console.log("\nValidation methods:");
+    validMethods.forEach(m => console.log(`  - ${m}()`));
+
+    console.log("\nAll methods:");
+    methods.forEach(m => console.log(`  - ${m}()`));
+};
+
+console.log("💡 Or run: logPosMethods()");
