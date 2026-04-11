@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Default AVCO Costing Method for Product Category',
-    'version': '17.0.1.0.0',
+    'version': '19.0.1.0.0',
     'category': 'Inventory',
     'summary': 'Sets Average Cost (AVCO) as the default costing method when creating a new product category.',
     'description': """
