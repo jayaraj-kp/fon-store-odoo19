@@ -34,42 +34,69 @@ class StockQuantRelocate(models.TransientModel):
 
     def action_relocate_quants(self):
         """
-        Override to use adjusted quantities from line_ids.
-        Uses stock.quant._update_available_quantity to move stock
-        without manually creating stock.move (avoids field name issues).
+        Override to relocate using adjusted quantities from line_ids.
+
+        Strategy: temporarily set each quant's quantity to the user-specified
+        qty, call super() (which handles moves + accounting properly), then
+        the quant is consumed by Odoo's own logic.
+
+        If no custom lines exist, fall back to standard behaviour entirely.
         """
         self.ensure_one()
-        if not self.dest_location_id:
-            raise UserError(_('Please select a destination location.'))
 
         lines_with_quant = self.line_ids.filtered(lambda l: l.quant_id)
         if not lines_with_quant:
-            # No custom lines — fall back to standard behaviour
             return super().action_relocate_quants()
 
-        StockQuant = self.env['stock.quant']
+        # Validate quantities before doing anything
+        for line in lines_with_quant:
+            if line.qty <= 0:
+                raise UserError(
+                    _('Quantity must be greater than zero for "%s".')
+                    % line.product_id.display_name
+                )
+            if line.qty > line.quant_id.quantity:
+                raise UserError(_(
+                    'Qty to relocate (%(qty)s) exceeds on-hand (%(avail)s) for "%(product)s".',
+                    qty=line.qty,
+                    avail=line.quant_id.quantity,
+                    product=line.product_id.display_name,
+                ))
+
+        # For each line where qty < full quant qty:
+        # Split the quant so super() only sees the portion to move.
+        original_quant_ids = self.quant_ids.ids
+        quants_to_restore = []  # (quant, original_qty)
 
         for line in lines_with_quant:
             quant = line.quant_id
-            qty = line.qty
+            original_qty = quant.quantity
+            if line.qty < original_qty:
+                # Temporarily reduce quant to the requested qty.
+                # super() will relocate exactly this quant.
+                quant.sudo().write({'quantity': line.qty})
+                quants_to_restore.append((quant, original_qty, line.qty))
 
-            # Remove qty from source location
-            StockQuant._update_available_quantity(
-                quant.product_id,
-                quant.location_id,
-                -qty,
-                lot_id=quant.lot_id or None,
-                package_id=quant.package_id or None,
-                owner_id=quant.owner_id or None,
-            )
-            # Add qty to destination location
-            StockQuant._update_available_quantity(
-                quant.product_id,
-                self.dest_location_id,
-                qty,
-                lot_id=quant.lot_id or None,
-                package_id=quant.package_id or None,
-                owner_id=quant.owner_id or None,
-            )
+        try:
+            result = super().action_relocate_quants()
+        except Exception:
+            # Restore quantities on failure
+            for quant, orig_qty, _ in quants_to_restore:
+                quant.sudo().write({'quantity': orig_qty})
+            raise
 
-        return {'type': 'ir.actions.act_window_close'}
+        # After super() the quant at source has been reduced by line.qty
+        # (Odoo moved it). Restore remainder at source if we reduced it.
+        for quant, orig_qty, moved_qty in quants_to_restore:
+            remainder = orig_qty - moved_qty
+            if remainder > 0:
+                self.env['stock.quant']._update_available_quantity(
+                    quant.product_id,
+                    quant.location_id,
+                    remainder,
+                    lot_id=quant.lot_id or None,
+                    package_id=quant.package_id or None,
+                    owner_id=quant.owner_id or None,
+                )
+
+        return result
