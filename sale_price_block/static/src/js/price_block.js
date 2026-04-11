@@ -90,150 +90,126 @@
 //    }
 //});
 /** @odoo-module **/
+/** @odoo-module **/
 
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
 
 /**
- * Unified Price Block - POS Payment Validation
- *
- * Validates order before payment is processed.
- * If validation fails, shows error and allows user to fix prices.
- * Once prices are fixed, payment buttons work normally.
+ * SIMPLE APPROACH: Validate only when payment is actually being processed
+ * This ensures payment buttons remain responsive while validation happens
  */
 
-let originalConfirmPayment = null;
-
 patch(PaymentScreen.prototype, {
-    setup() {
-        this._super();
-
-        // Store the original confirm payment method
-        if (!originalConfirmPayment && this.confirmPayment) {
-            originalConfirmPayment = this.confirmPayment.bind(this);
-        }
-    },
-
     /**
-     * Validate order before allowing payment
-     * Returns {valid: boolean, message: string}
+     * Check if order has items below cost price
      */
-    validateOrderPrices() {
+    getOrderBelowCostItems() {
         const order = this.pos.get_order();
-
-        if (!order || !order.get_orderlines()) {
-            return { valid: true, message: '' };
-        }
-
         const belowCostLines = [];
 
-        // Check each order line for below-cost pricing
-        order.get_orderlines().forEach((line) => {
-            const product = line.get_product();
-            if (product) {
-                const costPrice = product.standard_price || 0.0;
-                const salePrice = line.price_unit || 0.0;
+        if (!order) return belowCostLines;
 
-                if (salePrice < costPrice) {
-                    belowCostLines.push({
-                        name: product.display_name,
-                        salePrice: salePrice,
-                        costPrice: costPrice,
-                        symbol: this.pos.currency.symbol || '$',
-                    });
-                }
+        (order.get_orderlines() || []).forEach((line) => {
+            if (!line.get_product()) return;
+
+            const product = line.get_product();
+            const cost = product.standard_price || 0;
+            const price = line.price_unit || 0;
+
+            if (price < cost) {
+                belowCostLines.push({
+                    name: product.display_name,
+                    price: price,
+                    cost: cost,
+                    symbol: this.pos.currency.symbol || '$'
+                });
             }
         });
 
-        if (belowCostLines.length > 0) {
-            let message = _t("Cannot process this order.\n\n");
-            message += _t("The following product(s) have a unit price BELOW their cost price:\n\n");
-
-            belowCostLines.forEach((item) => {
-                const sp = item.salePrice.toFixed(2);
-                const cp = item.costPrice.toFixed(2);
-                message += `• ${item.name}  →  Sale Price: ${item.symbol} ${sp}  |  Cost Price: ${item.symbol} ${cp}\n`;
-            });
-
-            message += _t("\n\nPlease adjust the sale prices before proceeding to payment.");
-
-            return {
-                valid: false,
-                message: message,
-                items: belowCostLines
-            };
-        }
-
-        return { valid: true, message: '' };
+        return belowCostLines;
     },
 
     /**
-     * Override the confirm payment method
-     * This is called when payment button (Cash, Card, etc.) is clicked
+     * Build error message from below-cost items
      */
-    async confirmPayment() {
-        // Validate prices BEFORE proceeding
-        const validation = this.validateOrderPrices();
+    buildErrorMessage(items) {
+        if (!items || items.length === 0) return '';
 
-        if (!validation.valid) {
-            // Show error popup and block payment
+        let msg = _t("Cannot process this order.\n\n");
+        msg += _t("The following product(s) have a unit price BELOW their cost price:\n\n");
+
+        items.forEach((item) => {
+            msg += `• ${item.name}  →  `;
+            msg += `Sale Price: ${item.symbol} ${item.price.toFixed(2)}  |  `;
+            msg += `Cost Price: ${item.symbol} ${item.cost.toFixed(2)}\n`;
+        });
+
+        msg += _t("\n\nPlease adjust the sale prices before proceeding to payment.");
+        return msg;
+    },
+
+    /**
+     * Intercept payment submission
+     * This is called right before payment is processed
+     */
+    async validateAndProcessPayment() {
+        const belowCostItems = this.getOrderBelowCostItems();
+
+        if (belowCostItems.length > 0) {
+            const errorMsg = this.buildErrorMessage(belowCostItems);
+
             await this.showPopup("ErrorPopup", {
                 title: _t("Invalid Order"),
-                body: validation.message,
+                body: errorMsg,
             });
 
-            // Don't proceed with payment - return early
+            // Return false to prevent payment
             return false;
         }
 
-        // If validation passes, proceed with original payment flow
-        if (originalConfirmPayment) {
-            return await originalConfirmPayment();
+        // Payment is valid, allow it to proceed
+        return true;
+    },
+
+    /**
+     * Override the main payment processing
+     * This ensures validation happens at the right time
+     */
+    async _processPayment() {
+        const isValid = await this.validateAndProcessPayment();
+
+        if (!isValid) {
+            return; // Block payment
         }
 
-        // Fallback to parent method if original not stored
-        return await this._super();
+        // Proceed with parent method
+        return this._super();
     }
 });
 
 /**
- * Additional patch for payment method buttons
- * Some versions call different methods for payment
+ * Override pay button processing
+ * This is a safer approach that intercepts at the pay button level
  */
 patch(PaymentScreen.prototype, {
-    async onClickPaymentMethod(paymentMethod) {
-        // Validate before payment method selection
-        const validation = this.validateOrderPrices();
+    async onClickPay() {
+        const belowCostItems = this.getOrderBelowCostItems();
 
-        if (!validation.valid) {
+        if (belowCostItems.length > 0) {
+            const errorMsg = this.buildErrorMessage(belowCostItems);
+
             await this.showPopup("ErrorPopup", {
                 title: _t("Invalid Order"),
-                body: validation.message,
+                body: errorMsg,
             });
+
+            // Return to prevent payment
             return false;
         }
 
-        // If valid, proceed with payment method
-        return await this._super();
-    }
-});
-
-/**
- * Patch for when order is submitted/confirmed
- */
-patch(PaymentScreen.prototype, {
-    async submitOrder() {
-        const validation = this.validateOrderPrices();
-
-        if (!validation.valid) {
-            await this.showPopup("ErrorPopup", {
-                title: _t("Invalid Order"),
-                body: validation.message,
-            });
-            return false;
-        }
-
-        return await this._super();
+        // Valid order, proceed with parent
+        return this._super();
     }
 });
