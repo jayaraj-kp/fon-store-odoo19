@@ -1,137 +1,126 @@
-/** @odoo-module */
-
-console.log("[sale_price_block] Loading - simple event-based approach");
-
-import { patch } from "@web/core/utils/patch";
-import { useService } from "@web/core/utils/hooks";
-import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
-
 /**
- * Simple helper to check for below-cost items
+ * DIAGNOSTIC: Check if sale_price_block JavaScript is loaded
  */
-function checkBelowCostItems(order) {
-    if (!order?.lines) return { hasBelowCost: false, message: "" };
 
-    const issues = [];
+console.clear();
+console.log("=== PRICE BLOCK DIAGNOSTIC ===\n");
 
-    for (const line of order.lines) {
-        if (!line.product_id) continue;
-
-        const costPrice = line.product_id.standard_price || 0;
-        const salePrice = line.price_unit || 0;
-
-        if (salePrice < costPrice) {
-            issues.push({
-                product: line.product_id.display_name,
-                salePrice,
-                costPrice
-            });
-        }
-    }
-
-    if (issues.length === 0) {
-        return { hasBelowCost: false, message: "" };
-    }
-
-    let message = "Cannot process this order.\n\n";
-    message += "The following product(s) have a unit price BELOW their cost price:\n\n";
-
-    issues.forEach(issue => {
-        message += `• ${issue.product}\n`;
-        message += `  Sale Price: ₹ ${issue.salePrice.toFixed(2)}\n`;
-        message += `  Cost Price: ₹ ${issue.costPrice.toFixed(2)}\n\n`;
-    });
-
-    message += "Please update the sale prices before proceeding to payment.";
-
-    return { hasBelowCost: true, message };
+// Check 1: Is the module loaded?
+console.log("1. Checking if module loaded...");
+if (window.__pb_loaded) {
+    console.log("✅ Module was loaded");
+} else {
+    console.log("❌ Module NOT loaded - check console for errors");
 }
 
-/**
- * Main patch for PaymentScreen
- */
-patch(PaymentScreen.prototype, {
-    setup() {
-        super.setup();
-        this.dialog = useService("dialog");
-        console.log("[sale_price_block] PaymentScreen patched");
-    },
+// Check 2: Can we access the order?
+console.log("\n2. Checking order access...");
+try {
+    const order = window.posmodel?.pendingOrder;
+    if (order) {
+        console.log("✅ Can access order:", order.name);
+        console.log("   Order lines:", order.lines?.length || 0);
+    } else {
+        console.log("❌ Cannot access pendingOrder");
+    }
+} catch (e) {
+    console.log("❌ Error:", e.message);
+}
 
-    /**
-     * Override validateOrder - the main payment validation
-     */
-    async validateOrder(isForceValidate) {
-        // Get the order
-        const order = this.pos?.pendingOrder;
+// Check 3: Can we check prices?
+console.log("\n3. Checking price logic...");
+try {
+    const order = window.posmodel?.pendingOrder;
+    if (order && order.lines && order.lines.length > 0) {
+        const line = order.lines[0];
+        const product = line.product_id;
+        const salePrice = line.price_unit;
+        const costPrice = product?.standard_price || 0;
 
-        // Check for below-cost items
-        const { hasBelowCost, message } = checkBelowCostItems(order);
+        console.log("✅ First product:");
+        console.log(`   Name: ${product?.display_name}`);
+        console.log(`   Sale: ₹${salePrice}`);
+        console.log(`   Cost: ₹${costPrice}`);
+        console.log(`   Below cost? ${salePrice < costPrice ? 'YES ❌' : 'NO ✅'}`);
+    }
+} catch (e) {
+    console.log("❌ Error checking prices:", e.message);
+}
 
-        if (hasBelowCost) {
-            console.log("[sale_price_block] Order blocked - below cost items found");
+// Check 4: Test the validation function directly
+console.log("\n4. Testing validation function...");
+try {
+    const order = window.posmodel?.pendingOrder;
 
-            // Show error dialog
-            await this.dialog.add(window.ErrorDialog || window.AlertDialog, {
-                title: "Invalid Order",
-                body: message,
-            });
-
-            return; // Block payment
+    let hasBelowCost = false;
+    if (order && order.lines) {
+        for (const line of order.lines) {
+            const cost = line.product_id?.standard_price || 0;
+            const sale = line.price_unit || 0;
+            if (sale < cost) {
+                hasBelowCost = true;
+                console.log(`✅ Found below-cost: ${line.product_id?.display_name} (₹${sale} < ₹${cost})`);
+            }
         }
+    }
 
-        // If validation passes, continue with original method
-        console.log("[sale_price_block] Validation passed - proceeding with payment");
-        return super.validateOrder?.(isForceValidate);
-    },
+    if (!hasBelowCost) {
+        console.log("✅ All prices are valid (no below-cost items)");
+    }
+} catch (e) {
+    console.log("❌ Error in validation:", e.message);
+}
 
-    /**
-     * Also override other payment-related methods
-     */
-    async validateOrderFast() {
-        const order = this.pos?.pendingOrder;
-        const { hasBelowCost, message } = checkBelowCostItems(order);
+// Check 5: Check PaymentScreen patching
+console.log("\n5. Checking PaymentScreen patch...");
+try {
+    const PaymentScreen = window.PaymentScreen;
+    if (PaymentScreen) {
+        console.log("✅ PaymentScreen found");
 
-        if (hasBelowCost) {
-            await this.dialog.add(window.ErrorDialog || window.AlertDialog, {
-                title: "Invalid Order",
-                body: message,
-            });
-            return;
+        // Check if our methods exist
+        const proto = PaymentScreen.prototype;
+        if (proto.validateOrder) {
+            console.log("✅ validateOrder method exists");
         }
-
-        return super.validateOrderFast?.();
-    },
-
-    async addPaymentLine(paymentMethod) {
-        const order = this.pos?.pendingOrder;
-        const { hasBelowCost, message } = checkBelowCostItems(order);
-
-        if (hasBelowCost) {
-            await this.dialog.add(window.ErrorDialog || window.AlertDialog, {
-                title: "Invalid Order",
-                body: message,
-            });
-            return;
+        if (proto.validateOrderFast) {
+            console.log("✅ validateOrderFast method exists");
         }
-
-        return super.addPaymentLine?.(paymentMethod);
-    },
-
-    async addPayment(paymentMethod) {
-        const order = this.pos?.pendingOrder;
-        const { hasBelowCost, message } = checkBelowCostItems(order);
-
-        if (hasBelowCost) {
-            await this.dialog.add(window.ErrorDialog || window.AlertDialog, {
-                title: "Invalid Order",
-                body: message,
-            });
-            return;
+        if (proto.addPayment) {
+            console.log("✅ addPayment method exists");
         }
+    } else {
+        console.log("❌ PaymentScreen not found in window");
+    }
+} catch (e) {
+    console.log("❌ Error:", e.message);
+}
 
-        return super.addPayment?.(paymentMethod);
-    },
-});
+// Check 6: Look at what methods PaymentScreen actually has
+console.log("\n6. PaymentScreen available methods:");
+try {
+    const PaymentScreen = window.PaymentScreen;
+    if (PaymentScreen) {
+        const methods = Object.getOwnPropertyNames(PaymentScreen.prototype);
+        const payMethods = methods.filter(m =>
+            m.toLowerCase().includes('pay') ||
+            m.toLowerCase().includes('validate') ||
+            m.toLowerCase().includes('add')
+        );
 
-window.__pb_loaded = true;
-console.log("[sale_price_block] Setup complete!");
+        if (payMethods.length > 0) {
+            payMethods.forEach(m => console.log(`  - ${m}`));
+        } else {
+            console.log("  (None matching 'pay', 'validate', 'add')");
+        }
+    }
+} catch (e) {
+    console.log("❌ Error:", e.message);
+}
+
+// Check 7: Check if there are any JavaScript errors in console
+console.log("\n7. Check browser console for red errors ⚠️");
+console.log("   If you see red errors, screenshot them!");
+
+console.log("\n=== END DIAGNOSTIC ===\n");
+console.log("Share this output with exact results!");
