@@ -10,7 +10,7 @@ class ProductTemplate(models.Model):
     # barcode = fields.Char(required=True)
     available_in_pos = fields.Boolean(required=True, default=True)
     is_storable = fields.Boolean(required=True, default=True)
-    categ_id = fields.Many2one(required=True)
+    # categ_id = fields.Many2one(required=True)
     # image_1920 = fields.Binary(required=True)
 
     @api.model
