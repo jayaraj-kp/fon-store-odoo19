@@ -52,7 +52,6 @@
 #                     )
 #
 #         return super().action_pos_order_paid()
-
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
@@ -102,8 +101,8 @@ class POSOrder(models.Model):
     @api.model
     def add_payment(self, data):
         """
-        Block at payment-line creation time — before anything is written.
-        This keeps the order clean so one-click buttons work after rejection.
+        Block at payment-line creation — before anything is written to DB.
+        This prevents the stale amount_paid from ever being set on the order.
         """
         order = self.browse(data.get('pos_order_id'))
         below_cost_lines = order._check_below_cost()
@@ -112,9 +111,17 @@ class POSOrder(models.Model):
         return super().add_payment(data)
 
     def action_pos_order_paid(self):
-        """Safety net — catches any path that bypasses add_payment."""
+        """Safety net."""
         for order in self:
             below_cost_lines = order._check_below_cost()
             if below_cost_lines:
+                # Clean up any stale payment lines before raising
+                stale_payments = self.env['pos.payment'].search(
+                    [('pos_order_id', 'in', self.ids)]
+                )
+                if stale_payments:
+                    stale_payments.sudo().unlink()
+                    # Force recompute amount_paid to 0 on the order record
+                    order.sudo().write({'amount_paid': 0.0})
                 order._raise_below_cost_error(below_cost_lines)
         return super().action_pos_order_paid()
