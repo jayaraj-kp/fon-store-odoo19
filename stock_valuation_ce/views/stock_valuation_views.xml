@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Valuation at Date wizard
+    ============================================================ -->
+    <record id="view_stock_valuation_at_date_form" model="ir.ui.view">
+        <field name="name">stock.valuation.at.date.ce.form</field>
+        <field name="model">stock.valuation.at.date.ce</field>
+        <field name="arch" type="xml">
+            <form string="Valuation at Date">
+                <group>
+                    <field name="date"/>
+                    <field name="product_ids" widget="many2many_tags"/>
+                    <field name="location_id"/>
+                </group>
+                <footer>
+                    <button name="action_show_valuation"
+                            string="Show Valuation"
+                            type="object"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_stock_valuation_at_date_ce" model="ir.actions.act_window">
+        <field name="name">Valuation at Date</field>
+        <field name="res_model">stock.valuation.at.date.ce</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- ============================================================
+         Stock Valuation Layer – enhanced list view
+    ============================================================ -->
+    <record id="stock_valuation_layer_list_view_ce" model="ir.ui.view">
+        <field name="name">stock.valuation.layer.list.ce</field>
+        <field name="model">stock.valuation.layer</field>
+        <field name="priority">16</field>
+        <field name="arch" type="xml">
+            <list string="Stock Valuation"
+                  create="false"
+                  edit="false"
+                  delete="false"
+                  export_xlsx="true"
+                  default_order="create_date desc">
+
+                <header>
+                    <button name="%(stock_valuation_ce.action_stock_valuation_at_date_ce)d"
+                            string="Valuation at Date"
+                            type="action"
+                            class="btn-primary"/>
+                </header>
+
+                <field name="create_date"   string="Date"           optional="show"/>
+                <field name="stock_move_id" string="Reference"
+                       widget="char"
+                       optional="show"/>
+                <field name="account_move_id"
+                       string="Journal Entry"
+                       optional="hide"
+                       widget="many2one_clickable"/>
+                <field name="lot_id"        string="Lot/Serial Number" optional="hide"/>
+                <field name="product_id"    string="Product"        optional="show"/>
+                <field name="description"   string="Description"    optional="hide"/>
+                <field name="quantity"      string="Quantity"       optional="show"
+                       sum="Total Qty"/>
+                <field name="remaining_qty" string="Remaining Qty"  optional="hide"
+                       sum="Total Remaining Qty"/>
+                <field name="unit_cost"     string="Unit Value"     optional="hide"/>
+                <field name="value"         string="Total Value"    optional="show"
+                       sum="Total Value"/>
+                <field name="remaining_value" string="Remaining Value" optional="hide"
+                       sum="Total Remaining Value"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Search view for the valuation report -->
+    <record id="stock_valuation_layer_search_ce" model="ir.ui.view">
+        <field name="name">stock.valuation.layer.search.ce</field>
+        <field name="model">stock.valuation.layer</field>
+        <field name="priority">16</field>
+        <field name="arch" type="xml">
+            <search string="Stock Valuation">
+                <field name="product_id"  string="Product"/>
+                <field name="stock_move_id" string="Reference"/>
+                <field name="lot_id"      string="Lot/Serial Number"/>
+                <filter string="Today"
+                        name="filter_today"
+                        domain="[('create_date','&gt;=', (context_today()).strftime('%Y-%m-%d 00:00:00')),
+                                  ('create_date','&lt;=', (context_today()).strftime('%Y-%m-%d 23:59:59'))]"/>
+                <filter string="This Month"
+                        name="filter_this_month"
+                        domain="[('create_date','&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d')),
+                                  ('create_date','&lt;', (context_today() + relativedelta(months=1, day=1)).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter string="Positive Value"
+                        name="filter_positive"
+                        domain="[('value', '&gt;', 0)]"/>
+                <filter string="Negative Value"
+                        name="filter_negative"
+                        domain="[('value', '&lt;', 0)]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Product"         name="group_product"   context="{'group_by': 'product_id'}"/>
+                    <filter string="Product Category" name="group_categ"    context="{'group_by': 'categ_id'}"/>
+                    <filter string="Date"            name="group_date"      context="{'group_by': 'create_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Pivot view -->
+    <record id="stock_valuation_layer_pivot_ce" model="ir.ui.view">
+        <field name="name">stock.valuation.layer.pivot.ce</field>
+        <field name="model">stock.valuation.layer</field>
+        <field name="priority">16</field>
+        <field name="arch" type="xml">
+            <pivot string="Stock Valuation" disable_linking="True">
+                <field name="product_id"   type="row"/>
+                <field name="create_date"  type="col"  interval="month"/>
+                <field name="value"        type="measure"/>
+                <field name="quantity"     type="measure"/>
+                <field name="remaining_value" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Graph view -->
+    <record id="stock_valuation_layer_graph_ce" model="ir.ui.view">
+        <field name="name">stock.valuation.layer.graph.ce</field>
+        <field name="model">stock.valuation.layer</field>
+        <field name="priority">16</field>
+        <field name="arch" type="xml">
+            <graph string="Stock Valuation" type="bar" stacked="True">
+                <field name="product_id" type="row"/>
+                <field name="value"      type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         Main action – Stock Valuation report
+    ============================================================ -->
+    <record id="action_stock_valuation_ce" model="ir.actions.act_window">
+        <field name="name">Stock Valuation</field>
+        <field name="res_model">stock.valuation.layer</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="view_id" ref="stock_valuation_layer_list_view_ce"/>
+        <field name="search_view_id" ref="stock_valuation_layer_search_ce"/>
+        <field name="context">{
+            'search_default_group_by_product': 0
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No valuation entries found.
+            </p>
+            <p>
+                Make sure your products use AVCO or FIFO costing method
+                with <b>Automated</b> inventory valuation.
+            </p>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         Menu entry: Inventory > Reporting > Valuation
+    ============================================================ -->
+    <menuitem id="menu_stock_valuation_ce"
+              name="Valuation"
+              parent="stock.menu_warehouse_report"
+              action="action_stock_valuation_ce"
+              sequence="30"
+              groups="stock.group_stock_manager,account.group_account_readonly"/>
+
+</odoo>
