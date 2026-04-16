@@ -71,7 +71,7 @@
                 <field name="stock_move_id" string="Reference"/>
                 <field name="lot_id"        string="Lot/Serial Number"/>
                 <separator/>
-                <filter string="Positive Value" name="filter_positive" domain="[('value','>',0)]"/>
+                <filter string="Positive Value" name="filter_positive" domain="[('value','&gt;',0)]"/>
                 <filter string="Negative Value" name="filter_negative" domain="[('value','&lt;',0)]"/>
                 <separator/>
                 <group expand="0" string="Group By">
@@ -127,7 +127,10 @@
         </field>
     </record>
 
-    <!-- Valuation at Date button shown at top of the action -->
+    <!-- Valuation at Date button bound to the Stock Valuation list view.
+         NOTE: binding_model_id references stock_account's XML ID.
+         This is safe because stock_account is a hard dependency loaded before
+         this module's data files are processed. -->
     <record id="action_stock_valuation_ce_header_btn" model="ir.actions.act_window">
         <field name="name">Valuation at Date</field>
         <field name="res_model">stock.valuation.at.date.ce</field>

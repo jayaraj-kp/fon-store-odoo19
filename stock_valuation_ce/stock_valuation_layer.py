@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class StockValuationLayerCE(models.Model):
     """
     Extends stock.valuation.layer with a computed journal-entry link.
-    stock.valuation.layer is defined in stock_account which is a hard
-    dependency – Odoo will install it before loading this module.
+
+    stock.valuation.layer is defined in stock_account which is declared as a
+    hard dependency in __manifest__.py.  Odoo guarantees it is loaded before
+    this module, so _inherit is safe here.  The extra guard inside the compute
+    method handles the edge case where account.move is absent (pure inventory
+    install without accounting).
     """
     _inherit = 'stock.valuation.layer'
 
@@ -19,16 +26,18 @@ class StockValuationLayerCE(models.Model):
 
     @api.depends('stock_move_id')
     def _compute_account_move_id(self):
+        # Guard: account.move may not exist if accounting is not installed
         if 'account.move' not in self.env:
             for rec in self:
                 rec.account_move_id = False
             return
         for rec in self:
-            rec.account_move_id = (
-                self.env['account.move'].search(
+            if rec.stock_move_id:
+                rec.account_move_id = self.env['account.move'].search(
                     [('stock_move_id', '=', rec.stock_move_id.id)], limit=1
-                ) if rec.stock_move_id else False
-            )
+                )
+            else:
+                rec.account_move_id = False
 
 
 class StockValuationAtDateCE(models.TransientModel):
@@ -60,6 +69,11 @@ class StockValuationAtDateCE(models.TransientModel):
         domain = [('create_date', '<=', self.date)]
         if self.product_ids:
             domain.append(('product_id', 'in', self.product_ids.ids))
+        if self.location_id:
+            # Filter by warehouse/location via stock move origin
+            domain.append(
+                ('stock_move_id.location_dest_id', 'child_of', self.location_id.id)
+            )
         return {
             'type': 'ir.actions.act_window',
             'name': 'Stock Valuation at %s' % fields.Datetime.to_string(self.date),
