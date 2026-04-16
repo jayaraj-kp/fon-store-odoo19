@@ -1,8 +1,11 @@
 # Copyright 2019 Eficent Business and IT Consulting Services, S.L.
 # Copyright 2019 Aleph Objects, Inc.
+# License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl.html).
+
+import ast
+
 from odoo import fields, models
 from odoo.osv import expression
-from odoo.tools.safe_eval import safe_eval
 
 
 class StockValuationHistory(models.TransientModel):
@@ -20,7 +23,7 @@ class StockValuationHistory(models.TransientModel):
         action = self.env["ir.actions.act_window"]._for_xml_id(
             "stock_account_valuation_report.product_valuation_action"
         )
-        domain = [("type", "=", "product")]
+        domain = [("type", "=", "consu")]
         product_id = self.env.context.get("product_id", False)
         product_tmpl_id = self.env.context.get("product_tmpl_id", False)
         if product_id:
@@ -31,7 +34,8 @@ class StockValuationHistory(models.TransientModel):
             )
         action["domain"] = domain
         if self.inventory_datetime:
-            action_context = safe_eval(action["context"])
+            # Use ast.literal_eval instead of deprecated safe_eval for simple dicts
+            action_context = ast.literal_eval(action["context"])
             action_context["at_date"] = self.inventory_datetime
-            action["context"] = action_context
+            action["context"] = str(action_context)
         return action

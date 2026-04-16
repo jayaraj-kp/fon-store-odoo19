@@ -8,94 +8,71 @@ from odoo.tests.common import TransactionCase
 
 
 class TestStockAccountValuationReport(TransactionCase):
-    def setUp(self):
-        super(TestStockAccountValuationReport, self).setUp()
-        # Get required Model
-        self.product_model = self.env["product.product"]
-        self.template_model = self.env["product.template"]
-        self.product_ctg_model = self.env["product.category"]
-        self.account_model = self.env["account.account"]
-        self.quant_model = self.env["stock.quant"]
-        self.layer_model = self.env["stock.valuation.layer"]
-        self.stock_location_model = self.env["stock.location"]
-        self.res_users_model = self.env["res.users"]
-        self.account_move_model = self.env["account.move"]
-        self.aml_model = self.env["account.move.line"]
-        self.journal_model = self.env["account.journal"]
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Get required Models
+        cls.product_model = cls.env["product.product"]
+        cls.template_model = cls.env["product.template"]
+        cls.product_ctg_model = cls.env["product.category"]
+        cls.account_model = cls.env["account.account"]
+        cls.quant_model = cls.env["stock.quant"]
+        cls.layer_model = cls.env["stock.valuation.layer"]
+        cls.stock_location_model = cls.env["stock.location"]
+        cls.res_users_model = cls.env["res.users"]
+        cls.account_move_model = cls.env["account.move"]
+        cls.aml_model = cls.env["account.move.line"]
+        cls.journal_model = cls.env["account.journal"]
         # Get required Model data
-        self.product_uom = self.env.ref("uom.product_uom_unit")
-        self.company = self.env.ref("base.main_company")
-        self.stock_picking_type_out = self.env.ref("stock.picking_type_out")
-        self.stock_picking_type_in = self.env.ref("stock.picking_type_in")
-        self.stock_location_id = self.ref("stock.stock_location_stock")
-        self.stock_location_customer_id = self.ref("stock.stock_location_customers")
-        self.stock_location_supplier_id = self.ref("stock.stock_location_suppliers")
+        cls.product_uom = cls.env.ref("uom.product_uom_unit")
+        cls.company = cls.env.ref("base.main_company")
+        cls.stock_picking_type_out = cls.env.ref("stock.picking_type_out")
+        cls.stock_picking_type_in = cls.env.ref("stock.picking_type_in")
+        cls.stock_location_id = cls.env.ref("stock.stock_location_stock").id
+        cls.stock_location_customer_id = cls.env.ref(
+            "stock.stock_location_customers"
+        ).id
+        cls.stock_location_supplier_id = cls.env.ref(
+            "stock.stock_location_suppliers"
+        ).id
         # Account types
         expense_type = "expense"
         equity_type = "equity"
         asset_type = "asset_current"
         # Create account for Goods Received Not Invoiced
-        name = "Goods Received Not Invoiced"
-        code = "grni"
-        account_type = equity_type
-        self.account_grni = self._create_account(account_type, name, code, self.company)
-        # Create account for Cost of Goods Sold
-        name = "Cost of Goods Sold"
-        code = "cogs"
-        account_type = expense_type
-        self.account_cogs = self._create_account(account_type, name, code, self.company)
-        # Create account for Goods Delivered Not Invoiced
-        name = "Goods Delivered Not Invoiced"
-        code = "gdni"
-        account_type = expense_type
-        self.account_gdni = self._create_account(account_type, name, code, self.company)
-        # Create account for Inventory
-        name = "Inventory"
-        code = "inventory"
-        account_type = asset_type
-        self.account_inventory = self._create_account(
-            account_type, name, code, self.company
+        cls.account_grni = cls._create_account(
+            equity_type, "Goods Received Not Invoiced", "grni", cls.company
         )
-
-        self.stock_journal = self.env["account.journal"].create(
+        # Create account for Cost of Goods Sold
+        cls.account_cogs = cls._create_account(
+            expense_type, "Cost of Goods Sold", "cogs", cls.company
+        )
+        # Create account for Goods Delivered Not Invoiced
+        cls.account_gdni = cls._create_account(
+            expense_type, "Goods Delivered Not Invoiced", "gdni", cls.company
+        )
+        # Create account for Inventory
+        cls.account_inventory = cls._create_account(
+            asset_type, "Inventory", "inventory", cls.company
+        )
+        cls.stock_journal = cls.env["account.journal"].create(
             {"name": "Stock journal", "type": "general", "code": "STK00"}
         )
         # Create product category
-        self.product_ctg = self._create_product_category()
-
+        cls.product_ctg = cls._create_product_category()
         # Create partners
-        self.supplier = self.env["res.partner"].create({"name": "Test supplier"})
-        self.customer = self.env["res.partner"].create({"name": "Test customer"})
-
-        # Create a Product with real cost
-        standard_price = 10.0
-        list_price = 20.0
-        self.product = self._create_product(standard_price, False, list_price)
-
-        # Create a vendor
-        self.vendor_partner = self.env["res.partner"].create(
+        cls.supplier = cls.env["res.partner"].create({"name": "Test supplier"})
+        cls.customer = cls.env["res.partner"].create({"name": "Test customer"})
+        cls.vendor_partner = cls.env["res.partner"].create(
             {"name": "dropship vendor"}
         )
+        # Create a Product with real cost
+        cls.product = cls._create_product(10.0, False, 20.0)
 
-    def _create_user(self, login, groups, company):
-        """Create a user."""
-        group_ids = [group.id for group in groups]
-        user = self.res_users_model.with_context(no_reset_password=True).create(
-            {
-                "name": "Test User",
-                "login": login,
-                "password": "demo",
-                "email": "test@yourcompany.com",
-                "company_id": company.id,
-                "company_ids": [(4, company.id)],
-                "groups_id": [(6, 0, group_ids)],
-            }
-        )
-        return user
-
-    def _create_account(self, account_type, name, code, company):
+    @classmethod
+    def _create_account(cls, account_type, name, code, company):
         """Create an account."""
-        account = self.account_model.create(
+        return cls.account_model.create(
             {
                 "name": name,
                 "code": code,
@@ -103,40 +80,41 @@ class TestStockAccountValuationReport(TransactionCase):
                 "company_id": company.id,
             }
         )
-        return account
 
-    def _create_product_category(self):
-        product_ctg = self.product_ctg_model.create(
+    @classmethod
+    def _create_product_category(cls):
+        return cls.product_ctg_model.create(
             {
                 "name": "test_product_ctg",
-                "property_stock_valuation_account_id": self.account_inventory.id,
-                "property_stock_account_input_categ_id": self.account_grni.id,
-                "property_account_expense_categ_id": self.account_cogs.id,
-                "property_stock_account_output_categ_id": self.account_gdni.id,
+                "property_stock_valuation_account_id": cls.account_inventory.id,
+                "property_stock_account_input_categ_id": cls.account_grni.id,
+                "property_account_expense_categ_id": cls.account_cogs.id,
+                "property_stock_account_output_categ_id": cls.account_gdni.id,
                 "property_valuation": "real_time",
                 "property_cost_method": "fifo",
-                "property_stock_journal": self.stock_journal.id,
+                "property_stock_journal": cls.stock_journal.id,
             }
         )
-        return product_ctg
 
-    def _create_product(self, standard_price, template, list_price):
+    @classmethod
+    def _create_product(cls, standard_price, template, list_price):
         """Create a Product variant."""
         if not template:
-            template = self.template_model.create(
+            template = cls.template_model.create(
                 {
                     "name": "test_product",
-                    "categ_id": self.product_ctg.id,
-                    "type": "product",
+                    "categ_id": cls.product_ctg.id,
+                    # Odoo 17+: storable products use 'consu' with
+                    # can_be_expensed/tracking; 'product' type is removed.
+                    "type": "consu",
                     "standard_price": standard_price,
                     "valuation": "real_time",
                 }
             )
             return template.product_variant_ids[0]
-        product = self.product_model.create(
+        return cls.product_model.create(
             {"product_tmpl_id": template.id, "list_price": list_price}
         )
-        return product
 
     def _create_delivery(self, product, qty, price_unit=10.0):
         return self.env["stock.picking"].create(
@@ -165,7 +143,7 @@ class TestStockAccountValuationReport(TransactionCase):
             }
         )
 
-    def _create_drophip_picking(self, product, qty, price_unit=10.0):
+    def _create_dropship_picking(self, product, qty, price_unit=10.0):
         return self.env["stock.picking"].create(
             {
                 "name": self.stock_picking_type_out.sequence_id._next(),
@@ -221,56 +199,52 @@ class TestStockAccountValuationReport(TransactionCase):
         )
 
     def _do_picking(self, picking, date, qty):
-        """Do picking with only one move on the given date."""
+        """Confirm and validate a picking on the given date."""
         picking.write({"date": date})
         picking.move_ids.write({"date": date})
         picking.action_confirm()
         picking.action_assign()
-        picking.move_ids.quantity_done = qty
+        # Odoo 17+: use move_line_ids.qty_done instead of move_ids.quantity_done
+        for move_line in picking.move_line_ids:
+            move_line.qty_done = qty
         picking.button_validate()
-        # hacking the create_date of the layer in order to test
+        # Hack create_date of the SVL to test date-based filtering
         self.env.cr.execute(
-            """UPDATE stock_valuation_layer SET create_date = %s WHERE id in %s""",
+            "UPDATE stock_valuation_layer SET create_date = %s WHERE id IN %s",
             (date, tuple(picking.move_ids.stock_valuation_layer_ids.ids)),
         )
         return True
 
     def test_01_stock_receipt(self):
-        """Receive into stock and ship to the customer"""
-        # Create receipt
+        """Receive into stock and ship to the customer."""
         in_picking = self._create_receipt(self.product, 1.0)
-        # Receive one unit.
         self._do_picking(in_picking, fields.Datetime.now(), 1.0)
-        # This will create an entry:
-        #              dr  cr
-        # GRNI              10
-        # Inventory    10
 
-        # Inventory is 10
         aml = self.aml_model.search([("product_id", "=", self.product.id)])
-        inv_aml = aml.filtered(lambda l: l.account_id == self.account_inventory)
-        balance_inv = sum(inv_aml.mapped("balance"))
-        self.assertEqual(balance_inv, 10.0)
+        inv_aml = aml.filtered(
+            lambda l: l.account_id == self.account_inventory
+        )
+        self.assertEqual(sum(inv_aml.mapped("balance")), 10.0)
+
         move = in_picking.move_ids
         layer = self.layer_model.search([("stock_move_id", "=", move.id)])
         self.assertEqual(layer.remaining_value, 10.0)
-        # The accounting value and the stock value match
+
         self.assertEqual(self.product.stock_value, 10.0)
         self.assertEqual(self.product.account_value, 10.0)
-        # The qty also match
         self.assertEqual(self.product.qty_at_date, 1.0)
         self.assertEqual(self.product.account_qty_at_date, 1.0)
-        # Create an out picking
+
         out_picking = self._create_delivery(self.product, 1)
         self._do_picking(out_picking, fields.Datetime.now(), 1.0)
-        # The original layer must have been reduced.
+
         self.assertEqual(layer.remaining_qty, 0.0)
         self.assertEqual(layer.remaining_value, 0.0)
-        # The layer out took that out
+
         move = out_picking.move_ids
         layer = self.layer_model.search([("stock_move_id", "=", move.id)])
         self.assertEqual(layer.value, -10.0)
-        # The report shows the material is gone
+
         self.product._compute_inventory_value()
         self.assertEqual(self.product.stock_value, 0.0)
         self.assertEqual(self.product.account_value, 0.0)
@@ -278,86 +252,72 @@ class TestStockAccountValuationReport(TransactionCase):
         self.assertEqual(self.product.account_qty_at_date, 0.0)
 
     def test_02_drop_ship(self):
-        """Drop shipment from vendor to customer"""
-        # Create drop_shipment
-        dropship_picking = self._create_drophip_picking(self.product, 1.0)
-        # Receive one unit.
+        """Drop shipment from vendor to customer."""
+        dropship_picking = self._create_dropship_picking(self.product, 1.0)
         self._do_picking(dropship_picking, fields.Datetime.now(), 1.0)
-        # This will create the following entries
-        #              dr  cr
-        # GRNI              10
-        # Inventory    10
-        #              dr  cr
-        # Inventory        10
-        # GDNI         10
+
         aml = self.aml_model.search([("product_id", "=", self.product.id)])
-        # Inventory is 0
-        inv_aml = aml.filtered(lambda l: l.account_id == self.account_inventory)
-        balance_inv = sum(inv_aml.mapped("balance"))
-        self.assertEqual(balance_inv, 0.0)
-        # There are two a stock valuation layers associated to this product
+        inv_aml = aml.filtered(
+            lambda l: l.account_id == self.account_inventory
+        )
+        self.assertEqual(sum(inv_aml.mapped("balance")), 0.0)
+
         move = dropship_picking.move_ids
         layers = self.layer_model.search([("stock_move_id", "=", move.id)])
         self.assertEqual(len(layers), 2)
         in_layer = layers.filtered(lambda l: l.quantity > 0)
-        # Check that the layer created for the outgoing move
         self.assertEqual(in_layer.remaining_qty, 0.0)
         self.assertEqual(in_layer.remaining_value, 0.0)
-        # The report shows the material is gone
+
         self.assertEqual(self.product.stock_value, 0.0)
         self.assertEqual(self.product.account_value, 0.0)
         self.assertEqual(self.product.qty_at_date, 0.0)
         self.assertEqual(self.product.account_qty_at_date, 0.0)
 
     def test_03_stock_receipt_several_costs_several_dates(self):
-        """Receive into stock at different cost"""
-        # Create receipt
+        """Receive into stock at different costs on different dates."""
         in_picking = self._create_receipt(self.product, 1.0)
-        # Receive one unit.
         self._do_picking(in_picking, fields.Datetime.now(), 1.0)
-        # This will create an entry:
-        #              dr  cr
-        # GRNI              10
-        # Inventory    10
 
-        # Inventory is 10
         aml = self.aml_model.search([("product_id", "=", self.product.id)])
-        inv_aml = aml.filtered(lambda l: l.account_id == self.account_inventory)
-        balance_inv = sum(inv_aml.mapped("balance"))
-        self.assertEqual(balance_inv, 10.0)
+        inv_aml = aml.filtered(
+            lambda l: l.account_id == self.account_inventory
+        )
+        self.assertEqual(sum(inv_aml.mapped("balance")), 10.0)
+
         move = in_picking.move_ids
         layer = self.layer_model.search([("stock_move_id", "=", move.id)])
         self.assertEqual(layer.remaining_value, 10.0)
-        # Receive more
-        in_picking2 = self._create_receipt(self.product, 2.0, False, 20.0)
-        # Receive two unitsat double cost.
-        self._do_picking(
-            in_picking2, fields.Datetime.now() + relativedelta(days=3), 2.0
-        )
-        # This will create an entry:
-        #              dr  cr
-        # GRNI              40
-        # Inventory    40
 
-        # Inventory is 50
+        in_picking2 = self._create_receipt(self.product, 2.0, False, 20.0)
+        self._do_picking(
+            in_picking2,
+            fields.Datetime.now() + relativedelta(days=3),
+            2.0,
+        )
+
         aml = self.aml_model.search([("product_id", "=", self.product.id)])
-        inv_aml = aml.filtered(lambda l: l.account_id == self.account_inventory)
-        balance_inv = sum(inv_aml.mapped("balance"))
-        self.assertEqual(balance_inv, 50.0)
+        inv_aml = aml.filtered(
+            lambda l: l.account_id == self.account_inventory
+        )
+        self.assertEqual(sum(inv_aml.mapped("balance")), 50.0)
+
         move2 = in_picking2.move_ids
-        layer = self.layer_model.search([("stock_move_id", "=", move2.id)])
-        self.assertEqual(layer.remaining_value, 40.0)
-        # Now we check the report reflects the same
+        layer2 = self.layer_model.search([("stock_move_id", "=", move2.id)])
+        self.assertEqual(layer2.remaining_value, 40.0)
+
         self.assertEqual(self.product.stock_value, 50.0)
         self.assertEqual(self.product.account_value, 50.0)
         self.assertEqual(self.product.qty_at_date, 3.0)
         self.assertEqual(self.product.account_qty_at_date, 3.0)
-        # That is the value tomorrow, today it is less
-        # We hack the date in the account move, not a topic for this module
-        aml_layer = layer.account_move_id.line_ids
+
+        aml_layer = layer2.account_move_id.line_ids
         self.env.cr.execute(
-            """UPDATE account_move_line SET date = %s WHERE id in %s""",
-            (fields.Datetime.now() + relativedelta(days=3), tuple(aml_layer.ids)),
+            "UPDATE account_move_line SET date = %s WHERE id IN %s",
+            (
+                fields.Datetime.now() + relativedelta(days=3),
+                tuple(aml_layer.ids),
+            ),
         )
         self.product.with_context(
             at_date=fields.Datetime.now() + relativedelta(days=1)
