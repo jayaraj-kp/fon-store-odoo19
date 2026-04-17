@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_category_property_form_perpetual_inherit" model="ir.ui.view">
+        <field name="name">product.category.stock.property.form.inherit</field>
+        <field name="model">product.category</field>
+        <field name="inherit_id" ref="stock.product_category_form_view_inherit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='property_valuation']" position="attributes">
+                <attribute name="readonly">0</attribute>
+                <attribute name="invisible">0</attribute>
+            </xpath>
+
+            <xpath expr="//group[@name='inventory_valuation']" position="inside">
+                <field name="property_stock_journal"
+                       invisible="property_valuation != 'real_time'"
+                       required="property_valuation == 'real_time'"/>
+                <field name="property_stock_valuation_account_id"
+                       invisible="property_valuation != 'real_time'"
+                       required="property_valuation == 'real_time'"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
