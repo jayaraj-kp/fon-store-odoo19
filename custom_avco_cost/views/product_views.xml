@@ -12,8 +12,8 @@
             <xpath expr="//field[@name='standard_price']" position="after">
                 <field name="use_custom_cost"
                        widget="boolean_toggle"
-                       attrs="{'invisible': [('type', '=', 'service')]}"
-                       string="Custom Cost (Value ÷ Latest PO Price)"/>
+                       string="Custom Cost (Value ÷ Latest PO Price)"
+                       invisible="type == 'service'"/>
             </xpath>
 
         </field>
@@ -32,7 +32,7 @@
                         type="object"
                         string="Recompute Custom Cost"
                         icon="fa-calculator"
-                        attrs="{'invisible': [('use_custom_cost', '=', False)]}"
+                        invisible="not use_custom_cost"
                         class="btn-secondary"/>
             </xpath>
 
