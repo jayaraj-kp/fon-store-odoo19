@@ -19,7 +19,6 @@
                        invisible="property_valuation != 'real_time'"
                        required="property_valuation == 'real_time'"/>
                 <field name="property_stock_valuation_variation_account_id"
-                       label="Stock Variation Account"
                        invisible="property_valuation != 'real_time'"
                        required="property_valuation == 'real_time'"/>
             </xpath>
