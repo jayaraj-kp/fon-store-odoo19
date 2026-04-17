@@ -35,11 +35,11 @@
         <field name="target">new</field>
     </record>
 
-    <menuitem id="menu_account_report"
-              name="Tax Report"
-              sequence="30"
-              action="action_account_tax_report"
-              parent="menu_finance_audit_reports"
-              groups="account.group_account_manager,account.group_account_user"/>
+<!--    <menuitem id="menu_account_report"-->
+<!--              name="Tax Report"-->
+<!--              sequence="30"-->
+<!--              action="action_account_tax_report"-->
+<!--              parent="menu_finance_audit_reports"-->
+<!--              groups="account.group_account_manager,account.group_account_user"/>-->
 
 </odoo>

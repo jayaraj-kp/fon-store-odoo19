@@ -106,11 +106,11 @@
         <field name="context" eval="{'default_account_report_id':ref('accounting_pdf_reports.account_financial_report_balancesheet0')}"/>
     </record>
 
-    <menuitem id="menu_account_report_bs"
-              name="Balance Sheet"
-              sequence="5"
-              action="action_account_report_bs"
-              parent="menu_finance_legal_statement"
-              groups="account.group_account_user,account.group_account_manager"/>
+<!--    <menuitem id="menu_account_report_bs"-->
+<!--              name="Balance Sheet"-->
+<!--              sequence="5"-->
+<!--              action="action_account_report_bs"-->
+<!--              parent="menu_finance_legal_statement"-->
+<!--              groups="account.group_account_user,account.group_account_manager"/>-->
 
 </odoo>

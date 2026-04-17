@@ -11,11 +11,11 @@
         <field name="context" eval="{'default_account_report_id':ref('accounting_pdf_reports.account_financial_report_profitandloss0')}"/>
     </record>
 
-    <menuitem id="menu_account_report_pl"
-              name="Profit and Loss"
-              sequence="6"
-              action="action_account_report_pl"
-              parent="accounting_pdf_reports.menu_finance_legal_statement"
-              groups="account.group_account_user,account.group_account_manager"/>
+<!--    <menuitem id="menu_account_report_pl"-->
+<!--              name="Profit and Loss"-->
+<!--              sequence="6"-->
+<!--              action="action_account_report_pl"-->
+<!--              parent="accounting_pdf_reports.menu_finance_legal_statement"-->
+<!--              groups="account.group_account_user,account.group_account_manager"/>-->
 
 </odoo>
