@@ -26,14 +26,20 @@
         <field name="inherit_id" ref="product.product_normal_form_view"/>
         <field name="arch" type="xml">
 
-            <!-- Add manual recompute button in the header button area -->
-            <xpath expr="//button[@name='action_open_quants']" position="before">
+            <!--
+                Add manual recompute button in the header.
+                We anchor to the <div class="oe_button_box"> block which is
+                stable across Odoo 16-19.  If that too is absent, fall back to
+                inserting before the first field in the form (position="inside"
+                on the sheet).  The xpath below targets the button box div.
+            -->
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
                 <button name="action_recompute_custom_cost"
                         type="object"
                         string="Recompute Custom Cost"
                         icon="fa-calculator"
                         invisible="not use_custom_cost"
-                        class="btn-secondary"/>
+                        class="oe_stat_button"/>
             </xpath>
 
         </field>
