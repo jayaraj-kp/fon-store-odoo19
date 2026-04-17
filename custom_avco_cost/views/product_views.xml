@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Product Template Form ── -->
+    <record id="product_template_custom_cost_view" model="ir.ui.view">
+        <field name="name">product.template.custom.cost.form</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Add the toggle right after the Cost field in General Info tab -->
+            <xpath expr="//field[@name='standard_price']" position="after">
+                <field name="use_custom_cost"
+                       widget="boolean_toggle"
+                       attrs="{'invisible': [('type', '=', 'service')]}"
+                       string="Custom Cost (Value ÷ Latest PO Price)"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ── Product Product (variant) Form ── -->
+    <record id="product_product_custom_cost_view" model="ir.ui.view">
+        <field name="name">product.product.custom.cost.form</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_normal_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Add manual recompute button in the header button area -->
+            <xpath expr="//button[@name='action_open_quants']" position="before">
+                <button name="action_recompute_custom_cost"
+                        type="object"
+                        string="Recompute Custom Cost"
+                        icon="fa-calculator"
+                        attrs="{'invisible': [('use_custom_cost', '=', False)]}"
+                        class="btn-secondary"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
