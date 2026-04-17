@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Preview dialog for Partner Ledger.
+        Opened by action_preview_report() on account.report.partner.ledger.
+        External ID: partner_ledger_preview.view_partner_ledger_preview_form
+    -->
+    <record id="view_partner_ledger_preview_form" model="ir.ui.view">
+        <field name="name">account.report.partner.ledger.preview.form</field>
+        <field name="model">account.report.partner.ledger</field>
+        <field name="arch" type="xml">
+            <form string="Partner Ledger – Preview">
+                <sheet>
+                    <field name="preview_html"
+                           widget="html"
+                           nolabel="1"
+                           readonly="1"
+                           style="min-height: 450px; overflow-y: auto;"/>
+                </sheet>
+                <footer>
+                    <button string="Print PDF"
+                            name="check_report"
+                            type="object"
+                            class="btn-primary"
+                            data-hotkey="p"/>
+                    <button string="Close"
+                            class="btn-secondary"
+                            special="cancel"
+                            data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>
