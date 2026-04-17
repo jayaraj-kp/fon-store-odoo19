@@ -18,7 +18,7 @@
                 <field name="property_stock_valuation_account_id"
                        invisible="property_valuation != 'real_time'"
                        required="property_valuation == 'real_time'"/>
-                <field name="property_stock_account_input_categ_id"
+                <field name="property_stock_valuation_variation_account_id"
                        label="Stock Variation Account"
                        invisible="property_valuation != 'real_time'"
                        required="property_valuation == 'real_time'"/>
