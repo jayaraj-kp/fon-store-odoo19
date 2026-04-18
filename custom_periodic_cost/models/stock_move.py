@@ -1,4 +1,4 @@
-from odoo import models, api
+from odoo import models
 
 
 class StockMove(models.Model):
@@ -7,31 +7,19 @@ class StockMove(models.Model):
     def _action_done(self, cancel_backorder=False):
         res = super(StockMove, self)._action_done(cancel_backorder=cancel_backorder)
         for move in self:
-            # Trigger only on incoming products (Receipts)
+            # Trigger only on incoming receipt moves
             if move.picking_code == 'incoming' and move.product_id:
                 product = move.product_id
 
-                # 1. Get the price from the CURRENT receipt (the one you just validated)
-                # This ensures we use the "Latest Purchase Price"
-                latest_purchase_price = move.price_unit or move.purchase_line_id.price_unit
-
-                # 2. Calculate Total Value MANUALLY
-                # Formula: (Previous Qty * Previous Cost) + (New Received Qty * New Price)
+                # 1. Calculation: (Remaining Qty * Current Cost) + (New Qty * Purchase Price)
+                # We subtract move.quantity because it has already been added to qty_available
                 previous_qty = product.qty_available - move.quantity
-                previous_cost = product.standard_price
 
-                new_received_qty = move.quantity
-                new_received_price = latest_purchase_price
+                # Use current standard_price as the "Previous Cost"
+                total_value = (previous_qty * product.standard_price) + (move.quantity * move.price_unit)
 
-                total_value = (previous_qty * previous_cost) + (new_received_qty * new_received_price)
-
-                # 3. Apply your custom formula: Total Value / Latest Purchase Price
-                # Scenario: (50 * 200) + (100 * 250) = 35,000
-                # Result: 35,000 / 250 = 140
-                if latest_purchase_price > 0:
-                    custom_cost = total_value / latest_purchase_price
-
-                    # Update the product cost field
-                    product.sudo().write({'standard_price': custom_cost})
-
+                # 2. Update the Cost Price (standard_price)
+                if product.qty_available > 0:
+                    new_avco = total_value / product.qty_available
+                    product.sudo().write({'standard_price': new_avco})
         return res
