@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Warehouse Analytic Account',
-    'version': '19.0.6.0.0',
+    'version': '19.0.7.0.0',
     'category': 'Inventory/Configuration',
-    'summary': 'Auto-apply warehouse analytic account on sales, purchases, invoices and POS',
+    'summary': 'Auto-apply warehouse analytic on sales, purchases, invoices, POS and bank reconciliation',
     'description': """
         Adds an Analytic Account field on each Warehouse.
-        Automatically applies to:
+        Automatically applies the linked analytic account to:
         - Sales Quotation & Sales Order
         - Purchase Quotation (RFQ) & Purchase Order
         - Customer Invoice & Credit Note
         - Vendor Bill & Vendor Refund
-        - POS Orders & Session Closing Journal Entries (revenue lines only)
+        - POS Orders & Session Closing Journal Entries
+        - Bank Statement Lines & Reconciliation widget (Analytic column)
         - Stock Moves / Pickings (on validation)
     """,
     'author': 'Custom',
@@ -22,6 +23,7 @@
         'account',
         'analytic',
         'point_of_sale',
+        'account_reconcile_oca',
     ],
     'data': [
         'security/ir.model.access.csv',
