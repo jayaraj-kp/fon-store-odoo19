@@ -1,0 +1,28 @@
+<odoo>
+    <record id="view_periodic_valuation_tree" model="ir.ui.view">
+        <field name="name">periodic.valuation.tree</field>
+        <field name="model">product.product</field>
+        <field name="arch" type="xml">
+            <tree create="false" edit="false">
+                <field name="display_name" string="Product"/>
+                <field name="qty_available" string="Quantity"/>
+                <field name="standard_price" string="Unit Value"/>
+                <field name="inventory_value" string="Total Value" sum="Total"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_periodic_valuation" model="ir.actions.act_window">
+        <field name="name">Inventory Valuation</field>
+        <field name="res_model">product.product</field>
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="view_periodic_valuation_tree"/>
+        <field name="domain">[('type', '=', 'product'), ('qty_available', '>', 0)]</field>
+    </record>
+
+    <menuitem id="menu_periodic_valuation_custom"
+              name="Inventory Valuation (Periodic)"
+              parent="stock.menu_warehouse_report"
+              action="action_periodic_valuation"
+              sequence="100"/>
+</odoo>
