@@ -1,12 +1,13 @@
+# periodic_valuation_report/models/product_product.py
 from odoo import models, fields, api
 
 class ProductProduct(models.Model):
     _inherit = 'product.product'
 
-    # This creates a 'virtual' field that Odoo can now display
     total_inventory_value = fields.Float(
         string="Total Value",
-        compute="_compute_total_inventory_value"
+        compute="_compute_total_inventory_value",
+        store=False # Set to False so it doesn't try to look for a database column
     )
 
     @api.depends('qty_available', 'standard_price')

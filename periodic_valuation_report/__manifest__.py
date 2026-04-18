@@ -5,5 +5,7 @@
     'data': [
         'views/report_view.xml',
     ],
+    # ADD THIS LINE:
     'installable': True,
+    'application': True,
 }
