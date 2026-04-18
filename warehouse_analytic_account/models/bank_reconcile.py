@@ -14,18 +14,89 @@ def _get_user_warehouse(user):
     return False
 
 
-def _get_user_analytic(user):
+def _resolve_analytic_for_statement_line(st_line):
+    """
+    Resolve the correct analytic account for a bank statement line.
+
+    Priority order:
+    1. Warehouse linked to the journal of the statement line
+       (most reliable — the journal belongs to CHELARI-SHOP cash journal)
+    2. Warehouse linked to the POS config that created this statement line
+       (via session → config → picking_type → warehouse)
+    3. Default warehouse of the current user
+       (fallback for manually created statement lines)
+
+    Returns an analytic account record or False.
+    """
+    # --- Priority 1: Journal → Warehouse → Analytic ---
+    journal = getattr(st_line, 'journal_id', False)
+    if journal:
+        # Try direct warehouse on journal
+        wh = getattr(journal, 'warehouse_id', False)
+        if wh and getattr(wh, 'analytic_account_id', False):
+            _logger.debug('Analytic resolved from journal warehouse: %s', wh.name)
+            return wh.analytic_account_id
+
+        # Try via the journal's default account → company warehouse mapping
+        # Many POS cash journals are named per shop (e.g. "Cash CHLR")
+        # so we check all warehouses and match by journal
+        warehouses = st_line.env['stock.warehouse'].search([
+            ('analytic_account_id', '!=', False),
+            ('company_id', '=', st_line.company_id.id),
+        ])
+        for wh in warehouses:
+            # Check if this warehouse has POS configs using this journal
+            pos_configs = st_line.env['pos.config'].search([
+                ('company_id', '=', st_line.company_id.id),
+            ])
+            for config in pos_configs:
+                config_wh = False
+                picking_type = getattr(config, 'picking_type_id', False)
+                if picking_type:
+                    config_wh = getattr(picking_type, 'warehouse_id', False)
+                if not config_wh:
+                    config_wh = getattr(config, 'warehouse_id', False)
+
+                if config_wh and config_wh.id == wh.id:
+                    # Check if any payment method of this config uses this journal
+                    for pm in getattr(config, 'payment_method_ids', []):
+                        pm_journal = getattr(pm, 'journal_id', False)
+                        if pm_journal and pm_journal.id == journal.id:
+                            _logger.debug(
+                                'Analytic resolved from POS config %s journal match: %s',
+                                config.name, wh.name
+                            )
+                            return wh.analytic_account_id
+
+    # --- Priority 2: POS session linked to this statement line ---
+    # account.bank.statement.line may have a pos_session_id in some versions
+    session = getattr(st_line, 'pos_session_id', False)
+    if session:
+        config = getattr(session, 'config_id', False)
+        if config:
+            picking_type = getattr(config, 'picking_type_id', False)
+            if picking_type:
+                wh = getattr(picking_type, 'warehouse_id', False)
+                if wh and getattr(wh, 'analytic_account_id', False):
+                    _logger.debug(
+                        'Analytic resolved from POS session: %s', wh.name
+                    )
+                    return wh.analytic_account_id
+
+    # --- Priority 3: Current user's default warehouse ---
+    user = st_line.env.user
     wh = _get_user_warehouse(user)
-    if wh and wh.analytic_account_id:
+    if wh and getattr(wh, 'analytic_account_id', False):
+        _logger.debug('Analytic resolved from user warehouse: %s', wh.name)
         return wh.analytic_account_id
+
     return False
 
 
 def _inject_analytic_into_data(data, analytic):
     """
-    Inject the warehouse analytic account into every line of the
-    reconcile_data_info 'data' list that does not already have one.
-    This ensures it shows in the Analytic column of the reconcile widget.
+    Inject the warehouse analytic into every line of the reconcile
+    data list that does not already have one.
     """
     if not data or not analytic:
         return data
@@ -40,92 +111,42 @@ def _inject_analytic_into_data(data, analytic):
 
 
 def _inject_analytic_into_reconcile_info(reconcile_info, analytic):
-    """
-    Given a full reconcile_data_info dict, inject analytic into all
-    data lines and return the updated dict.
-    """
     if not reconcile_info or not analytic:
         return reconcile_info
-    data = reconcile_info.get('data', [])
-    _inject_analytic_into_data(data, analytic)
+    _inject_analytic_into_data(reconcile_info.get('data', []), analytic)
     return reconcile_info
 
 
 class AccountBankStatementLine(models.Model):
     _inherit = 'account.bank.statement.line'
 
-    # ------------------------------------------------------------------
-    # Override _default_reconcile_data — called every time the reconcile
-    # widget is opened or refreshed. Injecting here means the analytic
-    # column is pre-filled the moment the user opens the statement line.
-    # ------------------------------------------------------------------
     def _default_reconcile_data(self, from_unreconcile=False):
         result = super()._default_reconcile_data(from_unreconcile=from_unreconcile)
-        analytic = _get_user_analytic(self.env.user)
+        analytic = _resolve_analytic_for_statement_line(self)
         if analytic:
             _inject_analytic_into_reconcile_info(result, analytic)
         return result
 
-    # ------------------------------------------------------------------
-    # Override _recompute_suspense_line — called every time lines change
-    # in the widget (add line, change amount, model applied, etc.)
-    # ------------------------------------------------------------------
     def _recompute_suspense_line(self, data, reconcile_auxiliary_id,
                                  manual_reference):
         result = super()._recompute_suspense_line(
             data, reconcile_auxiliary_id, manual_reference
         )
-        analytic = _get_user_analytic(self.env.user)
+        analytic = _resolve_analytic_for_statement_line(self)
         if analytic:
             _inject_analytic_into_reconcile_info(result, analytic)
         return result
 
-    # ------------------------------------------------------------------
-    # Override reconcile_bank_line — called when user clicks Validate.
-    # Stamps analytic on the actual posted journal entry lines after
-    # reconciliation so it persists in the journal entry too.
-    # ------------------------------------------------------------------
-    def reconcile_bank_line(self):
-        result = super().reconcile_bank_line()
-        analytic = _get_user_analytic(self.env.user)
-        if analytic:
-            key = str(analytic.id)
-            for st_line in self:
-                if st_line.move_id:
-                    for line in st_line.move_id.line_ids.filtered(
-                        lambda l: l.account_id
-                    ):
-                        existing = line.analytic_distribution or {}
-                        if key not in existing:
-                            new_dist = dict(existing)
-                            new_dist[key] = 100.0
-                            try:
-                                line.analytic_distribution = new_dist
-                            except Exception as e:
-                                _logger.warning(
-                                    'Could not set analytic on reconcile line %s: %s',
-                                    line.id, e
-                                )
-        return result
-
-    # ------------------------------------------------------------------
-    # Override _reconcile_data_by_model — called when a reconcile model
-    # (auto-match rule) is applied to the statement line.
-    # ------------------------------------------------------------------
     def _reconcile_data_by_model(self, data, reconcile_model,
                                  reconcile_auxiliary_id):
         new_data, new_id = super()._reconcile_data_by_model(
             data, reconcile_model, reconcile_auxiliary_id
         )
-        analytic = _get_user_analytic(self.env.user)
+        analytic = _resolve_analytic_for_statement_line(self)
         if analytic:
             _inject_analytic_into_data(new_data, analytic)
         return new_data, new_id
 
-    # ------------------------------------------------------------------
-    # Override _get_reconcile_line — called for every individual line
-    # added to the reconcile widget (liquidity, counterpart, other).
-    # ------------------------------------------------------------------
     def _get_reconcile_line(self, line, kind, is_counterpart=False,
                             max_amount=False, from_unreconcile=False,
                             reconcile_auxiliary_id=False, move=False,
@@ -139,7 +160,29 @@ class AccountBankStatementLine(models.Model):
             move=move,
             is_reconciled=is_reconciled,
         )
-        analytic = _get_user_analytic(self.env.user)
+        analytic = _resolve_analytic_for_statement_line(self)
         if analytic:
             _inject_analytic_into_data(lines, analytic)
         return reconcile_auxiliary_id, lines
+
+    def reconcile_bank_line(self):
+        result = super().reconcile_bank_line()
+        key_map = {}
+        for st_line in self:
+            analytic = _resolve_analytic_for_statement_line(st_line)
+            if not analytic or not st_line.move_id:
+                continue
+            key = str(analytic.id)
+            for line in st_line.move_id.line_ids.filtered(lambda l: l.account_id):
+                existing = line.analytic_distribution or {}
+                if key not in existing:
+                    new_dist = dict(existing)
+                    new_dist[key] = 100.0
+                    try:
+                        line.analytic_distribution = new_dist
+                    except Exception as e:
+                        _logger.warning(
+                            'Could not set analytic on reconcile line %s: %s',
+                            line.id, e
+                        )
+        return result
