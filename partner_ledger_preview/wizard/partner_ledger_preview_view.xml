@@ -72,3 +72,41 @@
 <!--    </record>-->
 
 <!--</odoo>-->
+
+
+<!--&lt;!&ndash;<?xml version="1.0" encoding="utf-8"?>&ndash;&gt;-->
+<!--&lt;!&ndash;<odoo>&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &lt;!&ndash;&ndash;&gt;-->
+<!--&lt;!&ndash;        Preview dialog for Partner Ledger.&ndash;&gt;-->
+<!--&lt;!&ndash;        Opened by action_preview_report() on account.report.partner.ledger.&ndash;&gt;-->
+<!--&lt;!&ndash;        External ID: partner_ledger_preview.view_partner_ledger_preview_form&ndash;&gt;-->
+<!--&lt;!&ndash;    &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <record id="view_partner_ledger_preview_form" model="ir.ui.view">&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="name">account.report.partner.ledger.preview.form</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="model">account.report.partner.ledger</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="arch" type="xml">&ndash;&gt;-->
+<!--&lt;!&ndash;            <form string="Partner Ledger – Preview">&ndash;&gt;-->
+<!--&lt;!&ndash;                <sheet>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <field name="preview_html"&ndash;&gt;-->
+<!--&lt;!&ndash;                           widget="html"&ndash;&gt;-->
+<!--&lt;!&ndash;                           nolabel="1"&ndash;&gt;-->
+<!--&lt;!&ndash;                           readonly="1"&ndash;&gt;-->
+<!--&lt;!&ndash;                           style="min-height: 450px; overflow-y: auto;"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                </sheet>&ndash;&gt;-->
+<!--&lt;!&ndash;                <footer>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <button string="Print PDF"&ndash;&gt;-->
+<!--&lt;!&ndash;                            name="check_report"&ndash;&gt;-->
+<!--&lt;!&ndash;                            type="object"&ndash;&gt;-->
+<!--&lt;!&ndash;                            class="btn-primary"&ndash;&gt;-->
+<!--&lt;!&ndash;                            data-hotkey="p"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                    <button string="Close"&ndash;&gt;-->
+<!--&lt;!&ndash;                            class="btn-secondary"&ndash;&gt;-->
+<!--&lt;!&ndash;                            special="cancel"&ndash;&gt;-->
+<!--&lt;!&ndash;                            data-hotkey="z"/>&ndash;&gt;-->
+<!--&lt;!&ndash;                </footer>&ndash;&gt;-->
+<!--&lt;!&ndash;            </form>&ndash;&gt;-->
+<!--&lt;!&ndash;        </field>&ndash;&gt;-->
+<!--&lt;!&ndash;    </record>&ndash;&gt;-->
+
+<!--&lt;!&ndash;</odoo>&ndash;&gt;-->

@@ -2,15 +2,31 @@
 <odoo>
 
     <!--
-        Inherits the Partner Ledger wizard view from accounting_pdf_reports
-        and injects a "Preview" button into the footer.
-        No other changes are made to the original view.
+        Inherits the Partner Ledger wizard view from accounting_pdf_reports.
+        Adds:
+          1. A "Partners" Many2many field so the user can scope the report
+             to one or more specific partners.
+          2. The existing "Preview" button in the footer.
     -->
     <record id="view_partner_ledger_wizard_inherit" model="ir.ui.view">
         <field name="name">account.report.partner.ledger.wizard.inherit</field>
         <field name="model">account.report.partner.ledger</field>
         <field name="inherit_id" ref="accounting_pdf_reports.account_report_partner_ledger_view"/>
         <field name="arch" type="xml">
+
+            <!-- Inject the Partners filter field just before the footer -->
+            <xpath expr="//footer" position="before">
+                <group string="Partner Filter" col="2">
+                    <field name="partner_ids"
+                           widget="many2many_tags"
+                           string="Filter by Partners"
+                           placeholder="Leave empty for all partners…"
+                           options="{'no_create': True}"
+                           colspan="2"/>
+                </group>
+            </xpath>
+
+            <!-- Inject the Preview button into the footer -->
             <xpath expr="//footer" position="inside">
                 <button name="action_preview_report"
                         string="Preview"
@@ -19,11 +35,11 @@
                         data-hotkey="v"
                         icon="fa-eye"/>
             </xpath>
+
         </field>
     </record>
 
 </odoo>
-
 
 <!--<?xml version="1.0" encoding="utf-8"?>-->
 <!--<odoo>-->
@@ -50,3 +66,30 @@
 <!--    </record>-->
 
 <!--</odoo>-->
+
+
+<!--&lt;!&ndash;<?xml version="1.0" encoding="utf-8"?>&ndash;&gt;-->
+<!--&lt;!&ndash;<odoo>&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &lt;!&ndash;&ndash;&gt;-->
+<!--&lt;!&ndash;        Inherits the Partner Ledger wizard view from accounting_pdf_reports&ndash;&gt;-->
+<!--&lt;!&ndash;        and injects a "Preview" button into the footer.&ndash;&gt;-->
+<!--&lt;!&ndash;        No other changes are made to the original view.&ndash;&gt;-->
+<!--&lt;!&ndash;    &ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;    <record id="view_partner_ledger_wizard_inherit" model="ir.ui.view">&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="name">account.report.partner.ledger.wizard.inherit</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="model">account.report.partner.ledger</field>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="inherit_id" ref="accounting_pdf_reports.account_report_partner_ledger_view"/>&ndash;&gt;-->
+<!--&lt;!&ndash;        <field name="arch" type="xml">&ndash;&gt;-->
+<!--&lt;!&ndash;            <xpath expr="//footer" position="inside">&ndash;&gt;-->
+<!--&lt;!&ndash;                <button name="action_preview_report"&ndash;&gt;-->
+<!--&lt;!&ndash;                        string="Preview"&ndash;&gt;-->
+<!--&lt;!&ndash;                        type="object"&ndash;&gt;-->
+<!--&lt;!&ndash;                        class="btn-secondary"&ndash;&gt;-->
+<!--&lt;!&ndash;                        data-hotkey="v"&ndash;&gt;-->
+<!--&lt;!&ndash;                        icon="fa-eye"/>&ndash;&gt;-->
+<!--&lt;!&ndash;            </xpath>&ndash;&gt;-->
+<!--&lt;!&ndash;        </field>&ndash;&gt;-->
+<!--&lt;!&ndash;    </record>&ndash;&gt;-->
+
+<!--&lt;!&ndash;</odoo>&ndash;&gt;-->
