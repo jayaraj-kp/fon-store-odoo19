@@ -582,12 +582,15 @@ class AccountPartnerLedgerPreview(models.TransientModel):
         report_values = report_obj._get_report_values(None, data=data)
 
         # ── Filter docs to selected partners (if any) ──────────────────
+        # docs may be a plain list of res.partner records (not a recordset),
+        # so we use a list comprehension instead of .filtered().
         selected_ids = self.partner_ids.ids
         if selected_ids:
             report_values = dict(report_values)
-            report_values['docs'] = report_values['docs'].filtered(
-                lambda p: p.id in selected_ids
-            )
+            docs = report_values['docs']
+            report_values['docs'] = [
+                p for p in docs if p.id in selected_ids
+            ]
 
         self.preview_html = self._build_preview_html(report_values, data)
 
