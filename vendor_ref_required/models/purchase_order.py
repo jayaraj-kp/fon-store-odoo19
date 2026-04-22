@@ -4,20 +4,27 @@ from odoo import models, fields, api, _
 class PurchaseOrder(models.Model):
     _inherit = "purchase.order"
 
-    # required=True removed to avoid null constraint crash on existing records
-    # Use view-level required instead
     partner_ref = fields.Char(string="Vendor Reference")
 
+    # Confirmation Date (date_approve)
     date_approve_date = fields.Date(
         string="Confirmation Date",
         compute="_compute_date_approve_date",
         inverse="_inverse_date_approve_date",
         store=True,
     )
+    # Expected Arrival (date_planned)
     date_planned_date = fields.Date(
         string="Expected Arrival",
         compute="_compute_date_planned_date",
         inverse="_inverse_date_planned_date",
+        store=True,
+    )
+    # Order Deadline (date_order)
+    date_order_date = fields.Date(
+        string="Order Deadline",
+        compute="_compute_date_order_date",
+        inverse="_inverse_date_order_date",
         store=True,
     )
 
@@ -40,6 +47,16 @@ class PurchaseOrder(models.Model):
         for rec in self:
             if rec.date_planned_date:
                 rec.date_planned = fields.Datetime.to_datetime(str(rec.date_planned_date))
+
+    @api.depends("date_order")
+    def _compute_date_order_date(self):
+        for rec in self:
+            rec.date_order_date = rec.date_order.date() if rec.date_order else False
+
+    def _inverse_date_order_date(self):
+        for rec in self:
+            if rec.date_order_date:
+                rec.date_order = fields.Datetime.to_datetime(str(rec.date_order_date))
 
 
 class PurchaseOrderLine(models.Model):
