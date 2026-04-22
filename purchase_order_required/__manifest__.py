@@ -1,6 +1,6 @@
 {
     'name': 'vendor Reference required',
-    'version': '19.0.0.1.0.0',
+    'version': '1.0',
     'summary': 'Makes vendor Reference required ',
     # 'category': 'Inventory',
     'author': 'Custom',
