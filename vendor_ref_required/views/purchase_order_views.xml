@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
+    <!-- Override Purchase Order Form -->
     <record id="purchase_order_form_date_only" model="ir.ui.view">
         <field name="name">purchase.order.form.date.only</field>
         <field name="model">purchase.order</field>
@@ -18,7 +20,7 @@
                        invisible="state == 'purchase'"/>
             </xpath>
 
-            <!-- Confirmation Date (date_approve) - replace label + field -->
+            <!-- Confirmation Date -->
             <xpath expr="//label[@for='date_approve']" position="replace">
                 <label for="date_approve_date" string="Confirmation Date"/>
             </xpath>
@@ -26,7 +28,7 @@
                 <field name="date_approve_date" string="Confirmation Date"/>
             </xpath>
 
-            <!-- Expected Arrival (date_planned) - replace label + field -->
+            <!-- Expected Arrival -->
             <xpath expr="//label[@for='date_planned']" position="replace">
                 <label for="date_planned_date" string="Expected Arrival"/>
             </xpath>
@@ -36,4 +38,35 @@
 
         </field>
     </record>
+
+    <!-- Override RFQ Form (same fields, different view) -->
+    <record id="purchase_rfq_form_date_only" model="ir.ui.view">
+        <field name="name">purchase.rfq.form.date.only</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_rfq"/>
+        <field name="arch" type="xml">
+
+            <!-- Make Vendor Reference required -->
+            <xpath expr="//field[@name='partner_ref']" position="attributes">
+                <attribute name="required">1</attribute>
+            </xpath>
+
+            <!-- Order Deadline (date_order) -->
+            <xpath expr="//field[@name='date_order']" position="replace">
+                <field name="date_order_date" string="Order Deadline"
+                       readonly="state in ['cancel', 'purchase']"
+                       invisible="state == 'purchase'"/>
+            </xpath>
+
+            <!-- Expected Arrival -->
+            <xpath expr="//label[@for='date_planned']" position="replace">
+                <label for="date_planned_date" string="Expected Arrival"/>
+            </xpath>
+            <xpath expr="//field[@name='date_planned']" position="replace">
+                <field name="date_planned_date" string="Expected Arrival"/>
+            </xpath>
+
+        </field>
+    </record>
+
 </odoo>
