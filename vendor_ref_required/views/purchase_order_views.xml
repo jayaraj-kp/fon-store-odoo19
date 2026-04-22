@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Override Purchase Order Form -->
+    <!-- Override Purchase Order Form only -->
     <record id="purchase_order_form_date_only" model="ir.ui.view">
         <field name="name">purchase.order.form.date.only</field>
         <field name="model">purchase.order</field>
@@ -29,24 +29,6 @@
             </xpath>
 
             <!-- Expected Arrival -->
-            <xpath expr="//label[@for='date_planned']" position="replace">
-                <label for="date_planned_date" string="Expected Arrival"/>
-            </xpath>
-            <xpath expr="//field[@name='date_planned']" position="replace">
-                <field name="date_planned_date" string="Expected Arrival"/>
-            </xpath>
-
-        </field>
-    </record>
-
-    <!-- Override RFQ Form - only fields that exist in this view -->
-    <record id="purchase_rfq_form_date_only" model="ir.ui.view">
-        <field name="name">purchase.rfq.form.date.only</field>
-        <field name="model">purchase.order</field>
-        <field name="inherit_id" ref="purchase.purchase_rfq"/>
-        <field name="arch" type="xml">
-
-            <!-- Expected Arrival only - other fields not in RFQ view -->
             <xpath expr="//label[@for='date_planned']" position="replace">
                 <label for="date_planned_date" string="Expected Arrival"/>
             </xpath>
