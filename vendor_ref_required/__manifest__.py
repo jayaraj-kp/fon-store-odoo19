@@ -5,9 +5,9 @@
     'author': 'Custom',
     'depends': ['purchase'],
     'data': [
-        'data/lang_date_format.xml',
         'views/purchase_order_views.xml',
     ],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'auto_install': False,
     'license': 'LGPL-3',

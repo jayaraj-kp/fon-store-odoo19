@@ -6,17 +6,17 @@
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
 
-            <!-- Confirmation Date - show date only, no time -->
+            <!-- Confirmation Date - date only, no time -->
             <xpath expr="//field[@name='date_approve']" position="attributes">
                 <attribute name="widget">date</attribute>
             </xpath>
 
-            <!-- Expected Arrival - show date only, no time -->
+            <!-- Expected Arrival - date only, no time -->
             <xpath expr="//field[@name='date_planned']" position="attributes">
                 <attribute name="widget">date</attribute>
             </xpath>
 
-            <!-- Arrival - show date only, no time -->
+            <!-- Arrival date - date only, no time -->
             <xpath expr="//field[@name='date_calendar_start']" position="attributes">
                 <attribute name="widget">date</attribute>
             </xpath>
