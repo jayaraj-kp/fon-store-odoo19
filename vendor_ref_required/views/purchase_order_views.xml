@@ -39,21 +39,14 @@
         </field>
     </record>
 
-    <!-- Override RFQ Form (no partner_ref in this view) -->
+    <!-- Override RFQ Form - only fields that exist in this view -->
     <record id="purchase_rfq_form_date_only" model="ir.ui.view">
         <field name="name">purchase.rfq.form.date.only</field>
         <field name="model">purchase.order</field>
         <field name="inherit_id" ref="purchase.purchase_rfq"/>
         <field name="arch" type="xml">
 
-            <!-- Order Deadline (date_order) -->
-            <xpath expr="//field[@name='date_order']" position="replace">
-                <field name="date_order_date" string="Order Deadline"
-                       readonly="state in ['cancel', 'purchase']"
-                       invisible="state == 'purchase'"/>
-            </xpath>
-
-            <!-- Expected Arrival -->
+            <!-- Expected Arrival only - other fields not in RFQ view -->
             <xpath expr="//label[@for='date_planned']" position="replace">
                 <label for="date_planned_date" string="Expected Arrival"/>
             </xpath>
