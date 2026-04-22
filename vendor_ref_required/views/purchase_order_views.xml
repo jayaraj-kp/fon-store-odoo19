@@ -6,22 +6,25 @@
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
 
-            <!-- Replace label for Confirmation Date if exists -->
+            <!-- Make Vendor Reference required in the view -->
+            <xpath expr="//field[@name='partner_ref']" position="attributes">
+                <attribute name="required">1</attribute>
+            </xpath>
+
+            <!-- Replace label for Confirmation Date -->
             <xpath expr="//label[@for='date_approve']" position="replace">
                 <label for="date_approve_date" string="Confirmation Date"/>
             </xpath>
-
-            <!-- Replace Confirmation Date field -->
+            <!-- Replace Confirmation Date datetime with Date field -->
             <xpath expr="//field[@name='date_approve']" position="replace">
                 <field name="date_approve_date" string="Confirmation Date"/>
             </xpath>
 
-            <!-- Replace label for Expected Arrival if exists -->
+            <!-- Replace label for Expected Arrival -->
             <xpath expr="//label[@for='date_planned']" position="replace">
                 <label for="date_planned_date" string="Expected Arrival"/>
             </xpath>
-
-            <!-- Replace Expected Arrival field -->
+            <!-- Replace Expected Arrival datetime with Date field -->
             <xpath expr="//field[@name='date_planned']" position="replace">
                 <field name="date_planned_date" string="Expected Arrival"/>
             </xpath>

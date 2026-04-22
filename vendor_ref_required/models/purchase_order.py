@@ -4,7 +4,9 @@ from odoo import models, fields, api, _
 class PurchaseOrder(models.Model):
     _inherit = "purchase.order"
 
-    partner_ref = fields.Char(required=True)
+    # required=True removed to avoid null constraint crash on existing records
+    # Use view-level required instead
+    partner_ref = fields.Char(string="Vendor Reference")
 
     date_approve_date = fields.Date(
         string="Confirmation Date",
