@@ -2,6 +2,6 @@ from odoo import models , fields , api , _
 from odoo.exceptions import ValidationError
 
 class PurchaseOrder(models.Model):
-     _inherit="purchase_order"
+     _inherit="purchase.order"
 
      partner_ref= fields.Char(required=True)
