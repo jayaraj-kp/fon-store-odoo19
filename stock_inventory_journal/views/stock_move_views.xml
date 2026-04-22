@@ -1,35 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Add journal entry smart button on stock move form -->
+    <!-- Action MUST be defined before the view that references it -->
+    <record id="action_inventory_journal_entry" model="ir.actions.act_window">
+        <field name="name">Inventory Journal Entry</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">form</field>
+    </record>
+
+    <!-- Inherit stock move form to show linked journal entry -->
     <record id="view_stock_move_inventory_journal_form" model="ir.ui.view">
         <field name="name">stock.move.inventory.journal.entry.form</field>
         <field name="model">stock.move</field>
         <field name="inherit_id" ref="stock.view_move_form"/>
         <field name="arch" type="xml">
+            <!-- Add button in header area if it exists, otherwise after sheet -->
             <xpath expr="//sheet" position="before">
                 <header>
                     <button
-                        name="%(action_inventory_journal_entry)d"
-                        type="action"
+                        name="action_open_inventory_journal_entry"
+                        type="object"
                         string="View Journal Entry"
                         class="btn-secondary"
-                        attrs="{'invisible': [('inventory_journal_entry_id', '=', False)]}"
+                        invisible="not inventory_journal_entry_id"
                     />
                 </header>
             </xpath>
             <xpath expr="//field[@name='state']" position="after">
-                <field name="inventory_journal_entry_id" readonly="1" widget="many2one_clickable"/>
+                <field name="inventory_journal_entry_id" readonly="1"/>
             </xpath>
         </field>
-    </record>
-
-    <!-- Action to open the linked journal entry -->
-    <record id="action_inventory_journal_entry" model="ir.actions.act_window">
-        <field name="name">Inventory Journal Entry</field>
-        <field name="res_model">account.move</field>
-        <field name="view_mode">form</field>
-        <field name="domain">[('id', '=', active_id)]</field>
     </record>
 
 </odoo>

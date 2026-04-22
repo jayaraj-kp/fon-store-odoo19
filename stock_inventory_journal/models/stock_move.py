@@ -37,7 +37,7 @@ class StockMove(models.Model):
             raise UserError(_(
                 'No Stock Journal found for product category "%s".\n'
                 'Please configure it at:\n'
-                'Inventory → Configuration → Product Categories → %s → Stock Journal'
+                'Inventory > Configuration > Product Categories > %s > Stock Journal'
             ) % (categ.name, categ.name))
         return journal
 
@@ -45,11 +45,11 @@ class StockMove(models.Model):
         """
         Get debit and credit accounts for the inventory adjustment journal entry.
 
-        For a quantity INCREASE (inventory_loss → stock):
+        For a quantity INCREASE (inventory_loss -> stock):
             DR  Stock Valuation Account  (asset increases)
             CR  Stock Variation Account  (expense/equity offset)
 
-        For a quantity DECREASE (stock → inventory_loss):
+        For a quantity DECREASE (stock -> inventory_loss):
             DR  Stock Variation Account  (expense increases)
             CR  Stock Valuation Account  (asset decreases)
         """
@@ -70,22 +70,22 @@ class StockMove(models.Model):
             raise UserError(_(
                 'No Stock Valuation Account configured for product category "%s".\n'
                 'Please set it at:\n'
-                'Inventory → Configuration → Product Categories → %s → Stock Valuation Account'
+                'Inventory > Configuration > Product Categories > %s > Stock Valuation Account'
             ) % (categ.name, categ.name))
 
         if not stock_variation_account:
             raise UserError(_(
                 'No Stock Variation Account configured for product category "%s".\n'
                 'Please set it at:\n'
-                'Inventory → Configuration → Product Categories → %s → Stock Variation'
+                'Inventory > Configuration > Product Categories > %s > Stock Variation'
             ) % (categ.name, categ.name))
 
-        # Quantity increase: inventory_loss is source → goods entering stock
+        # Quantity increase: inventory_loss is source -> goods entering stock
         if self.location_id == inventory_loss_loc:
             debit_account = stock_valuation_account
             credit_account = stock_variation_account
         else:
-            # Quantity decrease: inventory_loss is destination → goods leaving stock
+            # Quantity decrease: inventory_loss is destination -> goods leaving stock
             debit_account = stock_variation_account
             credit_account = stock_valuation_account
 
@@ -94,16 +94,12 @@ class StockMove(models.Model):
     def _compute_inventory_value(self):
         """Compute the monetary value of this inventory adjustment move."""
         product = self.product_id
-        qty = self.quantity  # actual done quantity
-
-        # Use standard price for Standard costing, else use product cost
-        cost = product.standard_price or product.with_context(
-            force_company=self.company_id.id
-        ).standard_price
+        qty = self.quantity
+        cost = product.standard_price or 0.0
 
         if not cost:
             _logger.warning(
-                'Product "%s" has no cost price set. Journal entry will be created with zero value.',
+                'Product "%s" has no cost price set. Journal entry will have zero value.',
                 product.name
             )
 
@@ -117,35 +113,24 @@ class StockMove(models.Model):
         AccountMove = self.env['account.move']
 
         for move in self:
-            # Only process physical inventory adjustments
             if not move._is_inventory_adjustment():
                 continue
 
-            # Only for products with Perpetual valuation on their category
             categ = move.product_id.categ_id
-            valuation = getattr(categ, 'property_cost_method', None)
-
-            # Check if product category has stock accounts configured (perpetual)
             if not categ.property_stock_valuation_account_id:
                 _logger.info(
-                    'Skipping journal entry for product "%s": no stock valuation account (periodic valuation)',
+                    'Skipping journal entry for product "%s": no stock valuation account configured',
                     move.product_id.name
                 )
                 continue
 
-            # Skip if value is zero
+            if move.inventory_journal_entry_id:
+                continue
+
             value = move._compute_inventory_value()
             if not value:
                 _logger.warning(
                     'Skipping journal entry for move %s: computed value is zero.',
-                    move.name
-                )
-                continue
-
-            # Skip if journal entry already created for this move
-            if move.inventory_journal_entry_id:
-                _logger.info(
-                    'Journal entry already exists for move %s, skipping.',
                     move.name
                 )
                 continue
@@ -157,7 +142,6 @@ class StockMove(models.Model):
                 _logger.error('Cannot create journal entry for move %s: %s', move.name, str(e))
                 raise
 
-            # Build journal entry
             move_date = move.date or fields.Date.context_today(move)
             ref = _('Inventory Adjustment: %s') % (move.reference or move.name or '')
 
@@ -188,9 +172,8 @@ class StockMove(models.Model):
             }
 
             journal_entry = AccountMove.create(journal_entry_vals)
-            journal_entry.action_post()  # Auto-post the journal entry
+            journal_entry.action_post()
 
-            # Link back to the stock move for traceability
             move.inventory_journal_entry_id = journal_entry.id
 
             _logger.info(
@@ -203,11 +186,23 @@ class StockMove(models.Model):
 
         return True
 
+    def action_open_inventory_journal_entry(self):
+        """Open the linked inventory adjustment journal entry."""
+        self.ensure_one()
+        if not self.inventory_journal_entry_id:
+            raise UserError(_('No journal entry linked to this inventory adjustment.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Inventory Journal Entry'),
+            'res_model': 'account.move',
+            'view_mode': 'form',
+            'res_id': self.inventory_journal_entry_id.id,
+        }
+
     def _action_done(self, cancel_backorder=False):
         """Override to create journal entries after inventory adjustments are done."""
         res = super()._action_done(cancel_backorder=cancel_backorder)
 
-        # Filter only inventory adjustment moves that are now done
         inventory_moves = self.filtered(
             lambda m: m.state == 'done' and m._is_inventory_adjustment()
         )
