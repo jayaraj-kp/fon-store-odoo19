@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Change English date format to dd/mm/yyyy -->
-    <record id="lang_en" model="res.lang">
-        <field name="date_format">%d/%m/%Y</field>
-    </record>
+    <function model="res.lang" name="search_write">
+        <value eval="[('code', '=', 'en_US')]"/>
+        <value eval="{'date_format': '%d/%m/%Y'}"/>
+    </function>
 </odoo>
