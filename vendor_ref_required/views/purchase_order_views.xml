@@ -39,17 +39,12 @@
         </field>
     </record>
 
-    <!-- Override RFQ Form (same fields, different view) -->
+    <!-- Override RFQ Form (no partner_ref in this view) -->
     <record id="purchase_rfq_form_date_only" model="ir.ui.view">
         <field name="name">purchase.rfq.form.date.only</field>
         <field name="model">purchase.order</field>
         <field name="inherit_id" ref="purchase.purchase_rfq"/>
         <field name="arch" type="xml">
-
-            <!-- Make Vendor Reference required -->
-            <xpath expr="//field[@name='partner_ref']" position="attributes">
-                <attribute name="required">1</attribute>
-            </xpath>
 
             <!-- Order Deadline (date_order) -->
             <xpath expr="//field[@name='date_order']" position="replace">
