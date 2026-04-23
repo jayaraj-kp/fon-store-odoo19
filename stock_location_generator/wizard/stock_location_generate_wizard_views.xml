@@ -58,15 +58,13 @@
         </field>
     </record>
 
-    <!-- ── Action to open the wizard ─────────────────────────────────────── -->
+    <!-- ── Action used by the binding on the Locations list (Action menu ⚙) ── -->
     <record id="action_stock_location_generate_wizard" model="ir.actions.act_window">
         <field name="name">Generate Locations</field>
         <field name="res_model">stock.location.generate.wizard</field>
         <field name="view_mode">form</field>
         <field name="view_id" ref="view_stock_location_generate_wizard_form"/>
         <field name="target">new</field>
-        <field name="binding_model_id" ref="stock.model_stock_location"/>
-        <field name="binding_view_types">list</field>
     </record>
 
 </odoo>

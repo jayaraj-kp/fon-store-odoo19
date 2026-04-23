@@ -22,6 +22,7 @@ Features:
         'security/ir.model.access.csv',
         'wizard/stock_location_generate_wizard_views.xml',
         'views/stock_location_views.xml',
+        'views/stock_location_generate_menu.xml',
     ],
     'installable': True,
     'application': False,

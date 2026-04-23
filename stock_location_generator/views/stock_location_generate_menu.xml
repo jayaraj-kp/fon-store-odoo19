@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Window action that opens the wizard as a dialog ───────────────── -->
+    <record id="action_stock_location_generate_menu" model="ir.actions.act_window">
+        <field name="name">Generate Locations</field>
+        <field name="res_model">stock.location.generate.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="stock_location_generator.view_stock_location_generate_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+
+    <!--
+        ── Menu entry ────────────────────────────────────────────────────────
+        Parent:  stock.menu_stock_configuration
+                 = the "Configuration" top-level item inside Inventory app
+        This places "Generate Locations" as a direct child of Configuration,
+        right alongside Warehouses, Locations, Routes, etc.
+    -->
+    <menuitem
+        id="menu_stock_location_generate"
+        name="Generate Locations"
+        parent="stock.menu_stock_configuration"
+        action="action_stock_location_generate_menu"
+        sequence="25"
+        groups="stock.group_stock_manager,stock.group_stock_user"/>
+
+</odoo>
