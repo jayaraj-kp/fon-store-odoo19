@@ -111,7 +111,7 @@ class StockLocationGenerateWizard(models.TransientModel):
                 'active': True,
             })
 
-        # Feedback message
+        # Build feedback message
         msg_parts = []
         if created:
             msg_parts.append(
@@ -128,7 +128,7 @@ class StockLocationGenerateWizard(models.TransientModel):
 
         message = ' '.join(msg_parts)
 
-        # Return notification + reload locations list
+        # Return a simple notification — no 'next' key (not supported in Odoo 19 CE)
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -137,13 +137,5 @@ class StockLocationGenerateWizard(models.TransientModel):
                 'message': message,
                 'type': 'success' if created else 'warning',
                 'sticky': False,
-                'next': {
-                    'type': 'ir.actions.act_window',
-                    'name': _('Stock Locations'),
-                    'res_model': 'stock.location',
-                    'view_mode': 'list,form',
-                    'domain': [('location_id', '=', parent_location.id)],
-                    'context': {'default_location_id': parent_location.id},
-                },
             },
         }
