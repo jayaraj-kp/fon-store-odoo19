@@ -35,8 +35,8 @@ class StockMove(models.Model):
         journal = categ.property_stock_journal
         if not journal:
             raise UserError(_(
-                'No Stock Journal found for product category "%s".\n'
-                'Please configure it at:\n'
+                'No Stock Journal found for product category "%s". '
+                'Please configure it at: '
                 'Inventory > Configuration > Product Categories > %s > Stock Journal'
             ) % (categ.name, categ.name))
         return journal
@@ -57,26 +57,22 @@ class StockMove(models.Model):
         inventory_loss_loc = self.env.ref('stock.location_inventory')
 
         stock_valuation_account = categ.property_stock_valuation_account_id
+        # Use our custom field first, then fallback to expense account
         stock_variation_account = categ.property_account_creditor_price_difference
-
-        # Fallback: use expense account if no stock variation account set
         if not stock_variation_account:
-            stock_variation_account = (
-                categ.property_account_expense_categ_id
-                or self.product_id.property_account_expense_id
-            )
+            stock_variation_account = categ.property_account_expense_categ_id
 
         if not stock_valuation_account:
             raise UserError(_(
-                'No Stock Valuation Account configured for product category "%s".\n'
-                'Please set it at:\n'
+                'No Stock Valuation Account configured for product category "%s". '
+                'Please set it at: '
                 'Inventory > Configuration > Product Categories > %s > Stock Valuation Account'
             ) % (categ.name, categ.name))
 
         if not stock_variation_account:
             raise UserError(_(
-                'No Stock Variation Account configured for product category "%s".\n'
-                'Please set it at:\n'
+                'No Stock Variation Account configured for product category "%s". '
+                'Please set it at: '
                 'Inventory > Configuration > Product Categories > %s > Stock Variation'
             ) % (categ.name, categ.name))
 
@@ -93,16 +89,13 @@ class StockMove(models.Model):
 
     def _compute_inventory_value(self):
         """Compute the monetary value of this inventory adjustment move."""
-        product = self.product_id
         qty = self.quantity
-        cost = product.standard_price or 0.0
-
+        cost = self.product_id.standard_price or 0.0
         if not cost:
             _logger.warning(
                 'Product "%s" has no cost price set. Journal entry will have zero value.',
-                product.name
+                self.product_id.name
             )
-
         return qty * cost
 
     def _create_inventory_journal_entry(self):
@@ -125,14 +118,12 @@ class StockMove(models.Model):
                 continue
 
             if move.inventory_journal_entry_id:
+                _logger.info('Journal entry already exists for move %s, skipping.', move.name)
                 continue
 
             value = move._compute_inventory_value()
             if not value:
-                _logger.warning(
-                    'Skipping journal entry for move %s: computed value is zero.',
-                    move.name
-                )
+                _logger.warning('Skipping journal entry for move %s: computed value is zero.', move.name)
                 continue
 
             try:
@@ -173,15 +164,11 @@ class StockMove(models.Model):
 
             journal_entry = AccountMove.create(journal_entry_vals)
             journal_entry.action_post()
-
             move.inventory_journal_entry_id = journal_entry.id
 
             _logger.info(
                 'Created inventory adjustment journal entry %s for stock move %s (product: %s, value: %s)',
-                journal_entry.name,
-                move.name,
-                move.product_id.name,
-                value,
+                journal_entry.name, move.name, move.product_id.name, value,
             )
 
         return True
@@ -200,15 +187,52 @@ class StockMove(models.Model):
         }
 
     def _action_done(self, cancel_backorder=False):
-        """Override to create journal entries after inventory adjustments are done."""
+        """Hook 1: via _action_done (some Odoo 19 flows still use this)."""
         res = super()._action_done(cancel_backorder=cancel_backorder)
-
         inventory_moves = self.filtered(
             lambda m: m.state == 'done' and m._is_inventory_adjustment()
         )
-
         if inventory_moves:
             inventory_moves._create_inventory_journal_entry()
+        return res
+
+
+class StockQuant(models.Model):
+    _inherit = 'stock.quant'
+
+    def action_apply_inventory(self):
+        """
+        Hook 2: Physical Inventory 'Apply' button in Odoo 19 calls
+        action_apply_inventory on stock.quant — override here to catch
+        the resulting stock moves and create journal entries.
+        """
+        res = super().action_apply_inventory()
+
+        # After apply, find the most recent inventory adjustment moves
+        # for products in this quant set
+        inventory_loss_loc = self.env.ref('stock.location_inventory', raise_if_not_found=False)
+        if not inventory_loss_loc:
+            return res
+
+        product_ids = self.mapped('product_id').ids
+        location_ids = self.mapped('location_id').ids
+
+        # Find done moves created just now for these products/locations
+        recent_moves = self.env['stock.move'].search([
+            ('state', '=', 'done'),
+            ('product_id', 'in', product_ids),
+            '|',
+            ('location_id', '=', inventory_loss_loc.id),
+            ('location_dest_id', '=', inventory_loss_loc.id),
+            ('inventory_journal_entry_id', '=', False),
+        ])
+
+        if recent_moves:
+            _logger.info(
+                'stock_inventory_journal: Found %d inventory adjustment moves after apply, creating journal entries.',
+                len(recent_moves)
+            )
+            recent_moves._create_inventory_journal_entry()
 
         return res
 
@@ -220,6 +244,6 @@ class ProductCategory(models.Model):
         'account.account',
         string='Stock Variation Account',
         company_dependent=True,
-        help='Account used to record inventory variation when physical inventory '
-             'adjustments are applied. This is the counterpart to the Stock Valuation Account.',
+        help='Account used as counterpart to Stock Valuation when physical inventory '
+             'adjustments are applied (e.g. 610000 Stock Variation).',
     )
