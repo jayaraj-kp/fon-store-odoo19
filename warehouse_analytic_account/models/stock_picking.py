@@ -53,9 +53,9 @@ _logger = logging.getLogger(__name__)
 def _apply_analytic_to_journal_lines(env, analytic, valuation_accounts,
                                      label_hint=''):
     """
-    Shared helper: find recently posted stock journal entries (within last
-    15 seconds) and stamp the analytic on every line EXCEPT the stock
-    valuation account lines (110100 Stock Valuation etc.).
+    Find recently posted stock journal entries (within last 15 seconds)
+    and stamp the analytic on every line EXCEPT the stock valuation
+    account lines (110100 Stock Valuation etc.).
     """
     if not analytic:
         return
@@ -103,17 +103,14 @@ class StockMove(models.Model):
 class StockQuant(models.Model):
     """
     Intercept physical inventory adjustments (Operations > Physical Inventory).
-    In Odoo 19 CE, these go through stock.quant, NOT stock.picking.
-    The journal entry label is 'Product Quantity Updated ...' so we cannot
-    match by picking name — we use a short time window search instead.
+    In Odoo 19 CE these go through stock.quant, not stock.picking.
     """
     _inherit = 'stock.quant'
 
     def _get_quant_analytic_info(self):
         """
-        Collect (analytic, valuation_accounts) for every quant in self
-        that has a warehouse with an analytic account set.
-        Returns a list of (analytic, set_of_valuation_account_ids).
+        Return list of (analytic, valuation_account_ids_set) for every
+        quant whose warehouse has an analytic account configured.
         """
         results = []
         for quant in self:
@@ -131,7 +128,7 @@ class StockQuant(models.Model):
         return results
 
     def action_apply_inventory(self):
-        """Button 'Apply' on a single Physical Inventory line."""
+        """'Apply' button on a single Physical Inventory line."""
         info = self._get_quant_analytic_info()
         result = super().action_apply_inventory()
         for analytic, valuation_accounts in info:
@@ -141,10 +138,17 @@ class StockQuant(models.Model):
             )
         return result
 
-    def _apply_inventory(self):
-        """Internal method called by 'Apply All' on Physical Inventory page."""
+    def _apply_inventory(self, date=None):
+        """
+        Internal method called by action_apply_inventory.
+        Odoo 19 CE passes a 'date' positional argument — we must accept it.
+        """
         info = self._get_quant_analytic_info()
-        result = super()._apply_inventory()
+        # Pass date through correctly whether or not it was supplied
+        if date is not None:
+            result = super()._apply_inventory(date)
+        else:
+            result = super()._apply_inventory()
         for analytic, valuation_accounts in info:
             _apply_analytic_to_journal_lines(
                 self.env, analytic, valuation_accounts,
@@ -168,7 +172,7 @@ class StockPicking(models.Model):
     def _push_analytic_to_stock_journal_entries(self, analytic):
         """
         Push warehouse analytic onto stock valuation journal entries
-        linked to this picking. Matches by picking name in account.move.ref.
+        for receipts/deliveries — matches by picking name in account.move.ref.
         """
         if not analytic:
             return
@@ -179,11 +183,6 @@ class StockPicking(models.Model):
                 acc = categ.property_stock_valuation_account_id
                 if acc:
                     valuation_accounts.add(acc.id)
-        acc_moves = self.env['account.move'].search([
-            ('ref', 'like', self.name),
-            ('move_type', '=', 'entry'),
-            ('state', '=', 'posted'),
-        ])
         _apply_analytic_to_journal_lines(
             self.env, analytic, valuation_accounts,
             label_hint='picking_%s' % self.name,
