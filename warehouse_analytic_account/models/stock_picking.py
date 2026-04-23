@@ -59,55 +59,6 @@ class StockMove(models.Model):
         index=True,
     )
 
-    def _push_analytic_to_svl_journal_lines(self, analytic):
-        """
-        After a stock move creates its SVL journal entry, push the warehouse
-        analytic distribution onto the counterpart journal lines.
-        The stock valuation account line is intentionally skipped
-        (standard Odoo convention — only the interim/expense line gets analytic).
-
-        Uses env search on stock.valuation.layer because stock_valuation_layer_ids
-        is not available as a direct relation on stock.move in Odoo 19 CE.
-        """
-        if not analytic:
-            return
-        key = str(analytic.id)
-        StockValuationLayer = self.env['stock.valuation.layer']
-        for move in self:
-            # Search SVL records linked to this stock move
-            svl_records = StockValuationLayer.search([
-                ('stock_move_id', '=', move.id),
-                ('account_move_id', '!=', False),
-            ])
-            if not svl_records:
-                continue
-            svl_moves = svl_records.mapped('account_move_id')
-            # Get the stock valuation account to skip it
-            valuation_account = (
-                move.product_id.categ_id.property_stock_valuation_account_id
-            )
-            for acc_move in svl_moves:
-                for line in acc_move.line_ids.filtered(lambda l: l.account_id):
-                    # Skip the pure stock valuation account line
-                    if valuation_account and line.account_id == valuation_account:
-                        continue
-                    existing = line.analytic_distribution or {}
-                    if key not in existing:
-                        new_dist = dict(existing)
-                        new_dist[key] = 100.0
-                        try:
-                            line.analytic_distribution = new_dist
-                            _logger.debug(
-                                'SVL analytic %s → move %s line %s (%s)',
-                                analytic.name, acc_move.name,
-                                line.id, line.account_id.code,
-                            )
-                        except Exception as e:
-                            _logger.warning(
-                                'Could not set analytic on SVL line %s: %s',
-                                line.id, e,
-                            )
-
 
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
@@ -120,6 +71,71 @@ class StockPicking(models.Model):
         if wh and wh.analytic_account_id:
             return wh.analytic_account_id
         return False
+
+    def _push_analytic_to_stock_journal_entries(self, analytic):
+        """
+        Push warehouse analytic distribution onto the stock valuation
+        journal entries linked to this picking.
+
+        In Odoo 19 CE, stock.valuation.layer does not exist.
+        We find the journal entries by searching account.move with:
+          - journal = 'Inventory Valuation' type journal (stock_journal)
+          - ref matching the picking name or move description
+
+        The stock valuation account line is skipped — only the counterpart
+        line (Stock Interim / Inventory Loss) gets the analytic tag.
+        """
+        if not analytic:
+            return
+        key = str(analytic.id)
+
+        # Collect valuation accounts to skip (these should NOT get analytic)
+        valuation_accounts = set()
+        for move in self.move_ids:
+            acc = move.product_id.categ_id.property_stock_valuation_account_id
+            if acc:
+                valuation_accounts.add(acc.id)
+
+        # Find stock journal entries linked to this picking.
+        # In Odoo 19 CE, inventory valuation journal entries use the
+        # picking name or move description in their ref field.
+        acc_moves = self.env['account.move'].search([
+            ('ref', 'like', self.name),
+            ('move_type', '=', 'entry'),
+            ('state', '=', 'posted'),
+        ])
+
+        if not acc_moves:
+            # Fallback: also try matching on individual move descriptions
+            move_names = self.move_ids.mapped('name')
+            if move_names:
+                acc_moves = self.env['account.move'].search([
+                    ('ref', 'in', move_names),
+                    ('move_type', '=', 'entry'),
+                    ('state', '=', 'posted'),
+                ])
+
+        for acc_move in acc_moves:
+            for line in acc_move.line_ids.filtered(lambda l: l.account_id):
+                # Skip stock valuation account — only tag counterpart lines
+                if line.account_id.id in valuation_accounts:
+                    continue
+                existing = line.analytic_distribution or {}
+                if key not in existing:
+                    new_dist = dict(existing)
+                    new_dist[key] = 100.0
+                    try:
+                        line.analytic_distribution = new_dist
+                        _logger.debug(
+                            'Stock analytic %s → %s line %s (%s)',
+                            analytic.name, acc_move.name,
+                            line.id, line.account_id.code,
+                        )
+                    except Exception as e:
+                        _logger.warning(
+                            'Could not set analytic on stock journal line %s: %s',
+                            line.id, e,
+                        )
 
     def button_validate(self):
         result = super().button_validate()
@@ -135,8 +151,6 @@ class StockPicking(models.Model):
                 'Warehouse analytic %s stamped on picking %s moves',
                 analytic.name, picking.name,
             )
-            # NEW: also push analytic into the SVL journal entry lines
-            # so inventory adjustment journal entries show the correct
-            # analytic distribution (FS Kondotty, etc.)
-            picking.move_ids._push_analytic_to_svl_journal_lines(analytic)
+            # Push analytic into the stock valuation journal entry lines
+            picking._push_analytic_to_stock_journal_entries(analytic)
         return result
