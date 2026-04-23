@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ── Window action that opens the wizard as a dialog ───────────────── -->
+    <!-- ── Window action that opens the wizard as a modal dialog ─────────── -->
     <record id="action_stock_location_generate_menu" model="ir.actions.act_window">
         <field name="name">Generate Locations</field>
         <field name="res_model">stock.location.generate.wizard</field>
@@ -11,18 +11,37 @@
     </record>
 
     <!--
-        ── Menu entry ────────────────────────────────────────────────────────
-        Parent:  stock.menu_stock_configuration
-                 = the "Configuration" top-level item inside Inventory app
-        This places "Generate Locations" as a direct child of Configuration,
-        right alongside Warehouses, Locations, Routes, etc.
+        ── Strategy: use stock.menu_stock_root (the Inventory app root) as
+           the safe anchor, then nest under a dedicated "Warehouse Tools"
+           sub-folder we own entirely.  This avoids any dependency on
+           stock.menu_stock_configuration whose xmlid differs across
+           Odoo CE versions (17/18/19).
+
+        ── OPTIONAL: If you want it under the existing "Configuration" menu
+           instead, find the correct xmlid in your Odoo by going to:
+             Settings → Technical → User Interface → Menu Items
+             → search "Configuration" → filter by App = Inventory
+             → open the record → click Debug (🐛) → View Metadata → copy "External ID"
+           Then replace parent="menu_stock_location_tools" with that xmlid
+           and remove the menu_stock_location_tools menuitem above.
     -->
+
+    <!-- Our own sub-menu folder directly under the Inventory app -->
+    <menuitem
+        id="menu_stock_location_tools"
+        name="Warehouse Tools"
+        parent="stock.menu_stock_root"
+        sequence="50"
+        groups="stock.group_stock_manager,stock.group_stock_user"/>
+
+    <!-- Generate Locations entry inside our folder -->
     <menuitem
         id="menu_stock_location_generate"
         name="Generate Locations"
-        parent="stock.menu_stock_configuration"
+        parent="menu_stock_location_tools"
         action="action_stock_location_generate_menu"
-        sequence="25"
+        sequence="10"
         groups="stock.group_stock_manager,stock.group_stock_user"/>
 
 </odoo>
+
