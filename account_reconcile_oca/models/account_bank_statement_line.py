@@ -1770,7 +1770,7 @@ class AccountBankStatementLine(models.Model):
                 not float_is_zero(
                     self.manual_amount - line["amount"],
                     precision_digits=self.company_id.currency_id.decimal_places,
-                    )
+                )
                 or self.manual_account_id.id != line["account_id"][0]
                 or self.manual_name != line["name"]
                 or (
@@ -1785,7 +1785,10 @@ class AccountBankStatementLine(models.Model):
 
     def _check_reconcile_data_changed(self):
         self.ensure_one()
-        data = self.reconcile_data_info.get("data", [])
+        reconcile_info = self.reconcile_data_info
+        if not reconcile_info or not isinstance(reconcile_info, dict):
+            return False
+        data = reconcile_info.get("data", [])
         liquidity_lines, _suspense_lines, _other_lines = self._seek_for_lines()
         move_amount_cur = sum(liquidity_lines.mapped("amount_currency"))
         move_credit = sum(liquidity_lines.mapped("credit"))
@@ -1851,6 +1854,7 @@ class AccountBankStatementLine(models.Model):
             self.manual_move_type = self.manual_line_id.move_id.move_type
         self.manual_kind = line["kind"]
         self.manual_original_amount = line.get("original_amount", 0.0)
+
     # def _process_manual_reconcile_from_line(self, line):
     #     self.manual_account_id = line["account_id"][0]
     #     self.manual_amount = line["amount"]
@@ -2217,7 +2221,7 @@ class AccountBankStatementLine(models.Model):
                     self.journal_id.currency_id or self.company_currency_id,
                     self.company_id,
                     self.date,
-                    )
+                )
             if currency != self.company_id.currency_id:
                 currency_amount = self.company_id.currency_id._convert(
                     amount,
