@@ -65,15 +65,23 @@ class StockMove(models.Model):
         analytic distribution onto the counterpart journal lines.
         The stock valuation account line is intentionally skipped
         (standard Odoo convention — only the interim/expense line gets analytic).
+
+        Uses env search on stock.valuation.layer because stock_valuation_layer_ids
+        is not available as a direct relation on stock.move in Odoo 19 CE.
         """
         if not analytic:
             return
         key = str(analytic.id)
+        StockValuationLayer = self.env['stock.valuation.layer']
         for move in self:
-            # Find SVL account moves linked to this stock move
-            svl_moves = move.stock_valuation_layer_ids.mapped('account_move_id')
-            if not svl_moves:
+            # Search SVL records linked to this stock move
+            svl_records = StockValuationLayer.search([
+                ('stock_move_id', '=', move.id),
+                ('account_move_id', '!=', False),
+            ])
+            if not svl_records:
                 continue
+            svl_moves = svl_records.mapped('account_move_id')
             # Get the stock valuation account to skip it
             valuation_account = (
                 move.product_id.categ_id.property_stock_valuation_account_id
