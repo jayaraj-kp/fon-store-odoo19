@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Wizard form view ───────────────────────────────────────────────── -->
+    <record id="view_stock_location_generate_wizard_form" model="ir.ui.view">
+        <field name="name">stock.location.generate.wizard.form</field>
+        <field name="model">stock.location.generate.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Generate Locations">
+
+                <sheet>
+                    <group>
+                        <!-- Row 1: Create type (Rack / Box radio) -->
+                        <group string="Create">
+                            <field name="create_type"
+                                   widget="radio"
+                                   options="{'horizontal': true}"
+                                   nolabel="1"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <!-- Left column -->
+                        <group>
+                            <field name="prefix" placeholder="e.g. Rack , R- (optional)"/>
+                            <field name="warehouse_id"/>
+                        </group>
+                        <!-- Right column -->
+                        <group>
+                            <label for="from_number" string="Range"/>
+                            <div class="o_row">
+                                <span class="me-2">From</span>
+                                <field name="from_number" class="o_field_number" nolabel="1"/>
+                                <span class="mx-2">to</span>
+                                <field name="to_number"   class="o_field_number" nolabel="1"/>
+                            </div>
+                            <field name="location_id"
+                                   string="In"
+                                   domain="[('usage', 'in', ['internal', 'view'])]"/>
+                        </group>
+                    </group>
+                </sheet>
+
+                <!-- Footer buttons -->
+                <footer>
+                    <button name="action_generate"
+                            string="Generate"
+                            type="object"
+                            class="btn-primary"
+                            data-hotkey="g"/>
+                    <button string="Cancel"
+                            class="btn-secondary"
+                            special="cancel"
+                            data-hotkey="x"/>
+                </footer>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- ── Action to open the wizard ─────────────────────────────────────── -->
+    <record id="action_stock_location_generate_wizard" model="ir.actions.act_window">
+        <field name="name">Generate Locations</field>
+        <field name="res_model">stock.location.generate.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_stock_location_generate_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="stock.model_stock_location"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+</odoo>

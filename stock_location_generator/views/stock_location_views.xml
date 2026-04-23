@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Inherit the stock location list view to surface the "Generate Locations"
+        action in the Action menu (⚙ button) when one or more locations are selected.
+        The binding on the ir.actions.act_window already registers the action;
+        this view adds an explicit top-bar button for discoverability.
+    -->
+    <record id="view_location_tree_inherit_generate" model="ir.ui.view">
+        <field name="name">stock.location.tree.generate.button</field>
+        <field name="model">stock.location</field>
+        <field name="inherit_id" ref="stock.view_location_tree2"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="attributes">
+                <!-- no structural change; the action binding handles the rest -->
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
