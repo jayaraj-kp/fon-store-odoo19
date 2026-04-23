@@ -77,10 +77,8 @@ class StockPicking(models.Model):
         Push warehouse analytic distribution onto the stock valuation
         journal entries linked to this picking.
 
-        In Odoo 19 CE, stock.valuation.layer does not exist.
-        We find the journal entries by searching account.move with:
-          - journal = 'Inventory Valuation' type journal (stock_journal)
-          - ref matching the picking name or move description
+        Finds journal entries by matching the picking name in the ref field
+        of account.move records (Odoo 19 CE approach — no stock.valuation.layer).
 
         The stock valuation account line is skipped — only the counterpart
         line (Stock Interim / Inventory Loss) gets the analytic tag.
@@ -89,35 +87,25 @@ class StockPicking(models.Model):
             return
         key = str(analytic.id)
 
-        # Collect valuation accounts to skip (these should NOT get analytic)
+        # Collect stock valuation accounts to skip
         valuation_accounts = set()
         for move in self.move_ids:
-            acc = move.product_id.categ_id.property_stock_valuation_account_id
-            if acc:
-                valuation_accounts.add(acc.id)
+            categ = move.product_id.categ_id
+            acc_field = 'property_stock_valuation_account_id'
+            if hasattr(categ, acc_field):
+                acc = getattr(categ, acc_field)
+                if acc:
+                    valuation_accounts.add(acc.id)
 
-        # Find stock journal entries linked to this picking.
-        # In Odoo 19 CE, inventory valuation journal entries use the
-        # picking name or move description in their ref field.
+        # Find stock journal entries by matching this picking's name in ref
         acc_moves = self.env['account.move'].search([
             ('ref', 'like', self.name),
             ('move_type', '=', 'entry'),
             ('state', '=', 'posted'),
         ])
 
-        if not acc_moves:
-            # Fallback: also try matching on individual move descriptions
-            move_names = self.move_ids.mapped('name')
-            if move_names:
-                acc_moves = self.env['account.move'].search([
-                    ('ref', 'in', move_names),
-                    ('move_type', '=', 'entry'),
-                    ('state', '=', 'posted'),
-                ])
-
         for acc_move in acc_moves:
             for line in acc_move.line_ids.filtered(lambda l: l.account_id):
-                # Skip stock valuation account — only tag counterpart lines
                 if line.account_id.id in valuation_accounts:
                     continue
                 existing = line.analytic_distribution or {}
