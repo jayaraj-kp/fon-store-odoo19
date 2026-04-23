@@ -50,12 +50,11 @@ from odoo import fields, models
 _logger = logging.getLogger(__name__)
 
 
-def _apply_analytic_to_journal_lines(env, analytic, valuation_accounts,
-                                     label_hint=''):
+def _apply_analytic_to_journal_lines(env, analytic, label_hint=''):
     """
     Find recently posted stock journal entries (within last 15 seconds)
-    and stamp the analytic on every line EXCEPT the stock valuation
-    account lines (110100 Stock Valuation etc.).
+    and stamp the analytic on ALL lines including the stock valuation
+    account line.
     """
     if not analytic:
         return
@@ -70,8 +69,6 @@ def _apply_analytic_to_journal_lines(env, analytic, valuation_accounts,
     ])
     for acc_move in acc_moves:
         for line in acc_move.line_ids.filtered(lambda l: l.account_id):
-            if line.account_id.id in valuation_accounts:
-                continue
             existing = line.analytic_distribution or {}
             if key not in existing:
                 new_dist = dict(existing)
@@ -107,53 +104,39 @@ class StockQuant(models.Model):
     """
     _inherit = 'stock.quant'
 
-    def _get_quant_analytic_info(self):
+    def _get_quant_analytic(self):
         """
-        Return list of (analytic, valuation_account_ids_set) for every
-        quant whose warehouse has an analytic account configured.
+        Return the analytic account for the first quant in self
+        whose warehouse has an analytic account configured.
         """
-        results = []
         for quant in self:
             wh = quant.location_id.warehouse_id
-            if not wh or not wh.analytic_account_id:
-                continue
-            analytic = wh.analytic_account_id
-            valuation_accounts = set()
-            categ = quant.product_id.categ_id
-            if hasattr(categ, 'property_stock_valuation_account_id'):
-                acc = categ.property_stock_valuation_account_id
-                if acc:
-                    valuation_accounts.add(acc.id)
-            results.append((analytic, valuation_accounts))
-        return results
+            if wh and wh.analytic_account_id:
+                return wh.analytic_account_id
+        return False
 
     def action_apply_inventory(self):
         """'Apply' button on a single Physical Inventory line."""
-        info = self._get_quant_analytic_info()
+        analytic = self._get_quant_analytic()
         result = super().action_apply_inventory()
-        for analytic, valuation_accounts in info:
-            _apply_analytic_to_journal_lines(
-                self.env, analytic, valuation_accounts,
-                label_hint='action_apply_inventory',
-            )
+        _apply_analytic_to_journal_lines(
+            self.env, analytic, label_hint='action_apply_inventory',
+        )
         return result
 
     def _apply_inventory(self, date=None):
         """
         Internal method called by action_apply_inventory.
-        Odoo 19 CE passes a 'date' positional argument — we must accept it.
+        Odoo 19 CE passes a 'date' positional argument.
         """
-        info = self._get_quant_analytic_info()
-        # Pass date through correctly whether or not it was supplied
+        analytic = self._get_quant_analytic()
         if date is not None:
             result = super()._apply_inventory(date)
         else:
             result = super()._apply_inventory()
-        for analytic, valuation_accounts in info:
-            _apply_analytic_to_journal_lines(
-                self.env, analytic, valuation_accounts,
-                label_hint='_apply_inventory',
-            )
+        _apply_analytic_to_journal_lines(
+            self.env, analytic, label_hint='_apply_inventory',
+        )
         return result
 
 
@@ -171,20 +154,11 @@ class StockPicking(models.Model):
 
     def _push_analytic_to_stock_journal_entries(self, analytic):
         """
-        Push warehouse analytic onto stock valuation journal entries
-        for receipts/deliveries — matches by picking name in account.move.ref.
+        Push warehouse analytic onto ALL stock valuation journal entry
+        lines for receipts/deliveries.
         """
-        if not analytic:
-            return
-        valuation_accounts = set()
-        for move in self.move_ids:
-            categ = move.product_id.categ_id
-            if hasattr(categ, 'property_stock_valuation_account_id'):
-                acc = categ.property_stock_valuation_account_id
-                if acc:
-                    valuation_accounts.add(acc.id)
         _apply_analytic_to_journal_lines(
-            self.env, analytic, valuation_accounts,
+            self.env, analytic,
             label_hint='picking_%s' % self.name,
         )
 
