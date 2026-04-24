@@ -4,7 +4,7 @@
         <field name="name">periodic.stock.valuation.line.list</field>
         <field name="model">periodic.stock.valuation.line</field>
         <field name="arch" type="xml">
-            <list create="false" edit="false" delete="false" disable_filters="True">
+            <list create="false" edit="false" delete="false">
                 <field name="date"            string="Date"/>
                 <field name="reference"       string="Reference"/>
                 <field name="account_move_id" string="Journal Entry" optional="show"/>
@@ -32,3 +32,40 @@
               action="action_periodic_valuation"
               sequence="100"/>
 </odoo>
+
+
+<!--<odoo>-->
+<!--    &lt;!&ndash; List view &ndash;&gt;-->
+<!--    <record id="view_periodic_valuation_list" model="ir.ui.view">-->
+<!--        <field name="name">periodic.stock.valuation.line.list</field>-->
+<!--        <field name="model">periodic.stock.valuation.line</field>-->
+<!--        <field name="arch" type="xml">-->
+<!--            <list create="false" edit="false" delete="false">-->
+<!--                <field name="date"            string="Date"/>-->
+<!--                <field name="reference"       string="Reference"/>-->
+<!--                <field name="account_move_id" string="Journal Entry" optional="show"/>-->
+<!--                <field name="product_id"      string="Product"/>-->
+<!--                <field name="quantity"        string="Quantity"/>-->
+<!--                <field name="unit_cost"       string="Unit Value"/>-->
+<!--                <field name="value"           string="Total Value" sum="Total"/>-->
+<!--            </list>-->
+<!--        </field>-->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; Action &ndash;&gt;-->
+<!--    <record id="action_periodic_valuation" model="ir.actions.act_window">-->
+<!--        <field name="name">Inventory Valuation</field>-->
+<!--        <field name="res_model">periodic.stock.valuation.line</field>-->
+<!--        <field name="view_mode">list</field>-->
+<!--        <field name="view_id" ref="view_periodic_valuation_list"/>-->
+<!--        <field name="domain">[]</field>-->
+<!--        -->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; Menu &ndash;&gt;-->
+<!--    <menuitem id="menu_periodic_valuation_custom"-->
+<!--              name="Inventory Valuation (Periodic)"-->
+<!--              parent="stock.menu_warehouse_report"-->
+<!--              action="action_periodic_valuation"-->
+<!--              sequence="100"/>-->
+<!--</odoo>-->
