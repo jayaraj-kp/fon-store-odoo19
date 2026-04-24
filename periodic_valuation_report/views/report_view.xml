@@ -4,7 +4,7 @@
         <field name="name">periodic.stock.valuation.line.list</field>
         <field name="model">periodic.stock.valuation.line</field>
         <field name="arch" type="xml">
-            <list create="false" edit="false" delete="false">
+            <list create="false" edit="false" delete="false" disable_filters="True">
                 <field name="date"            string="Date"/>
                 <field name="reference"       string="Reference"/>
                 <field name="account_move_id" string="Journal Entry" optional="show"/>
