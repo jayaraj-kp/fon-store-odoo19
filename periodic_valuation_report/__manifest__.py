@@ -1,7 +1,7 @@
 {
     'name': 'Periodic Inventory Valuation Report',
     'version': '1.0',
-    'depends': ['stock', 'purchase', 'account'],
+    'depends': ['stock', 'purchase', 'stock_account'],
     'data': [
         'security/ir.model.access.csv',
         'views/report_view.xml',

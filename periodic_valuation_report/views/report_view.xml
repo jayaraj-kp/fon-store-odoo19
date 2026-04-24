@@ -1,42 +1,53 @@
 <odoo>
-    <!-- ═══════════════════════════════════════════════
-         LIST VIEW  –  stock.valuation.layer
-         Shows: Date · Reference · Journal Entry ·
-                Product · Quantity · Unit Value · Total Value
-    ════════════════════════════════════════════════ -->
+    <!-- Search view for filtering -->
+    <record id="view_periodic_valuation_search" model="ir.ui.view">
+        <field name="name">periodic.stock.valuation.line.search</field>
+        <field name="model">periodic.stock.valuation.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="product_id"  string="Product"/>
+                <field name="reference"   string="Reference"/>
+                <filter string="Today"    name="today"
+                        domain="[('date','&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),
+                                  ('date','&lt;=', datetime.datetime.now().strftime('%Y-%m-%d 23:59:59'))]"/>
+                <separator/>
+                <filter string="Incoming" name="incoming" domain="[('quantity','&gt;',0)]"/>
+                <filter string="Outgoing" name="outgoing" domain="[('quantity','&lt;',0)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Product"  name="by_product"  context="{'group_by':'product_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- List view -->
     <record id="view_periodic_valuation_list" model="ir.ui.view">
-        <field name="name">periodic.valuation.list</field>
-        <field name="model">stock.valuation.layer</field>
+        <field name="name">periodic.stock.valuation.line.list</field>
+        <field name="model">periodic.stock.valuation.line</field>
         <field name="arch" type="xml">
             <list create="false" edit="false" delete="false">
-                <!-- Date comes from the linked stock move -->
-                <field name="create_date"     string="Date"/>
-                <!-- Reference = picking reference of the source move -->
+                <field name="date"            string="Date"/>
                 <field name="reference"       string="Reference"/>
-                <!-- Journal Entry (account.move) -->
                 <field name="account_move_id" string="Journal Entry" optional="show"/>
-                <!-- Product -->
                 <field name="product_id"      string="Product"/>
-                <!-- Qty on this layer (positive=in, negative=out) -->
                 <field name="quantity"        string="Quantity"/>
-                <!-- Unit cost at the time of the move -->
                 <field name="unit_cost"       string="Unit Value"/>
-                <!-- Layer value = quantity × unit_cost -->
                 <field name="value"           string="Total Value" sum="Total"/>
             </list>
         </field>
     </record>
 
-    <!-- Window action -->
+    <!-- Action -->
     <record id="action_periodic_valuation" model="ir.actions.act_window">
         <field name="name">Inventory Valuation</field>
-        <field name="res_model">stock.valuation.layer</field>
+        <field name="res_model">periodic.stock.valuation.line</field>
         <field name="view_mode">list</field>
         <field name="view_id" ref="view_periodic_valuation_list"/>
+        <field name="search_view_id" ref="view_periodic_valuation_search"/>
         <field name="domain">[]</field>
     </record>
 
-    <!-- Menu entry under Inventory ▸ Reporting -->
+    <!-- Menu -->
     <menuitem id="menu_periodic_valuation_custom"
               name="Inventory Valuation (Periodic)"
               parent="stock.menu_warehouse_report"
