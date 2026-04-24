@@ -6,14 +6,11 @@ class StockValuationLine(models.Model):
     """
     SQL view for Odoo 19 CE periodic inventory valuation.
 
-    Odoo 19 CE facts discovered:
-    - stock.valuation.layer model does not exist
-    - account_move_line has NO stock_move_id column
-    - account_move has NO stock_move_id column
-    - The only link: account_move.invoice_origin = stock_picking.name
-
-    So: unit_cost and value come from standard_price (always current).
-    Journal Entry is linked via invoice_origin = picking name.
+    Confirmed stock_move columns used:
+    - date, reference, origin, state, picking_id, company_id
+    - price_unit  → unit cost at time of move
+    - value       → total monetary value of the move
+    - account_move_id → direct FK to account.move (journal entry)!
     """
     _name = 'periodic.stock.valuation.line'
     _description = 'Periodic Stock Valuation Line'
@@ -34,57 +31,28 @@ class StockValuationLine(models.Model):
         self.env.cr.execute("""
             CREATE OR REPLACE VIEW periodic_stock_valuation_line AS (
                 SELECT
-                    sml.id                                        AS id,
+                    sm.id                                         AS id,
                     sm.date                                       AS date,
-                    COALESCE(sp.name, sm.origin, sm.name)        AS reference,
-                    -- Link journal entry via picking name = invoice_origin
-                    am.id                                         AS account_move_id,
-                    sml.product_id                               AS product_id,
-                    -- Positive qty = stock IN, negative = stock OUT
+                    COALESCE(sp.name, sm.reference, sm.origin)   AS reference,
+                    sm.account_move_id                            AS account_move_id,
+                    sm.product_id                                 AS product_id,
+                    -- Positive = IN to internal, Negative = OUT from internal
                     CASE
-                        WHEN dest_loc.usage = 'internal'
-                         AND src_loc.usage  != 'internal'
-                        THEN  sml.quantity
-                        WHEN src_loc.usage  = 'internal'
-                         AND dest_loc.usage != 'internal'
-                        THEN -sml.quantity
+                        WHEN sm.is_in  THEN  sm.quantity
+                        WHEN sm.is_out THEN -sm.quantity
                         ELSE 0
-                    END                                          AS quantity,
-                    -- Unit cost from standard_price at product level
-                    COALESCE(pt.standard_price, 0)              AS unit_cost,
-                    -- Total value = signed quantity × standard_price
+                    END                                           AS quantity,
+                    sm.price_unit                                 AS unit_cost,
+                    -- value on stock_move is always positive; sign it by direction
                     CASE
-                        WHEN dest_loc.usage = 'internal'
-                         AND src_loc.usage  != 'internal'
-                        THEN  sml.quantity * COALESCE(pt.standard_price, 0)
-                        WHEN src_loc.usage  = 'internal'
-                         AND dest_loc.usage != 'internal'
-                        THEN -sml.quantity * COALESCE(pt.standard_price, 0)
+                        WHEN sm.is_in  THEN  ABS(sm.value)
+                        WHEN sm.is_out THEN -ABS(sm.value)
                         ELSE 0
-                    END                                          AS value,
-                    sm.company_id                               AS company_id
-                FROM stock_move_line    sml
-                JOIN stock_move         sm
-                  ON sm.id        = sml.move_id
-                JOIN stock_location     src_loc
-                  ON src_loc.id   = sml.location_id
-                JOIN stock_location     dest_loc
-                  ON dest_loc.id  = sml.location_dest_id
-                JOIN product_product    pp
-                  ON pp.id        = sml.product_id
-                JOIN product_template   pt
-                  ON pt.id        = pp.product_tmpl_id
-                LEFT JOIN stock_picking sp
-                  ON sp.id        = sm.picking_id
-                -- Journal entry linked via picking name = invoice_origin
-                LEFT JOIN account_move  am
-                  ON am.invoice_origin = sp.name
-                 AND am.move_type      = 'entry'
-                 AND am.state          = 'posted'
+                    END                                           AS value,
+                    sm.company_id                                 AS company_id
+                FROM stock_move         sm
+                LEFT JOIN stock_picking sp ON sp.id = sm.picking_id
                 WHERE sm.state = 'done'
-                  AND (
-                      (dest_loc.usage = 'internal' AND src_loc.usage != 'internal')
-                   OR (src_loc.usage  = 'internal' AND dest_loc.usage != 'internal')
-                  )
+                  AND (sm.is_in OR sm.is_out)
             )
         """)
