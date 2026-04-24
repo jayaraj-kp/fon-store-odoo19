@@ -28,7 +28,7 @@
         <field name="model">stock.quant</field>
         <field name="inherit_id" ref="stock.view_stock_quant_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='inventory_quantity']" position="after">
+            <xpath expr="//field[@name='quantity']" position="after">
                 <field name="latest_purchase_cost" readonly="1"/>
             </xpath>
         </field>
