@@ -6,7 +6,6 @@
         'security/ir.model.access.csv',
         'views/report_view.xml',
     ],
-    # ADD THIS LINE:
     'installable': True,
     'application': True,
 }

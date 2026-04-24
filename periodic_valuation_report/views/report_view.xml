@@ -7,7 +7,7 @@
                 <field name="display_name" string="Product"/>
                 <field name="qty_available" string="Quantity"/>
                 <field name="standard_price" string="Unit Value"/>
-                <field name="total_inventory_value" string="Total Value" sum="Total"/>
+                <field name="custom_inventory_value" string="Total Value" sum="Total"/>
             </list>
         </field>
     </record>
