@@ -1,30 +1,42 @@
 <odoo>
+    <!-- ═══════════════════════════════════════════════
+         LIST VIEW  –  stock.valuation.layer
+         Shows: Date · Reference · Journal Entry ·
+                Product · Quantity · Unit Value · Total Value
+    ════════════════════════════════════════════════ -->
     <record id="view_periodic_valuation_list" model="ir.ui.view">
         <field name="name">periodic.valuation.list</field>
-        <field name="model">product.product</field>
+        <field name="model">stock.valuation.layer</field>
         <field name="arch" type="xml">
-            <list create="false" edit="false">
-                <field name="display_name" string="Product"/>
-                <field name="qty_available" string="Quantity"/>
-                <field name="standard_price" string="Unit Value"/>
-                <field name="custom_inventory_value" string="Total Value" sum="Total"/>
+            <list create="false" edit="false" delete="false">
+                <!-- Date comes from the linked stock move -->
+                <field name="create_date"     string="Date"/>
+                <!-- Reference = picking reference of the source move -->
+                <field name="reference"       string="Reference"/>
+                <!-- Journal Entry (account.move) -->
+                <field name="account_move_id" string="Journal Entry" optional="show"/>
+                <!-- Product -->
+                <field name="product_id"      string="Product"/>
+                <!-- Qty on this layer (positive=in, negative=out) -->
+                <field name="quantity"        string="Quantity"/>
+                <!-- Unit cost at the time of the move -->
+                <field name="unit_cost"       string="Unit Value"/>
+                <!-- Layer value = quantity × unit_cost -->
+                <field name="value"           string="Total Value" sum="Total"/>
             </list>
         </field>
     </record>
 
+    <!-- Window action -->
     <record id="action_periodic_valuation" model="ir.actions.act_window">
         <field name="name">Inventory Valuation</field>
-        <field name="res_model">product.product</field>
+        <field name="res_model">stock.valuation.layer</field>
         <field name="view_mode">list</field>
         <field name="view_id" ref="view_periodic_valuation_list"/>
-        <!--
-            Odoo 19: 'detailed_type' and 'type' on product.product are removed.
-            Filter by qty_available > 0 only — non-storable products have no stock
-            so they will never appear anyway. This is safe and works in all versions.
-        -->
-        <field name="domain">[('qty_available', '>', 0)]</field>
+        <field name="domain">[]</field>
     </record>
 
+    <!-- Menu entry under Inventory ▸ Reporting -->
     <menuitem id="menu_periodic_valuation_custom"
               name="Inventory Valuation (Periodic)"
               parent="stock.menu_warehouse_report"
