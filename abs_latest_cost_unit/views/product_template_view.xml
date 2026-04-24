@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Inject into product template form view, after standard_price -->
+    <record id="view_product_tmpl_latest_cost_form" model="ir.ui.view">
+        <field name="name">product.template.latest.cost.form</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='standard_price']" position="after">
+                <field name="latest_price_unit_cost" readonly="1"
+                       widget="monetary"
+                       options="{'currency_field': 'currency_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Optional: show in product list view -->
+    <record id="view_product_tmpl_latest_cost_list" model="ir.ui.view">
+        <field name="name">product.template.latest.cost.list</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <field name="latest_price_unit_cost" string="Latest Price Unit Cost" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

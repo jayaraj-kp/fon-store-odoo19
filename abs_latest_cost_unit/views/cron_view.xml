@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Scheduled Action: recompute latest_price_unit_cost daily -->
+    <record forcecreate="True"
+            id="cron_compute_latest_price_unit_cost"
+            model="ir.cron">
+        <field name="name">Stock: Compute Latest Price Unit Cost</field>
+        <field name="model_id" ref="purchase.model_purchase_order"/>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+        <field name="code">model._compute_latest_price_unit_cost()</field>
+    </record>
+
+</odoo>
