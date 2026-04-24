@@ -78,14 +78,16 @@ class StockLocationGenerateWizard(models.TransientModel):
                 raise ValidationError(_('You cannot generate more than 1 000 locations at once.'))
 
     # ── Core action ──────────────────────────────────────────────────────────
+    # ── Core action ──────────────────────────────────────────────────────────
     def action_generate(self):
         self.ensure_one()
 
         # Determine the effective prefix
         if self.prefix:
-            label_prefix = self.prefix
+            # Ensure there's always a space between prefix and number
+            label_prefix = self.prefix.rstrip() + ' '
         else:
-            label_prefix = 'Rack ' if self.create_type == 'rack' else 'Box '
+            label_prefix = 'Rack ' if self.create_type == 'rack' else 'BOX '
 
         parent_location = self.location_id
         created = self.env['stock.location']
