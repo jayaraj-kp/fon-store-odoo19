@@ -2,13 +2,12 @@
 <odoo>
 
     <!-- ================================================================
-         Scheduled Action – update latest purchase cost on stock quants.
+         Scheduled Action: update latest purchase cost on stock quants.
 
-         Changes from Odoo 12 cron definition
-         -------------------------------------
+         Changes from Odoo 12 cron definition:
          * 'model' + 'function' + 'args' fields replaced by 'code' field
            (ir.cron now uses server-action-style Python code in Odoo 16+).
-         * 'doall' renamed to 'doall' (still valid but kept for clarity).
+         * 'doall' kept for clarity.
     ================================================================ -->
     <record forcecreate="True"
             id="set_products_latest_purchase_cost_scheduler_action"
