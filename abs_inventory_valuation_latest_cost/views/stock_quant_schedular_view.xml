@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         Scheduled Action – update latest purchase cost on stock quants.
+
+         Changes from Odoo 12 cron definition
+         -------------------------------------
+         * 'model' + 'function' + 'args' fields replaced by 'code' field
+           (ir.cron now uses server-action-style Python code in Odoo 16+).
+         * 'doall' renamed to 'doall' (still valid but kept for clarity).
+    ================================================================ -->
+    <record forcecreate="True"
+            id="set_products_latest_purchase_cost_scheduler_action"
+            model="ir.cron">
+        <field name="name">Stock: Set Latest Purchase Cost</field>
+        <field name="model_id" ref="purchase.model_purchase_order"/>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="doall" eval="False"/>
+        <field name="active" eval="True"/>
+        <field name="code">model._set_latest_cost()</field>
+    </record>
+
+</odoo>

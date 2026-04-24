@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         List View – Inventory Valuation based on Latest Purchase Cost
+         NOTE: In Odoo 16+ the <tree> tag was renamed to <list>.
+               The qty field was renamed to 'quantity'.
+               view_type field is removed from ir.actions.act_window.
+    ================================================================ -->
+    <record id="view_inventory_valuation_latest_cost_list" model="ir.ui.view">
+        <field name="name">stock.quant.list.latest.cost</field>
+        <field name="model">stock.quant</field>
+        <field name="arch" type="xml">
+            <list string="Inventory Valuation based on Latest Purchase Cost"
+                  create="0" delete="0">
+                <field name="product_id"/>
+                <field name="quantity" string="Quantity on Hand"/>
+                <field name="location_id"/>
+                <field name="in_date"/>
+                <field name="latest_purchase_cost" sum="Total Latest Purchase Cost"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View – inject latest_purchase_cost after inventory_value -->
+    <record id="view_set_latest_purchase_cost_form" model="ir.ui.view">
+        <field name="name">stock.quant.form.latest.cost</field>
+        <field name="model">stock.quant</field>
+        <field name="inherit_id" ref="stock.view_stock_quant_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='inventory_quantity']" position="after">
+                <field name="latest_purchase_cost" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Window Action -->
+    <record id="open_view_inventory_valuation_based_on_latest_cost" model="ir.actions.act_window">
+        <field name="name">Inventory Valuation (Latest Purchase Cost)</field>
+        <field name="res_model">stock.quant</field>
+        <field name="view_mode">list,form,pivot</field>
+        <field name="context">{'group_by': ['product_id', 'location_id']}</field>
+        <field name="view_id" ref="view_inventory_valuation_latest_cost_list"/>
+    </record>
+
+    <!-- Menu entry under Inventory → Reporting -->
+    <menuitem
+        id="inventory_valuation_based_latest_cost"
+        name="Inventory Valuation (PO)"
+        parent="stock.menu_warehouse_report"
+        action="open_view_inventory_valuation_based_on_latest_cost"
+        groups="stock.group_stock_manager"
+        sequence="20"/>
+
+</odoo>
