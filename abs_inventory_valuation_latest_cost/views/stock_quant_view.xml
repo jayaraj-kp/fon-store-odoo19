@@ -3,9 +3,6 @@
 
     <!-- ================================================================
          List View – Inventory Valuation based on Latest Purchase Cost
-         NOTE: In Odoo 16+ the <tree> tag was renamed to <list>.
-               The qty field was renamed to 'quantity'.
-               view_type field is removed from ir.actions.act_window.
     ================================================================ -->
     <record id="view_inventory_valuation_latest_cost_list" model="ir.ui.view">
         <field name="name">stock.quant.list.latest.cost</field>
@@ -22,11 +19,13 @@
         </field>
     </record>
 
-    <!-- Form View – inject latest_purchase_cost after inventory_value -->
+    <!-- Form View – inject latest_purchase_cost after quantity field.
+         NOTE: In Odoo 19 the editable quant form is stock.quant.form.editable,
+               not stock.view_stock_quant_form. -->
     <record id="view_set_latest_purchase_cost_form" model="ir.ui.view">
         <field name="name">stock.quant.form.latest.cost</field>
         <field name="model">stock.quant</field>
-        <field name="inherit_id" ref="stock.view_stock_quant_form"/>
+        <field name="inherit_id" ref="stock.quant.form.editable"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='quantity']" position="after">
                 <field name="latest_purchase_cost" readonly="1"/>
