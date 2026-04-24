@@ -1,20 +1,17 @@
 <odoo>
-    <!-- Search view for filtering -->
+    <!-- Search view -->
     <record id="view_periodic_valuation_search" model="ir.ui.view">
         <field name="name">periodic.stock.valuation.line.search</field>
         <field name="model">periodic.stock.valuation.line</field>
         <field name="arch" type="xml">
-            <search>
-                <field name="product_id"  string="Product"/>
-                <field name="reference"   string="Reference"/>
-                <filter string="Today"    name="today"
-                        domain="[('date','&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),
-                                  ('date','&lt;=', datetime.datetime.now().strftime('%Y-%m-%d 23:59:59'))]"/>
+            <search string="Inventory Valuation">
+                <field name="product_id" string="Product"/>
+                <field name="reference"  string="Reference"/>
                 <separator/>
                 <filter string="Incoming" name="incoming" domain="[('quantity','&gt;',0)]"/>
                 <filter string="Outgoing" name="outgoing" domain="[('quantity','&lt;',0)]"/>
                 <group expand="0" string="Group By">
-                    <filter string="Product"  name="by_product"  context="{'group_by':'product_id'}"/>
+                    <filter string="Product" name="by_product" context="{'group_by':'product_id'}"/>
                 </group>
             </search>
         </field>
