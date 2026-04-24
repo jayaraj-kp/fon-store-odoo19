@@ -17,7 +17,7 @@
         <field name="res_model">product.product</field>
         <field name="view_mode">list</field>
         <field name="view_id" ref="view_periodic_valuation_list"/>
-        <field name="domain">[('type', '=', 'product'), ('qty_available', '>', 0)]</field>
+        <field name="domain">[('type', '=', 'product')]</field>
     </record>
 
     <menuitem id="menu_periodic_valuation_custom"
