@@ -1,22 +1,4 @@
 <odoo>
-    <!-- Search view -->
-    <record id="view_periodic_valuation_search" model="ir.ui.view">
-        <field name="name">periodic.stock.valuation.line.search</field>
-        <field name="model">periodic.stock.valuation.line</field>
-        <field name="arch" type="xml">
-            <search string="Inventory Valuation">
-                <field name="product_id" string="Product"/>
-                <field name="reference"  string="Reference"/>
-                <separator/>
-                <filter string="Incoming" name="incoming" domain="[('quantity','&gt;',0)]"/>
-                <filter string="Outgoing" name="outgoing" domain="[('quantity','&lt;',0)]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Product" name="by_product" context="{'group_by':'product_id'}"/>
-                </group>
-            </search>
-        </field>
-    </record>
-
     <!-- List view -->
     <record id="view_periodic_valuation_list" model="ir.ui.view">
         <field name="name">periodic.stock.valuation.line.list</field>
@@ -40,7 +22,6 @@
         <field name="res_model">periodic.stock.valuation.line</field>
         <field name="view_mode">list</field>
         <field name="view_id" ref="view_periodic_valuation_list"/>
-        <field name="search_view_id" ref="view_periodic_valuation_search"/>
         <field name="domain">[]</field>
     </record>
 
