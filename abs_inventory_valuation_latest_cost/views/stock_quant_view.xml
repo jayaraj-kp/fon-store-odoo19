@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ================================================================
-         List View – Inventory Valuation based on Latest Purchase Cost
-    ================================================================ -->
+    <!-- List View -->
     <record id="view_inventory_valuation_latest_cost_list" model="ir.ui.view">
         <field name="name">stock.quant.list.latest.cost</field>
         <field name="model">stock.quant</field>
@@ -19,13 +17,11 @@
         </field>
     </record>
 
-    <!-- Form View – inject latest_purchase_cost after quantity field.
-         NOTE: In Odoo 19 the editable quant form is stock.quant.form.editable,
-               not stock.view_stock_quant_form. -->
+    <!-- Form View – inherit from the correct Odoo 19 editable quant form -->
     <record id="view_set_latest_purchase_cost_form" model="ir.ui.view">
         <field name="name">stock.quant.form.latest.cost</field>
         <field name="model">stock.quant</field>
-        <field name="inherit_id" ref="stock.quant.form.editable"/>
+        <field name="inherit_id" ref="stock.view_stock_quant_form_editable"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='quantity']" position="after">
                 <field name="latest_purchase_cost" readonly="1"/>
