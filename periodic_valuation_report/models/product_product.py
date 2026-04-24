@@ -4,10 +4,11 @@ from odoo import models, fields, api
 class ProductProduct(models.Model):
     _inherit = 'product.product'
 
+    # In product_product.py
     total_inventory_value = fields.Float(
-        string="Total Value",
+        string="Custom Total Value",  # Change this label!
         compute="_compute_total_inventory_value",
-        store=False # Set to False so it doesn't try to look for a database column
+        store=False
     )
 
     @api.depends('qty_available', 'standard_price')
