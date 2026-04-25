@@ -420,103 +420,94 @@ def _get_user_warehouse(user):
 
 
 def _get_analytic_for_journal(env, journal, company_id):
-    """
-    Given a payment journal, find the analytic by tracing:
-        journal → pos.payment.method → pos.config → picking_type_id → warehouse → analytic
+    _logger.warning('BANK JOURNAL LOOKUP: journal=%s (id=%s) company=%s',
+        journal.name, journal.id, company_id)
 
-    This is the CORRECT path — we start from the journal and find which
-    POS config owns it, then get THAT config's warehouse via picking_type_id.
-
-    We do NOT iterate all warehouses first (old buggy approach that always
-    returned CHELARI because it was first in the search).
-    """
-    if not journal:
-        return False
-
-    # Find payment methods that use this journal
     payment_methods = env['pos.payment.method'].search([
         ('journal_id', '=', journal.id),
         ('company_id', '=', company_id),
     ])
+    _logger.warning('  Found %s payment methods for this journal: %s',
+        len(payment_methods), payment_methods.mapped('name'))
 
     for pm in payment_methods:
-        # Get configs that use this payment method
         configs = env['pos.config'].search([
             ('payment_method_ids', 'in', pm.ids),
             ('company_id', '=', company_id),
         ])
+        _logger.warning('  pm=%s → configs: %s', pm.name, configs.mapped('name'))
+
         for config in configs:
-            # PRIMARY: picking_type_id → warehouse (shop-specific)
             picking_type = getattr(config, 'picking_type_id', False)
+            _logger.warning('    config=%s picking_type=%s',
+                config.name, getattr(picking_type, 'name', 'NONE'))
+
             if picking_type:
                 wh = getattr(picking_type, 'warehouse_id', False)
+                _logger.warning('    picking_type.warehouse_id=%s', getattr(wh, 'name', 'NONE'))
                 if wh and getattr(wh, 'analytic_account_id', False):
-                    _logger.debug(
-                        'Stmt analytic: journal[%s] → pm[%s] → config[%s] '
-                        '→ picking_type[%s] → wh[%s] → analytic[%s]',
-                        journal.name, pm.name, config.name,
-                        picking_type.name, wh.name,
-                        wh.analytic_account_id.name,
-                    )
+                    _logger.warning('    RESULT: analytic=%s', wh.analytic_account_id.name)
                     return wh.analytic_account_id
 
-            # FALLBACK: direct warehouse on config
             wh = getattr(config, 'warehouse_id', False)
+            _logger.warning('    direct warehouse_id=%s', getattr(wh, 'name', 'NONE'))
             if wh and getattr(wh, 'analytic_account_id', False):
-                _logger.debug(
-                    'Stmt analytic FALLBACK: journal[%s] → config[%s] '
-                    '→ direct wh[%s] → analytic[%s]',
-                    journal.name, config.name, wh.name,
-                    wh.analytic_account_id.name,
-                )
+                _logger.warning('    RESULT (fallback): analytic=%s', wh.analytic_account_id.name)
                 return wh.analytic_account_id
 
+    _logger.warning('  RESULT: NO analytic found for journal')
     return False
 
 
 def _resolve_analytic_for_statement_line(st_line):
-    """
-    Resolve the correct analytic for a bank statement line.
+    _logger.warning('-'*50)
+    _logger.warning('RESOLVE ANALYTIC for stmt_line id=%s move=%s journal=%s session=%s',
+        st_line.id,
+        getattr(st_line.move_id, 'name', 'NONE'),
+        getattr(st_line.journal_id, 'name', 'NONE'),
+        getattr(getattr(st_line, 'pos_session_id', False), 'name', 'NONE'))
 
-    Priority:
-    1. pos_session_id → config → picking_type_id → warehouse → analytic
-    2. journal → pos.payment.method → pos.config → picking_type_id → warehouse → analytic
-    3. Current user's default warehouse (last resort for manual entries only)
-    """
-    # Priority 1: Direct session link (most precise)
+    # Priority 1: session link
     session = getattr(st_line, 'pos_session_id', False)
     if session:
         config = getattr(session, 'config_id', False)
         if config:
             picking_type = getattr(config, 'picking_type_id', False)
+            _logger.warning('  P1 session=%s config=%s picking_type=%s',
+                session.name, config.name, getattr(picking_type, 'name', 'NONE'))
             if picking_type:
                 wh = getattr(picking_type, 'warehouse_id', False)
+                _logger.warning('  P1 picking_type.wh=%s', getattr(wh, 'name', 'NONE'))
                 if wh and getattr(wh, 'analytic_account_id', False):
-                    _logger.debug(
-                        'Stmt analytic from session[%s] → picking_type → wh[%s]',
-                        session.name, wh.name,
-                    )
+                    _logger.warning('  P1 RESULT: %s', wh.analytic_account_id.name)
                     return wh.analytic_account_id
-            # Fallback within session: direct warehouse on config
             wh = getattr(config, 'warehouse_id', False)
+            _logger.warning('  P1 direct wh=%s', getattr(wh, 'name', 'NONE'))
             if wh and getattr(wh, 'analytic_account_id', False):
+                _logger.warning('  P1 RESULT (direct wh): %s', wh.analytic_account_id.name)
                 return wh.analytic_account_id
+    else:
+        _logger.warning('  P1 SKIP: no pos_session_id on stmt line')
 
-    # Priority 2: Journal → payment method → config → picking_type → warehouse
+    # Priority 2: journal lookup
     journal = getattr(st_line, 'journal_id', False)
     if journal:
-        analytic = _get_analytic_for_journal(
-            st_line.env, journal, st_line.company_id.id
-        )
+        analytic = _get_analytic_for_journal(st_line.env, journal, st_line.company_id.id)
         if analytic:
+            _logger.warning('  P2 RESULT: %s', analytic.name)
             return analytic
+    else:
+        _logger.warning('  P2 SKIP: no journal_id on stmt line')
 
-    # Priority 3: Logged-in user's warehouse (manual entries only)
+    # Priority 3: user warehouse
     wh = _get_user_warehouse(st_line.env.user)
+    _logger.warning('  P3 user=%s wh=%s', st_line.env.user.name, getattr(wh, 'name', 'NONE'))
     if wh and getattr(wh, 'analytic_account_id', False):
-        _logger.debug('Stmt analytic from user warehouse: %s', wh.name)
+        _logger.warning('  P3 RESULT: %s', wh.analytic_account_id.name)
         return wh.analytic_account_id
 
+    _logger.warning('  NO analytic found!')
+    _logger.warning('-'*50)
     return False
 
 
@@ -544,6 +535,7 @@ def _stamp_analytic_on_move(move, analytic):
     if not move or not analytic:
         return
     key = str(analytic.id)
+    _logger.warning('STAMP on move=%s analytic=%s', move.name, analytic.name)
     for line in move.line_ids.filtered(lambda l: l.account_id):
         existing = line.analytic_distribution or {}
         if key not in existing:
@@ -554,15 +546,8 @@ def _stamp_analytic_on_move(move, analytic):
                     check_move_validity=False,
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
-                _logger.debug(
-                    'Stmt analytic [%s] → move %s line %s (%s)',
-                    analytic.name, move.name, line.id, line.account_id.code,
-                )
             except Exception as e:
-                _logger.warning(
-                    'Could not stamp analytic on move %s line %s: %s',
-                    move.name, line.id, e,
-                )
+                _logger.warning('STAMP FAIL line %s: %s', line.id, e)
 
 
 class AccountBankStatementLine(models.Model):
@@ -578,9 +563,9 @@ class AccountBankStatementLine(models.Model):
         return st_lines
 
     def write(self, vals):
-        """Re-stamp when pos_session_id is assigned after creation."""
         result = super().write(vals)
         if 'pos_session_id' in vals:
+            _logger.warning('WRITE: pos_session_id set on %s stmt lines', len(self))
             for st_line in self:
                 analytic = _resolve_analytic_for_statement_line(st_line)
                 if analytic and st_line.move_id:
@@ -594,38 +579,27 @@ class AccountBankStatementLine(models.Model):
             _inject_analytic_into_reconcile_info(result, analytic)
         return result
 
-    def _recompute_suspense_line(self, data, reconcile_auxiliary_id,
-                                 manual_reference):
-        result = super()._recompute_suspense_line(
-            data, reconcile_auxiliary_id, manual_reference
-        )
+    def _recompute_suspense_line(self, data, reconcile_auxiliary_id, manual_reference):
+        result = super()._recompute_suspense_line(data, reconcile_auxiliary_id, manual_reference)
         analytic = _resolve_analytic_for_statement_line(self)
         if analytic:
             _inject_analytic_into_reconcile_info(result, analytic)
         return result
 
-    def _reconcile_data_by_model(self, data, reconcile_model,
-                                 reconcile_auxiliary_id):
-        new_data, new_id = super()._reconcile_data_by_model(
-            data, reconcile_model, reconcile_auxiliary_id
-        )
+    def _reconcile_data_by_model(self, data, reconcile_model, reconcile_auxiliary_id):
+        new_data, new_id = super()._reconcile_data_by_model(data, reconcile_model, reconcile_auxiliary_id)
         analytic = _resolve_analytic_for_statement_line(self)
         if analytic:
             _inject_analytic_into_data(new_data, analytic)
         return new_data, new_id
 
-    def _get_reconcile_line(self, line, kind, is_counterpart=False,
-                            max_amount=False, from_unreconcile=False,
-                            reconcile_auxiliary_id=False, move=False,
-                            is_reconciled=False):
+    def _get_reconcile_line(self, line, kind, is_counterpart=False, max_amount=False,
+                            from_unreconcile=False, reconcile_auxiliary_id=False,
+                            move=False, is_reconciled=False):
         reconcile_auxiliary_id, lines = super()._get_reconcile_line(
-            line, kind,
-            is_counterpart=is_counterpart,
-            max_amount=max_amount,
-            from_unreconcile=from_unreconcile,
-            reconcile_auxiliary_id=reconcile_auxiliary_id,
-            move=move,
-            is_reconciled=is_reconciled,
+            line, kind, is_counterpart=is_counterpart, max_amount=max_amount,
+            from_unreconcile=from_unreconcile, reconcile_auxiliary_id=reconcile_auxiliary_id,
+            move=move, is_reconciled=is_reconciled,
         )
         analytic = _resolve_analytic_for_statement_line(self)
         if analytic:
