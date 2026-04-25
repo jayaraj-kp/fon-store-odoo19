@@ -1,25 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-account_move.py
+account_move.py  [v2 - Fixed for Odoo 19 CE]
 
-Hooks into vendor bill (account.move) confirmation to add the missing
-Anglo-Saxon inventory accounting lines in Odoo 19 CE.
+Anglo-Saxon inventory accounting for Odoo 19 CE.
+Adds missing stock valuation journal lines when vendor bill is confirmed.
 
-When a vendor bill linked to a purchase order is confirmed, Odoo 19 CE
-(without account_anglo_saxon) only creates:
-    DR  Stock Interim Received   (230300)
+WHAT WE ADD on bill confirmation:
+    DR  Stock Valuation Account  (110100)
+    CR  Stock Input Account      (230300)
+
+Combined with what Odoo already creates:
+    DR  Stock Input Account      (230300)
     CR  Account Payable          (211000)
 
-This module adds the missing lines:
-    DR  Stock Valuation Account  (110100)
-    CR  Stock Interim Received   (230300)
-
-Result: Full 4-line Anglo-Saxon journal entry.
-
-Reads accounts from your custom fields on product.category:
-    - property_stock_valuation_account_id  (Stock Valuation Account)
-    - property_stock_account_input_categ_id (Stock Input Account)
-    - property_stock_journal               (Stock Journal)
+= Full 4-line Anglo-Saxon entry.
 """
 
 import logging
@@ -27,56 +21,101 @@ from odoo import models, api, _
 
 _logger = logging.getLogger(__name__)
 
+# Odoo 19 CE property_valuation possible internal values — check all
+PERPETUAL_VALUES = {'real_time', 'perpetual_invoicing', 'perpetual', 'real_time_invoicing'}
+
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
     def action_post(self):
-        """
-        Override action_post to inject Anglo-Saxon inventory lines
-        into vendor bills before they are posted.
-        """
+        """Override action_post to inject Anglo-Saxon lines before posting."""
         for move in self:
-            if move._is_purchase_bill_with_stock():
-                move._add_anglo_saxon_stock_lines()
+            if move.move_type == 'in_invoice' and move.state == 'draft':
+                try:
+                    added = move._add_anglo_saxon_stock_lines()
+                    _logger.info(
+                        "Anglo-Saxon v2: Bill %s — added %d valuation line pairs.",
+                        move.name or '(draft)', added
+                    )
+                except Exception as e:
+                    _logger.error(
+                        "Anglo-Saxon v2: Failed on bill %s: %s",
+                        move.name or '(draft)', str(e), exc_info=True
+                    )
         return super().action_post()
 
-    def _is_purchase_bill_with_stock(self):
+    def _is_perpetual_valuation(self, categ):
         """
-        Check if this journal entry is a vendor bill linked to a purchase order
-        that has storable products with perpetual valuation.
+        Return True if the category uses perpetual (real-time) valuation.
+        Checks the raw stored value AND string representation to handle
+        Odoo 19 renamed selection keys.
         """
-        self.ensure_one()
-        if self.move_type != 'in_invoice':
-            return False
-        if self.state != 'draft':
-            return False
-        # Check if any invoice line has a product with real_time valuation
-        for line in self.invoice_line_ids.filtered(lambda l: l.product_id):
-            product = line.product_id
-            categ = product.categ_id
-            if categ.property_valuation == 'real_time':
-                # Check our custom stock valuation account field exists and is set
-                if hasattr(categ, 'property_stock_valuation_account_id') and \
-                        categ.property_stock_valuation_account_id:
-                    return True
+        val = categ.property_valuation
+        val_str = str(val).lower()
+        _logger.debug("Anglo-Saxon v2: category='%s' property_valuation='%s'", categ.name, val)
+        if val in PERPETUAL_VALUES:
+            return True
+        # Fallback string check in case Odoo 19 renamed the key
+        if 'real' in val_str or 'perpetual' in val_str or 'invoic' in val_str:
+            return True
         return False
+
+    def _get_stock_accounts_from_category(self, categ):
+        """
+        Get (valuation_account, input_account) from product category.
+        Reads from our custom fields added by stock_account_category_fix module.
+        """
+        # Our custom fields from stock_account_category_fix
+        valuation_account = getattr(categ, 'property_stock_valuation_account_id', False)
+        input_account = getattr(categ, 'property_stock_account_input_categ_id', False)
+
+        _logger.debug(
+            "Anglo-Saxon v2: category='%s' => valuation_acct=%s, input_acct=%s",
+            categ.name,
+            valuation_account.name if valuation_account else 'NOT SET',
+            input_account.name if input_account else 'NOT SET',
+        )
+        return valuation_account, input_account
+
+    def _get_anglo_saxon_unit_cost(self, invoice_line):
+        """
+        Get unit cost for stock valuation.
+        Priority: FIFO PO price > product standard_price > invoice price_unit
+        """
+        product = invoice_line.product_id
+        cost_method = product.categ_id.property_cost_method
+
+        if cost_method == 'fifo':
+            po_line = getattr(invoice_line, 'purchase_line_id', False)
+            if po_line and po_line.price_unit > 0:
+                price = po_line.price_unit
+                if self.currency_id and self.currency_id != self.company_id.currency_id:
+                    price = self.currency_id._convert(
+                        price, self.company_id.currency_id,
+                        self.company_id, self.invoice_date or self.date,
+                    )
+                return price
+
+        if product.standard_price > 0:
+            return product.standard_price
+
+        price = invoice_line.price_unit
+        if self.currency_id and self.currency_id != self.company_id.currency_id:
+            price = self.currency_id._convert(
+                price, self.company_id.currency_id,
+                self.company_id, self.invoice_date or self.date,
+            )
+        return price
 
     def _add_anglo_saxon_stock_lines(self):
         """
-        Add the Anglo-Saxon inventory accounting lines to the vendor bill.
-
-        For each invoice line with a storable product (perpetual valuation):
-            DR  Stock Valuation Account  (inventory increases on balance sheet)
-            CR  Stock Input Account      (GRNI account cleared)
-
-        These lines are added to the existing move lines BEFORE posting.
-        The lines use the accounts from your custom product category fields:
-            - property_stock_valuation_account_id
-            - property_stock_account_input_categ_id
+        Add DR Stock Valuation / CR Stock Input lines to this vendor bill.
+        Returns number of line pairs added.
         """
         self.ensure_one()
         new_lines_vals = []
+        pairs_added = 0
 
         for inv_line in self.invoice_line_ids.filtered(
             lambda l: l.product_id and not l.display_type
@@ -84,46 +123,56 @@ class AccountMove(models.Model):
             product = inv_line.product_id
             categ = product.categ_id
 
-            # Only process products with perpetual (real_time) valuation
-            if categ.property_valuation != 'real_time':
+            _logger.debug(
+                "Anglo-Saxon v2: line product='%s' categ='%s' valuation='%s' type='%s'",
+                product.name, categ.name, categ.property_valuation, product.type
+            )
+
+            if not self._is_perpetual_valuation(categ):
+                _logger.debug(
+                    "Anglo-Saxon v2: SKIP '%s' — valuation='%s' is not perpetual.",
+                    product.name, categ.property_valuation
+                )
                 continue
 
-            # Get accounts from your custom fields
-            valuation_account = getattr(categ, 'property_stock_valuation_account_id', False)
-            input_account = getattr(categ, 'property_stock_account_input_categ_id', False)
+            valuation_account, input_account = self._get_stock_accounts_from_category(categ)
 
             if not valuation_account:
                 _logger.warning(
-                    "No Stock Valuation Account on category '%s' for product '%s'. "
-                    "Skipping Anglo-Saxon lines.",
-                    categ.name, product.name
+                    "Anglo-Saxon v2: SKIP '%s' — property_stock_valuation_account_id "
+                    "is NOT SET on category '%s'. Set it in "
+                    "Inventory > Configuration > Product Categories.",
+                    product.name, categ.name
                 )
                 continue
 
             if not input_account:
                 _logger.warning(
-                    "No Stock Input Account on category '%s' for product '%s'. "
-                    "Skipping Anglo-Saxon lines.",
-                    categ.name, product.name
+                    "Anglo-Saxon v2: SKIP '%s' — property_stock_account_input_categ_id "
+                    "is NOT SET on category '%s'.",
+                    product.name, categ.name
                 )
                 continue
 
-            # Calculate the stock value using the unit cost * qty
-            # Use the product's current cost (AVCO/Standard) or PO line price (FIFO)
             unit_cost = self._get_anglo_saxon_unit_cost(inv_line)
             if unit_cost <= 0.0:
-                _logger.info(
-                    "Zero cost for product '%s', skipping Anglo-Saxon lines.", product.name
+                _logger.warning(
+                    "Anglo-Saxon v2: SKIP '%s' — unit cost is zero.",
+                    product.name
                 )
                 continue
 
-            quantity = inv_line.quantity
-            stock_value = unit_cost * quantity
+            stock_value = unit_cost * inv_line.quantity
+            label = _('%s - Stock Valuation') % product.display_name
 
-            label = _('%(product)s - Stock Valuation (Anglo-Saxon)',
-                      product=product.display_name)
+            _logger.info(
+                "Anglo-Saxon v2: ADDING lines for '%s': DR %s %.2f / CR %s %.2f",
+                product.name,
+                valuation_account.code, stock_value,
+                input_account.code, stock_value,
+            )
 
-            # Line 1: DR Stock Valuation Account (inventory asset increases)
+            # DR: Stock Valuation Account (inventory asset increases)
             new_lines_vals.append({
                 'move_id': self.id,
                 'name': label,
@@ -132,11 +181,11 @@ class AccountMove(models.Model):
                 'credit': 0.0,
                 'product_id': product.id,
                 'product_uom_id': inv_line.product_uom_id.id,
-                'quantity': quantity,
+                'quantity': inv_line.quantity,
                 'exclude_from_invoice_tab': True,
             })
 
-            # Line 2: CR Stock Input Account (GRNI cleared)
+            # CR: Stock Input Account (GRNI cleared)
             new_lines_vals.append({
                 'move_id': self.id,
                 'name': label,
@@ -145,87 +194,15 @@ class AccountMove(models.Model):
                 'credit': stock_value,
                 'product_id': product.id,
                 'product_uom_id': inv_line.product_uom_id.id,
-                'quantity': quantity,
+                'quantity': inv_line.quantity,
                 'exclude_from_invoice_tab': True,
             })
 
+            pairs_added += 1
+
         if new_lines_vals:
-            # Check for duplicate Anglo-Saxon lines (avoid re-adding if already present)
-            existing_labels = self.line_ids.mapped('name')
-            filtered_vals = []
-            seen = set()
-            for vals in new_lines_vals:
-                key = (vals['account_id'], vals['debit'], vals['credit'], vals['product_id'])
-                if key not in seen:
-                    # Only add if this exact combination doesn't already exist
-                    already_exists = self.line_ids.filtered(
-                        lambda l: l.account_id.id == vals['account_id']
-                        and abs(l.debit - vals['debit']) < 0.01
-                        and abs(l.credit - vals['credit']) < 0.01
-                        and l.product_id.id == vals['product_id']
-                        and 'Anglo-Saxon' in (l.name or '')
-                    )
-                    if not already_exists:
-                        filtered_vals.append(vals)
-                        seen.add(key)
+            self.env['account.move.line'].with_context(
+                check_move_validity=False
+            ).create(new_lines_vals)
 
-            if filtered_vals:
-                self.env['account.move.line'].with_context(
-                    check_move_validity=False
-                ).create(filtered_vals)
-                _logger.info(
-                    "Added %d Anglo-Saxon stock lines to bill %s",
-                    len(filtered_vals), self.name
-                )
-
-    def _get_anglo_saxon_unit_cost(self, invoice_line):
-        """
-        Determine the unit cost for the Anglo-Saxon stock valuation line.
-
-        Priority:
-        1. FIFO: use the price from the linked purchase order line
-        2. AVCO / Standard: use the product's current standard_price
-        3. Fallback: use the invoice line's price_unit
-
-        Args:
-            invoice_line: account.move.line record (invoice line)
-
-        Returns:
-            float: unit cost to use for stock valuation
-        """
-        product = invoice_line.product_id
-        categ = product.categ_id
-        cost_method = categ.property_cost_method
-
-        if cost_method == 'fifo':
-            # For FIFO: try to get the actual PO line price
-            purchase_line = invoice_line.purchase_line_id
-            if purchase_line:
-                price = purchase_line.price_unit
-                # Convert currency if needed
-                if self.currency_id != self.company_id.currency_id:
-                    price = self.currency_id._convert(
-                        price,
-                        self.company_id.currency_id,
-                        self.company_id,
-                        self.invoice_date or self.date,
-                    )
-                return price
-
-        if cost_method in ('average', 'standard'):
-            # For AVCO and Standard: use the product's current cost
-            cost = product.standard_price
-            if cost > 0:
-                return cost
-
-        # Final fallback: use the invoice line price
-        price = invoice_line.price_unit
-        # Convert currency if needed
-        if self.currency_id != self.company_id.currency_id:
-            price = self.currency_id._convert(
-                price,
-                self.company_id.currency_id,
-                self.company_id,
-                self.invoice_date or self.date,
-            )
-        return price
+        return pairs_added
