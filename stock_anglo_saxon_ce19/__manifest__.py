@@ -1,35 +1,27 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Stock Anglo-Saxon Accounting for Odoo 19 CE',
-    'version': '19.0.1.0.0',
+    'version': '19.0.5.0.0',
     'category': 'Accounting/Inventory',
-    'summary': 'Restores Anglo-Saxon inventory accounting journal entries on vendor bill confirmation',
+    'summary': 'Creates journal entry on purchase receipt validation (Anglo-Saxon style)',
     'description': """
-        Odoo 19 CE removed the account_anglo_saxon module and the "Automatic Accounting"
-        setting. This module restores the full 4-line journal entry behavior when a
-        vendor bill is confirmed for purchased goods.
+        Odoo 19 CE removed account_anglo_saxon. This module restores:
 
-        Compatible with: stock_account_category_fix (your custom module that adds
-        Account Stock Properties fields to Product Category).
+        1. Journal entry on RECEIPT VALIDATION:
+               DR  Stock Valuation Account  (110100)
+               CR  Stock Input Account      (230300 GRNI)
 
-        On vendor bill confirmation, creates:
-            DR  Stock Valuation Account    (e.g. 110100 - Stock Valuation)
-            CR  Stock Input Account        (e.g. 230300 - Stock Interim Received)
+        2. Additional lines on VENDOR BILL confirmation:
+               DR  Stock Valuation Account  (110100)
+               CR  Stock Input Account      (230300 GRNI)
 
-        Combined with the standard Odoo lines:
-            DR  Stock Input Account        (e.g. 230300 - Stock Interim Received)
-            CR  Account Payable            (e.g. 211000 - Account Payable)
-
-        Result: Full 4-line Anglo-Saxon journal entry on bill confirmation.
+        Reads accounts from stock_account_category_fix custom fields.
     """,
     'author': 'Custom Development',
-    'depends': [
-        'stock_account',
-        'purchase_stock',
-        'account',
-    ],
+    'depends': ['stock_account', 'purchase_stock', 'account'],
     'data': [
         'security/ir.model.access.csv',
+        'views/stock_picking_views.xml',
     ],
     'installable': True,
     'auto_install': False,

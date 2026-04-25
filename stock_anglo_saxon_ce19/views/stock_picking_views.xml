@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_picking_receipt_journal_btn" model="ir.ui.view">
+            <field name="name">stock.picking.receipt.journal.btn</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//div[@name='button_box']" position="inside">
+                    <button type="object"
+                        name="action_view_receipt_journal_entries"
+                        class="oe_stat_button"
+                        icon="fa-book"
+                        invisible="receipt_journal_entry_count == 0">
+                        <field name="receipt_journal_entry_count"
+                               widget="statinfo"
+                               string="Journal Entries"/>
+                    </button>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
