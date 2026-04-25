@@ -419,62 +419,71 @@ def _get_user_warehouse(user):
     return False
 
 
-def _get_warehouse_for_journal(env, journal, company_id):
+def _get_analytic_for_journal(env, journal, company_id):
     """
-    Given a journal, find the ONE warehouse whose POS config uses this journal
-    as a payment method.
+    Given a payment journal, find the analytic by tracing:
+        journal → pos.payment.method → pos.config → picking_type_id → warehouse → analytic
 
-    Returns the warehouse record or False.
+    This is the CORRECT path — we start from the journal and find which
+    POS config owns it, then get THAT config's warehouse via picking_type_id.
 
-    This is the core fix: we match journal → POS config → warehouse directly,
-    without iterating all warehouses first (which caused cross-contamination).
+    We do NOT iterate all warehouses first (old buggy approach that always
+    returned CHELARI because it was first in the search).
     """
     if not journal:
         return False
 
-    pos_configs = env['pos.config'].search([
+    # Find payment methods that use this journal
+    payment_methods = env['pos.payment.method'].search([
+        ('journal_id', '=', journal.id),
         ('company_id', '=', company_id),
     ])
 
-    for config in pos_configs:
-        for pm in getattr(config, 'payment_method_ids', []):
-            pm_journal = getattr(pm, 'journal_id', False)
-            if pm_journal and pm_journal.id == journal.id:
-                # This config owns the journal — get its warehouse
-                picking_type = getattr(config, 'picking_type_id', False)
-                if picking_type:
-                    wh = getattr(picking_type, 'warehouse_id', False)
-                    if wh:
-                        _logger.debug(
-                            'Journal %s → POS config %s → picking_type %s → warehouse %s',
-                            journal.name, config.name, picking_type.name, wh.name,
-                        )
-                        return wh
-                # Fallback: direct warehouse on config
-                wh = getattr(config, 'warehouse_id', False)
-                if wh:
+    for pm in payment_methods:
+        # Get configs that use this payment method
+        configs = env['pos.config'].search([
+            ('payment_method_ids', 'in', pm.ids),
+            ('company_id', '=', company_id),
+        ])
+        for config in configs:
+            # PRIMARY: picking_type_id → warehouse (shop-specific)
+            picking_type = getattr(config, 'picking_type_id', False)
+            if picking_type:
+                wh = getattr(picking_type, 'warehouse_id', False)
+                if wh and getattr(wh, 'analytic_account_id', False):
                     _logger.debug(
-                        'Journal %s → POS config %s → direct warehouse %s',
-                        journal.name, config.name, wh.name,
+                        'Stmt analytic: journal[%s] → pm[%s] → config[%s] '
+                        '→ picking_type[%s] → wh[%s] → analytic[%s]',
+                        journal.name, pm.name, config.name,
+                        picking_type.name, wh.name,
+                        wh.analytic_account_id.name,
                     )
-                    return wh
+                    return wh.analytic_account_id
+
+            # FALLBACK: direct warehouse on config
+            wh = getattr(config, 'warehouse_id', False)
+            if wh and getattr(wh, 'analytic_account_id', False):
+                _logger.debug(
+                    'Stmt analytic FALLBACK: journal[%s] → config[%s] '
+                    '→ direct wh[%s] → analytic[%s]',
+                    journal.name, config.name, wh.name,
+                    wh.analytic_account_id.name,
+                )
+                return wh.analytic_account_id
 
     return False
 
 
 def _resolve_analytic_for_statement_line(st_line):
     """
-    Resolve the correct analytic account for a bank statement line.
+    Resolve the correct analytic for a bank statement line.
 
     Priority:
-    1. pos_session_id → config → picking_type → warehouse → analytic
-       (set when Odoo links statement lines to sessions — most precise)
-    2. journal → POS config (that owns this journal) → warehouse → analytic
-       (for statement lines created before session linking)
-    3. Current user's default warehouse (last resort for manual entries)
+    1. pos_session_id → config → picking_type_id → warehouse → analytic
+    2. journal → pos.payment.method → pos.config → picking_type_id → warehouse → analytic
+    3. Current user's default warehouse (last resort for manual entries only)
     """
-
-    # --- Priority 1: Direct session link ---
+    # Priority 1: Direct session link (most precise)
     session = getattr(st_line, 'pos_session_id', False)
     if session:
         config = getattr(session, 'config_id', False)
@@ -484,34 +493,28 @@ def _resolve_analytic_for_statement_line(st_line):
                 wh = getattr(picking_type, 'warehouse_id', False)
                 if wh and getattr(wh, 'analytic_account_id', False):
                     _logger.debug(
-                        'Stmt line analytic from session %s → wh %s → %s',
-                        session.name, wh.name, wh.analytic_account_id.name,
+                        'Stmt analytic from session[%s] → picking_type → wh[%s]',
+                        session.name, wh.name,
                     )
                     return wh.analytic_account_id
+            # Fallback within session: direct warehouse on config
             wh = getattr(config, 'warehouse_id', False)
             if wh and getattr(wh, 'analytic_account_id', False):
                 return wh.analytic_account_id
 
-    # --- Priority 2: Journal → correct POS config → warehouse ---
+    # Priority 2: Journal → payment method → config → picking_type → warehouse
     journal = getattr(st_line, 'journal_id', False)
     if journal:
-        wh = _get_warehouse_for_journal(
+        analytic = _get_analytic_for_journal(
             st_line.env, journal, st_line.company_id.id
         )
-        if wh and getattr(wh, 'analytic_account_id', False):
-            _logger.debug(
-                'Stmt line analytic from journal %s → wh %s → %s',
-                journal.name, wh.name, wh.analytic_account_id.name,
-            )
-            return wh.analytic_account_id
+        if analytic:
+            return analytic
 
-    # --- Priority 3: Current user's default warehouse ---
-    user = st_line.env.user
-    wh = _get_user_warehouse(user)
+    # Priority 3: Logged-in user's warehouse (manual entries only)
+    wh = _get_user_warehouse(st_line.env.user)
     if wh and getattr(wh, 'analytic_account_id', False):
-        _logger.debug(
-            'Stmt line analytic from user warehouse: %s', wh.name
-        )
+        _logger.debug('Stmt analytic from user warehouse: %s', wh.name)
         return wh.analytic_account_id
 
     return False
@@ -538,7 +541,6 @@ def _inject_analytic_into_reconcile_info(reconcile_info, analytic):
 
 
 def _stamp_analytic_on_move(move, analytic):
-    """Write analytic on all lines of a move, including posted ones."""
     if not move or not analytic:
         return
     key = str(analytic.id)
@@ -553,12 +555,12 @@ def _stamp_analytic_on_move(move, analytic):
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
                 _logger.debug(
-                    'Stmt analytic %s → move %s line %s (%s)',
+                    'Stmt analytic [%s] → move %s line %s (%s)',
                     analytic.name, move.name, line.id, line.account_id.code,
                 )
             except Exception as e:
                 _logger.warning(
-                    'Could not set analytic on move %s line %s: %s',
+                    'Could not stamp analytic on move %s line %s: %s',
                     move.name, line.id, e,
                 )
 
@@ -568,14 +570,6 @@ class AccountBankStatementLine(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """
-        Stamp analytic on the statement line's own move at creation time.
-
-        NOTE: pos_session_id may NOT be set yet at this point (Odoo sets it
-        later). We therefore rely on Priority 2 (journal → POS config →
-        warehouse) which is now correctly scoped to the exact config that
-        owns the journal — no cross-warehouse contamination.
-        """
         st_lines = super().create(vals_list)
         for st_line in st_lines:
             analytic = _resolve_analytic_for_statement_line(st_line)
@@ -584,10 +578,7 @@ class AccountBankStatementLine(models.Model):
         return st_lines
 
     def write(self, vals):
-        """
-        Re-stamp when pos_session_id is set after creation —
-        this lets Priority 1 override any fallback applied in create().
-        """
+        """Re-stamp when pos_session_id is assigned after creation."""
         result = super().write(vals)
         if 'pos_session_id' in vals:
             for st_line in self:
