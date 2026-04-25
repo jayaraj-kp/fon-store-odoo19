@@ -419,95 +419,96 @@ def _get_user_warehouse(user):
     return False
 
 
-def _get_analytic_for_journal(env, journal, company_id):
-    _logger.warning('BANK JOURNAL LOOKUP: journal=%s (id=%s) company=%s',
-        journal.name, journal.id, company_id)
-
-    payment_methods = env['pos.payment.method'].search([
-        ('journal_id', '=', journal.id),
+def _get_analytic_by_name_match(env, name_to_match, company_id):
+    """
+    Find warehouse analytic by matching warehouse name/code against a string.
+    Used as primary strategy because picking_type→warehouse may be misconfigured
+    (e.g. KONDOTTY POS config points to CHELARI's picking type).
+    """
+    warehouses = env['stock.warehouse'].search([
+        ('analytic_account_id', '!=', False),
         ('company_id', '=', company_id),
     ])
-    _logger.warning('  Found %s payment methods for this journal: %s',
-        len(payment_methods), payment_methods.mapped('name'))
-
-    for pm in payment_methods:
-        configs = env['pos.config'].search([
-            ('payment_method_ids', 'in', pm.ids),
-            ('company_id', '=', company_id),
-        ])
-        _logger.warning('  pm=%s → configs: %s', pm.name, configs.mapped('name'))
-
-        for config in configs:
-            picking_type = getattr(config, 'picking_type_id', False)
-            _logger.warning('    config=%s picking_type=%s',
-                config.name, getattr(picking_type, 'name', 'NONE'))
-
-            if picking_type:
-                wh = getattr(picking_type, 'warehouse_id', False)
-                _logger.warning('    picking_type.warehouse_id=%s', getattr(wh, 'name', 'NONE'))
-                if wh and getattr(wh, 'analytic_account_id', False):
-                    _logger.warning('    RESULT: analytic=%s', wh.analytic_account_id.name)
-                    return wh.analytic_account_id
-
-            wh = getattr(config, 'warehouse_id', False)
-            _logger.warning('    direct warehouse_id=%s', getattr(wh, 'name', 'NONE'))
-            if wh and getattr(wh, 'analytic_account_id', False):
-                _logger.warning('    RESULT (fallback): analytic=%s', wh.analytic_account_id.name)
-                return wh.analytic_account_id
-
-    _logger.warning('  RESULT: NO analytic found for journal')
+    name_upper = (name_to_match or '').upper()
+    for wh in warehouses:
+        wh_name_upper = wh.name.upper()
+        wh_code_upper = (wh.code or '').upper()
+        if wh_name_upper in name_upper or (wh_code_upper and wh_code_upper in name_upper):
+            return wh.analytic_account_id
     return False
 
 
 def _resolve_analytic_for_statement_line(st_line):
-    _logger.warning('-'*50)
-    _logger.warning('RESOLVE ANALYTIC for stmt_line id=%s move=%s journal=%s session=%s',
-        st_line.id,
-        getattr(st_line.move_id, 'name', 'NONE'),
-        getattr(st_line.journal_id, 'name', 'NONE'),
-        getattr(getattr(st_line, 'pos_session_id', False), 'name', 'NONE'))
+    """
+    Resolve analytic for a bank statement line.
 
-    # Priority 1: session link
+    Strategy (given that picking_type→warehouse may be misconfigured):
+    1. pos_session_id → session name → warehouse name match
+    2. journal name → warehouse name match
+    3. pos_session_id → config → picking_type → warehouse (standard but unreliable)
+    4. journal → pos.payment.method → pos.config → picking_type → warehouse
+    5. Current user's default warehouse (last resort)
+    """
+    company_id = st_line.company_id.id
+    env = st_line.env
+
+    # Priority 1: Match by session name (e.g. "FON-STORE KONDOTTY/00018" contains "KONDOTTY")
     session = getattr(st_line, 'pos_session_id', False)
+    if session:
+        analytic = _get_analytic_by_name_match(env, session.name, company_id)
+        if analytic:
+            _logger.debug('Stmt analytic from session name match: session=%s → %s',
+                session.name, analytic.name)
+            return analytic
+
+    # Priority 2: Match by journal name (e.g. "Cash KDTY" contains "KDTY")
+    journal = getattr(st_line, 'journal_id', False)
+    if journal:
+        analytic = _get_analytic_by_name_match(env, journal.name, company_id)
+        if analytic:
+            _logger.debug('Stmt analytic from journal name match: journal=%s → %s',
+                journal.name, analytic.name)
+            return analytic
+
+    # Priority 3: session → config → picking_type → warehouse (standard path)
     if session:
         config = getattr(session, 'config_id', False)
         if config:
             picking_type = getattr(config, 'picking_type_id', False)
-            _logger.warning('  P1 session=%s config=%s picking_type=%s',
-                session.name, config.name, getattr(picking_type, 'name', 'NONE'))
             if picking_type:
                 wh = getattr(picking_type, 'warehouse_id', False)
-                _logger.warning('  P1 picking_type.wh=%s', getattr(wh, 'name', 'NONE'))
                 if wh and getattr(wh, 'analytic_account_id', False):
-                    _logger.warning('  P1 RESULT: %s', wh.analytic_account_id.name)
                     return wh.analytic_account_id
             wh = getattr(config, 'warehouse_id', False)
-            _logger.warning('  P1 direct wh=%s', getattr(wh, 'name', 'NONE'))
             if wh and getattr(wh, 'analytic_account_id', False):
-                _logger.warning('  P1 RESULT (direct wh): %s', wh.analytic_account_id.name)
                 return wh.analytic_account_id
-    else:
-        _logger.warning('  P1 SKIP: no pos_session_id on stmt line')
 
-    # Priority 2: journal lookup
-    journal = getattr(st_line, 'journal_id', False)
+    # Priority 4: journal → pos.payment.method → config → picking_type → warehouse
     if journal:
-        analytic = _get_analytic_for_journal(st_line.env, journal, st_line.company_id.id)
-        if analytic:
-            _logger.warning('  P2 RESULT: %s', analytic.name)
-            return analytic
-    else:
-        _logger.warning('  P2 SKIP: no journal_id on stmt line')
+        pms = env['pos.payment.method'].search([
+            ('journal_id', '=', journal.id),
+            ('company_id', '=', company_id),
+        ])
+        for pm in pms:
+            configs = env['pos.config'].search([
+                ('payment_method_ids', 'in', pm.ids),
+                ('company_id', '=', company_id),
+            ])
+            for config in configs:
+                picking_type = getattr(config, 'picking_type_id', False)
+                if picking_type:
+                    wh = getattr(picking_type, 'warehouse_id', False)
+                    if wh and getattr(wh, 'analytic_account_id', False):
+                        return wh.analytic_account_id
+                wh = getattr(config, 'warehouse_id', False)
+                if wh and getattr(wh, 'analytic_account_id', False):
+                    return wh.analytic_account_id
 
-    # Priority 3: user warehouse
+    # Priority 5: user's default warehouse
     wh = _get_user_warehouse(st_line.env.user)
-    _logger.warning('  P3 user=%s wh=%s', st_line.env.user.name, getattr(wh, 'name', 'NONE'))
     if wh and getattr(wh, 'analytic_account_id', False):
-        _logger.warning('  P3 RESULT: %s', wh.analytic_account_id.name)
         return wh.analytic_account_id
 
-    _logger.warning('  NO analytic found!')
-    _logger.warning('-'*50)
     return False
 
 
@@ -535,7 +536,6 @@ def _stamp_analytic_on_move(move, analytic):
     if not move or not analytic:
         return
     key = str(analytic.id)
-    _logger.warning('STAMP on move=%s analytic=%s', move.name, analytic.name)
     for line in move.line_ids.filtered(lambda l: l.account_id):
         existing = line.analytic_distribution or {}
         if key not in existing:
@@ -547,7 +547,7 @@ def _stamp_analytic_on_move(move, analytic):
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
             except Exception as e:
-                _logger.warning('STAMP FAIL line %s: %s', line.id, e)
+                _logger.warning('Stamp fail move %s line %s: %s', move.name, line.id, e)
 
 
 class AccountBankStatementLine(models.Model):
@@ -565,7 +565,6 @@ class AccountBankStatementLine(models.Model):
     def write(self, vals):
         result = super().write(vals)
         if 'pos_session_id' in vals:
-            _logger.warning('WRITE: pos_session_id set on %s stmt lines', len(self))
             for st_line in self:
                 analytic = _resolve_analytic_for_statement_line(st_line)
                 if analytic and st_line.move_id:

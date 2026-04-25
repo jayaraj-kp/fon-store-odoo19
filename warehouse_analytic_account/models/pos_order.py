@@ -114,7 +114,6 @@
 
 # -*- coding: utf-8 -*-
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 import logging
 from odoo import models
 
@@ -122,52 +121,66 @@ _logger = logging.getLogger(__name__)
 
 
 def _get_pos_analytic(pos_config):
-    _logger.warning('='*60)
-    _logger.warning('POS ANALYTIC DEBUG: config=%s (id=%s)', pos_config.name, pos_config.id)
+    """
+    Resolve analytic account from a POS config.
 
-    # Log ALL fields on pos_config related to warehouse
-    for fname in ('warehouse_id', 'picking_type_id', 'stock_location_id'):
-        val = getattr(pos_config, fname, 'FIELD_NOT_EXIST')
-        _logger.warning('  pos_config.%s = %s', fname, val)
+    PROBLEM FOUND IN LOGS:
+        FON-STORE KONDOTTY → picking_type='PoS Orders'(id=9) → warehouse=CHELARI-SHOP(id=1)
+        The KONDOTTY POS config is using CHELARI's operation type — misconfiguration.
 
-    # Check picking_type_id path
+    SOLUTION: Try multiple paths in order of reliability:
+    1. Search stock.warehouse directly by matching the POS config's session name prefix
+       or by finding the warehouse whose short name matches the config's name
+    2. picking_type_id → warehouse_id  (works IF correctly configured)
+    3. Direct warehouse_id on pos.config (fallback)
+
+    The KEY insight: we match POS config to warehouse by searching warehouses
+    whose analytic account exists and whose name/short_name appears in the
+    POS config name — e.g. "FON-STORE KONDOTTY" contains "KDTY" or "KONDOTTY".
+    """
+    _logger.warning('POS ANALYTIC: config=%s (id=%s)', pos_config.name, pos_config.id)
+
+    env = pos_config.env
+
+    # ── STRATEGY 1: Match warehouse by name substring in POS config name ──────
+    # e.g. "FON-STORE KONDOTTY" → find warehouse where short_name "KDTY" or
+    # name "KONDOTTY-SHOP" is contained in config name
+    warehouses = env['stock.warehouse'].search([
+        ('analytic_account_id', '!=', False),
+        ('company_id', '=', pos_config.company_id.id),
+    ])
+    _logger.warning('  Warehouses with analytic: %s', [(w.name, w.code) for w in warehouses])
+
+    config_name_upper = pos_config.name.upper()
+    for wh in warehouses:
+        wh_name_upper = wh.name.upper()
+        wh_code_upper = (wh.code or '').upper()
+        # Check if warehouse name or code appears in POS config name
+        if wh_name_upper in config_name_upper or (wh_code_upper and wh_code_upper in config_name_upper):
+            _logger.warning(
+                '  STRATEGY 1 MATCH: config[%s] contains wh name/code [%s/%s] → analytic=%s',
+                pos_config.name, wh.name, wh.code, wh.analytic_account_id.name,
+            )
+            return wh.analytic_account_id
+
+    # ── STRATEGY 2: picking_type_id → warehouse_id ────────────────────────────
     picking_type = getattr(pos_config, 'picking_type_id', False)
-    _logger.warning('  picking_type_id: %s (id=%s)',
-        getattr(picking_type, 'name', 'NONE'),
-        getattr(picking_type, 'id', 'NONE'))
-
     if picking_type:
         wh = getattr(picking_type, 'warehouse_id', False)
-        _logger.warning('  picking_type.warehouse_id: %s (id=%s)',
-            getattr(wh, 'name', 'NONE'),
-            getattr(wh, 'id', 'NONE'))
-        if wh:
-            analytic = getattr(wh, 'analytic_account_id', False)
-            _logger.warning('  picking_type.warehouse.analytic_account_id: %s (id=%s)',
-                getattr(analytic, 'name', 'NONE'),
-                getattr(analytic, 'id', 'NONE'))
-            if analytic:
-                _logger.warning('  RESULT: returning analytic from picking_type path: %s', analytic.name)
-                _logger.warning('='*60)
-                return analytic
+        _logger.warning('  STRATEGY 2: picking_type=%s → wh=%s',
+            getattr(picking_type, 'name', 'NONE'), getattr(wh, 'name', 'NONE'))
+        if wh and getattr(wh, 'analytic_account_id', False):
+            _logger.warning('  STRATEGY 2 RESULT: %s', wh.analytic_account_id.name)
+            return wh.analytic_account_id
 
-    # Check direct warehouse_id path
+    # ── STRATEGY 3: direct warehouse_id on pos.config ─────────────────────────
     wh = getattr(pos_config, 'warehouse_id', False)
-    _logger.warning('  direct warehouse_id: %s (id=%s)',
-        getattr(wh, 'name', 'NONE'),
-        getattr(wh, 'id', 'NONE'))
-    if wh:
-        analytic = getattr(wh, 'analytic_account_id', False)
-        _logger.warning('  direct warehouse.analytic_account_id: %s (id=%s)',
-            getattr(analytic, 'name', 'NONE'),
-            getattr(analytic, 'id', 'NONE'))
-        if analytic:
-            _logger.warning('  RESULT: returning analytic from direct warehouse path: %s', analytic.name)
-            _logger.warning('='*60)
-            return analytic
+    _logger.warning('  STRATEGY 3: direct wh=%s', getattr(wh, 'name', 'NONE'))
+    if wh and getattr(wh, 'analytic_account_id', False):
+        _logger.warning('  STRATEGY 3 RESULT: %s', wh.analytic_account_id.name)
+        return wh.analytic_account_id
 
-    _logger.warning('  RESULT: NO analytic found!')
-    _logger.warning('='*60)
+    _logger.warning('  NO analytic found for config %s', pos_config.name)
     return False
 
 
@@ -175,12 +188,8 @@ def _apply_analytic_to_move(move, analytic, label=''):
     if not move or not analytic:
         return
     key = str(analytic.id)
-    _logger.warning('APPLY ANALYTIC: move=%s label=%s analytic=%s',
-        getattr(move, 'name', '?'), label, analytic.name)
     for line in move.line_ids.filtered(lambda l: l.account_id):
         existing = line.analytic_distribution or {}
-        _logger.warning('  line %s (%s): existing=%s',
-            line.id, line.account_id.code, existing)
         if key not in existing:
             new_dist = dict(existing)
             new_dist[key] = 100.0
@@ -189,11 +198,10 @@ def _apply_analytic_to_move(move, analytic, label=''):
                     check_move_validity=False,
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
-                _logger.warning('  line %s → SET to %s', line.id, new_dist)
+                _logger.debug('POS analytic [%s] → %s line %s (%s)',
+                    analytic.name, label, line.id, line.account_id.code)
             except Exception as e:
-                _logger.warning('  line %s → FAILED: %s', line.id, e)
-        else:
-            _logger.warning('  line %s → SKIPPED (already has key %s)', line.id, key)
+                _logger.warning('Could not apply analytic to %s line %s: %s', label, line.id, e)
 
 
 def _apply_analytic_to_statement_lines(session, analytic):
@@ -202,13 +210,7 @@ def _apply_analytic_to_statement_lines(session, analytic):
     st_lines = session.env['account.bank.statement.line'].search([
         ('pos_session_id', '=', session.id),
     ])
-    _logger.warning('STMT LINES for session %s (id=%s): found %s lines',
-        session.name, session.id, len(st_lines))
     for st_line in st_lines:
-        _logger.warning('  stmt_line id=%s move=%s journal=%s',
-            st_line.id,
-            getattr(st_line.move_id, 'name', 'NONE'),
-            getattr(st_line.journal_id, 'name', 'NONE'))
         if st_line.move_id:
             _apply_analytic_to_move(
                 st_line.move_id, analytic,
@@ -234,11 +236,9 @@ class PosSession(models.Model):
 
     def _apply_pos_session_analytic(self):
         for session in self:
-            _logger.warning('SESSION ANALYTIC: session=%s config=%s',
-                session.name, session.config_id.name)
             analytic = _get_pos_analytic(session.config_id)
             if not analytic:
-                _logger.warning('SESSION ANALYTIC: NO analytic — skipping session %s', session.name)
+                _logger.warning('No analytic for session %s', session.name)
                 continue
 
             _apply_analytic_to_move(session.move_id, analytic, label='session')
@@ -260,10 +260,6 @@ class PosOrder(models.Model):
     def action_pos_order_invoice(self):
         result = super().action_pos_order_invoice()
         for order in self:
-            _logger.warning('POS ORDER INVOICE: order=%s session=%s config=%s',
-                order.name,
-                getattr(order.session_id, 'name', '?'),
-                getattr(order.session_id.config_id, 'name', '?'))
             analytic = _get_pos_analytic(order.session_id.config_id)
             if analytic:
                 _apply_analytic_to_move(order.account_move, analytic, label='invoice')
