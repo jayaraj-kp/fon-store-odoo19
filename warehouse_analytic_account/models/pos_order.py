@@ -113,6 +113,7 @@
 #         return result
 
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import logging
 from odoo import models
 
@@ -124,26 +125,46 @@ def _get_pos_analytic(pos_config):
     Resolve analytic account from a POS config by tracing:
         pos_config → picking_type_id → warehouse_id → analytic_account_id
     Falls back to a direct warehouse_id on pos.config if present.
-    Returns False if nothing is configured.
-    """
-    wh = getattr(pos_config, 'warehouse_id', False)
-    if wh and getattr(wh, 'analytic_account_id', False):
-        return wh.analytic_account_id
 
+    PRIORITY:
+    1. picking_type_id → warehouse_id → analytic_account_id  (most reliable)
+    2. warehouse_id directly on pos.config (if field exists)
+    """
+    # Priority 1: picking_type_id → warehouse (most reliable in Odoo 19)
     picking_type = getattr(pos_config, 'picking_type_id', False)
     if picking_type:
         wh = getattr(picking_type, 'warehouse_id', False)
         if wh and getattr(wh, 'analytic_account_id', False):
+            _logger.debug(
+                'POS analytic resolved: config=%s picking_type=%s warehouse=%s analytic=%s',
+                pos_config.name,
+                picking_type.name,
+                wh.name,
+                wh.analytic_account_id.name,
+            )
             return wh.analytic_account_id
 
+    # Priority 2: direct warehouse on pos.config (fallback)
+    wh = getattr(pos_config, 'warehouse_id', False)
+    if wh and getattr(wh, 'analytic_account_id', False):
+        _logger.debug(
+            'POS analytic resolved from direct warehouse: config=%s warehouse=%s analytic=%s',
+            pos_config.name, wh.name, wh.analytic_account_id.name,
+        )
+        return wh.analytic_account_id
+
+    _logger.warning(
+        'POS analytic NOT resolved for config=%s (picking_type=%s)',
+        pos_config.name,
+        getattr(getattr(pos_config, 'picking_type_id', False), 'name', 'NONE'),
+    )
     return False
 
 
 def _apply_analytic_to_move(move, analytic, label=''):
     """
-    Stamp analytic_distribution on ALL lines of an account.move
-    (including receivable, payable, cash, tax lines).
-    Uses sudo() + check_move_validity=False so it works on posted/locked moves.
+    Stamp analytic_distribution on ALL lines of an account.move.
+    Uses sudo() + check_move_validity=False for posted/locked moves.
     Skips lines that already carry this analytic.
     """
     if not move or not analytic:
@@ -172,36 +193,32 @@ def _apply_analytic_to_move(move, analytic, label=''):
 
 def _apply_analytic_to_statement_lines(session, analytic):
     """
-    Stamp analytic on the bank statement line moves (CRDCH/, CSCHL/ etc.)
-    that are created by the POS payment methods during session closing.
+    Stamp analytic on bank statement line moves (CRDCH/, CSCHL/ etc.)
+    that belong to THIS session only.
 
-    In Odoo 19 CE with account_reconcile_oca, these are
-    account.bank.statement.line records whose move_id holds the
-    Card/Cash journal entry — separate from order.payment_ids.
+    Searches ONLY by pos_session_id to avoid cross-contamination between
+    different POS sessions/warehouses.
     """
     if not analytic:
         return
 
-    # Find all bank statement lines linked to this session
-    # They are linked via the journal and date, or directly via pos_session_id
     env = session.env
 
-    # Method 1: Direct link via pos_session_id (available in some builds)
+    # Only use direct session link — never fall back to a broad journal search
+    # which would match statement lines from OTHER warehouses' sessions
     st_lines = env['account.bank.statement.line'].search([
         ('pos_session_id', '=', session.id),
     ])
 
-    # Method 2: Fallback — search by journal + date window of session
     if not st_lines:
-        payment_journals = session.config_id.payment_method_ids.mapped('journal_id')
-        if payment_journals:
-            st_lines = env['account.bank.statement.line'].search([
-                ('journal_id', 'in', payment_journals.ids),
-                ('date', '>=', session.start_at.date() if session.start_at else '2000-01-01'),
-            ])
+        _logger.debug(
+            'No bank statement lines found via pos_session_id for session %s — '
+            'they will be stamped by bank_reconcile.py create() hook instead',
+            session.name,
+        )
+        return
 
     for st_line in st_lines:
-        # The move_id of the statement line IS the CRDCH/CSCHL journal entry
         if st_line.move_id:
             _apply_analytic_to_move(
                 st_line.move_id, analytic,
@@ -227,43 +244,45 @@ class PosSession(models.Model):
 
     def _apply_pos_session_analytic(self):
         """
-        After session closing, stamp the warehouse analytic account on
-        ALL journal entry lines so every entry is fully tagged for
-        branch-level reporting.
+        After session closing, stamp the correct warehouse analytic on ALL
+        journal entry lines. The analytic comes from THIS session's POS config
+        → picking_type → warehouse, NOT from the logged-in user's warehouse.
+
         Covers:
-          1. The session summary move (self.move_id)  → POSS/
-          2. Every individual order move inside the session → POSJ/ or INV/
-          3. Payment account moves via order.payment_ids → POSS/ payment lines
-          4. Bank statement line moves → CRDCH/, CSCHL/ etc.
-             (created by Card/Cash payment methods — NOT in payment_ids)
+          1. Session closing / summary move (POSS/)
+          2. Individual order moves (POSJ/ or INV/)
+          3. Payment moves via order.payment_ids
+          4. Bank statement line moves (CRDCH/, CSCHL/) via pos_session_id
         """
         for session in self:
             analytic = _get_pos_analytic(session.config_id)
             if not analytic:
-                _logger.debug(
-                    'No analytic on warehouse for POS config %s — skipping',
-                    session.config_id.name,
+                _logger.warning(
+                    'No analytic configured for POS session %s (config: %s) — skipping',
+                    session.name, session.config_id.name,
                 )
                 continue
+
+            _logger.debug(
+                'Applying POS analytic %s to session %s',
+                analytic.name, session.name,
+            )
 
             # 1. Session closing / summary move (POSS/ entry)
             _apply_analytic_to_move(session.move_id, analytic, label='session')
 
             # 2. Individual order moves + their payment moves
             for order in session.order_ids:
-                # Order account move (POSJ/ or INV/)
                 _apply_analytic_to_move(
                     order.account_move, analytic, label='order'
                 )
-                # Payment moves linked to this order via payment_ids
                 for payment in order.payment_ids:
                     pay_move = getattr(payment, 'account_move_id', False)
                     if not pay_move:
                         pay_move = getattr(payment, 'move_id', False)
                     _apply_analytic_to_move(pay_move, analytic, label='payment')
 
-            # 3. Bank statement line moves (CRDCH/, CSCHL/, etc.)
-            #    These are created by payment methods and are NOT in payment_ids
+            # 3. Bank statement line moves linked directly to this session
             _apply_analytic_to_statement_lines(session, analytic)
 
 
