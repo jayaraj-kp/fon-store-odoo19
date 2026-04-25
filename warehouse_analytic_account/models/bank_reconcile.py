@@ -419,58 +419,75 @@ def _get_user_warehouse(user):
     return False
 
 
-def _get_analytic_by_name_match(env, name_to_match, company_id):
+def _match_warehouse_by_name(warehouses, name_to_match):
     """
-    Find warehouse analytic by matching warehouse name/code against a string.
-    Used as primary strategy because picking_type→warehouse may be misconfigured
-    (e.g. KONDOTTY POS config points to CHELARI's picking type).
+    Find best-matching warehouse by word-overlap scoring.
+    Same algorithm as pos_order.py for consistency.
     """
-    warehouses = env['stock.warehouse'].search([
-        ('analytic_account_id', '!=', False),
-        ('company_id', '=', company_id),
-    ])
-    name_upper = (name_to_match or '').upper()
+    if not name_to_match:
+        return False
+
+    target_upper = name_to_match.upper()
+    target_words = set(w for w in target_upper.replace('-', ' ').split() if len(w) >= 4)
+
+    best_wh = False
+    best_score = 0
+    best_unmatched = 999
+
     for wh in warehouses:
         wh_name_upper = wh.name.upper()
         wh_code_upper = (wh.code or '').upper()
-        if wh_name_upper in name_upper or (wh_code_upper and wh_code_upper in name_upper):
-            return wh.analytic_account_id
-    return False
+        wh_words = set(w for w in wh_name_upper.replace('-', ' ').split() if len(w) >= 4)
+
+        common = target_words & wh_words
+        code_match = wh_code_upper and wh_code_upper in target_upper
+        score = len(common) + (1 if code_match else 0)
+        unmatched = len(wh_words - target_words)
+
+        if score > best_score or (score == best_score and score > 0 and unmatched < best_unmatched):
+            best_score = score
+            best_unmatched = unmatched
+            best_wh = wh
+
+    return best_wh if best_score > 0 else False
 
 
 def _resolve_analytic_for_statement_line(st_line):
     """
-    Resolve analytic for a bank statement line.
+    Resolve analytic for a bank statement line using word-scoring name match.
 
-    Strategy (given that picking_type→warehouse may be misconfigured):
-    1. pos_session_id → session name → warehouse name match
-    2. journal name → warehouse name match
-    3. pos_session_id → config → picking_type → warehouse (standard but unreliable)
-    4. journal → pos.payment.method → pos.config → picking_type → warehouse
-    5. Current user's default warehouse (last resort)
+    Priority:
+    1. Match by session name (e.g. "FON-STORE KONDOTTY/00020" → KONDOTTY-SHOP)
+    2. Match by journal name (e.g. "Card KDTY" → KONDOTTY-SHOP via code "KDTY")
+    3. session → config → picking_type → warehouse (standard but may be misconfigured)
+    4. journal → pos.payment.method → config → picking_type → warehouse
+    5. User's default warehouse (last resort)
     """
     company_id = st_line.company_id.id
     env = st_line.env
 
-    # Priority 1: Match by session name (e.g. "FON-STORE KONDOTTY/00018" contains "KONDOTTY")
+    warehouses = env['stock.warehouse'].search([
+        ('analytic_account_id', '!=', False),
+        ('company_id', '=', company_id),
+    ])
+
+    # Priority 1: session name match
     session = getattr(st_line, 'pos_session_id', False)
     if session:
-        analytic = _get_analytic_by_name_match(env, session.name, company_id)
-        if analytic:
-            _logger.debug('Stmt analytic from session name match: session=%s → %s',
-                session.name, analytic.name)
-            return analytic
+        wh = _match_warehouse_by_name(warehouses, session.name)
+        if wh:
+            _logger.debug('Stmt analytic P1 session[%s] → wh[%s]', session.name, wh.name)
+            return wh.analytic_account_id
 
-    # Priority 2: Match by journal name (e.g. "Cash KDTY" contains "KDTY")
+    # Priority 2: journal name match (catches "Card KDTY", "Cash KDTY" etc.)
     journal = getattr(st_line, 'journal_id', False)
     if journal:
-        analytic = _get_analytic_by_name_match(env, journal.name, company_id)
-        if analytic:
-            _logger.debug('Stmt analytic from journal name match: journal=%s → %s',
-                journal.name, analytic.name)
-            return analytic
+        wh = _match_warehouse_by_name(warehouses, journal.name)
+        if wh:
+            _logger.debug('Stmt analytic P2 journal[%s] → wh[%s]', journal.name, wh.name)
+            return wh.analytic_account_id
 
-    # Priority 3: session → config → picking_type → warehouse (standard path)
+    # Priority 3: session → config → picking_type → warehouse
     if session:
         config = getattr(session, 'config_id', False)
         if config:
@@ -483,7 +500,7 @@ def _resolve_analytic_for_statement_line(st_line):
             if wh and getattr(wh, 'analytic_account_id', False):
                 return wh.analytic_account_id
 
-    # Priority 4: journal → pos.payment.method → config → picking_type → warehouse
+    # Priority 4: journal → payment method → config → picking_type → warehouse
     if journal:
         pms = env['pos.payment.method'].search([
             ('journal_id', '=', journal.id),

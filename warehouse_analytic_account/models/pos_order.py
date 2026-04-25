@@ -114,73 +114,98 @@
 
 # -*- coding: utf-8 -*-
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import logging
 from odoo import models
 
 _logger = logging.getLogger(__name__)
 
 
+def _match_warehouse_by_name(warehouses, name_to_match):
+    """
+    Find the best-matching warehouse by comparing meaningful words
+    between the warehouse name and the target string.
+
+    Scoring:
+    - +1 for each word (>=4 chars) shared between warehouse name and target
+    - +1 if warehouse short code appears in target
+    - Tiebreak: fewer unmatched words in warehouse name = more specific = winner
+
+    Returns the best warehouse record or False.
+    """
+    if not name_to_match:
+        return False
+
+    target_upper = name_to_match.upper()
+    target_words = set(w for w in target_upper.replace('-', ' ').split() if len(w) >= 4)
+
+    best_wh = False
+    best_score = 0
+    best_unmatched = 999
+
+    for wh in warehouses:
+        wh_name_upper = wh.name.upper()
+        wh_code_upper = (wh.code or '').upper()
+        wh_words = set(w for w in wh_name_upper.replace('-', ' ').split() if len(w) >= 4)
+
+        common = target_words & wh_words
+        code_match = wh_code_upper and wh_code_upper in target_upper
+        score = len(common) + (1 if code_match else 0)
+        unmatched = len(wh_words - target_words)
+
+        if score > best_score or (score == best_score and score > 0 and unmatched < best_unmatched):
+            best_score = score
+            best_unmatched = unmatched
+            best_wh = wh
+
+    if best_score > 0:
+        _logger.debug('Warehouse match: "%s" → %s (score=%s)', name_to_match, best_wh.name, best_score)
+        return best_wh
+    return False
+
+
 def _get_pos_analytic(pos_config):
     """
     Resolve analytic account from a POS config.
 
-    PROBLEM FOUND IN LOGS:
-        FON-STORE KONDOTTY → picking_type='PoS Orders'(id=9) → warehouse=CHELARI-SHOP(id=1)
-        The KONDOTTY POS config is using CHELARI's operation type — misconfiguration.
-
-    SOLUTION: Try multiple paths in order of reliability:
-    1. Search stock.warehouse directly by matching the POS config's session name prefix
-       or by finding the warehouse whose short name matches the config's name
-    2. picking_type_id → warehouse_id  (works IF correctly configured)
+    Strategy:
+    1. Match warehouse by scoring word overlap between POS config name
+       and warehouse name — e.g. "FON-STORE KONDOTTY" → "KONDOTTY-SHOP"
+    2. picking_type_id → warehouse_id (unreliable if misconfigured)
     3. Direct warehouse_id on pos.config (fallback)
-
-    The KEY insight: we match POS config to warehouse by searching warehouses
-    whose analytic account exists and whose name/short_name appears in the
-    POS config name — e.g. "FON-STORE KONDOTTY" contains "KDTY" or "KONDOTTY".
     """
-    _logger.warning('POS ANALYTIC: config=%s (id=%s)', pos_config.name, pos_config.id)
-
     env = pos_config.env
+    company_id = pos_config.company_id.id
 
-    # ── STRATEGY 1: Match warehouse by name substring in POS config name ──────
-    # e.g. "FON-STORE KONDOTTY" → find warehouse where short_name "KDTY" or
-    # name "KONDOTTY-SHOP" is contained in config name
     warehouses = env['stock.warehouse'].search([
         ('analytic_account_id', '!=', False),
-        ('company_id', '=', pos_config.company_id.id),
+        ('company_id', '=', company_id),
     ])
-    _logger.warning('  Warehouses with analytic: %s', [(w.name, w.code) for w in warehouses])
 
-    config_name_upper = pos_config.name.upper()
-    for wh in warehouses:
-        wh_name_upper = wh.name.upper()
-        wh_code_upper = (wh.code or '').upper()
-        # Check if warehouse name or code appears in POS config name
-        if wh_name_upper in config_name_upper or (wh_code_upper and wh_code_upper in config_name_upper):
-            _logger.warning(
-                '  STRATEGY 1 MATCH: config[%s] contains wh name/code [%s/%s] → analytic=%s',
-                pos_config.name, wh.name, wh.code, wh.analytic_account_id.name,
-            )
-            return wh.analytic_account_id
+    # Strategy 1: name word matching
+    wh = _match_warehouse_by_name(warehouses, pos_config.name)
+    if wh:
+        _logger.debug('POS analytic STRATEGY 1: config[%s] → wh[%s] → %s',
+            pos_config.name, wh.name, wh.analytic_account_id.name)
+        return wh.analytic_account_id
 
-    # ── STRATEGY 2: picking_type_id → warehouse_id ────────────────────────────
+    # Strategy 2: picking_type_id → warehouse
     picking_type = getattr(pos_config, 'picking_type_id', False)
     if picking_type:
         wh = getattr(picking_type, 'warehouse_id', False)
-        _logger.warning('  STRATEGY 2: picking_type=%s → wh=%s',
-            getattr(picking_type, 'name', 'NONE'), getattr(wh, 'name', 'NONE'))
         if wh and getattr(wh, 'analytic_account_id', False):
-            _logger.warning('  STRATEGY 2 RESULT: %s', wh.analytic_account_id.name)
+            _logger.debug('POS analytic STRATEGY 2: config[%s] → picking_type → wh[%s] → %s',
+                pos_config.name, wh.name, wh.analytic_account_id.name)
             return wh.analytic_account_id
 
-    # ── STRATEGY 3: direct warehouse_id on pos.config ─────────────────────────
+    # Strategy 3: direct warehouse_id
     wh = getattr(pos_config, 'warehouse_id', False)
-    _logger.warning('  STRATEGY 3: direct wh=%s', getattr(wh, 'name', 'NONE'))
     if wh and getattr(wh, 'analytic_account_id', False):
-        _logger.warning('  STRATEGY 3 RESULT: %s', wh.analytic_account_id.name)
+        _logger.debug('POS analytic STRATEGY 3: config[%s] → direct wh[%s] → %s',
+            pos_config.name, wh.name, wh.analytic_account_id.name)
         return wh.analytic_account_id
 
-    _logger.warning('  NO analytic found for config %s', pos_config.name)
+    _logger.warning('POS analytic: no match for config[%s]', pos_config.name)
     return False
 
 
@@ -198,8 +223,6 @@ def _apply_analytic_to_move(move, analytic, label=''):
                     check_move_validity=False,
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
-                _logger.debug('POS analytic [%s] → %s line %s (%s)',
-                    analytic.name, label, line.id, line.account_id.code)
             except Exception as e:
                 _logger.warning('Could not apply analytic to %s line %s: %s', label, line.id, e)
 
@@ -212,10 +235,8 @@ def _apply_analytic_to_statement_lines(session, analytic):
     ])
     for st_line in st_lines:
         if st_line.move_id:
-            _apply_analytic_to_move(
-                st_line.move_id, analytic,
-                label='bank_stmt_%s' % st_line.move_id.name,
-            )
+            _apply_analytic_to_move(st_line.move_id, analytic,
+                label='bank_stmt_%s' % st_line.move_id.name)
 
 
 class PosSession(models.Model):
@@ -224,8 +245,7 @@ class PosSession(models.Model):
     def _create_account_move(self, balancing_account, amount_to_balance,
                              bank_payment_method_diffs):
         result = super()._create_account_move(
-            balancing_account, amount_to_balance, bank_payment_method_diffs
-        )
+            balancing_account, amount_to_balance, bank_payment_method_diffs)
         self._apply_pos_session_analytic()
         return result
 
@@ -240,9 +260,7 @@ class PosSession(models.Model):
             if not analytic:
                 _logger.warning('No analytic for session %s', session.name)
                 continue
-
             _apply_analytic_to_move(session.move_id, analytic, label='session')
-
             for order in session.order_ids:
                 _apply_analytic_to_move(order.account_move, analytic, label='order')
                 for payment in order.payment_ids:
@@ -250,7 +268,6 @@ class PosSession(models.Model):
                     if not pay_move:
                         pay_move = getattr(payment, 'move_id', False)
                     _apply_analytic_to_move(pay_move, analytic, label='payment')
-
             _apply_analytic_to_statement_lines(session, analytic)
 
 
