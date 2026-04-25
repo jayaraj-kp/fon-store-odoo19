@@ -6,3 +6,9 @@ class PurchaseOrder(models.Model):
 
     partner_ref = fields.Char(required=True)
 
+
+class AccountMove(models.Model):
+    _inherit ="account.move"
+
+    ref = fields.Char(required = True)
+
