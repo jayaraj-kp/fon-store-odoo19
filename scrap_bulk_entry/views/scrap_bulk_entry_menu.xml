@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add Scrap Bulk Entry under Inventory > Operations -->
+    <menuitem
+        id="menu_scrap_bulk_entry"
+        name="Scrap Bulk Entry"
+        parent="stock.menu_stock_warehouse_mgmt"
+        action="action_scrap_bulk_entry"
+        sequence="30"
+    />
+
+</odoo>

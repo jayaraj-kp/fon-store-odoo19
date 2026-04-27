@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Scrap Bulk Entry Form View -->
+    <record id="view_scrap_bulk_entry_form" model="ir.ui.view">
+        <field name="name">scrap.bulk.entry.form</field>
+        <field name="model">scrap.bulk.entry</field>
+        <field name="arch" type="xml">
+            <form string="Scrap Bulk Entry">
+                <header>
+                    <button
+                        name="action_validate"
+                        string="Validate"
+                        type="object"
+                        class="btn-primary"
+                        invisible="state == 'done'"
+                        confirm="Are you sure you want to validate and scrap all lines? This action cannot be undone."
+                    />
+                    <button
+                        name="action_view_scraps"
+                        string="View Scrap Orders"
+                        type="object"
+                        invisible="scrap_count == 0"
+                    />
+                    <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            name="action_view_scraps"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-recycle"
+                            invisible="scrap_count == 0"
+                        >
+                            <field name="scrap_count" widget="statinfo" string="Scrap Orders"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name" string="Reference"/>
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="location_id" placeholder="Select source location..."/>
+                            <field name="scrap_location_id"/>
+                            <field name="scrap_reason_id"/>
+                        </group>
+                        <group>
+                            <field name="scrap_date"/>
+                            <field name="note" placeholder="Add notes here..."/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Scrap Lines" name="scrap_lines">
+                            <field name="scrap_line_ids" widget="one2many_list">
+                                <list string="Scrap Lines" editable="bottom">
+                                    <column_invisible>parent.state == 'done'</column_invisible>
+                                    <field name="product_id" required="1"/>
+                                    <field name="location_id" optional="show"/>
+                                    <field name="lot_id" optional="hide"/>
+                                    <field name="product_uom_id" optional="hide"/>
+                                    <field name="quantity" required="1"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Scrap Bulk Entry Tree/List View -->
+    <record id="view_scrap_bulk_entry_list" model="ir.ui.view">
+        <field name="name">scrap.bulk.entry.list</field>
+        <field name="model">scrap.bulk.entry</field>
+        <field name="arch" type="xml">
+            <list string="Scrap Bulk Entries" decoration-muted="state == 'done'">
+                <field name="name"/>
+                <field name="scrap_date"/>
+                <field name="location_id"/>
+                <field name="scrap_location_id"/>
+                <field name="scrap_reason_id" optional="show"/>
+                <field name="scrap_count" string="Scrap Orders"/>
+                <field name="state" widget="badge"
+                    decoration-info="state == 'draft'"
+                    decoration-success="state == 'done'"
+                />
+            </list>
+        </field>
+    </record>
+
+    <!-- Scrap Bulk Entry Search View -->
+    <record id="view_scrap_bulk_entry_search" model="ir.ui.view">
+        <field name="name">scrap.bulk.entry.search</field>
+        <field name="model">scrap.bulk.entry</field>
+        <field name="arch" type="xml">
+            <search string="Search Scrap Bulk Entries">
+                <field name="name" string="Reference"/>
+                <field name="location_id" string="Source Location"/>
+                <field name="scrap_reason_id"/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
+                <separator/>
+                <filter string="Today" name="today"
+                    domain="[('scrap_date', '>=', context_today().strftime('%Y-%m-%d 00:00:00')),
+                              ('scrap_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"
+                />
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Source Location" name="group_location" context="{'group_by': 'location_id'}"/>
+                    <filter string="Scrap Date" name="group_date" context="{'group_by': 'scrap_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_scrap_bulk_entry" model="ir.actions.act_window">
+        <field name="name">Scrap Bulk Entry</field>
+        <field name="res_model">scrap.bulk.entry</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_scrap_bulk_entry_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Scrap Bulk Entry
+            </p>
+            <p>
+                Use Scrap Bulk Entry to scrap multiple products at once.
+            </p>
+        </field>
+    </record>
+
+    <!-- Sequence for Scrap Bulk Entry -->
+    <record id="seq_scrap_bulk_entry" model="ir.sequence">
+        <field name="name">Scrap Bulk Entry</field>
+        <field name="code">scrap.bulk.entry</field>
+        <field name="prefix">SBE/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+</odoo>

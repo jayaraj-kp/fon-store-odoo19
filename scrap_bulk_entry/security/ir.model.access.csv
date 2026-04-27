@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_scrap_bulk_entry_user,scrap.bulk.entry user,model_scrap_bulk_entry,stock.group_stock_user,1,1,1,0
+access_scrap_bulk_entry_manager,scrap.bulk.entry manager,model_scrap_bulk_entry,stock.group_stock_manager,1,1,1,1
+access_scrap_bulk_entry_line_user,scrap.bulk.entry.line user,model_scrap_bulk_entry_line,stock.group_stock_user,1,1,1,0
+access_scrap_bulk_entry_line_manager,scrap.bulk.entry.line manager,model_scrap_bulk_entry_line,stock.group_stock_manager,1,1,1,1
