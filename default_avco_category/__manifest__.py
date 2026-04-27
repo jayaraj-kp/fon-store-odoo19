@@ -6,8 +6,9 @@
     'summary': 'Sets Average Cost (AVCO) as the default costing method when creating a new product category.',
     'description': """
         This module overrides the default costing method on product categories
-        from 'Standard Price' to 'Average Cost (AVCO)' so that every new
-        category is pre-filled with AVCO without any manual selection.
+        from 'Standard Price' to 'Average Cost (AVCO)' and sets Inventory
+        Valuation to 'Perpetual (at invoicing)' so every new category is
+        pre-filled without any manual selection.
     """,
     'author': 'Custom',
     'depends': ['stock_account'],
