@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <record id="view_picking_receipt_journal_btn" model="ir.ui.view">
-            <field name="name">stock.picking.receipt.journal.btn</field>
+        <record id="view_picking_anglo_saxon_buttons" model="ir.ui.view">
+            <field name="name">stock.picking.anglo.saxon.buttons</field>
             <field name="model">stock.picking</field>
             <field name="inherit_id" ref="stock.view_picking_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//div[@name='button_box']" position="inside">
+
+                    <!-- Receipt journal entry smart button -->
                     <button type="object"
                         name="action_view_receipt_journal_entries"
                         class="oe_stat_button"
@@ -14,8 +16,20 @@
                         invisible="receipt_journal_entry_count == 0">
                         <field name="receipt_journal_entry_count"
                                widget="statinfo"
-                               string="Journal Entries"/>
+                               string="Receipt Entries"/>
                     </button>
+
+                    <!-- Delivery journal entry smart button -->
+                    <button type="object"
+                        name="action_view_delivery_journal_entries"
+                        class="oe_stat_button"
+                        icon="fa-truck"
+                        invisible="delivery_journal_entry_count == 0">
+                        <field name="delivery_journal_entry_count"
+                               widget="statinfo"
+                               string="Delivery Entries"/>
+                    </button>
+
                 </xpath>
             </field>
         </record>

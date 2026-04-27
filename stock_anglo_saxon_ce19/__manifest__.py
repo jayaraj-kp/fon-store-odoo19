@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Stock Anglo-Saxon Accounting for Odoo 19 CE',
-    'version': '19.0.5.0.0',
+    'version': '19.0.7.0.0',
     'category': 'Accounting/Inventory',
-    'summary': 'Creates journal entry on purchase receipt validation (Anglo-Saxon style)',
+    'summary': 'Anglo-Saxon journal entries on receipt AND delivery validation',
     'description': """
         Odoo 19 CE removed account_anglo_saxon. This module restores:
 
-        1. Journal entry on RECEIPT VALIDATION:
-               DR  Stock Valuation Account  (110100)
-               CR  Stock Input Account      (230300 GRNI)
+        1. RECEIPT VALIDATION journal entry:
+               DR  110100 Stock Valuation
+               CR  230300 Stock Interim (Received) / GRNI
 
-        2. Additional lines on VENDOR BILL confirmation:
-               DR  Stock Valuation Account  (110100)
-               CR  Stock Input Account      (230300 GRNI)
+        2. DELIVERY VALIDATION journal entry:
+               DR  121200 Stock Interim (Delivered)
+               CR  110100 Stock Valuation
 
-        Reads accounts from stock_account_category_fix custom fields.
+        3. CUSTOMER INVOICE (standard Odoo 19 + fixed accounts):
+               DR  600000 Expenses (COGS)
+               CR  121200 Stock Interim (Delivered)  ← now correct
+
+        Reads all accounts from stock_account_category_fix custom fields.
     """,
     'author': 'Custom Development',
     'depends': ['stock_account', 'purchase_stock', 'account'],
