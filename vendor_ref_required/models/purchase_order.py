@@ -1,4 +1,5 @@
 from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError
 
 
 class PurchaseOrder(models.Model):
@@ -8,7 +9,10 @@ class PurchaseOrder(models.Model):
 
 
 class AccountMove(models.Model):
-    _inherit ="account.move"
+    _inherit = "account.move"
 
-    ref = fields.Char(required = True)
-
+    @api.constrains('ref', 'move_type')
+    def _check_vendor_bill_ref(self):
+        for move in self:
+            if move.move_type == 'in_invoice' and not move.ref:
+                raise ValidationError("Vendor Reference is required on Vendor Bills.")
