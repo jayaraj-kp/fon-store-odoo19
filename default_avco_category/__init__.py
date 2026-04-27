@@ -19,6 +19,7 @@ from . import models
 
 
 def post_init_hook(env):
+    # Only selection fields work with ir.default
     env['ir.default'].set(
         'product.category',
         'property_cost_method',
@@ -27,5 +28,5 @@ def post_init_hook(env):
     env['ir.default'].set(
         'product.category',
         'property_valuation',
-        'real_time',  # Perpetual (at invoicing)
+        'real_time',
     )

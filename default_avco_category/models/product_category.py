@@ -30,6 +30,29 @@ class ProductCategory(models.Model):
     @api.model
     def default_get(self, fields_list):
         defaults = super().default_get(fields_list)
+
+        # --- Costing Method: AVCO ---
         defaults['property_cost_method'] = 'average'
-        defaults['property_valuation'] = 'real_time'  # Perpetual (at invoicing)
+
+        # --- Inventory Valuation: Perpetual (at invoicing) ---
+        defaults['property_valuation'] = 'real_time'
+
+        company = self.env.company
+
+        # --- Stock Valuation Account (search by account code) ---
+        valuation_account = self.env['account.account'].search([
+            ('code', '=', '360000'),          # Change to your actual account code
+            ('company_id', '=', company.id),
+        ], limit=1)
+        if valuation_account:
+            defaults['property_stock_valuation_account_id'] = valuation_account.id
+
+        # --- Stock Journal (search by journal name) ---
+        stock_journal = self.env['account.journal'].search([
+            ('name', 'ilike', 'Inventory Valuation'),  # Change to your actual journal name
+            ('company_id', '=', company.id),
+        ], limit=1)
+        if stock_journal:
+            defaults['stock_journal_id'] = stock_journal.id
+
         return defaults
