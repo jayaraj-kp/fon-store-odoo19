@@ -51,33 +51,15 @@ class ProductCategory(models.Model):
         if valuation_account:
             defaults['property_stock_valuation_account_id'] = valuation_account.id
 
-        # --- Stock Journal: try multiple strategies ---
-        stock_journal = None
-
-        # Strategy 1: exact name match
+        # --- Stock Journal (correct field name for Odoo 19) ---
         stock_journal = self.env['account.journal'].search([
             ('name', '=', 'Inventory Valuation'),
             ('company_id', '=', company.id),
         ], limit=1)
-
-        # Strategy 2: partial name match
-        if not stock_journal:
-            stock_journal = self.env['account.journal'].search([
-                ('name', 'ilike', 'Inventory'),
-                ('company_id', '=', company.id),
-            ], limit=1)
-
-        # Strategy 3: fallback — any 'general' type journal
-        if not stock_journal:
-            stock_journal = self.env['account.journal'].search([
-                ('type', '=', 'general'),
-                ('company_id', '=', company.id),
-            ], limit=1)
-
         if stock_journal:
-            defaults['stock_journal_id'] = stock_journal.id
-            _logger.info("Default stock journal set to: %s (id=%s)", stock_journal.name, stock_journal.id)
+            defaults['property_stock_journal'] = stock_journal.id
+            _logger.info("Set property_stock_journal = %s (id=%s)", stock_journal.name, stock_journal.id)
         else:
-            _logger.warning("No stock journal found for company %s", company.name)
+            _logger.warning("Stock journal 'Inventory Valuation' not found for company %s", company.name)
 
         return defaults
