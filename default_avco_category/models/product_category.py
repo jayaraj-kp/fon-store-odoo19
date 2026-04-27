@@ -39,15 +39,17 @@ class ProductCategory(models.Model):
 
         company = self.env.company
 
-        # --- Stock Valuation Account (search by account code) ---
+        # --- Stock Valuation Account ---
+        # Odoo 19 uses company_ids (Many2many) on account.account
         valuation_account = self.env['account.account'].search([
-            ('code', '=', '360000'),          # Change to your actual account code
-            ('company_id', '=', company.id),
+            ('code', '=', '360000'),           # Change to your actual account code
+            ('company_ids', 'in', company.id),
         ], limit=1)
         if valuation_account:
             defaults['property_stock_valuation_account_id'] = valuation_account.id
 
-        # --- Stock Journal (search by journal name) ---
+        # --- Stock Journal ---
+        # account.journal still uses company_id in Odoo 19
         stock_journal = self.env['account.journal'].search([
             ('name', 'ilike', 'Inventory Valuation'),  # Change to your actual journal name
             ('company_id', '=', company.id),
