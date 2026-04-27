@@ -1,32 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Scrap Bulk Entry Form View -->
+    <!-- Form View -->
     <record id="view_scrap_bulk_entry_form" model="ir.ui.view">
         <field name="name">scrap.bulk.entry.form</field>
         <field name="model">scrap.bulk.entry</field>
         <field name="arch" type="xml">
             <form string="Scrap Bulk Entry">
                 <header>
-                    <button
-                        name="action_validate"
-                        string="Validate"
-                        type="object"
-                        class="btn-primary"
-                        invisible="state == 'done'"
-                        confirm="Are you sure you want to validate and scrap all lines? This action cannot be undone."
-                    />
+                    <button name="action_validate" string="Validate" type="object" class="btn-primary" invisible="state == 'done'" confirm="Are you sure you want to validate and scrap all lines? This action cannot be undone."/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button
-                            name="action_view_scraps"
-                            type="object"
-                            class="oe_stat_button"
-                            icon="fa-recycle"
-                            invisible="scrap_count == 0"
-                        >
+                        <button name="action_view_scraps" type="object" class="oe_stat_button" icon="fa-recycle" invisible="scrap_count == 0">
                             <div class="o_field_widget o_stat_info">
                                 <span class="o_stat_value"><field name="scrap_count"/></span>
                                 <span class="o_stat_text">Scrap Orders</span>
@@ -35,19 +22,17 @@
                     </div>
                     <div class="oe_title">
                         <label for="name" string="Reference"/>
-                        <h1>
-                            <field name="name" readonly="1"/>
-                        </h1>
+                        <h1><field name="name" readonly="1"/></h1>
                     </div>
                     <group>
                         <group>
-                            <field name="location_id" placeholder="Select source location..."/>
+                            <field name="location_id"/>
                             <field name="scrap_location_id"/>
-                            <field name="scrap_reason" placeholder="Enter scrap reason..."/>
+                            <field name="scrap_reason"/>
                         </group>
                         <group>
                             <field name="scrap_date"/>
-                            <field name="note" placeholder="Add notes here..."/>
+                            <field name="note"/>
                         </group>
                     </group>
                     <notebook>
@@ -69,7 +54,7 @@
         </field>
     </record>
 
-    <!-- Scrap Bulk Entry List View -->
+    <!-- List View -->
     <record id="view_scrap_bulk_entry_list" model="ir.ui.view">
         <field name="name">scrap.bulk.entry.list</field>
         <field name="model">scrap.bulk.entry</field>
@@ -79,32 +64,22 @@
                 <field name="scrap_date"/>
                 <field name="location_id"/>
                 <field name="scrap_location_id"/>
-                <field name="scrap_reason" optional="show"/>
                 <field name="scrap_count" string="Scrap Orders"/>
-                <field name="state" widget="badge"
-                    decoration-info="state == 'draft'"
-                    decoration-success="state == 'done'"
-                />
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done'"/>
             </list>
         </field>
     </record>
 
-    <!-- Scrap Bulk Entry Search View -->
+    <!-- Search View -->
     <record id="view_scrap_bulk_entry_search" model="ir.ui.view">
         <field name="name">scrap.bulk.entry.search</field>
         <field name="model">scrap.bulk.entry</field>
         <field name="arch" type="xml">
-            <search string="Search Scrap Bulk Entries">
-                <field name="name" string="Reference"/>
-                <field name="location_id" string="Source Location"/>
-                <field name="scrap_reason" string="Scrap Reason"/>
-                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
-                <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
-                    <filter string="Source Location" name="group_location" context="{'group_by': 'location_id'}"/>
-                    <filter string="Scrap Date" name="group_date" context="{'group_by': 'scrap_date'}"/>
-                </group>
+            <search string="Scrap Bulk Entries">
+                <field name="name"/>
+                <field name="location_id"/>
+                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
+                <filter string="Done" name="done" domain="[('state','=','done')]"/>
             </search>
         </field>
     </record>
@@ -116,12 +91,8 @@
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_scrap_bulk_entry_search"/>
         <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                Create your first Scrap Bulk Entry
-            </p>
-            <p>
-                Use Scrap Bulk Entry to scrap multiple products at once.
-            </p>
+            <p class="o_view_nocontent_smiling_face">Create your first Scrap Bulk Entry</p>
+            <p>Use Scrap Bulk Entry to scrap multiple products at once.</p>
         </field>
     </record>
 
