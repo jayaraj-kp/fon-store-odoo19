@@ -27,14 +27,25 @@ class ScrapBulkEntry(models.Model):
         domain=[('usage', 'in', ['internal', 'transit'])],
         states={'done': [('readonly', True)]},
     )
+    # scrap_location_id = fields.Many2one(
+    #     'stock.location',
+    #     string='Scrap Location',
+    #     required=True,
+    #     domain=[('scrap_location', '=', True)],
+    #     states={'done': [('readonly', True)]},
+    #     default=lambda self: self.env['stock.location'].search(
+    #         [('scrap_location', '=', True)], limit=1
+    #     ),
+    # )
+    # NEW - use the system's default scrap location via ref
     scrap_location_id = fields.Many2one(
         'stock.location',
         string='Scrap Location',
         required=True,
-        domain=[('scrap_location', '=', True)],
+        domain=[('usage', '=', 'inventory')],
         states={'done': [('readonly', True)]},
-        default=lambda self: self.env['stock.location'].search(
-            [('scrap_location', '=', True)], limit=1
+        default=lambda self: self.env.ref(
+            'stock.stock_location_scrapped', raise_if_not_found=False
         ),
     )
     scrap_reason = fields.Char(
