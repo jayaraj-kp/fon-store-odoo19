@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- Sequence for Scrap Bulk Entry -->
+    <record id="seq_scrap_bulk_entry" model="ir.sequence">
+        <field name="name">Scrap Bulk Entry</field>
+        <field name="code">scrap.bulk.entry</field>
+        <field name="prefix">SBE/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
     <!-- Scrap Bulk Entry Form View -->
     <record id="view_scrap_bulk_entry_form" model="ir.ui.view">
         <field name="name">scrap.bulk.entry.form</field>
@@ -16,12 +25,6 @@
                         invisible="state == 'done'"
                         confirm="Are you sure you want to validate and scrap all lines? This action cannot be undone."
                     />
-                    <button
-                        name="action_view_scraps"
-                        string="View Scrap Orders"
-                        type="object"
-                        invisible="scrap_count == 0"
-                    />
                     <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
                 </header>
                 <sheet>
@@ -33,7 +36,10 @@
                             icon="fa-recycle"
                             invisible="scrap_count == 0"
                         >
-                            <field name="scrap_count" widget="statinfo" string="Scrap Orders"/>
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value"><field name="scrap_count"/></span>
+                                <span class="o_stat_text">Scrap Orders</span>
+                            </div>
                         </button>
                     </div>
                     <div class="oe_title">
@@ -72,12 +78,12 @@
         </field>
     </record>
 
-    <!-- Scrap Bulk Entry Tree/List View -->
+    <!-- Scrap Bulk Entry List View -->
     <record id="view_scrap_bulk_entry_list" model="ir.ui.view">
         <field name="name">scrap.bulk.entry.list</field>
         <field name="model">scrap.bulk.entry</field>
         <field name="arch" type="xml">
-            <list string="Scrap Bulk Entries" decoration-muted="state == 'done'">
+            <list string="Scrap Bulk Entries">
                 <field name="name"/>
                 <field name="scrap_date"/>
                 <field name="location_id"/>
@@ -100,18 +106,13 @@
             <search string="Search Scrap Bulk Entries">
                 <field name="name" string="Reference"/>
                 <field name="location_id" string="Source Location"/>
-                <field name="scrap_reason"/>
+                <field name="scrap_reason" string="Scrap Reason"/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
-                <separator/>
-                <filter string="Today" name="today"
-                    domain="[('scrap_date', '>=', context_today().strftime('%Y-%m-%d 00:00:00')),
-                              ('scrap_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"
-                />
                 <group expand="0" string="Group By">
                     <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
                     <filter string="Source Location" name="group_location" context="{'group_by': 'location_id'}"/>
-                    <filter string="Scrap Date" name="group_date" context="{'group_by': 'scrap_date:month'}"/>
+                    <filter string="Scrap Date" name="group_date" context="{'group_by': 'scrap_date'}"/>
                 </group>
             </search>
         </field>
@@ -131,15 +132,6 @@
                 Use Scrap Bulk Entry to scrap multiple products at once.
             </p>
         </field>
-    </record>
-
-    <!-- Sequence for Scrap Bulk Entry -->
-    <record id="seq_scrap_bulk_entry" model="ir.sequence">
-        <field name="name">Scrap Bulk Entry</field>
-        <field name="code">scrap.bulk.entry</field>
-        <field name="prefix">SBE/%(year)s/</field>
-        <field name="padding">5</field>
-        <field name="company_id" eval="False"/>
     </record>
 
 </odoo>
