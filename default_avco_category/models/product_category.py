@@ -21,7 +21,11 @@
 #         return defaults
 
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from odoo import models, api
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class ProductCategory(models.Model):
@@ -40,21 +44,40 @@ class ProductCategory(models.Model):
         company = self.env.company
 
         # --- Stock Valuation Account ---
-        # Odoo 19 uses company_ids (Many2many) on account.account
         valuation_account = self.env['account.account'].search([
-            ('code', '=', '360000'),           # Change to your actual account code
+            ('code', '=', '360000'),
             ('company_ids', 'in', company.id),
         ], limit=1)
         if valuation_account:
             defaults['property_stock_valuation_account_id'] = valuation_account.id
 
-        # --- Stock Journal ---
-        # account.journal still uses company_id in Odoo 19
+        # --- Stock Journal: try multiple strategies ---
+        stock_journal = None
+
+        # Strategy 1: exact name match
         stock_journal = self.env['account.journal'].search([
-            ('name', 'ilike', 'Inventory Valuation'),  # Change to your actual journal name
+            ('name', '=', 'Inventory Valuation'),
             ('company_id', '=', company.id),
         ], limit=1)
+
+        # Strategy 2: partial name match
+        if not stock_journal:
+            stock_journal = self.env['account.journal'].search([
+                ('name', 'ilike', 'Inventory'),
+                ('company_id', '=', company.id),
+            ], limit=1)
+
+        # Strategy 3: fallback — any 'general' type journal
+        if not stock_journal:
+            stock_journal = self.env['account.journal'].search([
+                ('type', '=', 'general'),
+                ('company_id', '=', company.id),
+            ], limit=1)
+
         if stock_journal:
             defaults['stock_journal_id'] = stock_journal.id
+            _logger.info("Default stock journal set to: %s (id=%s)", stock_journal.name, stock_journal.id)
+        else:
+            _logger.warning("No stock journal found for company %s", company.name)
 
         return defaults
