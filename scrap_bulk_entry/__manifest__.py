@@ -7,11 +7,11 @@
     'author': 'Custom',
     'depends': ['stock'],
     'data': [
-        'data/scrap_bulk_entry_sequence.xml',
         'security/ir.model.access.csv',
         'views/scrap_bulk_entry_views.xml',
         'views/scrap_bulk_entry_menu.xml',
     ],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,
     'auto_install': False,
