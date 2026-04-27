@@ -1,5 +1,5 @@
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError
 
 
 class PurchaseOrder(models.Model):
@@ -11,8 +11,8 @@ class PurchaseOrder(models.Model):
 class AccountMove(models.Model):
     _inherit = "account.move"
 
-    @api.constrains('ref', 'move_type')
-    def _check_vendor_bill_ref(self):
+    def _post(self, soft=True):
         for move in self:
             if move.move_type == 'in_invoice' and not move.ref:
-                raise ValidationError("Vendor Reference is required on Vendor Bills.")
+                raise UserError(_("Vendor Reference is required on Vendor Bills."))
+        return super()._post(soft=soft)
