@@ -46,7 +46,7 @@
                         <group>
                             <field name="location_id" placeholder="Select source location..."/>
                             <field name="scrap_location_id"/>
-                            <field name="scrap_reason_id"/>
+                            <field name="scrap_reason" placeholder="Enter scrap reason..."/>
                         </group>
                         <group>
                             <field name="scrap_date"/>
@@ -83,7 +83,7 @@
                 <field name="scrap_date"/>
                 <field name="location_id"/>
                 <field name="scrap_location_id"/>
-                <field name="scrap_reason_id" optional="show"/>
+                <field name="scrap_reason" optional="show"/>
                 <field name="scrap_count" string="Scrap Orders"/>
                 <field name="state" widget="badge"
                     decoration-info="state == 'draft'"
@@ -101,7 +101,7 @@
             <search string="Search Scrap Bulk Entries">
                 <field name="name" string="Reference"/>
                 <field name="location_id" string="Source Location"/>
-                <field name="scrap_reason_id"/>
+                <field name="scrap_reason"/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
                 <separator/>

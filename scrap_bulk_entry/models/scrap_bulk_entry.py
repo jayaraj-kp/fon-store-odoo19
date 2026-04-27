@@ -37,8 +37,7 @@ class ScrapBulkEntry(models.Model):
             [('scrap_location', '=', True)], limit=1
         ),
     )
-    scrap_reason_id = fields.Many2one(
-        'stock.scrap.reason',
+    scrap_reason = fields.Char(
         string='Scrap Reason',
         states={'done': [('readonly', True)]},
     )
@@ -99,19 +98,24 @@ class ScrapBulkEntry(models.Model):
             if line.quantity <= 0:
                 raise UserError(_('Quantity must be greater than zero for all lines.'))
 
+        # Detect correct field names for stock.scrap in this Odoo version
+        scrap_model_fields = self.env['stock.scrap']._fields
+        qty_field = 'scrap_qty' if 'scrap_qty' in scrap_model_fields else 'quantity'
+        uom_field = 'product_uom_id' if 'product_uom_id' in scrap_model_fields else 'product_uom_id'
+
         scrap_orders = self.env['stock.scrap']
         for line in self.scrap_line_ids:
             source_location = line.location_id or self.location_id
             scrap_vals = {
                 'product_id': line.product_id.id,
-                'product_uom_id': line.product_uom_id.id,
-                'scrap_qty': line.quantity,
-                'location_id': source_location.id if source_location else False,
+                uom_field: line.product_uom_id.id,
+                qty_field: line.quantity,
                 'scrap_location_id': self.scrap_location_id.id,
                 'company_id': self.company_id.id,
             }
-            if self.scrap_reason_id:
-                scrap_vals['scrap_reason_id'] = self.scrap_reason_id.id
+            if source_location:
+                scrap_vals['location_id'] = source_location.id
+
             scrap_order = self.env['stock.scrap'].create(scrap_vals)
             scrap_order.action_validate()
             scrap_orders |= scrap_order
