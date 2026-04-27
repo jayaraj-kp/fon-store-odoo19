@@ -179,6 +179,7 @@
 #         return result
 
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import logging
 from datetime import datetime, timedelta
 from odoo import fields, models
@@ -262,40 +263,74 @@ class StockMove(models.Model):
     )
 
 
+_WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
+
+
+def _get_user_warehouse(user):
+    """Resolve the user's default warehouse across different Odoo versions."""
+    for fname in _WAREHOUSE_FIELDS:
+        if fname in user._fields:
+            return getattr(user, fname, False)
+    return False
+
+
 class StockScrap(models.Model):
     """
     Intercept scrap validation (Operations > Scrap) so the warehouse
     analytic account is stamped on the generated STJ journal entry.
 
-    Warehouse resolution order:
-      1. scrap.location_id.warehouse_id          (source stock location)
-      2. scrap.picking_type_id.warehouse_id       (scrap operation type)
-      3. scrap.picking_id.location_id.warehouse_id (linked picking, if any)
+    Warehouse resolution order (mirrors sale/purchase logic):
+      1. Current user's default warehouse analytic  ← PRIMARY (same as SO/PO)
+      2. scrap.picking_type_id.warehouse_id         ← fallback
+      3. scrap.location_id.warehouse_id             ← fallback
+      4. scrap.picking_id.location_id.warehouse_id  ← last resort
     """
     _inherit = 'stock.scrap'
 
     def _get_scrap_analytic(self):
-        for scrap in self:
-            # 1. Source location warehouse
-            wh = getattr(scrap.location_id, 'warehouse_id', False)
-            if wh and getattr(wh, 'analytic_account_id', False):
-                return wh.analytic_account_id
+        # 1. User's default warehouse — same source as sale/purchase orders
+        wh = _get_user_warehouse(self.env.user)
+        if wh and getattr(wh, 'analytic_account_id', False):
+            _logger.debug(
+                'Scrap analytic STRATEGY 1 (user default wh): user[%s] → wh[%s] → %s',
+                self.env.user.name, wh.name, wh.analytic_account_id.name,
+            )
+            return wh.analytic_account_id
 
+        for scrap in self:
             # 2. Scrap operation type warehouse
             wh = getattr(
                 getattr(scrap, 'picking_type_id', False),
                 'warehouse_id', False,
             )
             if wh and getattr(wh, 'analytic_account_id', False):
+                _logger.debug(
+                    'Scrap analytic STRATEGY 2 (picking_type): scrap[%s] → wh[%s] → %s',
+                    scrap.name, wh.name, wh.analytic_account_id.name,
+                )
                 return wh.analytic_account_id
 
-            # 3. Linked transfer warehouse (if scrap was done from a picking)
+            # 3. Source stock location warehouse
+            wh = getattr(scrap.location_id, 'warehouse_id', False)
+            if wh and getattr(wh, 'analytic_account_id', False):
+                _logger.debug(
+                    'Scrap analytic STRATEGY 3 (location): scrap[%s] → wh[%s] → %s',
+                    scrap.name, wh.name, wh.analytic_account_id.name,
+                )
+                return wh.analytic_account_id
+
+            # 4. Linked transfer warehouse
             picking = getattr(scrap, 'picking_id', False)
             if picking:
                 wh = getattr(picking.location_id, 'warehouse_id', False)
                 if wh and getattr(wh, 'analytic_account_id', False):
+                    _logger.debug(
+                        'Scrap analytic STRATEGY 4 (picking): scrap[%s] → wh[%s] → %s',
+                        scrap.name, wh.name, wh.analytic_account_id.name,
+                    )
                     return wh.analytic_account_id
 
+        _logger.warning('Scrap analytic: no match for user[%s]', self.env.user.name)
         return False
 
     def action_validate(self):
