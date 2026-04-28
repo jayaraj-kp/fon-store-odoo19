@@ -46,7 +46,6 @@
                             </group>
                         </group>
 
-                        <!-- Tip -->
                         <div class="alert alert-info" invisible="mode != 'import'">
                             <strong>Tip:</strong> Use <em>Download Template</em> to get
                             a pre-formatted Excel file. Import will
@@ -87,17 +86,16 @@
         </record>
 
         <!--
-            TOP-LEVEL MENU: Inventory > Products > Import/Export Products
-            We create our own top-level menu entry under the Inventory app
-            so we don't depend on any specific submenu ID that may differ
-            between Odoo versions/editions.
+            Menu placed under Inventory > Products (top nav)
+            stock.menu_stock_products is the "Products" top menu item
+            visible in the Inventory navbar — this always exists.
         -->
         <menuitem
             id="menu_product_import_export"
             name="Import / Export Products"
-            parent="stock.menu_warehouse_config"
+            parent="stock.menu_stock_products"
             action="action_product_import_export_wizard"
-            sequence="50"
+            sequence="99"
             groups="base.group_user"/>
 
     </data>
