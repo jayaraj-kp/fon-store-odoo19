@@ -4,59 +4,47 @@ import { patch } from "@web/core/utils/patch";
 import { Many2XAutocomplete } from "@web/views/fields/relational_utils";
 
 /**
- * FIX NOTE:
- * In Odoo 19, `this.props.resModel` on Many2XAutocomplete refers to the
- * *target* model (e.g. "product.product"), NOT the parent form model
- * (e.g. "purchase.order"). Checking TARGET_MODELS against it always
- * failed silently, so the filter never ran.
+ * ROOT CAUSE (Odoo 19):
+ * Many2XAutocomplete no longer uses getSources() to add Create/Create&Edit.
+ * Instead it calls addCreateSuggestion() and addCreateEditSuggestion()
+ * as separate methods during option building.
  *
- * Solution: filter purely by field name. "product_id" and
- * "product_template_id" are specific enough — they only appear on
- * purchase/sale order lines in the contexts we care about.
- * If you need stricter scoping, see the commented-out model check below.
+ * We patch those two methods to be no-ops when the field is a product field,
+ * detected via:
+ *   - this.props.id  (e.g. "product_id_0", "product_template_id_0")
+ *   - this.props.resModel (e.g. "product.product", "product.template")
  */
 
-const TARGET_FIELDS = ["product_id", "product_template_id"];
+const TARGET_FIELD_PREFIXES = ["product_id", "product_template_id"];
+const TARGET_RES_MODELS = ["product.product", "product.template"];
+
+function isProductField(component) {
+    const id = component.props?.id || "";
+    const resModel = component.props?.resModel || "";
+
+    const fieldMatch = TARGET_FIELD_PREFIXES.some(
+        (prefix) => id === prefix || id.startsWith(prefix + "_")
+    );
+    const modelMatch = TARGET_RES_MODELS.includes(resModel);
+
+    // Match either: field name OR resModel (belt-and-suspenders)
+    return fieldMatch || modelMatch;
+}
 
 patch(Many2XAutocomplete.prototype, {
     /**
-     * getSources() builds the autocomplete option list, including
-     * the "Create X" and "Create and edit..." entries.
-     * We strip those entries for product fields.
+     * Suppress "Create X" quick-create suggestion on product fields.
      */
-    async getSources(request) {
-        const sources = await super.getSources(request);
-        const name = this.props.name || "";
-
-        if (!TARGET_FIELDS.includes(name)) {
-            return sources;
-        }
-
-        return sources.map((source) => {
-            if (!source.options || !Array.isArray(source.options)) {
-                return source;
-            }
-            return {
-                ...source,
-                options: source.options.filter(
-                    (opt) =>
-                        opt.action !== "quick_create" &&
-                        opt.action !== "create_edit"
-                ),
-            };
-        });
+    addCreateSuggestion(suggestions, request) {
+        if (isProductField(this)) return;
+        return super.addCreateSuggestion(suggestions, request);
     },
 
     /**
-     * Covers newer Odoo 19 builds that use optionalCreateOptions
-     * instead of (or in addition to) getSources().
+     * Suppress "Create and edit..." suggestion on product fields.
      */
-    get optionalCreateOptions() {
-        const name = this.props.name || "";
-
-        if (TARGET_FIELDS.includes(name)) {
-            return [];
-        }
-        return super.optionalCreateOptions;
+    addCreateEditSuggestion(suggestions, request) {
+        if (isProductField(this)) return;
+        return super.addCreateEditSuggestion(suggestions, request);
     },
 });
