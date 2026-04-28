@@ -25,7 +25,7 @@
     'website': 'https://yourcompany.com',
     'depends': ['product', 'sale', 'stock'],
     'data': [
-        'security/ir.model.access.csv',
+        # 'security/ir.model.access.csv',
         'views/product_views.xml',
         'views/product_import_export_wizard_views.xml',
     ],
