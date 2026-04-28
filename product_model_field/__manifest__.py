@@ -23,7 +23,7 @@
     """,
     'author': 'Your Company Name',
     'website': 'https://yourcompany.com',
-    'depends': ['product', 'sale'],
+    'depends': ['product', 'sale', 'stock'],
     'data': [
         'security/ir.model.access.csv',
         'views/product_views.xml',

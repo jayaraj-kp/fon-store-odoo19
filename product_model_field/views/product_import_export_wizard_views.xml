@@ -2,15 +2,12 @@
 <odoo>
     <data>
 
-        <!-- ═══════════════════════════════════════════════════════════
-             Wizard Form View
-             ═══════════════════════════════════════════════════════════ -->
+        <!-- Wizard Form View -->
         <record id="product_import_export_wizard_form" model="ir.ui.view">
             <field name="name">product.import.export.wizard.form</field>
             <field name="model">product.import.export.wizard</field>
             <field name="arch" type="xml">
                 <form string="Product Import / Export">
-
                     <sheet>
                         <div class="oe_title">
                             <h1>Product Import / Export</h1>
@@ -49,26 +46,22 @@
                             </group>
                         </group>
 
-                        <!-- Download template hint -->
+                        <!-- Tip -->
                         <div class="alert alert-info" invisible="mode != 'import'">
-                            <strong>Tip:</strong> Use the <em>Download Template</em> button
-                            below to get a pre-formatted Excel file with the correct columns.
-                            Import will <strong>create</strong> new products or
+                            <strong>Tip:</strong> Use <em>Download Template</em> to get
+                            a pre-formatted Excel file. Import will
+                            <strong>create</strong> new products or
                             <strong>update</strong> existing ones (matched by
                             Internal Reference or Product Name).
                         </div>
-
                     </sheet>
 
                     <footer>
-                        <!-- Export button -->
                         <button name="action_export"
                                 string="Export to Excel"
                                 type="object"
                                 class="btn-primary"
                                 invisible="mode != 'export'"/>
-
-                        <!-- Import buttons -->
                         <button name="action_download_template"
                                 string="Download Template"
                                 type="object"
@@ -79,13 +72,33 @@
                                 type="object"
                                 class="btn-primary"
                                 invisible="mode != 'import'"/>
-
                         <button string="Close" class="btn-secondary" special="cancel"/>
                     </footer>
-
                 </form>
             </field>
         </record>
+
+        <!-- Window Action -->
+        <record id="action_product_import_export_wizard" model="ir.actions.act_window">
+            <field name="name">Import / Export Products</field>
+            <field name="res_model">product.import.export.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+
+        <!--
+            TOP-LEVEL MENU: Inventory > Products > Import/Export Products
+            We create our own top-level menu entry under the Inventory app
+            so we don't depend on any specific submenu ID that may differ
+            between Odoo versions/editions.
+        -->
+        <menuitem
+            id="menu_product_import_export"
+            name="Import / Export Products"
+            parent="stock.menu_warehouse_config"
+            action="action_product_import_export_wizard"
+            sequence="50"
+            groups="base.group_user"/>
 
     </data>
 </odoo>
