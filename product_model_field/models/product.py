@@ -11,6 +11,13 @@ class ProductTemplate(models.Model):
         help='Alphanumeric model number/identifier for the product'
     )
 
+    mrp_price = fields.Float(
+        string='MRP Price',
+        digits='Product Price',
+        tracking=True,
+        help='Maximum Retail Price (MRP) of the product'
+    )
+
 
 class ProductProduct(models.Model):
     _inherit = 'product.product'
@@ -20,4 +27,11 @@ class ProductProduct(models.Model):
         size=255,
         tracking=True,
         help='Alphanumeric model number/identifier for the product'
+    )
+
+    mrp_price = fields.Float(
+        string='MRP Price',
+        digits='Product Price',
+        tracking=True,
+        help='Maximum Retail Price (MRP) of the product'
     )
