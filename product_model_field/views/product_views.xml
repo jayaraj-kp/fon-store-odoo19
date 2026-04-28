@@ -4,6 +4,18 @@
 
         <!-- ═══════════════════════════════════════════════════════════
              PRODUCT TEMPLATE – Form View
+             Exact structure from DB:
+             group_standard_price contains:
+               label list_price → div list_price_uom
+               label standard_price → div standard_price_uom
+               categ_id
+               company_id
+               currency_id (invisible)
+               cost_currency_id (invisible)
+               product_variant_id (invisible)
+
+             We insert mrp_price AFTER list_price_uom div (below Sales Price)
+             and model_number AFTER categ_id
              ═══════════════════════════════════════════════════════════ -->
         <record id="product_template_form_view_model" model="ir.ui.view">
             <field name="name">product.template.form.model</field>
@@ -11,17 +23,21 @@
             <field name="inherit_id" ref="product.product_template_form_view"/>
             <field name="arch" type="xml">
 
-                <!-- Place MRP Price inside the same group as Sales Price (group_sale_pricelist) -->
-                <!-- by inserting BEFORE Sales Taxes which is always right after list_price group -->
-                <xpath expr="//field[@name='taxes_id']" position="before">
-                    <field name="mrp_price"
-                           string="MRP Price"
-                           widget="monetary"
-                           options="{'currency_field': 'currency_id'}"/>
+                <!-- MRP Price: inserted directly after the list_price div
+                     which is the Sales Price container — confirmed from DB -->
+                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']" position="after">
+                    <label for="mrp_price" string="MRP Price"/>
+                    <div name="mrp_price_div">
+                        <field name="mrp_price"
+                               class="oe_inline"
+                               widget="monetary"
+                               options="{'currency_field': 'currency_id', 'field_digits': True}"
+                               nolabel="1"/>
+                    </div>
                 </xpath>
 
-                <!-- Model field after Category -->
-                <xpath expr="//field[@name='categ_id']" position="after">
+                <!-- Model: inserted after categ_id — confirmed from DB -->
+                <xpath expr="//group[@name='group_standard_price']/field[@name='categ_id']" position="after">
                     <field name="model_number"
                            string="Model"
                            placeholder="e.g., IP14PM"/>
@@ -32,7 +48,6 @@
 
         <!-- ═══════════════════════════════════════════════════════════
              PRODUCT VARIANT – Form View
-             Model + MRP Price after barcode
              ═══════════════════════════════════════════════════════════ -->
         <record id="product_product_form_view_model" model="ir.ui.view">
             <field name="name">product.product.form.model</field>
