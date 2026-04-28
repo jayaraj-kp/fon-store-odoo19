@@ -4,8 +4,6 @@
 
         <!-- ═══════════════════════════════════════════════════════════
              PRODUCT TEMPLATE – Form View
-             MRP Price: directly below Sales Price
-             Model    : after Category
              ═══════════════════════════════════════════════════════════ -->
         <record id="product_template_form_view_model" model="ir.ui.view">
             <field name="name">product.template.form.model</field>
@@ -13,8 +11,9 @@
             <field name="inherit_id" ref="product.product_template_form_view"/>
             <field name="arch" type="xml">
 
-                <!-- MRP Price directly below Sales Price -->
-                <xpath expr="//field[@name='list_price']" position="after">
+                <!-- Place MRP Price inside the same group as Sales Price (group_sale_pricelist) -->
+                <!-- by inserting BEFORE Sales Taxes which is always right after list_price group -->
+                <xpath expr="//field[@name='taxes_id']" position="before">
                     <field name="mrp_price"
                            string="MRP Price"
                            widget="monetary"
@@ -33,7 +32,7 @@
 
         <!-- ═══════════════════════════════════════════════════════════
              PRODUCT VARIANT – Form View
-             Model: after barcode (MRP Price inherited from template)
+             Model + MRP Price after barcode
              ═══════════════════════════════════════════════════════════ -->
         <record id="product_product_form_view_model" model="ir.ui.view">
             <field name="name">product.product.form.model</field>
@@ -41,7 +40,6 @@
             <field name="inherit_id" ref="product.product_normal_form_view"/>
             <field name="arch" type="xml">
 
-                <!-- Model field after barcode -->
                 <xpath expr="//field[@name='barcode']" position="after">
                     <field name="model_number"
                            string="Model"
