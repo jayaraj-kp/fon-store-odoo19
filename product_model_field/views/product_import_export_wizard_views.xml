@@ -93,7 +93,7 @@
         <menuitem
             id="menu_product_import_export"
             name="Import / Export Products"
-            parent="stock.menu_stock_products"
+            parent="stock.menu_product_in_config_stock"
             action="action_product_import_export_wizard"
             sequence="99"
             groups="base.group_user"/>
