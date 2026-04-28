@@ -1,4 +1,5 @@
-from odoo import models, fields
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError
 
 
 class ProductTemplate(models.Model):
@@ -18,6 +19,18 @@ class ProductTemplate(models.Model):
         help='Maximum Retail Price (MRP) of the product'
     )
 
+    @api.constrains('list_price', 'mrp_price')
+    def _check_sale_price_vs_mrp(self):
+        for product in self:
+            if product.mrp_price > 0 and product.list_price > product.mrp_price:
+                raise ValidationError(_(
+                    '⚠️ Sales Price Cannot Exceed MRP Price!\n\n'
+                    'Product  : %s\n'
+                    'Sales Price : ₹ %.2f\n'
+                    'MRP Price   : ₹ %.2f\n\n'
+                    'Please set the Sales Price equal to or less than the MRP Price.'
+                ) % (product.name, product.list_price, product.mrp_price))
+
 
 class ProductProduct(models.Model):
     _inherit = 'product.product'
@@ -35,3 +48,15 @@ class ProductProduct(models.Model):
         tracking=True,
         help='Maximum Retail Price (MRP) of the product'
     )
+
+    @api.constrains('lst_price', 'mrp_price')
+    def _check_sale_price_vs_mrp(self):
+        for product in self:
+            if product.mrp_price > 0 and product.lst_price > product.mrp_price:
+                raise ValidationError(_(
+                    '⚠️ Sales Price Cannot Exceed MRP Price!\n\n'
+                    'Product  : %s\n'
+                    'Sales Price : ₹ %.2f\n'
+                    'MRP Price   : ₹ %.2f\n\n'
+                    'Please set the Sales Price equal to or less than the MRP Price.'
+                ) % (product.name, product.lst_price, product.mrp_price))
