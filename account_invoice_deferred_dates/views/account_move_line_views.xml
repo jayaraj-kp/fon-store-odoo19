@@ -2,7 +2,7 @@
 <odoo>
 
     <!-- ============================================================ -->
-    <!--  Extend Invoice Line (account.move.line) list inside invoice  -->
+    <!--  Invoice Lines tab — add Start Date, End Date, Deferred Acct  -->
     <!-- ============================================================ -->
 
     <record id="view_move_form_deferred_dates" model="ir.ui.view">
@@ -11,7 +11,7 @@
         <field name="inherit_id" ref="account.view_move_form"/>
         <field name="arch" type="xml">
 
-            <!-- Add Start Date and End Date as optional columns after Taxes column -->
+            <!-- Add three columns after Taxes in Invoice Lines -->
             <xpath expr="//field[@name='invoice_line_ids']/list//field[@name='tax_ids']"
                    position="after">
                 <field name="deferred_start_date"
@@ -22,22 +22,13 @@
                        string="End Date"
                        optional="show"
                        widget="date"/>
+                <field name="deferred_account_id"
+                       string="Deferred Account"
+                       optional="show"
+                       options="{'no_create': True}"/>
             </xpath>
 
-        </field>
-    </record>
-
-    <!-- ============================================================ -->
-    <!--  Extend Journal Items tab (account.move.line) inside invoice  -->
-    <!-- ============================================================ -->
-
-    <record id="view_move_form_journal_items_deferred_dates" model="ir.ui.view">
-        <field name="name">account.move.form.journal.items.deferred.dates</field>
-        <field name="model">account.move</field>
-        <field name="inherit_id" ref="account.view_move_form"/>
-        <field name="arch" type="xml">
-
-            <!-- Add Start Date and End Date in Journal Items tab -->
+            <!-- Same three columns in Journal Items tab -->
             <xpath expr="//field[@name='line_ids']/list//field[@name='tax_ids']"
                    position="after">
                 <field name="deferred_start_date"
@@ -48,30 +39,10 @@
                        string="End Date"
                        optional="show"
                        widget="date"/>
-            </xpath>
-
-        </field>
-    </record>
-
-    <!-- ============================================================ -->
-    <!--  Standalone account.move.line list view (Journal Items menu)  -->
-    <!-- ============================================================ -->
-
-    <record id="view_move_line_list_deferred_dates" model="ir.ui.view">
-        <field name="name">account.move.line.list.deferred.dates</field>
-        <field name="model">account.move.line</field>
-        <field name="inherit_id" ref="account.view_move_line_tree"/>
-        <field name="arch" type="xml">
-
-            <xpath expr="//list" position="inside">
-                <field name="deferred_start_date"
-                       string="Deferred Start Date"
+                <field name="deferred_account_id"
+                       string="Deferred Account"
                        optional="show"
-                       widget="date"/>
-                <field name="deferred_end_date"
-                       string="Deferred End Date"
-                       optional="show"
-                       widget="date"/>
+                       options="{'no_create': True}"/>
             </xpath>
 
         </field>

@@ -8,14 +8,22 @@ class AccountMoveLine(models.Model):
 
     deferred_start_date = fields.Date(
         string='Start Date',
-        help='Start date for deferred revenue/expense recognition.',
+        help='Start date for deferred expense/revenue recognition.',
         copy=True,
     )
 
     deferred_end_date = fields.Date(
         string='End Date',
-        help='End date for deferred revenue/expense recognition.',
+        help='End date for deferred expense/revenue recognition.',
         copy=True,
+    )
+
+    deferred_account_id = fields.Many2one(
+        'account.account',
+        string='Deferred Account',
+        help='Balance sheet account to park the deferred amount (e.g. Prepaid Expense / Unearned Revenue).',
+        copy=True,
+        domain="[('account_type', 'not in', ['income', 'income_other', 'expense', 'expense_depreciation', 'expense_direct_cost'])]",
     )
 
     @api.constrains('deferred_start_date', 'deferred_end_date')
@@ -28,5 +36,6 @@ class AccountMoveLine(models.Model):
             ):
                 raise ValidationError(
                     "Deferred End Date must be greater than or equal to "
-                    "Deferred Start Date on line: %s" % (line.name or line.product_id.name or '')
+                    "Deferred Start Date on line: '%s'"
+                    % (line.name or (line.product_id.name if line.product_id else '') or line.account_id.name or '')
                 )
