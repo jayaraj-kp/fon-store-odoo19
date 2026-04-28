@@ -25,32 +25,32 @@
                         </group>
 
                         <!-- EXPORT section -->
-                        <group attrs="{'invisible': [('mode', '!=', 'export')]}">
+                        <group invisible="mode != 'export'">
                             <group string="Export">
-                                <field name="export_file"     widget="binary"
+                                <field name="export_file"
+                                       widget="binary"
                                        filename="export_filename"
-                                       attrs="{'invisible': [('export_file', '=', False)]}"/>
+                                       invisible="not export_file"/>
                                 <field name="export_filename" invisible="1"/>
                             </group>
                         </group>
 
                         <!-- IMPORT section -->
-                        <group attrs="{'invisible': [('mode', '!=', 'import')]}">
-                            <group string="Import">
-                                <field name="import_file"     widget="binary"
+                        <group invisible="mode != 'import'">
+                            <group string="Upload File">
+                                <field name="import_file"
+                                       widget="binary"
                                        filename="import_filename"
                                        string="Upload Excel (.xlsx)"/>
                                 <field name="import_filename" invisible="1"/>
                             </group>
-                            <group string="Result"
-                                   attrs="{'invisible': [('import_result', '=', False)]}">
+                            <group string="Result" invisible="not import_result">
                                 <field name="import_result" nolabel="1"/>
                             </group>
                         </group>
 
                         <!-- Download template hint -->
-                        <div class="alert alert-info"
-                             attrs="{'invisible': [('mode', '!=', 'import')]}">
+                        <div class="alert alert-info" invisible="mode != 'import'">
                             <strong>Tip:</strong> Use the <em>Download Template</em> button
                             below to get a pre-formatted Excel file with the correct columns.
                             Import will <strong>create</strong> new products or
@@ -61,24 +61,24 @@
                     </sheet>
 
                     <footer>
-                        <!-- Export buttons -->
+                        <!-- Export button -->
                         <button name="action_export"
                                 string="Export to Excel"
                                 type="object"
                                 class="btn-primary"
-                                attrs="{'invisible': [('mode', '!=', 'export')]}"/>
+                                invisible="mode != 'export'"/>
 
                         <!-- Import buttons -->
                         <button name="action_download_template"
                                 string="Download Template"
                                 type="object"
                                 class="btn-secondary"
-                                attrs="{'invisible': [('mode', '!=', 'import')]}"/>
+                                invisible="mode != 'import'"/>
                         <button name="action_import"
                                 string="Import"
                                 type="object"
                                 class="btn-primary"
-                                attrs="{'invisible': [('mode', '!=', 'import')]}"/>
+                                invisible="mode != 'import'"/>
 
                         <button string="Close" class="btn-secondary" special="cancel"/>
                     </footer>
