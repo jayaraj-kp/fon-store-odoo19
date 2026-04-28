@@ -1,46 +1,75 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { Many2OneField } from "@web/views/fields/many2one/many2one_field";
+import { Many2XAutocomplete } from "@web/views/fields/relational_utils";
 
-/**
- * Patch Many2OneField to disable "Create" and "Create and edit..."
- * quick-create options when the field is `product_id` inside
- * purchase.order or sale.order models.
- */
-patch(Many2OneField.prototype, {
-    setup() {
-        super.setup(...arguments);
-    },
+const TARGET_MODELS = [
+    "purchase.order",
+    "purchase.order.line",
+    "sale.order",
+    "sale.order.line",
+];
 
-    get canQuickCreate() {
-        if (this._shouldHideQuickCreate()) {
-            return false;
+const TARGET_FIELDS = ["product_id", "product_template_id"];
+
+patch(Many2XAutocomplete.prototype, {
+    /**
+     * getSources() builds the autocomplete option list, including
+     * the "Create X" and "Create and edit..." entries.
+     * We strip those entries when inside a product field on purchase/sale models.
+     */
+    async getSources(request) {
+        const sources = await super.getSources(request);
+
+        const fieldName = this.props.fieldString
+            ? undefined
+            : this.props.name;
+
+        // Detect field name from props
+        const name = this.props.name || "";
+        // Detect model from closest record context
+        const resModel =
+            this.props.resModel ||
+            this.env?.model?.config?.resModel ||
+            "";
+
+        const shouldHide =
+            TARGET_FIELDS.includes(name) && TARGET_MODELS.includes(resModel);
+
+        if (!shouldHide) {
+            return sources;
         }
-        return super.canQuickCreate;
+
+        // Filter out quick-create options from every source
+        return sources.map((source) => {
+            if (!source.options) return source;
+            return {
+                ...source,
+                options: source.options.filter
+                    ? source.options.filter(
+                          (opt) =>
+                              opt.action !== "quick_create" &&
+                              opt.action !== "create_edit"
+                      )
+                    : source.options,
+            };
+        });
     },
 
-    get canCreateEdit() {
-        if (this._shouldHideQuickCreate()) {
-            return false;
+    /**
+     * Also override the computed options getter used in newer Odoo 19 builds
+     * that call getOptions() instead of getSources().
+     */
+    get optionalCreateOptions() {
+        const name = this.props.name || "";
+        const resModel =
+            this.props.resModel ||
+            this.env?.model?.config?.resModel ||
+            "";
+
+        if (TARGET_FIELDS.includes(name) && TARGET_MODELS.includes(resModel)) {
+            return [];
         }
-        return super.canCreateEdit;
-    },
-
-    _shouldHideQuickCreate() {
-        const fieldName = this.props.name;
-        const model = this.props.record?.model?.config?.resModel
-            || this.props.record?.resModel
-            || "";
-
-        const targetModels = [
-            "purchase.order",
-            "purchase.order.line",
-            "sale.order",
-            "sale.order.line",
-        ];
-        const targetFields = ["product_id", "product_template_id"];
-
-        return targetFields.includes(fieldName) && targetModels.includes(model);
+        return super.optionalCreateOptions;
     },
 });
