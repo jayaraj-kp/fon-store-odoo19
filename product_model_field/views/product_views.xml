@@ -4,7 +4,8 @@
 
         <!-- ═══════════════════════════════════════════════════════════
              PRODUCT TEMPLATE – Form View
-             Adds: Model field (after categ_id) + MRP Price (after Model)
+             MRP Price: directly below Sales Price
+             Model    : after Category
              ═══════════════════════════════════════════════════════════ -->
         <record id="product_template_form_view_model" model="ir.ui.view">
             <field name="name">product.template.form.model</field>
@@ -12,11 +13,15 @@
             <field name="inherit_id" ref="product.product_template_form_view"/>
             <field name="arch" type="xml">
 
+                <!-- MRP Price directly below Sales Price -->
+                <xpath expr="//field[@name='list_price']" position="after">
+                    <field name="mrp_price" widget="monetary"
+                           options="{'currency_field': 'currency_id'}"/>
+                </xpath>
+
                 <!-- Model field after Category -->
                 <xpath expr="//field[@name='categ_id']" position="after">
                     <field name="model_number" placeholder="e.g., IP14PM"/>
-                    <field name="mrp_price" widget="monetary"
-                           options="{'currency_field': 'currency_id'}"/>
                 </xpath>
 
             </field>
@@ -24,7 +29,7 @@
 
         <!-- ═══════════════════════════════════════════════════════════
              PRODUCT VARIANT – Form View
-             Adds: Model field (after barcode) + MRP Price (after Model)
+             MRP Price: below Sales Price | Model: after barcode
              ═══════════════════════════════════════════════════════════ -->
         <record id="product_product_form_view_model" model="ir.ui.view">
             <field name="name">product.product.form.model</field>
@@ -32,10 +37,15 @@
             <field name="inherit_id" ref="product.product_normal_form_view"/>
             <field name="arch" type="xml">
 
-                <xpath expr="//field[@name='barcode']" position="after">
-                    <field name="model_number" placeholder="e.g., IP14PM"/>
+                <!-- MRP Price directly below Sales Price -->
+                <xpath expr="//field[@name='lst_price']" position="after">
                     <field name="mrp_price" widget="monetary"
                            options="{'currency_field': 'currency_id'}"/>
+                </xpath>
+
+                <!-- Model field after barcode -->
+                <xpath expr="//field[@name='barcode']" position="after">
+                    <field name="model_number" placeholder="e.g., IP14PM"/>
                 </xpath>
 
             </field>
@@ -43,7 +53,7 @@
 
         <!-- ═══════════════════════════════════════════════════════════
              PRODUCT TEMPLATE – List / Tree View
-             Shows Model + MRP Price columns in the product list
+             Shows MRP Price after Sales Price + Model column
              ═══════════════════════════════════════════════════════════ -->
         <record id="product_template_tree_view_model" model="ir.ui.view">
             <field name="name">product.template.tree.model</field>
@@ -61,7 +71,6 @@
 
         <!-- ═══════════════════════════════════════════════════════════
              PRODUCT TEMPLATE – Search View
-             Adds MRP Price and Model as searchable / filterable fields
              ═══════════════════════════════════════════════════════════ -->
         <record id="product_template_search_view_model" model="ir.ui.view">
             <field name="name">product.template.search.model</field>
