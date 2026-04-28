@@ -23,27 +23,22 @@
                     </div>
                 </xpath>
 
-                <!--
-                    REMOVED: readonly="not user_has_groups('base.group_erp_manager')"
-                    Reason:  user_has_groups() is a Python method, not a model field.
-                             Odoo 19 strictly validates that all names used in view
-                             attribute expressions exist as fields on the model.
-                             Using user_has_groups() here causes a ParseError on install.
+                <!-- Sales Price editable ONLY for Administrator -->
+                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']/field[@name='list_price']"
+                       position="attributes">
+                    <attribute name="groups">base.group_erp_manager</attribute>
+                </xpath>
 
-                    ALTERNATIVE: If you need to restrict editing of list_price to
-                    ERP managers only, use the 'groups' attribute on the field so
-                    that non-managers see it as read-only:
-
-                    <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']/field[@name='list_price']" position="attributes">
-                        <attribute name="groups">base.group_erp_manager</attribute>
-                    </xpath>
-
-                    Note: 'groups' makes the field invisible (not just readonly) for
-                    users outside the group. If you need it visible-but-readonly for
-                    all users, add a computed Boolean field (e.g. is_erp_manager) to
-                    the model and reference that field in the readonly expression.
-                -->
-
+                <!-- Sales Price readonly for non-admin users -->
+                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']" position="inside">
+                    <field name="list_price"
+                           class="oe_inline"
+                           widget="monetary"
+                           options="{'currency_field': 'currency_id', 'field_digits': True}"
+                           nolabel="1"
+                           readonly="1"
+                           groups="!base.group_erp_manager"/>
+                </xpath>
                 <!-- Model after Category -->
                 <xpath expr="//group[@name='group_standard_price']/field[@name='categ_id']" position="after">
                     <field name="model_number"
@@ -104,7 +99,7 @@
 
                 <xpath expr="//field[@name='name']" position="after">
                     <field name="model_number" string="Model"/>
-                    <field name="mrp_price"    string="MRP Price"/>
+                    <field name="mrp_price" string="MRP Price"/>
                 </xpath>
 
             </field>
