@@ -1,6 +1,6 @@
 {
     'name': 'POS Special Offers',
-    'version': '19.0.1.0.0',
+    'version': '19.0.7.0.0',
     'category': 'Point of Sale',
     'summary': 'Special offers with flat discount, coupon generation, auto-apply for POS',
     'depends': ['point_of_sale'],
