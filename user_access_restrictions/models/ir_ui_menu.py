@@ -11,6 +11,11 @@ class IrUiMenu(models.Model):
     _inherit = 'ir.ui.menu'
 
     # Map: menu complete_name substring (lowercase) → user restriction field
+    #
+    # NOTE: Before matching, the menu name is normalized:
+    #   - " & " → " and "   (handles OCA menus like "Profit & Loss (BAK)")
+    #   - text inside parentheses is stripped, e.g. "(BAK)" → ""
+    # So keywords here should always use "and" — not "&".
     MENU_RESTRICTION_MAP = [
         # Inventory
         ('scrap',                       'restrict_scrap_menu'),
@@ -32,6 +37,27 @@ class IrUiMenu(models.Model):
         ('executive summary',           'restrict_executive_summary'),
     ]
 
+    @staticmethod
+    def _normalize_menu_name(name):
+        """
+        Normalize a menu label for consistent keyword matching.
+
+        Fixes:
+          - OCA/third-party menus use "&" instead of "and"
+            e.g. "Profit & Loss (BAK)" → "profit and loss bak"
+          - Suffixes like "(BAK)", "(OCA)" etc. are stripped so the
+            base keyword still matches.
+        """
+        import re
+        text = (name or '').lower()
+        # Replace " & " with " and "
+        text = text.replace(' & ', ' and ')
+        # Strip content inside parentheses (e.g. "(BAK)", "(OCA)")
+        text = re.sub(r'\(.*?\)', '', text)
+        # Collapse extra whitespace
+        text = ' '.join(text.split())
+        return text
+
     @api.model
     def _visible_menu_ids(self, debug=False):
         """
@@ -45,9 +71,9 @@ class IrUiMenu(models.Model):
         if user._is_superuser():
             return menu_ids
 
-        # Check if any restriction is active on this user
+        # Build a set of active restriction field names
         active_restrictions = {
-            field: True
+            field
             for _, field in self.MENU_RESTRICTION_MAP
             if getattr(user, field, False)
         }
@@ -60,9 +86,11 @@ class IrUiMenu(models.Model):
         hidden_ids = set()
 
         for menu in visible_menus:
-            full_name = (menu.complete_name or menu.name or '').lower()
+            raw_name = menu.complete_name or menu.name or ''
+            normalized = self._normalize_menu_name(raw_name)
+
             for keyword, field in self.MENU_RESTRICTION_MAP:
-                if active_restrictions.get(field) and keyword in full_name:
+                if field in active_restrictions and keyword in normalized:
                     hidden_ids.add(menu.id)
                     break
 
