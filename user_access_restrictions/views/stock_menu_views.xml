@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Stock / Inventory menu restrictions are enforced at two levels:
+        1. Python ORM level (stock_scrap.py, stock_inventory.py)
+        2. JavaScript level (access_restrictions.js hides menu items)
+    -->
+</odoo>

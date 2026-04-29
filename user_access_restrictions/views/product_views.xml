@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Inherit product.template form view.
+        Fields are hidden using attrs based on context flags that the JS layer injects.
+        The Python layer (product_template.py read/write) also enforces at the ORM level.
+    -->
+    <record id="view_product_template_form_restrictions" model="ir.ui.view">
+        <field name="name">product.template.form.access.restrictions</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="priority">50</field>
+        <field name="arch" type="xml">
+
+            <!-- Hide Cost Price -->
+            <xpath expr="//field[@name='standard_price']" position="attributes">
+                <attribute name="invisible">context.get('restrict_cost_price', False)</attribute>
+                <attribute name="readonly">context.get('restrict_cost_price_edit', False)</attribute>
+            </xpath>
+
+            <!-- Hide Sales Price -->
+            <xpath expr="//field[@name='list_price']" position="attributes">
+                <attribute name="invisible">context.get('restrict_sales_price', False)</attribute>
+                <attribute name="readonly">context.get('restrict_sales_price_edit', False)</attribute>
+            </xpath>
+
+            <!-- Hide Barcode -->
+            <xpath expr="//field[@name='barcode']" position="attributes">
+                <attribute name="invisible">context.get('restrict_barcode', False)</attribute>
+            </xpath>
+
+            <!-- Hide Internal Reference -->
+            <xpath expr="//field[@name='default_code']" position="attributes">
+                <attribute name="invisible">context.get('restrict_internal_reference', False)</attribute>
+            </xpath>
+
+            <!-- Hide Tax fields -->
+            <xpath expr="//field[@name='taxes_id']" position="attributes">
+                <attribute name="invisible">context.get('restrict_taxes', False)</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='supplier_taxes_id']" position="attributes">
+                <attribute name="invisible">context.get('restrict_taxes', False)</attribute>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

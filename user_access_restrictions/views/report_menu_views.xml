@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        These records hide accounting report menu items for restricted users.
+        We use ir.rule + domain approach combined with JS-level hiding.
+
+        The menu items below reference standard Odoo accounting report menus.
+        If your Odoo 19 CE has different xmlids, adjust accordingly.
+    -->
+
+    <!-- Balance Sheet menu visibility rule -->
+    <record id="rule_hide_balance_sheet" model="ir.rule">
+        <field name="name">Hide Balance Sheet for restricted users</field>
+        <field name="model_id" ref="account.model_account_report"/>
+        <field name="domain_force">
+            [('id', 'not in', [])]
+        </field>
+        <field name="groups" eval="[]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+</odoo>

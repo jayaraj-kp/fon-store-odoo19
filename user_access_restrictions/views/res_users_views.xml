@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Inherit the res.users form view to add the new tab -->
+    <record id="view_users_form_access_restrictions" model="ir.ui.view">
+        <field name="name">res.users.form.access.restrictions</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="priority">50</field>
+        <field name="arch" type="xml">
+
+            <!-- Add new tab after "Allowed POS" tab -->
+            <xpath expr="//page[last()]" position="after">
+                <page string="Access &amp; Restrictions" name="access_restrictions">
+                    <group string="🏷️ Product Field Restrictions"
+                           col="2"
+                           class="o_restriction_section">
+                        <separator string="Cost &amp; Price" colspan="2"/>
+                        <group>
+                            <field name="restrict_cost_price"
+                                   widget="boolean_toggle"
+                                   string="Hide Cost Price"/>
+                            <p class="text-muted o_field_help" colspan="2">
+                                When enabled, this user will NOT see the Cost Price
+                                on any product.
+                            </p>
+                            <field name="restrict_cost_price_edit"
+                                   widget="boolean_toggle"
+                                   string="Restrict Cost Price Edit"/>
+                            <p class="text-muted o_field_help" colspan="2">
+                                When enabled, this user cannot modify the Cost Price
+                                even if visible.
+                            </p>
+                        </group>
+                        <group>
+                            <field name="restrict_sales_price"
+                                   widget="boolean_toggle"
+                                   string="Hide Sales Price"/>
+                            <p class="text-muted o_field_help" colspan="2">
+                                When enabled, this user will NOT see the Sales Price
+                                on any product.
+                            </p>
+                            <field name="restrict_sales_price_edit"
+                                   widget="boolean_toggle"
+                                   string="Restrict Sales Price Edit"/>
+                            <p class="text-muted o_field_help" colspan="2">
+                                When enabled, this user cannot modify the Sales Price.
+                            </p>
+                        </group>
+
+                        <separator string="Other Product Fields" colspan="2"/>
+                        <group>
+                            <field name="restrict_barcode"
+                                   widget="boolean_toggle"
+                                   string="Hide Barcode"/>
+                            <field name="restrict_internal_reference"
+                                   widget="boolean_toggle"
+                                   string="Hide Internal Reference"/>
+                        </group>
+                        <group>
+                            <field name="restrict_taxes"
+                                   widget="boolean_toggle"
+                                   string="Hide Tax Fields"/>
+                            <field name="restrict_product_margin"
+                                   widget="boolean_toggle"
+                                   string="Hide Product Margin"/>
+                        </group>
+                    </group>
+
+                    <group string="📊 Accounting Reports Restrictions"
+                           col="2"
+                           class="o_restriction_section">
+                        <group>
+                            <field name="restrict_balance_sheet"
+                                   widget="boolean_toggle"
+                                   string="Hide Balance Sheet"/>
+                            <field name="restrict_profit_loss"
+                                   widget="boolean_toggle"
+                                   string="Hide Profit &amp; Loss"/>
+                            <field name="restrict_partner_ledger"
+                                   widget="boolean_toggle"
+                                   string="Hide Partner Ledger"/>
+                            <field name="restrict_general_ledger"
+                                   widget="boolean_toggle"
+                                   string="Hide General Ledger"/>
+                            <field name="restrict_trial_balance"
+                                   widget="boolean_toggle"
+                                   string="Hide Trial Balance"/>
+                        </group>
+                        <group>
+                            <field name="restrict_cash_flow"
+                                   widget="boolean_toggle"
+                                   string="Hide Cash Flow Statement"/>
+                            <field name="restrict_aged_receivable"
+                                   widget="boolean_toggle"
+                                   string="Hide Aged Receivable"/>
+                            <field name="restrict_aged_payable"
+                                   widget="boolean_toggle"
+                                   string="Hide Aged Payable"/>
+                            <field name="restrict_tax_report"
+                                   widget="boolean_toggle"
+                                   string="Hide Tax Report"/>
+                            <field name="restrict_executive_summary"
+                                   widget="boolean_toggle"
+                                   string="Hide Executive Summary"/>
+                        </group>
+                    </group>
+
+                    <group string="📦 Inventory Restrictions"
+                           col="2"
+                           class="o_restriction_section">
+                        <group>
+                            <field name="restrict_scrap_menu"
+                                   widget="boolean_toggle"
+                                   string="Hide Scrap Menu"/>
+                            <field name="restrict_physical_inventory"
+                                   widget="boolean_toggle"
+                                   string="Hide Physical Inventory Adjustment"/>
+                            <field name="restrict_replenishment"
+                                   widget="boolean_toggle"
+                                   string="Hide Replenishment Menu"/>
+                        </group>
+                        <group>
+                            <field name="restrict_inventory_valuation"
+                                   widget="boolean_toggle"
+                                   string="Hide Inventory Valuation"/>
+                            <field name="restrict_landed_costs"
+                                   widget="boolean_toggle"
+                                   string="Hide Landed Costs"/>
+                        </group>
+                    </group>
+
+                    <div class="alert alert-info o_restriction_note" role="alert">
+                        <i class="fa fa-info-circle"/> 
+                        <strong>Note:</strong> Restrictions take effect immediately upon saving. 
+                        The affected user may need to refresh their browser session.
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

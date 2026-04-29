@@ -1,0 +1,48 @@
+/* User Access & Restrictions Module Styles */
+
+.o_restriction_section {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+    background: #fafafa;
+}
+
+.o_restriction_section .o_horizontal_separator {
+    font-weight: 600;
+    color: #5c5c5c;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #ddd;
+}
+
+.o_field_help {
+    font-size: 0.78rem;
+    color: #888;
+    margin: -6px 0 8px 0;
+    padding-left: 4px;
+}
+
+.o_restriction_note {
+    margin-top: 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+/* Ensure hidden restricted menu items are truly gone */
+[data-restricted="true"] {
+    display: none !important;
+}
+
+/* Highlight the Access & Restrictions tab to stand out */
+.o_notebook .nav-item a[name="access_restrictions"] {
+    color: #875a7b;
+    font-weight: 600;
+}
+
+.o_notebook .nav-item a[name="access_restrictions"].active {
+    border-bottom: 2px solid #875a7b;
+}
