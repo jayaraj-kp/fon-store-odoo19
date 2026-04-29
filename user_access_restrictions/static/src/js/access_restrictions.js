@@ -2,204 +2,227 @@
 
 /**
  * User Access & Restrictions — access_restrictions.js
+ * Odoo 19 CE compatible
  *
- * Strategy:
- *   1. On backend load, call get_current_user_restrictions() via JSON-RPC.
- *   2. Cache the result in a module-level variable.
- *   3. After each route/view change, scan the DOM and hide restricted
- *      menu items and product form fields.
- *
- * This is the primary UI enforcement layer.
- * The Python ORM layer (product_template.py, stock_scrap.py) enforces at data level.
+ * STRATEGY:
+ * 1. Fetch restriction flags via JSON-RPC on load (cached).
+ * 2. Use MutationObserver on the whole document body to catch every DOM change.
+ * 3. Apply hiding with multiple selector strategies to handle Odoo 19 menu structure.
  */
 
 import { registry } from "@web/core/registry";
 
-// ─── Restriction cache ───────────────────────────────────────────────────────
-let restrictions = null;
-let restrictionsLoaded = false;
+// ─── Cache ──────────────────────────────────────────────────────────────────
+let _restrictions = null;
 
-async function fetchRestrictions() {
-    if (restrictionsLoaded) return restrictions;
+async function getRestrictions() {
+    if (_restrictions !== null) return _restrictions;
     try {
-        const response = await fetch("/web/dataset/call_kw", {
+        const resp = await fetch("/web/dataset/call_kw", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 jsonrpc: "2.0",
+                id: 1,
                 method: "call",
                 params: {
                     model: "res.users",
                     method: "get_current_user_restrictions",
                     args: [],
-                    kwargs: {},
+                    kwargs: { context: {} },
                 },
             }),
         });
-        const data = await response.json();
-        restrictions = data.result || {};
+        const json = await resp.json();
+        _restrictions = json.result || {};
+        console.log("[UAR] Restrictions loaded:", _restrictions);
     } catch (e) {
-        console.warn("[UserRestrictions] Failed to load:", e);
-        restrictions = {};
+        console.error("[UAR] Failed to load restrictions:", e);
+        _restrictions = {};
     }
-    restrictionsLoaded = true;
-    return restrictions;
+    return _restrictions;
 }
 
-// ─── Menu label → restriction key map ────────────────────────────────────────
-const MENU_MAP = [
-    // Inventory
-    ["scrap",                       "restrict_scrap_menu"],
-    ["physical inventory",          "restrict_physical_inventory"],
-    ["inventory adjustments",       "restrict_physical_inventory"],
-    ["replenishment",               "restrict_replenishment"],
-    ["inventory valuation",         "restrict_inventory_valuation"],
-    ["landed costs",                "restrict_landed_costs"],
-    // Accounting reports
-    ["balance sheet",               "restrict_balance_sheet"],
-    ["profit & loss",               "restrict_profit_loss"],
-    ["profit and loss",             "restrict_profit_loss"],
-    ["partner ledger",              "restrict_partner_ledger"],
-    ["general ledger",              "restrict_general_ledger"],
-    ["trial balance",               "restrict_trial_balance"],
-    ["cash flow",                   "restrict_cash_flow"],
-    ["aged receivable",             "restrict_aged_receivable"],
-    ["aged payable",                "restrict_aged_payable"],
-    ["tax report",                  "restrict_tax_report"],
-    ["executive summary",           "restrict_executive_summary"],
+// ─── Menu text → restriction key ─────────────────────────────────────────────
+// Use lowercase substrings. We check if the menu element's trimmed text
+// STARTS WITH or EQUALS one of these keywords.
+const MENU_RULES = [
+    // Inventory Operations
+    { match: "scrap",                        key: "restrict_scrap_menu" },
+    { match: "scraps",                       key: "restrict_scrap_menu" },
+    { match: "physical inventory",           key: "restrict_physical_inventory" },
+    { match: "inventory adjustments",        key: "restrict_physical_inventory" },
+    { match: "replenishment",                key: "restrict_replenishment" },
+    { match: "inventory valuation",          key: "restrict_inventory_valuation" },
+    { match: "landed costs",                 key: "restrict_landed_costs" },
+    // Accounting Reports
+    { match: "balance sheet",                key: "restrict_balance_sheet" },
+    { match: "profit & loss",                key: "restrict_profit_loss" },
+    { match: "profit and loss",              key: "restrict_profit_loss" },
+    { match: "partner ledger",               key: "restrict_partner_ledger" },
+    { match: "general ledger",               key: "restrict_general_ledger" },
+    { match: "trial balance",                key: "restrict_trial_balance" },
+    { match: "cash flow statement",          key: "restrict_cash_flow" },
+    { match: "cash flow",                    key: "restrict_cash_flow" },
+    { match: "aged receivable",              key: "restrict_aged_receivable" },
+    { match: "aged payable",                 key: "restrict_aged_payable" },
+    { match: "tax report",                   key: "restrict_tax_report" },
+    { match: "executive summary",            key: "restrict_executive_summary" },
 ];
 
-// ─── Product field name → restriction key map ─────────────────────────────────
-const FIELD_MAP = [
-    ["standard_price",      "restrict_cost_price"],
-    ["list_price",          "restrict_sales_price"],
-    ["barcode",             "restrict_barcode"],
-    ["default_code",        "restrict_internal_reference"],
-    ["taxes_id",            "restrict_taxes"],
-    ["supplier_taxes_id",   "restrict_taxes"],
+// ─── Product field → restriction key ─────────────────────────────────────────
+const FIELD_RULES = [
+    { field: "standard_price",    key: "restrict_cost_price" },
+    { field: "list_price",        key: "restrict_sales_price" },
+    { field: "barcode",           key: "restrict_barcode" },
+    { field: "default_code",      key: "restrict_internal_reference" },
+    { field: "taxes_id",          key: "restrict_taxes" },
+    { field: "supplier_taxes_id", key: "restrict_taxes" },
 ];
 
-// ─── Hide menus ───────────────────────────────────────────────────────────────
-function applyMenuRestrictions(r) {
+const READONLY_RULES = [
+    { field: "standard_price", key: "restrict_cost_price_edit" },
+    { field: "list_price",     key: "restrict_sales_price_edit" },
+];
+
+// ─── Hide a DOM element safely ────────────────────────────────────────────────
+function hide(el) {
+    if (el) el.style.setProperty("display", "none", "important");
+}
+
+// ─── Find the best container to hide for a menu item ─────────────────────────
+function hideMenuItem(el) {
+    // Walk up to find li, .o_menu_item, .o_dropdown_item, or any direct parent
+    const container =
+        el.closest("li") ||
+        el.closest(".o_dropdown_item") ||
+        el.closest(".o_nav_entry") ||
+        el.closest(".o_menu_item") ||
+        el.parentElement;
+    hide(container || el);
+}
+
+// ─── Apply menu restrictions ──────────────────────────────────────────────────
+function applyMenus(r) {
     if (!r) return;
-    const selectors = [
-        ".o_menu_sections .o_nav_entry",
-        ".o_menu_sections .o_dropdown_item",
-        ".o_dropdown .o_dropdown_item",
-        ".o_menuitem",
-        "[role='menuitem']",
-        ".o_menu_item",
-    ].join(", ");
 
-    document.querySelectorAll(selectors).forEach((el) => {
-        const label = (el.textContent || "").trim().toLowerCase();
-        for (const [keyword, key] of MENU_MAP) {
-            if (r[key] && label.includes(keyword)) {
-                el.closest("li, .o_menu_item, .o_dropdown_item") ?
-                    (el.closest("li, .o_menu_item, .o_dropdown_item").style.display = "none") :
-                    (el.style.display = "none");
-                break;
+    // Cast a wide net for all possible menu/nav elements in Odoo 19
+    const candidates = document.querySelectorAll(
+        [
+            ".o_menu_sections a",
+            ".o_menu_sections span",
+            ".o_menu_sections .o_nav_entry",
+            ".o_menu_sections .o_dropdown_item",
+            ".o_menu_sections li",
+            ".o_dropdown_menu a",
+            ".o_dropdown_menu span",
+            ".o_dropdown_menu .o_dropdown_item",
+            ".o_main_navbar a",
+            ".o_main_navbar .o_nav_entry",
+            "[role='menuitem']",
+            "[role='menu'] a",
+            "[role='menu'] li",
+            ".o_app_menu_full a",
+            ".o_action_manager a.o_menu_item",
+        ].join(", ")
+    );
+
+    candidates.forEach((el) => {
+        // Get only direct text (exclude children text to avoid parent matching)
+        const text = (el.textContent || "").trim().toLowerCase();
+        if (!text || text.length > 60) return; // skip containers with lots of text
+
+        for (const rule of MENU_RULES) {
+            if (r[rule.key] && text === rule.match) {
+                hideMenuItem(el);
+                return;
+            }
+        }
+        // Also try contains for partial match
+        for (const rule of MENU_RULES) {
+            if (r[rule.key] && text.includes(rule.match) && text.length < rule.match.length + 10) {
+                hideMenuItem(el);
+                return;
             }
         }
     });
 }
 
-// ─── Hide product form fields ─────────────────────────────────────────────────
-function applyFieldRestrictions(r) {
+// ─── Apply product field restrictions ────────────────────────────────────────
+function applyFields(r) {
     if (!r) return;
-    for (const [fieldName, key] of FIELD_MAP) {
-        if (!r[key]) continue;
-        // Find all widgets for this field
-        const widgets = document.querySelectorAll(
-            `.o_field_widget[name="${fieldName}"],` +
-            `[name="${fieldName}"].o_field_widget`
-        );
-        widgets.forEach((widget) => {
-            // Walk up to find the containing row/group cell and hide it
+
+    FIELD_RULES.forEach(({ field, key }) => {
+        if (!r[key]) return;
+        document.querySelectorAll(
+            `.o_field_widget[name="${field}"],` +
+            `div[name="${field}"],` +
+            `td[name="${field}"]`
+        ).forEach((widget) => {
             const row =
                 widget.closest(".o_wrap_field") ||
-                widget.closest(".o_cell") ||
-                widget.closest("td") ||
                 widget.closest(".o_setting_box") ||
-                widget;
-            const container = row.closest("tr") || row.closest(".o_field_widget") || row;
-            container.style.display = "none";
+                widget.closest("tr") ||
+                widget.closest(".o_cell");
+            hide(row || widget);
         });
-    }
-}
+    });
 
-// ─── Make cost price read-only if only edit is restricted ─────────────────────
-function applyReadonlyRestrictions(r) {
-    if (!r) return;
-    const readonlyMap = [
-        ["standard_price", "restrict_cost_price_edit"],
-        ["list_price",     "restrict_sales_price_edit"],
-    ];
-    for (const [fieldName, key] of readonlyMap) {
-        if (!r[key]) continue;
+    READONLY_RULES.forEach(({ field, key }) => {
+        if (!r[key]) return;
         document.querySelectorAll(
-            `.o_field_widget[name="${fieldName}"] input,` +
-            `.o_field_widget[name="${fieldName}"] .o_field_monetary input`
+            `.o_field_widget[name="${field}"] input,` +
+            `.o_field_widget[name="${field}"] .o_field_monetary input`
         ).forEach((input) => {
             input.setAttribute("readonly", "readonly");
             input.style.pointerEvents = "none";
-            input.style.backgroundColor = "#f5f5f5";
+            input.style.background = "var(--color-background-secondary)";
         });
-    }
+    });
 }
 
-// ─── Main apply function ──────────────────────────────────────────────────────
-async function applyAllRestrictions() {
-    const r = await fetchRestrictions();
-    applyMenuRestrictions(r);
-    applyFieldRestrictions(r);
-    applyReadonlyRestrictions(r);
+// ─── Master apply ─────────────────────────────────────────────────────────────
+let _applyTimer = null;
+async function applyAll() {
+    const r = await getRestrictions();
+    applyMenus(r);
+    applyFields(r);
 }
 
-// ─── Register as an Odoo service ─────────────────────────────────────────────
-const userRestrictionsService = {
+function scheduleApply(delay = 300) {
+    clearTimeout(_applyTimer);
+    _applyTimer = setTimeout(applyAll, delay);
+}
+
+// ─── Odoo service ─────────────────────────────────────────────────────────────
+const userAccessRestrictionsService = {
     name: "user_access_restrictions",
     dependencies: [],
     start() {
-        // Apply once on load
-        applyAllRestrictions();
+        // First apply
+        scheduleApply(500);
+        scheduleApply(1200); // second pass after full render
 
-        // Re-apply after each navigation (SPA route changes)
-        // Odoo 17+ uses history.pushState — observe URL changes
-        let lastUrl = location.href;
-        const urlObserver = setInterval(() => {
-            if (location.href !== lastUrl) {
-                lastUrl = location.href;
-                // Small delay to let the new view render
-                setTimeout(applyAllRestrictions, 400);
-                setTimeout(applyAllRestrictions, 900);
-            }
-        }, 200);
+        // Watch DOM mutations (menus re-render on navigation)
+        const observer = new MutationObserver(() => scheduleApply(200));
 
-        // Also watch DOM mutations in the main content area
-        const mutationObserver = new MutationObserver(() => {
-            // Debounce
-            clearTimeout(mutationObserver._timer);
-            mutationObserver._timer = setTimeout(applyAllRestrictions, 300);
-        });
-
-        const startObserver = () => {
-            const target = document.querySelector(".o_main_navbar, .o_action_manager, #wrapwrap");
-            if (target) {
-                mutationObserver.observe(target, { childList: true, subtree: true });
+        const attach = () => {
+            const root = document.body;
+            if (root) {
+                observer.observe(root, { childList: true, subtree: true });
             } else {
-                setTimeout(startObserver, 500);
+                setTimeout(attach, 300);
             }
         };
 
-        if (document.readyState === "complete") {
-            startObserver();
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", attach);
         } else {
-            window.addEventListener("load", startObserver);
+            attach();
         }
 
         return {};
     },
 };
 
-registry.category("services").add("user_access_restrictions", userRestrictionsService);
+registry.category("services").add("user_access_restrictions", userAccessRestrictionsService);

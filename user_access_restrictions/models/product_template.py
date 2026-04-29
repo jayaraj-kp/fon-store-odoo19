@@ -1,68 +1,84 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api
+from odoo import models, api
 
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
-    @api.model
-    def fields_get(self, allfields=None, attributes=None):
-        """
-        Override fields_get to mark restricted fields as non-readable
-        for users who have the corresponding restriction enabled.
-        """
-        res = super().fields_get(allfields=allfields, attributes=attributes)
-        user = self.env.user
-
-        fields_to_check = {
-            'standard_price': 'restrict_cost_price',
-            'list_price': 'restrict_sales_price',
-            'barcode': 'restrict_barcode',
-            'default_code': 'restrict_internal_reference',
-            'taxes_id': 'restrict_taxes',
-            'supplier_taxes_id': 'restrict_taxes',
-        }
-
-        for field_name, restriction_attr in fields_to_check.items():
-            if getattr(user, restriction_attr, False) and field_name in res:
-                # Mark the field as invisible / no groups workaround
-                res[field_name]['invisible'] = True
-
-        return res
-
     def read(self, fields=None, load='_classic_read'):
         """
-        Intercept read to blank out restricted field values for the current user.
+        Blank out restricted field values for the current user at ORM level.
+        This ensures the data is hidden even via API calls.
         """
         result = super().read(fields=fields, load=load)
         user = self.env.user
 
-        restricted_map = {
+        if user._is_superuser():
+            return result
+
+        restricted_scalar = {
             'standard_price': 'restrict_cost_price',
-            'list_price': 'restrict_sales_price',
-            'barcode': 'restrict_barcode',
-            'default_code': 'restrict_internal_reference',
+            'list_price':     'restrict_sales_price',
+            'barcode':        'restrict_barcode',
+            'default_code':   'restrict_internal_reference',
+        }
+        restricted_m2m = {
+            'taxes_id':          'restrict_taxes',
+            'supplier_taxes_id': 'restrict_taxes',
         }
 
         for record in result:
-            for field_name, restriction_attr in restricted_map.items():
-                if field_name in record and getattr(user, restriction_attr, False):
-                    # Return False/empty instead of the real value
-                    if isinstance(record[field_name], (int, float)):
-                        record[field_name] = 0.0
-                    else:
-                        record[field_name] = False
+            for field_name, attr in restricted_scalar.items():
+                if field_name in record and getattr(user, attr, False):
+                    val = record[field_name]
+                    record[field_name] = 0.0 if isinstance(val, (int, float)) else False
+
+            for field_name, attr in restricted_m2m.items():
+                if field_name in record and getattr(user, attr, False):
+                    record[field_name] = []   # empty list = no taxes shown
 
         return result
 
     def write(self, vals):
-        """Prevent writing to cost/price fields if user lacks permission."""
+        """Block write on restricted fields."""
+        user = self.env.user
+        if not user._is_superuser():
+            if 'standard_price' in vals and user.restrict_cost_price_edit:
+                del vals['standard_price']
+            if 'list_price' in vals and user.restrict_sales_price_edit:
+                del vals['list_price']
+        return super().write(vals)
+
+
+class ProductProduct(models.Model):
+    """Apply same restrictions to product.product (variant) reads."""
+    _inherit = 'product.product'
+
+    def read(self, fields=None, load='_classic_read'):
+        result = super().read(fields=fields, load=load)
         user = self.env.user
 
-        if 'standard_price' in vals and user.restrict_cost_price_edit:
-            del vals['standard_price']
+        if user._is_superuser():
+            return result
 
-        if 'list_price' in vals and user.restrict_sales_price_edit:
-            del vals['list_price']
+        restricted_scalar = {
+            'standard_price': 'restrict_cost_price',
+            'list_price':     'restrict_sales_price',
+            'barcode':        'restrict_barcode',
+            'default_code':   'restrict_internal_reference',
+        }
+        restricted_m2m = {
+            'taxes_id':          'restrict_taxes',
+            'supplier_taxes_id': 'restrict_taxes',
+        }
 
-        return super().write(vals)
+        for record in result:
+            for field_name, attr in restricted_scalar.items():
+                if field_name in record and getattr(user, attr, False):
+                    val = record[field_name]
+                    record[field_name] = 0.0 if isinstance(val, (int, float)) else False
+            for field_name, attr in restricted_m2m.items():
+                if field_name in record and getattr(user, attr, False):
+                    record[field_name] = []
+
+        return result

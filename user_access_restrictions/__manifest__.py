@@ -1,18 +1,9 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'User Access & Restrictions',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Tools',
-    'summary': 'Granular access restrictions per user for cost, reports, and inventory',
-    'description': """
-User Access & Restrictions
-===========================
-Adds "Access & Restrictions" tab on the user form.
-
-Restrictions enforced at:
-  - Python/ORM level (read, write overrides)
-  - JavaScript/DOM level (field & menu hiding)
-    """,
+    'summary': 'Granular access restrictions per user — cost, reports, inventory menus',
     'author': 'Custom',
     'depends': [
         'base',
@@ -30,8 +21,9 @@ Restrictions enforced at:
     ],
     'assets': {
         'web.assets_backend': [
-            'user_access_restrictions/static/src/js/access_restrictions.js',
             'user_access_restrictions/static/src/css/access_restrictions.css',
+            'user_access_restrictions/static/src/js/access_restrictions.js',
+            'user_access_restrictions/static/src/js/menu_debugger.js',
         ],
     },
     'installable': True,
