@@ -41,31 +41,25 @@ import { registry } from "@web/core/registry";
 import { registerAutoApplyService } from "@pos_special_offers/js/special_offer_auto_apply";
 
 const specialOfferService = {
-    dependencies: ["orm"],
-    async start(env, { orm }) {
+    // ✅ FIX: add "pos" to dependencies so PosStore is fully initialised
+    //         before this service starts. Without this, env.services.pos
+    //         is null at start-time and posConfigId is always null,
+    //         which causes the server to skip warehouse filtering and
+    //         return every offer to every POS session.
+    dependencies: ["orm", "pos"],
+
+    async start(env, { orm, pos }) {
         let activeOffers = [];
 
         async function loadOffers() {
             try {
-                // Resolve the current POS config id so the server can apply
-                // warehouse filtering.  Works for Odoo 17 / 18 / 19 POS.
-                let posConfigId = null;
-                try {
-                    // The PosStore is available on the env after it is initialised.
-                    // Try the most common paths used across Odoo versions.
-                    const posStore = env.services?.pos ?? env.pos ?? null;
-                    if (posStore) {
-                        posConfigId =
-                            posStore.config?.id ??
-                            posStore.pos_session?.config_id?.[0] ??
-                            posStore.config_id ??
-                            null;
-                    }
-                } catch (e) {
-                    // Not critical — server will return all active offers if
-                    // the config id is unknown (global offers still work).
-                    console.warn("[SpecialOffers] Could not resolve pos_config_id:", e);
-                }
+                // ✅ FIX: read config id directly from the injected `pos`
+                //         service — it is guaranteed to be ready now.
+                const posConfigId =
+                    pos?.config?.id ??
+                    pos?.pos_session?.config_id?.[0] ??
+                    pos?.config_id ??
+                    null;
 
                 activeOffers = await orm.call(
                     "pos.special.offer",
@@ -90,9 +84,7 @@ const specialOfferService = {
             refresh: () => loadOffers(),
         };
 
-        // Register service reference for auto-apply
         registerAutoApplyService(service);
-
         return service;
     },
 };
