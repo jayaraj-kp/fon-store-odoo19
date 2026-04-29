@@ -436,15 +436,17 @@ class PosSpecialOffer(models.Model):
         ('coupon',        'Coupon'),
     ], string='Offer Type', required=True, default='flat_discount')
 
-    # ── Warehouse restriction ─────────────────────────────────────────────────
-    warehouse_ids = fields.Many2many(
-        'stock.warehouse', 'pos_offer_warehouse_rel',
-        'offer_id', 'warehouse_id',
-        string='Warehouses',
-        help='Restrict this offer to specific warehouses. '
-             'Leave empty to apply to ALL warehouses.')
+    # ── POS Restriction ───────────────────────────────────────────────────────
+    # Direct link to pos.config — simpler and more reliable than going through
+    # warehouse → picking_type_id → warehouse_id chain.
+    pos_config_ids = fields.Many2many(
+        'pos.config', 'pos_offer_pos_config_rel',
+        'offer_id', 'config_id',
+        string='POS Shops',
+        help='Restrict this offer to specific POS shops. '
+             'Leave empty to apply to ALL POS shops.')
 
-    # ── Coupon settings ──────────────────────────────────────────────────────
+    # ── Coupon settings ───────────────────────────────────────────────────────
     coupon_code     = fields.Char(string='Single Coupon Code',
         help='Used when offer type is Coupon and no generated codes exist.')
     coupon_ids      = fields.One2many('pos.special.offer.coupon', 'offer_id',
@@ -460,7 +462,7 @@ class PosSpecialOffer(models.Model):
             rec.available_count  = len(rec.coupon_ids.filtered(lambda c: c.state == 'available'))
             rec.used_count_total = len(rec.coupon_ids.filtered(lambda c: c.state == 'used'))
 
-    # ── Scope toggles ────────────────────────────────────────────────────────
+    # ── Scope toggles ─────────────────────────────────────────────────────────
     all_products   = fields.Boolean(string='All Products',   default=False)
     all_categories = fields.Boolean(string='All Categories', default=False)
 
@@ -474,12 +476,10 @@ class PosSpecialOffer(models.Model):
     # ── Exclusion lists ───────────────────────────────────────────────────────
     exclude_product_ids  = fields.Many2many(
         'product.product', 'pos_offer_excl_product_rel',
-        'offer_id', 'product_id', string='Exclude Products',
-        help='These products will NOT receive the discount even if they match the include scope.')
+        'offer_id', 'product_id', string='Exclude Products')
     exclude_category_ids = fields.Many2many(
         'product.category', 'pos_offer_excl_category_rel',
-        'offer_id', 'category_id', string='Exclude Categories',
-        help='Products in these categories will NOT receive the discount even if they match the include scope.')
+        'offer_id', 'category_id', string='Exclude Categories')
 
     date_from     = fields.Datetime(string='Start Date & Time', required=True)
     date_to       = fields.Datetime(string='End Date & Time',   required=True)
@@ -541,7 +541,6 @@ class PosSpecialOffer(models.Model):
     @api.constrains('offer_type', 'coupon_code')
     def _check_coupon_code(self):
         for rec in self:
-            # Only require coupon_code if no generated codes exist
             if rec.offer_type == 'coupon' and not rec.coupon_code and not rec.coupon_ids:
                 raise ValidationError(
                     'Coupon offers require either a Coupon Code or generated coupon codes.')
@@ -554,7 +553,7 @@ class PosSpecialOffer(models.Model):
             if rec.discount_type == 'percentage' and rec.discount_value > 100:
                 raise ValidationError('Percentage discount cannot exceed 100%.')
 
-    # ── Generate coupons wizard button ───────────────────────────────────────
+    # ── Wizard / action buttons ───────────────────────────────────────────────
     def action_generate_coupons(self):
         self.ensure_one()
         return {
@@ -566,7 +565,6 @@ class PosSpecialOffer(models.Model):
             'context': {'default_offer_id': self.id},
         }
 
-    # ── Export CSV button ─────────────────────────────────────────────────────
     def action_export_coupons_csv(self):
         self.ensure_one()
         return {
@@ -575,7 +573,6 @@ class PosSpecialOffer(models.Model):
             'target': 'new',
         }
 
-    # ── View all coupons button ───────────────────────────────────────────────
     def action_view_coupons(self):
         self.ensure_one()
         return {
@@ -587,7 +584,7 @@ class PosSpecialOffer(models.Model):
             'context': {'default_offer_id': self.id},
         }
 
-    # ── POS RPC: return active offers filtered by warehouse ───────────────────
+    # ── POS RPC: return active offers filtered by POS config ──────────────────
     @api.model
     def get_active_offers_for_pos(self, pos_config_id=None):
         now = fields.Datetime.now()
@@ -597,28 +594,19 @@ class PosSpecialOffer(models.Model):
             ('date_to',   '>=', now),
         ])
 
-        # Resolve the warehouse of the current POS session/config
-        current_warehouse_id = None
-        if pos_config_id:
-            pos_config = self.env['pos.config'].browse(pos_config_id)
-            if pos_config.exists() and pos_config.picking_type_id:
-                wh = pos_config.picking_type_id.warehouse_id
-                current_warehouse_id = wh.id if wh else None
-
         result = []
         for o in offers:
             if o.purchase_limit and o.usage_count >= o.purchase_limit:
                 continue
 
-            # ── Warehouse filter ──────────────────────────────────────────────
-            # If the offer has warehouse restrictions AND a current warehouse is
-            # known, skip offers that don't include this warehouse.
-            # Offers with no warehouses configured are global (apply everywhere).
-            if o.warehouse_ids and current_warehouse_id:
-                if current_warehouse_id not in o.warehouse_ids.ids:
+            # ── POS filter ────────────────────────────────────────────────────
+            # If the offer has POS restrictions AND we know the current POS,
+            # skip offers that don't include this POS config.
+            # Offers with no pos_config_ids are global (apply to all shops).
+            if o.pos_config_ids and pos_config_id:
+                if pos_config_id not in o.pos_config_ids.ids:
                     continue
 
-            # Build list of valid coupon codes for POS
             generated_codes = []
             if o.offer_type == 'coupon' and o.coupon_ids:
                 generated_codes = [
@@ -628,24 +616,24 @@ class PosSpecialOffer(models.Model):
                 ]
 
             result.append({
-                'id':              o.id,
-                'name':            o.name,
-                'offer_type':      o.offer_type,
-                'coupon_code':     o.coupon_code or '',
-                'generated_codes': generated_codes,
-                'all_products':    o.all_products,
-                'all_categories':  o.all_categories,
+                'id':                   o.id,
+                'name':                 o.name,
+                'offer_type':           o.offer_type,
+                'coupon_code':          o.coupon_code or '',
+                'generated_codes':      generated_codes,
+                'all_products':         o.all_products,
+                'all_categories':       o.all_categories,
                 'product_ids':          o.product_ids.ids,
                 'category_ids':         o.category_ids.ids,
                 'exclude_product_ids':  o.exclude_product_ids.ids,
                 'exclude_category_ids': o.exclude_category_ids.ids,
-                'discount_type':   o.discount_type,
-                'discount_value':  o.discount_value,
-                'purchase_limit':  o.purchase_limit,
-                'usage_count':     o.usage_count,
-                'date_from':       str(o.date_from),
-                'date_to':         str(o.date_to),
-                'warehouse_ids':   o.warehouse_ids.ids,
+                'discount_type':        o.discount_type,
+                'discount_value':       o.discount_value,
+                'purchase_limit':       o.purchase_limit,
+                'usage_count':          o.usage_count,
+                'date_from':            str(o.date_from),
+                'date_to':              str(o.date_to),
+                'pos_config_ids':       o.pos_config_ids.ids,
             })
         return result
 

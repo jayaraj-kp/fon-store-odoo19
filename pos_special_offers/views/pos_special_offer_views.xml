@@ -34,34 +34,23 @@
             <field name="generation_mode" widget="radio"/>
           </group>
 
-          <!-- ── Preview banner ── -->
           <div class="alert alert-success" role="alert" style="margin-bottom:12px;">
             <strong>Preview: </strong>
             <field name="preview" readonly="1" nolabel="1"
               style="display:inline; font-family:monospace; font-weight:600;"/>
           </div>
 
-          <!-- ── Random mode fields ── -->
           <group string="Random Code Settings"
                  invisible="generation_mode != 'random'">
-            <field name="count"
-              string="Number of Codes"
-              help="How many unique random codes to generate"/>
-            <field name="code_length"
-              string="Code Length (chars)"
-              help="Number of random characters per code (min 4, recommended 8)"/>
+            <field name="count" string="Number of Codes"/>
+            <field name="code_length" string="Code Length (chars)"/>
           </group>
 
-          <!-- ── Serial mode fields ── -->
           <group string="Serial Number Settings"
                  invisible="generation_mode != 'serial'">
             <group>
-              <field name="prefix"
-                placeholder="e.g. FON"
-                help="Prefix prepended to every code. Leave blank for numbers only."/>
-              <field name="serial_padding"
-                string="Number Padding (digits)"
-                help="Zero-pad width. 6 → 000001, 000002 …"/>
+              <field name="prefix" placeholder="e.g. FON"/>
+              <field name="serial_padding" string="Number Padding (digits)"/>
             </group>
             <group>
               <field name="serial_from" string="Serial From"/>
@@ -111,10 +100,10 @@
         <field name="name"/>
         <field name="offer_type"/>
         <field name="coupon_code" optional="show"/>
-        <field name="coupon_count"     string="Codes"      optional="show"/>
-        <field name="available_count"  string="Available"  optional="show"/>
-        <field name="warehouse_ids"    widget="many2many_tags" optional="show"
-               string="Warehouses"/>
+        <field name="coupon_count"    string="Codes"     optional="show"/>
+        <field name="available_count" string="Available" optional="show"/>
+        <field name="pos_config_ids"  widget="many2many_tags" optional="show"
+               string="POS Shops"/>
         <field name="date_from"/>
         <field name="date_to"/>
         <field name="discount_type"/>
@@ -156,25 +145,25 @@
             </group>
           </group>
 
-          <!-- ── Warehouse Restriction ── -->
-          <group string="Warehouse Restriction">
+          <!-- ── POS Restriction ── -->
+          <group string="POS Restriction">
             <group>
-              <field name="warehouse_ids"
+              <field name="pos_config_ids"
                 widget="many2many_tags"
-                string="Restrict to Warehouses"
+                string="Restrict to POS Shops"
                 options="{'no_create': True}"
-                placeholder="Leave empty to apply to ALL warehouses"/>
+                placeholder="Leave empty to apply to ALL POS shops"/>
             </group>
             <group>
               <div class="alert alert-info" role="alert"
                    style="margin-top:4px; font-size:13px;"
-                   invisible="warehouse_ids != []">
-                🌐 <strong>Global offer</strong> — applies to all warehouses / POS shops.
+                   invisible="pos_config_ids != []">
+                🌐 <strong>Global offer</strong> — applies to all POS shops.
               </div>
               <div class="alert alert-warning" role="alert"
                    style="margin-top:4px; font-size:13px;"
-                   invisible="warehouse_ids == []">
-                🏪 <strong>Restricted</strong> — only visible in the selected warehouse(s).
+                   invisible="pos_config_ids == []">
+                🏪 <strong>Restricted</strong> — only visible in the selected POS shop(s).
               </div>
             </group>
           </group>
@@ -197,7 +186,6 @@
               <field name="available_count"  string="Available"/>
               <field name="used_count_total" string="Used"/>
             </group>
-            <!-- Action buttons -->
             <div colspan="2" style="padding: 8px 0 12px 0; display:flex; gap:8px;">
               <button name="action_generate_coupons" type="object"
                 string="⚙️ Generate Codes"
@@ -211,7 +199,6 @@
                 class="btn btn-secondary"
                 invisible="coupon_count == 0"/>
             </div>
-            <!-- Inline codes preview -->
             <field name="coupon_ids" colspan="2" invisible="coupon_count == 0"
               nolabel="1">
               <list limit="20"
@@ -277,7 +264,7 @@
       <search>
         <field name="name"/>
         <field name="coupon_code"/>
-        <field name="warehouse_ids" string="Warehouse"/>
+        <field name="pos_config_ids" string="POS Shop"/>
         <filter string="Active"        name="active"   domain="[('state','=','active')]"/>
         <filter string="Draft"         name="draft"    domain="[('state','=','draft')]"/>
         <filter string="Expired"       name="expired"  domain="[('state','=','expired')]"/>
@@ -285,8 +272,8 @@
         <filter string="Flat Discount" name="flat"     domain="[('offer_type','=','flat_discount')]"/>
         <filter string="Coupon"        name="coupon"   domain="[('offer_type','=','coupon')]"/>
         <separator/>
-        <filter string="Global (All Warehouses)" name="global"
-                domain="[('warehouse_ids','=',False)]"/>
+        <filter string="Global (All Shops)" name="global"
+                domain="[('pos_config_ids','=',False)]"/>
       </search>
     </field>
   </record>
