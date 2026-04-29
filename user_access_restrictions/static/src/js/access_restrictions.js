@@ -1,142 +1,192 @@
 /** @odoo-module **/
 
-import { patch } from "@web/core/utils/patch";
-import { useService } from "@web/core/utils/hooks";
+/**
+ * User Access & Restrictions — access_restrictions.js
+ *
+ * Strategy:
+ *   1. On backend load, call get_current_user_restrictions() via JSON-RPC.
+ *   2. Cache the result in a module-level variable.
+ *   3. After each route/view change, scan the DOM and hide restricted
+ *      menu items and product form fields.
+ *
+ * This is the primary UI enforcement layer.
+ * The Python ORM layer (product_template.py, stock_scrap.py) enforces at data level.
+ */
+
 import { registry } from "@web/core/registry";
-import { session } from "@web/session";
-import { onWillStart } from "@odoo/owl";
 
-// ─── Global restriction cache ────────────────────────────────────────────────
-let _userRestrictions = null;
+// ─── Restriction cache ───────────────────────────────────────────────────────
+let restrictions = null;
+let restrictionsLoaded = false;
 
-async function loadUserRestrictions(rpc) {
-    if (_userRestrictions !== null) return _userRestrictions;
+async function fetchRestrictions() {
+    if (restrictionsLoaded) return restrictions;
     try {
-        _userRestrictions = await rpc("/web/dataset/call_kw", {
-            model: "res.users",
-            method: "get_current_user_restrictions",
-            args: [],
-            kwargs: {},
+        const response = await fetch("/web/dataset/call_kw", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                method: "call",
+                params: {
+                    model: "res.users",
+                    method: "get_current_user_restrictions",
+                    args: [],
+                    kwargs: {},
+                },
+            }),
         });
+        const data = await response.json();
+        restrictions = data.result || {};
     } catch (e) {
-        console.warn("[UserRestrictions] Could not load restrictions:", e);
-        _userRestrictions = {};
+        console.warn("[UserRestrictions] Failed to load:", e);
+        restrictions = {};
     }
-    return _userRestrictions;
+    restrictionsLoaded = true;
+    return restrictions;
 }
 
-// ─── System Parameter Service extension ──────────────────────────────────────
-// Inject restriction context into every action context so views can read it.
+// ─── Menu label → restriction key map ────────────────────────────────────────
+const MENU_MAP = [
+    // Inventory
+    ["scrap",                       "restrict_scrap_menu"],
+    ["physical inventory",          "restrict_physical_inventory"],
+    ["inventory adjustments",       "restrict_physical_inventory"],
+    ["replenishment",               "restrict_replenishment"],
+    ["inventory valuation",         "restrict_inventory_valuation"],
+    ["landed costs",                "restrict_landed_costs"],
+    // Accounting reports
+    ["balance sheet",               "restrict_balance_sheet"],
+    ["profit & loss",               "restrict_profit_loss"],
+    ["profit and loss",             "restrict_profit_loss"],
+    ["partner ledger",              "restrict_partner_ledger"],
+    ["general ledger",              "restrict_general_ledger"],
+    ["trial balance",               "restrict_trial_balance"],
+    ["cash flow",                   "restrict_cash_flow"],
+    ["aged receivable",             "restrict_aged_receivable"],
+    ["aged payable",                "restrict_aged_payable"],
+    ["tax report",                  "restrict_tax_report"],
+    ["executive summary",           "restrict_executive_summary"],
+];
 
-const restrictionService = {
-    name: "user_access_restrictions",
-    dependencies: ["rpc", "action"],
-    async start(env, { rpc, action }) {
-        const restrictions = await loadUserRestrictions(rpc);
+// ─── Product field name → restriction key map ─────────────────────────────────
+const FIELD_MAP = [
+    ["standard_price",      "restrict_cost_price"],
+    ["list_price",          "restrict_sales_price"],
+    ["barcode",             "restrict_barcode"],
+    ["default_code",        "restrict_internal_reference"],
+    ["taxes_id",            "restrict_taxes"],
+    ["supplier_taxes_id",   "restrict_taxes"],
+];
 
-        // Patch action manager to inject context
-        const originalDoAction = action.doAction.bind(action);
-        action.doAction = async (actionRequest, options = {}) => {
-            if (actionRequest && typeof actionRequest === "object") {
-                actionRequest.context = {
-                    ...(actionRequest.context || {}),
-                    ...restrictions,
-                };
-            }
-            return originalDoAction(actionRequest, options);
-        };
+// ─── Hide menus ───────────────────────────────────────────────────────────────
+function applyMenuRestrictions(r) {
+    if (!r) return;
+    const selectors = [
+        ".o_menu_sections .o_nav_entry",
+        ".o_menu_sections .o_dropdown_item",
+        ".o_dropdown .o_dropdown_item",
+        ".o_menuitem",
+        "[role='menuitem']",
+        ".o_menu_item",
+    ].join(", ");
 
-        return { restrictions };
-    },
-};
-
-registry.category("services").add("user_access_restrictions", restrictionService);
-
-// ─── Menu item hiding ─────────────────────────────────────────────────────────
-
-/**
- * Maps menu name substrings (lowercase) → restriction field name.
- * If the restriction flag is true the menu item is hidden.
- */
-const MENU_RESTRICTION_MAP = {
-    // Inventory menus
-    "scrap": "restrict_scrap_menu",
-    "physical inventory": "restrict_physical_inventory",
-    "inventory adjustments": "restrict_physical_inventory",
-    "replenishment": "restrict_replenishment",
-    "inventory valuation": "restrict_inventory_valuation",
-    "landed costs": "restrict_landed_costs",
-
-    // Accounting report menus
-    "balance sheet": "restrict_balance_sheet",
-    "profit & loss": "restrict_profit_loss",
-    "profit and loss": "restrict_profit_loss",
-    "partner ledger": "restrict_partner_ledger",
-    "general ledger": "restrict_general_ledger",
-    "trial balance": "restrict_trial_balance",
-    "cash flow": "restrict_cash_flow",
-    "aged receivable": "restrict_aged_receivable",
-    "aged payable": "restrict_aged_payable",
-    "tax report": "restrict_tax_report",
-    "executive summary": "restrict_executive_summary",
-};
-
-/**
- * Hides menu items based on user restrictions.
- * Called after the menu is rendered.
- */
-async function applyMenuRestrictions(rpc) {
-    const restrictions = await loadUserRestrictions(rpc);
-    if (!restrictions || Object.keys(restrictions).length === 0) return;
-
-    // Query all menu items in the DOM
-    const menuItems = document.querySelectorAll(
-        ".o_menu_sections .o_nav_entry, " +
-        ".o_menu_sections .o_dropdown_item, " +
-        ".o_main_navbar .o_menu_brand, " +
-        "[role='menuitem'], " +
-        ".o_dropdown .o_dropdown_item"
-    );
-
-    menuItems.forEach((el) => {
+    document.querySelectorAll(selectors).forEach((el) => {
         const label = (el.textContent || "").trim().toLowerCase();
-        for (const [keyword, restrictionKey] of Object.entries(MENU_RESTRICTION_MAP)) {
-            if (label.includes(keyword) && restrictions[restrictionKey]) {
-                el.style.display = "none";
-                el.setAttribute("data-restricted", "true");
+        for (const [keyword, key] of MENU_MAP) {
+            if (r[key] && label.includes(keyword)) {
+                el.closest("li, .o_menu_item, .o_dropdown_item") ?
+                    (el.closest("li, .o_menu_item, .o_dropdown_item").style.display = "none") :
+                    (el.style.display = "none");
                 break;
             }
         }
     });
 }
 
-// ─── Hook into the menu rendering ────────────────────────────────────────────
+// ─── Hide product form fields ─────────────────────────────────────────────────
+function applyFieldRestrictions(r) {
+    if (!r) return;
+    for (const [fieldName, key] of FIELD_MAP) {
+        if (!r[key]) continue;
+        // Find all widgets for this field
+        const widgets = document.querySelectorAll(
+            `.o_field_widget[name="${fieldName}"],` +
+            `[name="${fieldName}"].o_field_widget`
+        );
+        widgets.forEach((widget) => {
+            // Walk up to find the containing row/group cell and hide it
+            const row =
+                widget.closest(".o_wrap_field") ||
+                widget.closest(".o_cell") ||
+                widget.closest("td") ||
+                widget.closest(".o_setting_box") ||
+                widget;
+            const container = row.closest("tr") || row.closest(".o_field_widget") || row;
+            container.style.display = "none";
+        });
+    }
+}
 
-const menuServiceExtension = {
-    name: "user_restrictions_menu_patch",
-    dependencies: ["rpc", "menu"],
-    start(env, { rpc, menu }) {
-        // Apply after menu loads
-        const applyAfterRender = () => {
-            setTimeout(() => applyMenuRestrictions(rpc), 300);
-        };
+// ─── Make cost price read-only if only edit is restricted ─────────────────────
+function applyReadonlyRestrictions(r) {
+    if (!r) return;
+    const readonlyMap = [
+        ["standard_price", "restrict_cost_price_edit"],
+        ["list_price",     "restrict_sales_price_edit"],
+    ];
+    for (const [fieldName, key] of readonlyMap) {
+        if (!r[key]) continue;
+        document.querySelectorAll(
+            `.o_field_widget[name="${fieldName}"] input,` +
+            `.o_field_widget[name="${fieldName}"] .o_field_monetary input`
+        ).forEach((input) => {
+            input.setAttribute("readonly", "readonly");
+            input.style.pointerEvents = "none";
+            input.style.backgroundColor = "#f5f5f5";
+        });
+    }
+}
 
-        // Watch for menu changes (SPA navigation)
-        const observer = new MutationObserver((mutations) => {
-            const relevant = mutations.some((m) =>
-                m.target &&
-                (m.target.classList?.contains("o_menu_sections") ||
-                 m.target.classList?.contains("o_main_navbar"))
-            );
-            if (relevant) applyMenuRestrictions(rpc);
+// ─── Main apply function ──────────────────────────────────────────────────────
+async function applyAllRestrictions() {
+    const r = await fetchRestrictions();
+    applyMenuRestrictions(r);
+    applyFieldRestrictions(r);
+    applyReadonlyRestrictions(r);
+}
+
+// ─── Register as an Odoo service ─────────────────────────────────────────────
+const userRestrictionsService = {
+    name: "user_access_restrictions",
+    dependencies: [],
+    start() {
+        // Apply once on load
+        applyAllRestrictions();
+
+        // Re-apply after each navigation (SPA route changes)
+        // Odoo 17+ uses history.pushState — observe URL changes
+        let lastUrl = location.href;
+        const urlObserver = setInterval(() => {
+            if (location.href !== lastUrl) {
+                lastUrl = location.href;
+                // Small delay to let the new view render
+                setTimeout(applyAllRestrictions, 400);
+                setTimeout(applyAllRestrictions, 900);
+            }
+        }, 200);
+
+        // Also watch DOM mutations in the main content area
+        const mutationObserver = new MutationObserver(() => {
+            // Debounce
+            clearTimeout(mutationObserver._timer);
+            mutationObserver._timer = setTimeout(applyAllRestrictions, 300);
         });
 
-        // Start observing once DOM is ready
         const startObserver = () => {
-            const navbar = document.querySelector(".o_main_navbar");
-            if (navbar) {
-                observer.observe(navbar, { childList: true, subtree: true });
-                applyMenuRestrictions(rpc);
+            const target = document.querySelector(".o_main_navbar, .o_action_manager, #wrapwrap");
+            if (target) {
+                mutationObserver.observe(target, { childList: true, subtree: true });
             } else {
                 setTimeout(startObserver, 500);
             }
@@ -152,55 +202,4 @@ const menuServiceExtension = {
     },
 };
 
-registry.category("services").add("user_restrictions_menu_patch", menuServiceExtension);
-
-// ─── Product form field hiding ────────────────────────────────────────────────
-
-/**
- * After product form renders, hide restricted fields at DOM level.
- * The Python ORM layer is the source of truth; this is a UX improvement.
- */
-function applyProductFormRestrictions(restrictions) {
-    if (!restrictions) return;
-
-    const fieldMap = {
-        "standard_price": "restrict_cost_price",
-        "list_price": "restrict_sales_price",
-        "barcode": "restrict_barcode",
-        "default_code": "restrict_internal_reference",
-        "taxes_id": "restrict_taxes",
-        "supplier_taxes_id": "restrict_taxes",
-    };
-
-    for (const [fieldName, restrictionKey] of Object.entries(fieldMap)) {
-        if (restrictions[restrictionKey]) {
-            // Hide field row
-            const fieldEls = document.querySelectorAll(
-                `[name="${fieldName}"], .o_field_widget[name="${fieldName}"]`
-            );
-            fieldEls.forEach((el) => {
-                const row = el.closest(".o_field_widget") || el.closest("td") || el;
-                const wrapper = row.closest(".o_wrap_field") ||
-                                row.closest("tr") ||
-                                row.parentElement;
-                if (wrapper) wrapper.style.display = "none";
-            });
-        }
-    }
-}
-
-// Apply on URL/view change (SPA)
-let _lastUrl = "";
-setInterval(async () => {
-    if (window.location.href !== _lastUrl) {
-        _lastUrl = window.location.href;
-        if (window.location.href.includes("product.template") ||
-            window.location.href.includes("product.product")) {
-            // Small delay to let form render
-            setTimeout(async () => {
-                const restrictions = _userRestrictions;
-                if (restrictions) applyProductFormRestrictions(restrictions);
-            }, 500);
-        }
-    }
-}, 300);
+registry.category("services").add("user_access_restrictions", userRestrictionsService);

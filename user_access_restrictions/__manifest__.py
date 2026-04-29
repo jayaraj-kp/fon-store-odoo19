@@ -1,37 +1,17 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'User Access & Restrictions',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Tools',
     'summary': 'Granular access restrictions per user for cost, reports, and inventory',
     'description': """
 User Access & Restrictions
 ===========================
-This module adds a new tab "Access & Restrictions" on the user form with:
+Adds "Access & Restrictions" tab on the user form.
 
-**Product / Cost Restrictions:**
-- Hide Cost Price from user
-- Prevent Cost Price editing
-- Hide Sales Price
-- Hide Barcode
-- Hide Tax fields
-- Hide Internal Reference
-
-**Reports Restrictions:**
-- Hide Balance Sheet
-- Hide Profit & Loss Account
-- Hide Partner Ledger
-- Hide General Ledger
-- Hide Trial Balance
-- Hide Cash Flow Statement
-- Hide Aged Receivable
-- Hide Aged Payable
-
-**Inventory Restrictions:**
-- Hide Scrap Menu
-- Hide Physical Inventory Adjustment
-- Hide Inventory Valuation
-- Hide Replenishment Menu
+Restrictions enforced at:
+  - Python/ORM level (read, write overrides)
+  - JavaScript/DOM level (field & menu hiding)
     """,
     'author': 'Custom',
     'depends': [
