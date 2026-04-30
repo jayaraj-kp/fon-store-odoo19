@@ -1,40 +1,44 @@
-
 # -*- coding: utf-8 -*-
 """
 pos_stock_picking.py
-Fires Anglo-Saxon delivery valuation entry for POS orders.
-POS confirms stock moves via pos.order._create_picking(),
-which calls stock.picking.button_validate() internally —
-but the picking_type_code for POS is 'outgoing', so your
-existing _create_delivery_valuation_entry() should fire.
-
-If it's NOT firing, it means POS uses a different validation path.
-This module forces it by hooking pos.order.action_pos_order_paid().
+Hooks into POS stock picking validation to create Anglo-Saxon
+delivery valuation entries (DR 121200 / CR 110100).
 """
 import logging
-from odoo import models, api
+from odoo import models
 
 _logger = logging.getLogger(__name__)
 
 
-class PosOrder(models.Model):
-    _inherit = 'pos.order'
+class StockPickingPos(models.Model):
+    _inherit = 'stock.picking'
 
-    def action_pos_order_paid(self):
-        """After POS order is paid, trigger delivery valuation for its pickings."""
-        res = super().action_pos_order_paid()
-        for order in self:
-            for picking in order.picking_ids.filtered(
-                lambda p: p.state == 'done'
-                and p.picking_type_code == 'outgoing'
-                and not p.delivery_journal_entry_ids
-            ):
+    def button_validate(self):
+        """
+        For POS outgoing pickings, button_validate is called internally.
+        The parent class (stock_picking.py) already handles this,
+        but POS may use _action_done() directly, bypassing button_validate.
+        So we also hook _action_done().
+        """
+        res = super().button_validate()
+        return res
+
+    def _action_done(self):
+        """
+        POS validates stock moves via _action_done(), not button_validate().
+        Hook here to catch POS deliveries.
+        """
+        res = super()._action_done()
+        for picking in self:
+            if picking.state != 'done':
+                continue
+            if picking.picking_type_code == 'outgoing' \
+                    and not picking.delivery_journal_entry_ids:
                 try:
                     picking._create_delivery_valuation_entry()
                     _logger.info(
-                        "Anglo-Saxon POS: Created delivery valuation for "
-                        "picking '%s' from POS order '%s'",
-                        picking.name, order.name
+                        "Anglo-Saxon POS: Delivery valuation created "
+                        "for picking '%s'", picking.name
                     )
                 except Exception as e:
                     _logger.error(
