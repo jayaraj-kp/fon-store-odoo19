@@ -30,41 +30,11 @@
                                string="Delivery Entries"/>
                     </button>
 
-                    <!-- Internal Transfer SEND smart button
-                         DR  Stock Transfer Out A/C
-                         CR  Stock Valuation -->
-                    <button type="object"
-                        name="action_view_internal_send_journal_entries"
-                        class="oe_stat_button"
-                        icon="fa-sign-out"
-                        invisible="internal_send_journal_entry_count == 0">
-                        <field name="internal_send_journal_entry_count"
-                               widget="statinfo"
-                               string="Transfer Out"/>
-                    </button>
-
-                    <!-- Internal Transfer RECEIVE smart button
-                         DR  Stock Valuation
-                         CR  Stock Transfer In A/C -->
-                    <button type="object"
-                        name="action_view_internal_receive_journal_entries"
-                        class="oe_stat_button"
-                        icon="fa-sign-in"
-                        invisible="internal_receive_journal_entry_count == 0">
-                        <field name="internal_receive_journal_entry_count"
-                               widget="statinfo"
-                               string="Transfer In"/>
-                    </button>
-
                 </xpath>
             </field>
         </record>
     </data>
 </odoo>
-
-
-
-
 <!--<?xml version="1.0" encoding="utf-8"?>-->
 <!--<odoo>-->
 <!--    <data>-->
@@ -95,6 +65,32 @@
 <!--                        <field name="delivery_journal_entry_count"-->
 <!--                               widget="statinfo"-->
 <!--                               string="Delivery Entries"/>-->
+<!--                    </button>-->
+
+<!--                    &lt;!&ndash; Internal Transfer SEND smart button-->
+<!--                         DR  Stock Transfer Out A/C-->
+<!--                         CR  Stock Valuation &ndash;&gt;-->
+<!--                    <button type="object"-->
+<!--                        name="action_view_internal_send_journal_entries"-->
+<!--                        class="oe_stat_button"-->
+<!--                        icon="fa-sign-out"-->
+<!--                        invisible="internal_send_journal_entry_count == 0">-->
+<!--                        <field name="internal_send_journal_entry_count"-->
+<!--                               widget="statinfo"-->
+<!--                               string="Transfer Out"/>-->
+<!--                    </button>-->
+
+<!--                    &lt;!&ndash; Internal Transfer RECEIVE smart button-->
+<!--                         DR  Stock Valuation-->
+<!--                         CR  Stock Transfer In A/C &ndash;&gt;-->
+<!--                    <button type="object"-->
+<!--                        name="action_view_internal_receive_journal_entries"-->
+<!--                        class="oe_stat_button"-->
+<!--                        icon="fa-sign-in"-->
+<!--                        invisible="internal_receive_journal_entry_count == 0">-->
+<!--                        <field name="internal_receive_journal_entry_count"-->
+<!--                               widget="statinfo"-->
+<!--                               string="Transfer In"/>-->
 <!--                    </button>-->
 
 <!--                </xpath>-->
