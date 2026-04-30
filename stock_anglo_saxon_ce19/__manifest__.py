@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Stock Anglo-Saxon Accounting for Odoo 19 CE',
-    'version': '19.0.7.0.0',
+    'version': '19.0.8.0.0',
     'category': 'Accounting/Inventory',
     'summary': 'Anglo-Saxon journal entries on receipt AND delivery validation',
     'description': """

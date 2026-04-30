@@ -109,3 +109,51 @@ class AccountMoveLine(models.Model):
             return output_account
 
         return account
+
+class AccountMoveLine(models.Model):
+    _inherit = 'account.move.line'
+
+    def _get_computed_account(self):
+        """
+        Odoo 19 CE: For customer invoices, replace Stock Valuation (110100)
+        with Stock Output/Interim Delivered (121200) on COGS lines.
+        """
+        account = super()._get_computed_account()
+
+        move = self.move_id
+        if move.move_type not in ('out_invoice', 'out_refund'):
+            return account
+
+        product = self.product_id
+        if not product:
+            return account
+
+        categ = product.categ_id
+
+        # Handle Odoo 19 JSONB format: {"1": "real_time"}
+        val = categ.property_valuation
+        if isinstance(val, dict):
+            val_str = list(val.values())[0] if val else ''
+        else:
+            val_str = str(val) if val else ''
+
+        if val_str not in ('real_time', 'perpetual', 'perpetual_invoicing'):
+            return account
+
+        valuation_account = getattr(
+            categ, 'property_stock_valuation_account_id', False)
+        output_account = getattr(
+            categ, 'property_stock_account_output_categ_id', False)
+
+        # Replace stock valuation account with stock output account
+        if output_account and valuation_account \
+                and account and account.id == valuation_account.id:
+            _logger.info(
+                "Anglo-Saxon invoice fix: '%s' replacing %s → %s",
+                product.name,
+                valuation_account.name,
+                output_account.name
+            )
+            return output_account
+
+        return account
