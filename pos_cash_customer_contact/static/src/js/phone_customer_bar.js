@@ -1,3 +1,773 @@
+////
+/////** @odoo-module **/
+////
+////import { Component, useState } from "@odoo/owl";
+////import { usePos } from "@point_of_sale/app/hooks/pos_hook";
+////import { useService } from "@web/core/utils/hooks";
+////import { patch } from "@web/core/utils/patch";
+////import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
+////import { Dialog } from "@web/core/dialog/dialog";
+////
+////const CASH_CUSTOMER_NAME = "CASH CUSTOMER";
+////const MIN_CHARS = 3;
+////
+////// ─────────────────────────────────────────────
+//////  Create Customer Dialog
+////// ─────────────────────────────────────────────
+////export class CreateCustomerDialog extends Component {
+////    static template = "pos_cash_customer_contact.CreateCustomerDialog";
+////    static components = { Dialog };
+////    static props = {
+////        phone: { type: String, default: "" },
+////        autoTag: { type: Object, optional: true },  // { id, name } of the matched tag
+////        onCreated: Function,
+////        close: Function,
+////    };
+////
+////    setup() {
+////        this.orm = useService("orm");
+////        this.notification = useService("notification");
+////
+////        const query = this.props.phone || "";
+////        const digitsOnly = query.replace(/\D/g, "");
+////        const isPhone = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 3;
+////
+////        this.form = useState({
+////            name: query,
+////            phone: isPhone ? query : "",
+////            mobile: "",
+////            email: "",
+////            // pre-select the tag if one was resolved
+////            tagId: this.props.autoTag ? this.props.autoTag.id : false,
+////            tagName: this.props.autoTag ? this.props.autoTag.name : "",
+////            saving: false,
+////            error: "",
+////        });
+////    }
+////
+////    async onSave() {
+////        this.form.error = "";
+////
+////        if (!this.form.name.trim()) {
+////            this.form.error = "Name is required.";
+////            return;
+////        }
+////
+////        const phoneVal = this.form.phone.trim();
+////        if (phoneVal) {
+////            const digits = phoneVal.replace(/\D/g, "");
+////            if (digits.length !== 10) {
+////                this.form.error = "Please enter 10 digit mobile number.";
+////                return;
+////            }
+////        }
+////
+////        const mobileVal = this.form.mobile.trim();
+////        if (mobileVal) {
+////            const mDigits = mobileVal.replace(/\D/g, "");
+////            if (mDigits.length !== 10) {
+////                this.form.error = "Please enter 10 digit mobile number";
+////                return;
+////            }
+////        }
+////
+////        this.form.saving = true;
+////
+////        try {
+////            await this.props.onCreated({
+////                name: this.form.name.trim(),
+////                phone: this.form.phone.trim(),
+////                mobile: this.form.mobile.trim(),
+////                email: this.form.email.trim(),
+////                tagId: this.form.tagId,
+////            });
+////            this.props.close();
+////        } catch (err) {
+////            this.form.error = err.message || "Could not save customer.";
+////            this.form.saving = false;
+////        }
+////    }
+////
+////    onDiscard() {
+////        this.props.close();
+////    }
+////}
+////
+////// ─────────────────────────────────────────────
+//////  Phone Customer Bar
+////// ─────────────────────────────────────────────
+////export class PhoneCustomerBar extends Component {
+////    static template = "pos_cash_customer_contact.PhoneCustomerBar";
+////    static props = {};
+////
+////    setup() {
+////        this.pos = usePos();
+////        this.orm = useService("orm");
+////        this.dialog = useService("dialog");
+////        this.notification = useService("notification");
+////        this.state = useState({
+////            query: "",
+////            suggestions: [],
+////            showDropdown: false,
+////            selectedName: "",
+////            found: false,
+////        });
+////    }
+////
+////    // ── Resolve which tag to auto-assign based on POS config name ──
+////    // Matches if the POS name contains the tag name (case-insensitive)
+////    async _getAutoTag() {
+////        try {
+////            const posName = (this.pos.config.name || "").toUpperCase();
+////
+////            // Load all tags from res.partner.category
+////            const tags = await this.orm.searchRead(
+////                "res.partner.category",
+////                [],
+////                ["id", "name"],
+////                { limit: 100 }
+////            );
+////
+////            // Find the first tag whose name appears in the POS config name
+////            const matched = tags.find(
+////                (t) => posName.includes(t.name.toUpperCase())
+////            );
+////
+////            return matched ? { id: matched.id, name: matched.name } : null;
+////        } catch (e) {
+////            console.warn("Could not resolve auto tag:", e);
+////            return null;
+////        }
+////    }
+////
+////    _getSuggestions(query) {
+////        if (!query || query.length < MIN_CHARS) return [];
+////        const q = query.toLowerCase();
+////        return this.pos.models["res.partner"]
+////            .filter((p) => {
+////                if (!p.name) return false;
+////                return (
+////                    p.name.toLowerCase().includes(q) ||
+////                    (p.phone || "").includes(q) ||
+////                    (p.mobile || "").includes(q)
+////                );
+////            })
+////            .slice(0, 8);
+////    }
+////
+////    onInput(ev) {
+////        const query = ev.target.value;
+////        this.state.query = query;
+////        this.state.found = false;
+////        this.state.selectedName = "";
+////
+////        if (!query) {
+////            this.pos.getOrder().setPartner(false);
+////            this.state.suggestions = [];
+////            this.state.showDropdown = false;
+////            return;
+////        }
+////
+////        const suggestions = this._getSuggestions(query);
+////        this.state.suggestions = suggestions;
+////        this.state.showDropdown = query.length >= MIN_CHARS;
+////
+////        const exact = this.pos.models["res.partner"].find(
+////            (p) => p.phone === query || p.mobile === query
+////        );
+////        if (exact) {
+////            this.pos.getOrder().setPartner(exact);
+////            this.state.found = true;
+////            this.state.selectedName = exact.name;
+////            this.state.showDropdown = false;
+////        } else {
+////            this.pos.getOrder().setPartner(false);
+////        }
+////    }
+////
+////    onSelectSuggestion(ev, partner) {
+////        this.pos.getOrder().setPartner(partner);
+////        this.state.query = partner.phone || partner.mobile || partner.name;
+////        this.state.selectedName = partner.name;
+////        this.state.found = true;
+////        this.state.showDropdown = false;
+////        this.state.suggestions = [];
+////    }
+////
+////    onClear() {
+////        this.state.query = "";
+////        this.state.found = false;
+////        this.state.selectedName = "";
+////        this.state.suggestions = [];
+////        this.state.showDropdown = false;
+////        this.pos.getOrder().setPartner(false);
+////    }
+////
+////    onBlur() {
+////        setTimeout(() => { this.state.showDropdown = false; }, 200);
+////    }
+////
+////    onFocus() {
+////        if (this.state.query && this.state.query.length >= MIN_CHARS && !this.state.found) {
+////            this.state.showDropdown = true;
+////        }
+////    }
+////
+////    async _getCashCustomerParentId() {
+////        const results = await this.orm.searchRead(
+////            "res.partner",
+////            [["name", "=", CASH_CUSTOMER_NAME], ["is_company", "=", true]],
+////            ["id"],
+////            { limit: 1 }
+////        );
+////        if (results.length) return results[0].id;
+////
+////        const newId = await this.orm.create("res.partner", [{
+////            name: CASH_CUSTOMER_NAME,
+////            is_company: true,
+////            customer_rank: 1,
+////        }]);
+////        return Array.isArray(newId) ? newId[0] : newId;
+////    }
+////
+////    async _doCreate(formData) {
+////        const parentId = await this._getCashCustomerParentId();
+////
+////        const vals = {
+////            name: formData.name,
+////            phone: formData.phone || false,
+////            email: formData.email || false,
+////            parent_id: parentId,
+////            customer_rank: 1,
+////        };
+////
+////        // Attach the contact tag if resolved
+////        if (formData.tagId) {
+////            vals.category_id = [[4, formData.tagId]];  // ORM command 4 = link existing
+////        }
+////
+////        const rawId = await this.orm.create("res.partner", [vals]);
+////        const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
+////
+////        await this.pos.data.searchRead(
+////            "res.partner",
+////            [["id", "=", partnerId]],
+////            [],
+////            { load: false }
+////        );
+////
+////        const newPartner = this.pos.models["res.partner"].find(
+////            (p) => p.id === partnerId
+////        );
+////
+////        if (newPartner) {
+////            this.pos.getOrder().setPartner(newPartner);
+////            this.state.query = newPartner.phone || newPartner.name;
+////            this.state.found = true;
+////            this.state.selectedName = newPartner.name;
+////            this.state.showDropdown = false;
+////            this.notification.add(
+////                `Customer created: ${newPartner.name}`,
+////                { type: "success", sticky: false }
+////            );
+////        }
+////    }
+////
+////    // "Create [query]" quick create from dropdown
+////    async onQuickCreate() {
+////        this.state.showDropdown = false;
+////        const query = this.state.query.trim();
+////        if (!query) return;
+////
+////        const looksLikePhone = /^\d+$/.test(query);
+////        if (looksLikePhone && query.replace(/\D/g, "").length !== 10) {
+////            this.notification.add(
+////                "Phone number must be exactly 10 digits.",
+////                { type: "danger", sticky: false }
+////            );
+////            return;
+////        }
+////
+////        const autoTag = await this._getAutoTag();
+////
+////        await this._doCreate({
+////            name: query,
+////            phone: looksLikePhone ? query : "",
+////            email: "",
+////            tagId: autoTag ? autoTag.id : false,
+////        });
+////    }
+////
+////    // "Create and edit..." — open full dialog with tag pre-filled
+////    async onCreateAndEdit() {
+////        this.state.showDropdown = false;
+////        const autoTag = await this._getAutoTag();
+////
+////        this.dialog.add(CreateCustomerDialog, {
+////            phone: this.state.query,
+////            autoTag: autoTag,
+////            onCreated: async (formData) => {
+////                await this._doCreate(formData);
+////            },
+////        });
+////    }
+////}
+////
+////patch(ProductScreen, {
+////    components: {
+////        ...ProductScreen.components,
+////        PhoneCustomerBar,
+////    },
+////});
+//
+///** @odoo-module **/
+//
+//import { Component, useState, useEffect } from "@odoo/owl";
+//import { usePos } from "@point_of_sale/app/hooks/pos_hook";
+//import { useService } from "@web/core/utils/hooks";
+//import { patch } from "@web/core/utils/patch";
+//import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
+//import { Dialog } from "@web/core/dialog/dialog";
+//
+//const CASH_CUSTOMER_NAME = "CASH CUSTOMER";
+//const MIN_CHARS = 3;
+//
+//// ─────────────────────────────────────────────
+////  Create Customer Dialog
+//// ─────────────────────────────────────────────
+//export class CreateCustomerDialog extends Component {
+//    static template = "pos_cash_customer_contact.CreateCustomerDialog";
+//    static components = { Dialog };
+//    static props = {
+//        phone: { type: String, default: "" },
+//        autoTag: { type: Object, default: null },
+//        onCreated: Function,
+//        close: Function,
+//    };
+//
+//    setup() {
+//        console.log("🔵 CreateCustomerDialog setup() called");
+//        this.orm = useService("orm");
+//        this.notification = useService("notification");
+//
+//        const query = this.props.phone || "";
+//        const digitsOnly = query.replace(/\D/g, "");
+//        const isPhone = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 3;
+//
+//        this.form = useState({
+//            name: query,
+//            phone: isPhone ? query : "",
+//            email: "",
+//            saving: false,
+//            error: "",
+//            tagId: this.props.autoTag ? this.props.autoTag.id : false,
+//            tagName: this.props.autoTag ? this.props.autoTag.name : "",
+//        });
+//
+//        console.log("🔵 CreateCustomerDialog form initialized:", this.form);
+//
+//        // Set up keyboard shortcut listener for Alt+C
+//        useEffect(() => {
+//            console.log("🟢 useEffect hook - Setting up keyboard listener");
+//
+//            // IMPORTANT: Use capture phase (true) to ensure we catch the event before other handlers
+//            const handleKeyDown = (event) => {
+//                console.log("⌨️ Raw Key Event:", {
+//                    key: event.key,
+//                    code: event.code,
+//                    altKey: event.altKey,
+//                    ctrlKey: event.ctrlKey,
+//                    shiftKey: event.shiftKey,
+//                    metaKey: event.metaKey,
+//                });
+//
+//                // Check for Alt+C combination (case insensitive)
+//                if (event.altKey && (event.key === 'c' || event.key === 'C')) {
+//                    console.log("✅ Alt+C detected! Preventing default and calling onSave()");
+//                    event.preventDefault();
+//                    event.stopPropagation();
+//                    this.onSave();
+//                }
+//                // Also try Ctrl+S as backup (common save shortcut)
+//                else if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
+//                    console.log("✅ Ctrl+S detected! Preventing default and calling onSave()");
+//                    event.preventDefault();
+//                    event.stopPropagation();
+//                    this.onSave();
+//                }
+//            };
+//
+//            console.log("🟢 Adding keydown event listener to document (capture phase)");
+//
+//            // Use capture phase to catch events before they bubble
+//            document.addEventListener('keydown', handleKeyDown, true);
+//
+//            return () => {
+//                console.log("🟡 Cleanup: Removing keydown event listener");
+//                document.removeEventListener('keydown', handleKeyDown, true);
+//            };
+//        });
+//    }
+//
+//    async onSave() {
+//        console.log("🔴 onSave() called");
+//        this.form.error = "";
+//
+//        if (!this.form.name.trim()) {
+//            console.log("❌ Validation failed: Name is empty");
+//            this.form.error = "Name is required.";
+//            return;
+//        }
+//
+//        const phoneVal = this.form.phone.trim();
+//        if (phoneVal) {
+//            const digits = phoneVal.replace(/\D/g, "");
+//            if (digits.length !== 10) {
+//                console.log("❌ Validation failed: Phone digits =", digits.length);
+//                this.form.error = "Phone number must be exactly 10 digits.";
+//                return;
+//            }
+//        }
+//
+//        const emailVal = this.form.email.trim();
+//        if (emailVal) {
+//            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//            if (!emailRegex.test(emailVal)) {
+//                console.log("❌ Validation failed: Invalid email format");
+//                this.form.error = "Please enter a valid email address.";
+//                return;
+//            }
+//        }
+//
+//        console.log("✅ All validations passed");
+//        this.form.saving = true;
+//
+//        try {
+//            console.log("📤 Calling onCreated with form data:", {
+//                name: this.form.name.trim(),
+//                phone: this.form.phone.trim(),
+//                email: this.form.email.trim(),
+//                tagId: this.form.tagId,
+//            });
+//
+//            await this.props.onCreated({
+//                name: this.form.name.trim(),
+//                phone: this.form.phone.trim(),
+//                email: this.form.email.trim(),
+//                tagId: this.form.tagId,
+//            });
+//
+//            console.log("✅ onCreated succeeded, closing dialog");
+//            this.props.close();
+//        } catch (err) {
+//            console.error("❌ Error in onCreated:", err);
+//            this.form.error = err.message || "Could not save customer.";
+//            this.form.saving = false;
+//        }
+//    }
+//
+//    onDiscard() {
+//        console.log("🔴 onDiscard() called, closing dialog");
+//        this.props.close();
+//    }
+//}
+//
+//// ─────────────────────────────────────────────
+////  Phone Customer Bar
+//// ─────────────────────────────────────────────
+//export class PhoneCustomerBar extends Component {
+//    static template = "pos_cash_customer_contact.PhoneCustomerBar";
+//    static props = {};
+//
+//    setup() {
+//        console.log("🔵 PhoneCustomerBar setup() called");
+//        this.pos = usePos();
+//        this.orm = useService("orm");
+//        this.dialog = useService("dialog");
+//        this.notification = useService("notification");
+//        this.state = useState({
+//            query: "",
+//            suggestions: [],
+//            showDropdown: false,
+//            selectedName: "",
+//            found: false,
+//            activeIndex: -1,
+//        });
+//        console.log("🔵 PhoneCustomerBar initialized");
+//    }
+//
+//    // ── Resolve which tag to auto-assign based on POS config name ──
+//    // Matches if the POS name contains the tag name (case-insensitive)
+//    async _getAutoTag() {
+//        console.log("🔍 _getAutoTag() called");
+//        try {
+//            const posName = (this.pos.config.name || "").toUpperCase();
+//            console.log("POS Config Name:", posName);
+//
+//            // Load all tags from res.partner.category
+//            const tags = await this.orm.searchRead(
+//                "res.partner.category",
+//                [],
+//                ["id", "name"],
+//                { limit: 100 }
+//            );
+//
+//            console.log("Available tags:", tags);
+//
+//            // Find the first tag whose name appears in the POS config name
+//            const matched = tags.find(
+//                (t) => posName.includes(t.name.toUpperCase())
+//            );
+//
+//            console.log("Matched tag:", matched);
+//            return matched ? { id: matched.id, name: matched.name } : null;
+//        } catch (e) {
+//            console.warn("Could not resolve auto tag:", e);
+//            return null;
+//        }
+//    }
+//
+//    _getSuggestions(query) {
+//        if (!query || query.length < MIN_CHARS) return [];
+//        const q = query.toLowerCase();
+//        return this.pos.models["res.partner"]
+//            .filter((p) => {
+//                if (!p.name) return false;
+//                return (
+//                    p.name.toLowerCase().includes(q) ||
+//                    (p.phone || "").includes(q) ||
+//                    (p.mobile || "").includes(q)
+//                );
+//            })
+//            .slice(0, 8);
+//    }
+//
+//    onKeyDown(ev) {
+//        if (!this.state.showDropdown) return;
+//
+//        // Build full list: suggestions + "Create" + "Create and edit"
+//        const totalItems = this.state.suggestions.length + 2;
+//
+//        if (ev.key === "ArrowDown") {
+//            ev.preventDefault();
+//            ev.stopPropagation();
+//            this.state.activeIndex = (this.state.activeIndex + 1) % totalItems;
+//            this._scrollActiveIntoView();
+//        } else if (ev.key === "ArrowUp") {
+//            ev.preventDefault();
+//            ev.stopPropagation();
+//            this.state.activeIndex = (this.state.activeIndex - 1 + totalItems) % totalItems;
+//            this._scrollActiveIntoView();
+//        } else if (ev.key === "Enter") {
+//            ev.preventDefault();
+//            ev.stopPropagation();
+//            const idx = this.state.activeIndex;
+//            if (idx >= 0 && idx < this.state.suggestions.length) {
+//                // Select a suggestion
+//                const partner = this.state.suggestions[idx];
+//                this.onSelectSuggestion(ev, partner);
+//            } else if (idx === this.state.suggestions.length) {
+//                // "Create [query]"
+//                this.onQuickCreate();
+//            } else if (idx === this.state.suggestions.length + 1) {
+//                // "Create and edit..."
+//                this.onCreateAndEdit();
+//            } else if (this.state.suggestions.length === 1) {
+//                // If nothing highlighted but only one result, select it
+//                this.onSelectSuggestion(ev, this.state.suggestions[0]);
+//            }
+//        } else {
+//            // For any other key, let it pass but stop POS from intercepting
+//            ev.stopPropagation();
+//        }
+//    }
+//
+//    _scrollActiveIntoView() {
+//        // Use setTimeout to let OWL re-render first
+//        setTimeout(() => {
+//            const dropdown = document.querySelector(".pcb-dropdown");
+//            if (!dropdown) return;
+//            const items = dropdown.querySelectorAll(".pcb-dropdown-item, .pcb-create-row");
+//            const active = items[this.state.activeIndex];
+//            if (active) {
+//                active.scrollIntoView({ block: "nearest" });
+//            }
+//        }, 0);
+//    }
+//
+//    onInput(ev) {
+//        const query = ev.target.value;
+//        this.state.query = query;
+//        this.state.found = false;
+//        this.state.selectedName = "";
+//        this.state.activeIndex = -1;
+//
+//        if (!query) {
+//            this.pos.getOrder().setPartner(false);
+//            this.state.suggestions = [];
+//            this.state.showDropdown = false;
+//            return;
+//        }
+//
+//        const suggestions = this._getSuggestions(query);
+//        this.state.suggestions = suggestions;
+//        this.state.showDropdown = query.length >= MIN_CHARS;
+//
+//        const exact = this.pos.models["res.partner"].find(
+//            (p) => p.phone === query || p.mobile === query
+//        );
+//        if (exact) {
+//            this.pos.getOrder().setPartner(exact);
+//            this.state.found = true;
+//            this.state.selectedName = exact.name;
+//            this.state.showDropdown = false;
+//        } else {
+//            this.pos.getOrder().setPartner(false);
+//        }
+//    }
+//
+//    onSelectSuggestion(ev, partner) {
+//        this.pos.getOrder().setPartner(partner);
+//        this.state.query = partner.phone || partner.mobile || partner.name;
+//        this.state.selectedName = partner.name;
+//        this.state.found = true;
+//        this.state.showDropdown = false;
+//        this.state.suggestions = [];
+//        this.state.activeIndex = -1;
+//    }
+//
+//    onClear() {
+//        this.state.query = "";
+//        this.state.found = false;
+//        this.state.selectedName = "";
+//        this.state.suggestions = [];
+//        this.state.showDropdown = false;
+//        this.state.activeIndex = -1;
+//        this.pos.getOrder().setPartner(false);
+//    }
+//
+//    onBlur() {
+//        setTimeout(() => { this.state.showDropdown = false; }, 200);
+//    }
+//
+//    onFocus() {
+//        if (this.state.query && this.state.query.length >= MIN_CHARS && !this.state.found) {
+//            this.state.showDropdown = true;
+//        }
+//    }
+//
+//    async _getCashCustomerParentId() {
+//        const results = await this.orm.searchRead(
+//            "res.partner",
+//            [["name", "=", CASH_CUSTOMER_NAME], ["is_company", "=", true]],
+//            ["id"],
+//            { limit: 1 }
+//        );
+//        if (results.length) return results[0].id;
+//
+//        const newId = await this.orm.create("res.partner", [{
+//            name: CASH_CUSTOMER_NAME,
+//            is_company: true,
+//            customer_rank: 1,
+//        }]);
+//        return Array.isArray(newId) ? newId[0] : newId;
+//    }
+//
+//    async _doCreate(formData) {
+//        const parentId = await this._getCashCustomerParentId();
+//
+//        const vals = {
+//            name: formData.name,
+//            phone: formData.phone || false,
+//            email: formData.email || false,
+//            parent_id: parentId,
+//            customer_rank: 1,
+//        };
+//
+//        // Attach the contact tag if resolved
+//        if (formData.tagId) {
+//            vals.category_id = [[4, formData.tagId]];  // ORM command 4 = link existing
+//        }
+//
+//        const rawId = await this.orm.create("res.partner", [vals]);
+//        const partnerId = Array.isArray(rawId) ? rawId[0] : rawId;
+//
+//        await this.pos.data.searchRead(
+//            "res.partner",
+//            [["id", "=", partnerId]],
+//            [],
+//            { load: false }
+//        );
+//
+//        const newPartner = this.pos.models["res.partner"].find(
+//            (p) => p.id === partnerId
+//        );
+//
+//        if (newPartner) {
+//            this.pos.getOrder().setPartner(newPartner);
+//            this.state.query = newPartner.phone || newPartner.name;
+//            this.state.found = true;
+//            this.state.selectedName = newPartner.name;
+//            this.state.showDropdown = false;
+//            this.notification.add(
+//                `Customer created: ${newPartner.name}`,
+//                { type: "success", sticky: false }
+//            );
+//        }
+//    }
+//
+//    // "Create [query]" quick create from dropdown
+//    async onQuickCreate() {
+//        this.state.showDropdown = false;
+//        const query = this.state.query.trim();
+//        if (!query) return;
+//
+//        const looksLikePhone = /^\d+$/.test(query);
+//        if (looksLikePhone && query.replace(/\D/g, "").length !== 10) {
+//            this.notification.add(
+//                "Phone number must be exactly 10 digits.",
+//                { type: "danger", sticky: false }
+//            );
+//            return;
+//        }
+//
+//        const autoTag = await this._getAutoTag();
+//
+//        await this._doCreate({
+//            name: query,
+//            phone: looksLikePhone ? query : "",
+//            email: "",
+//            tagId: autoTag ? autoTag.id : false,
+//        });
+//    }
+//
+//    // "Create and edit..." — open full dialog with tag pre-filled
+//    async onCreateAndEdit() {
+//        console.log("🔴 onCreateAndEdit() called");
+//        this.state.showDropdown = false;
+//        const autoTag = await this._getAutoTag();
+//
+//        console.log("🔴 Opening CreateCustomerDialog with autoTag:", autoTag);
+//        this.dialog.add(CreateCustomerDialog, {
+//            phone: this.state.query,
+//            autoTag: autoTag,
+//            onCreated: async (formData) => {
+//                console.log("🔴 CreateCustomerDialog onCreated callback triggered");
+//                await this._doCreate(formData);
+//            },
+//        });
+//    }
+//}
+//
+//patch(ProductScreen, {
+//    components: {
+//        ...ProductScreen.components,
+//        PhoneCustomerBar,
+//    },
+//});
+//
+//console.log("✅ phone_customer_bar.js module loaded successfully - Alt+C and Ctrl+S shortcuts enabled");
+
 //
 ///** @odoo-module **/
 //
@@ -493,6 +1263,30 @@ export class PhoneCustomerBar extends Component {
             found: false,
             activeIndex: -1,
         });
+
+        // Block the POS SearchBar's document-level capture listener from stealing
+        // keystrokes while the phone input is focused.
+        // Registered at capture phase (true) so we run before the POS handler
+        // and can call stopImmediatePropagation().
+        useEffect(() => {
+            const blockCapture = (ev) => {
+                const inputEl = document.querySelector(".pcb-input");
+                if (inputEl && document.activeElement === inputEl) {
+                    // Stop all other document-level listeners (including POS SearchBar).
+                    // Do NOT call preventDefault — the keystroke must still reach the input.
+                    ev.stopImmediatePropagation();
+                }
+            };
+            document.addEventListener("keydown", blockCapture, true);
+            document.addEventListener("keyup", blockCapture, true);
+            document.addEventListener("keypress", blockCapture, true);
+            return () => {
+                document.removeEventListener("keydown", blockCapture, true);
+                document.removeEventListener("keyup", blockCapture, true);
+                document.removeEventListener("keypress", blockCapture, true);
+            };
+        });
+
         console.log("🔵 PhoneCustomerBar initialized");
     }
 
@@ -543,6 +1337,11 @@ export class PhoneCustomerBar extends Component {
     }
 
     onKeyDown(ev) {
+        // ALWAYS stop immediate propagation so Odoo's POS SearchBar capture-phase
+        // listener cannot steal keystrokes while this input is focused.
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+
         if (!this.state.showDropdown) return;
 
         // Build full list: suggestions + "Create" + "Create and edit"
@@ -550,17 +1349,14 @@ export class PhoneCustomerBar extends Component {
 
         if (ev.key === "ArrowDown") {
             ev.preventDefault();
-            ev.stopPropagation();
             this.state.activeIndex = (this.state.activeIndex + 1) % totalItems;
             this._scrollActiveIntoView();
         } else if (ev.key === "ArrowUp") {
             ev.preventDefault();
-            ev.stopPropagation();
             this.state.activeIndex = (this.state.activeIndex - 1 + totalItems) % totalItems;
             this._scrollActiveIntoView();
         } else if (ev.key === "Enter") {
             ev.preventDefault();
-            ev.stopPropagation();
             const idx = this.state.activeIndex;
             if (idx >= 0 && idx < this.state.suggestions.length) {
                 // Select a suggestion
@@ -576,9 +1372,6 @@ export class PhoneCustomerBar extends Component {
                 // If nothing highlighted but only one result, select it
                 this.onSelectSuggestion(ev, this.state.suggestions[0]);
             }
-        } else {
-            // For any other key, let it pass but stop POS from intercepting
-            ev.stopPropagation();
         }
     }
 
