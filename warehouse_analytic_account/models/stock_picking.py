@@ -1,184 +1,3 @@
-# # # -*- coding: utf-8 -*-
-# # import logging
-# # from odoo import fields, models
-# #
-# # _logger = logging.getLogger(__name__)
-# #
-# #
-# # class StockMove(models.Model):
-# #     _inherit = 'stock.move'
-# #
-# #     analytic_account_id = fields.Many2one(
-# #         comodel_name='account.analytic.account',
-# #         string='Analytic Account',
-# #         help='Analytic account inherited from the source warehouse.',
-# #         index=True,
-# #     )
-# #
-# #
-# # class StockPicking(models.Model):
-# #     _inherit = 'stock.picking'
-# #
-# #     def _get_warehouse_analytic_account(self):
-# #         wh = (
-# #             self.location_id.warehouse_id
-# #             or self.picking_type_id.warehouse_id
-# #         )
-# #         if wh and wh.analytic_account_id:
-# #             return wh.analytic_account_id
-# #         return False
-# #
-# #     def button_validate(self):
-# #         result = super().button_validate()
-# #         for picking in self:
-# #             analytic = picking._get_warehouse_analytic_account()
-# #             if analytic:
-# #                 picking.move_ids.filtered(
-# #                     lambda m: not m.analytic_account_id
-# #                 ).write({'analytic_account_id': analytic.id})
-# #                 _logger.debug(
-# #                     'Warehouse analytic %s stamped on picking %s moves',
-# #                     analytic.name, picking.name,
-# #                 )
-# #         return result
-#
-# # -*- coding: utf-8 -*-
-# import logging
-# from datetime import datetime, timedelta
-# from odoo import fields, models
-#
-# _logger = logging.getLogger(__name__)
-#
-#
-# def _apply_analytic_to_journal_lines(env, analytic, label_hint=''):
-#     """
-#     Find recently posted stock journal entries (within last 15 seconds)
-#     and stamp the analytic on ALL lines including the stock valuation
-#     account line.
-#     """
-#     if not analytic:
-#         return
-#     key = str(analytic.id)
-#     since = (datetime.now() - timedelta(seconds=15)).strftime(
-#         '%Y-%m-%d %H:%M:%S'
-#     )
-#     acc_moves = env['account.move'].search([
-#         ('move_type', '=', 'entry'),
-#         ('state', '=', 'posted'),
-#         ('create_date', '>=', since),
-#     ])
-#     for acc_move in acc_moves:
-#         for line in acc_move.line_ids.filtered(lambda l: l.account_id):
-#             existing = line.analytic_distribution or {}
-#             if key not in existing:
-#                 new_dist = dict(existing)
-#                 new_dist[key] = 100.0
-#                 try:
-#                     line.analytic_distribution = new_dist
-#                     _logger.debug(
-#                         'Analytic %s applied to %s line %s (%s) [%s]',
-#                         analytic.name, acc_move.name,
-#                         line.id, line.account_id.code, label_hint,
-#                     )
-#                 except Exception as e:
-#                     _logger.warning(
-#                         'Could not set analytic on line %s: %s', line.id, e
-#                     )
-#
-#
-# class StockMove(models.Model):
-#     _inherit = 'stock.move'
-#
-#     analytic_account_id = fields.Many2one(
-#         comodel_name='account.analytic.account',
-#         string='Analytic Account',
-#         help='Analytic account inherited from the source warehouse.',
-#         index=True,
-#     )
-#
-#
-# class StockQuant(models.Model):
-#     """
-#     Intercept physical inventory adjustments (Operations > Physical Inventory).
-#     In Odoo 19 CE these go through stock.quant, not stock.picking.
-#     """
-#     _inherit = 'stock.quant'
-#
-#     def _get_quant_analytic(self):
-#         """
-#         Return the analytic account for the first quant in self
-#         whose warehouse has an analytic account configured.
-#         """
-#         for quant in self:
-#             wh = quant.location_id.warehouse_id
-#             if wh and wh.analytic_account_id:
-#                 return wh.analytic_account_id
-#         return False
-#
-#     def action_apply_inventory(self):
-#         """'Apply' button on a single Physical Inventory line."""
-#         analytic = self._get_quant_analytic()
-#         result = super().action_apply_inventory()
-#         _apply_analytic_to_journal_lines(
-#             self.env, analytic, label_hint='action_apply_inventory',
-#         )
-#         return result
-#
-#     def _apply_inventory(self, date=None):
-#         """
-#         Internal method called by action_apply_inventory.
-#         Odoo 19 CE passes a 'date' positional argument.
-#         """
-#         analytic = self._get_quant_analytic()
-#         if date is not None:
-#             result = super()._apply_inventory(date)
-#         else:
-#             result = super()._apply_inventory()
-#         _apply_analytic_to_journal_lines(
-#             self.env, analytic, label_hint='_apply_inventory',
-#         )
-#         return result
-#
-#
-# class StockPicking(models.Model):
-#     _inherit = 'stock.picking'
-#
-#     def _get_warehouse_analytic_account(self):
-#         wh = (
-#             self.location_id.warehouse_id
-#             or self.picking_type_id.warehouse_id
-#         )
-#         if wh and wh.analytic_account_id:
-#             return wh.analytic_account_id
-#         return False
-#
-#     def _push_analytic_to_stock_journal_entries(self, analytic):
-#         """
-#         Push warehouse analytic onto ALL stock valuation journal entry
-#         lines for receipts/deliveries.
-#         """
-#         _apply_analytic_to_journal_lines(
-#             self.env, analytic,
-#             label_hint='picking_%s' % self.name,
-#         )
-#
-#     def button_validate(self):
-#         result = super().button_validate()
-#         for picking in self:
-#             analytic = picking._get_warehouse_analytic_account()
-#             if not analytic:
-#                 continue
-#             picking.move_ids.filtered(
-#                 lambda m: not m.analytic_account_id
-#             ).write({'analytic_account_id': analytic.id})
-#             _logger.debug(
-#                 'Warehouse analytic %s stamped on picking %s moves',
-#                 analytic.name, picking.name,
-#             )
-#             picking._push_analytic_to_stock_journal_entries(analytic)
-#         return result
-
-# -*- coding: utf-8 -*-
 # -*- coding: utf-8 -*-
 import logging
 from datetime import datetime, timedelta
@@ -188,17 +7,10 @@ _logger = logging.getLogger(__name__)
 
 
 def _apply_analytic_to_journal_lines(env, analytic, label_hint=''):
-    """
-    Find recently posted stock journal entries (within last 15 seconds)
-    and stamp the analytic on ALL lines including the stock valuation
-    account line.
-    """
     if not analytic:
         return
     key = str(analytic.id)
-    since = (datetime.now() - timedelta(seconds=15)).strftime(
-        '%Y-%m-%d %H:%M:%S'
-    )
+    since = (datetime.now() - timedelta(seconds=15)).strftime('%Y-%m-%d %H:%M:%S')
     acc_moves = env['account.move'].search([
         ('move_type', '=', 'entry'),
         ('state', '=', 'posted'),
@@ -212,22 +24,11 @@ def _apply_analytic_to_journal_lines(env, analytic, label_hint=''):
                 new_dist[key] = 100.0
                 try:
                     line.analytic_distribution = new_dist
-                    _logger.debug(
-                        'Analytic %s applied to %s line %s (%s) [%s]',
-                        analytic.name, acc_move.name,
-                        line.id, line.account_id.code, label_hint,
-                    )
                 except Exception as e:
-                    _logger.warning(
-                        'Could not set analytic on line %s: %s', line.id, e
-                    )
+                    _logger.warning('Could not set analytic on line %s: %s', line.id, e)
 
 
 def _apply_analytic_to_move_direct(env, analytic, move, label_hint=''):
-    """
-    Directly stamp analytic on a specific account.move (more precise than
-    the time-window approach — use this when we have the exact move record).
-    """
     if not analytic or not move:
         return
     key = str(analytic.id)
@@ -242,13 +43,36 @@ def _apply_analytic_to_move_direct(env, analytic, move, label_hint=''):
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
                 _logger.debug(
-                    'Analytic %s applied to %s line %s (%s) [%s]',
-                    analytic.name, move.name,
-                    line.id, line.account_id.code, label_hint,
+                    'Analytic %s applied to %s line %s [%s]',
+                    analytic.name, move.name, line.id, label_hint,
+                )
+            except Exception as e:
+                _logger.warning('Could not set analytic on line %s: %s', line.id, e)
+
+
+# ── Top-level helper (NOT inside any class) ──────────────────────────────────
+def _apply_analytic_to_move_lines(move, analytic):
+    """Apply analytic distribution to all lines of an account.move."""
+    if not move or not analytic:
+        return
+    key = str(analytic.id)
+    for line in move.line_ids.filtered(lambda l: l.account_id):
+        existing = line.analytic_distribution or {}
+        if key not in existing:
+            new_dist = dict(existing)
+            new_dist[key] = 100.0
+            try:
+                line.sudo().with_context(
+                    check_move_validity=False,
+                    skip_account_move_synchronization=True,
+                ).analytic_distribution = new_dist
+                _logger.debug(
+                    'STJ analytic %s applied to %s line %s',
+                    analytic.name, move.name, line.id,
                 )
             except Exception as e:
                 _logger.warning(
-                    'Could not set analytic on line %s: %s', line.id, e
+                    'Could not apply analytic to STJ line %s: %s', line.id, e
                 )
 
 
@@ -258,7 +82,6 @@ class StockMove(models.Model):
     analytic_account_id = fields.Many2one(
         comodel_name='account.analytic.account',
         string='Analytic Account',
-        help='Analytic account inherited from the source warehouse.',
         index=True,
     )
 
@@ -267,7 +90,6 @@ _WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse
 
 
 def _get_user_warehouse(user):
-    """Resolve the user's default warehouse across different Odoo versions."""
     for fname in _WAREHOUSE_FIELDS:
         if fname in user._fields:
             return getattr(user, fname, False)
@@ -275,123 +97,41 @@ def _get_user_warehouse(user):
 
 
 class StockScrap(models.Model):
-    """
-    Intercept scrap validation (Operations > Scrap) so the warehouse
-    analytic account is stamped on the generated STJ journal entry.
-
-    Warehouse resolution order (mirrors sale/purchase logic):
-      1. Current user's default warehouse analytic  ← PRIMARY (same as SO/PO)
-      2. scrap.picking_type_id.warehouse_id         ← fallback
-      3. scrap.location_id.warehouse_id             ← fallback
-      4. scrap.picking_id.location_id.warehouse_id  ← last resort
-    """
     _inherit = 'stock.scrap'
 
     def _get_scrap_analytic(self):
-        # 1. User's default warehouse — same source as sale/purchase orders
         wh = _get_user_warehouse(self.env.user)
         if wh and getattr(wh, 'analytic_account_id', False):
-            _logger.debug(
-                'Scrap analytic STRATEGY 1 (user default wh): user[%s] → wh[%s] → %s',
-                self.env.user.name, wh.name, wh.analytic_account_id.name,
-            )
             return wh.analytic_account_id
-
         for scrap in self:
-            # 2. Scrap operation type warehouse
-            wh = getattr(
-                getattr(scrap, 'picking_type_id', False),
-                'warehouse_id', False,
-            )
+            wh = getattr(getattr(scrap, 'picking_type_id', False), 'warehouse_id', False)
             if wh and getattr(wh, 'analytic_account_id', False):
-                _logger.debug(
-                    'Scrap analytic STRATEGY 2 (picking_type): scrap[%s] → wh[%s] → %s',
-                    scrap.name, wh.name, wh.analytic_account_id.name,
-                )
                 return wh.analytic_account_id
-
-            # 3. Source stock location warehouse
             wh = getattr(scrap.location_id, 'warehouse_id', False)
             if wh and getattr(wh, 'analytic_account_id', False):
-                _logger.debug(
-                    'Scrap analytic STRATEGY 3 (location): scrap[%s] → wh[%s] → %s',
-                    scrap.name, wh.name, wh.analytic_account_id.name,
-                )
                 return wh.analytic_account_id
-
-            # 4. Linked transfer warehouse
-            picking = getattr(scrap, 'picking_id', False)
-            if picking:
-                wh = getattr(picking.location_id, 'warehouse_id', False)
-                if wh and getattr(wh, 'analytic_account_id', False):
-                    _logger.debug(
-                        'Scrap analytic STRATEGY 4 (picking): scrap[%s] → wh[%s] → %s',
-                        scrap.name, wh.name, wh.analytic_account_id.name,
-                    )
-                    return wh.analytic_account_id
-
-        _logger.warning('Scrap analytic: no match for user[%s]', self.env.user.name)
         return False
 
     def action_validate(self):
-        """
-        Intercept scrap confirmation.
-
-        We capture the analytic BEFORE calling super() (while we still
-        have location/picking context), then apply it AFTER so that
-        the STJ journal entry already exists and is posted.
-        """
-        # Resolve analytic per scrap record before validation clears context
         scrap_analytics = {scrap.id: scrap._get_scrap_analytic() for scrap in self}
-
         result = super().action_validate()
-
         for scrap in self:
             analytic = scrap_analytics.get(scrap.id)
             if not analytic:
-                _logger.warning(
-                    'StockScrap: no analytic found for scrap %s', scrap.name
-                )
                 continue
-
-            # Prefer the direct move_id on the scrap (most precise)
             scrap_move = getattr(scrap, 'move_id', False)
             if scrap_move and scrap_move.account_move_ids:
                 for acc_move in scrap_move.account_move_ids:
-                    _apply_analytic_to_move_direct(
-                        self.env, analytic, acc_move,
-                        label_hint='scrap_%s' % scrap.name,
-                    )
-                _logger.debug(
-                    'Scrap analytic %s applied via move_id for %s',
-                    analytic.name, scrap.name,
-                )
+                    _apply_analytic_to_move_direct(self.env, analytic, acc_move, 'scrap')
             else:
-                # Fallback: time-window search (covers edge cases)
-                _apply_analytic_to_journal_lines(
-                    self.env, analytic,
-                    label_hint='scrap_%s' % scrap.name,
-                )
-                _logger.debug(
-                    'Scrap analytic %s applied via time-window for %s',
-                    analytic.name, scrap.name,
-                )
-
+                _apply_analytic_to_journal_lines(self.env, analytic, 'scrap')
         return result
 
 
 class StockQuant(models.Model):
-    """
-    Intercept physical inventory adjustments (Operations > Physical Inventory).
-    In Odoo 19 CE these go through stock.quant, not stock.picking.
-    """
     _inherit = 'stock.quant'
 
     def _get_quant_analytic(self):
-        """
-        Return the analytic account for the first quant in self
-        whose warehouse has an analytic account configured.
-        """
         for quant in self:
             wh = quant.location_id.warehouse_id
             if wh and wh.analytic_account_id:
@@ -399,30 +139,19 @@ class StockQuant(models.Model):
         return False
 
     def action_apply_inventory(self):
-        """'Apply' button on a single Physical Inventory line."""
         analytic = self._get_quant_analytic()
         result = super().action_apply_inventory()
-        _apply_analytic_to_journal_lines(
-            self.env, analytic, label_hint='action_apply_inventory',
-        )
+        _apply_analytic_to_journal_lines(self.env, analytic, 'action_apply_inventory')
         return result
 
     def _apply_inventory(self, date=None):
-        """
-        Internal method called by action_apply_inventory.
-        Odoo 19 CE passes a 'date' positional argument.
-        """
         analytic = self._get_quant_analytic()
-        if date is not None:
-            result = super()._apply_inventory(date)
-        else:
-            result = super()._apply_inventory()
-        _apply_analytic_to_journal_lines(
-            self.env, analytic, label_hint='_apply_inventory',
-        )
+        result = super()._apply_inventory(date) if date is not None else super()._apply_inventory()
+        _apply_analytic_to_journal_lines(self.env, analytic, '_apply_inventory')
         return result
 
 
+# ── Single StockPicking class — handles both button_validate AND STJ entries ──
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
 
@@ -435,16 +164,6 @@ class StockPicking(models.Model):
             return wh.analytic_account_id
         return False
 
-    def _push_analytic_to_stock_journal_entries(self, analytic):
-        """
-        Push warehouse analytic onto ALL stock valuation journal entry
-        lines for receipts/deliveries.
-        """
-        _apply_analytic_to_journal_lines(
-            self.env, analytic,
-            label_hint='picking_%s' % self.name,
-        )
-
     def button_validate(self):
         result = super().button_validate()
         for picking in self:
@@ -454,67 +173,37 @@ class StockPicking(models.Model):
             picking.move_ids.filtered(
                 lambda m: not m.analytic_account_id
             ).write({'analytic_account_id': analytic.id})
-            _logger.debug(
-                'Warehouse analytic %s stamped on picking %s moves',
-                analytic.name, picking.name,
+            _apply_analytic_to_journal_lines(
+                self.env, analytic, 'picking_%s' % picking.name
             )
-            picking._push_analytic_to_stock_journal_entries(analytic)
         return result
 
-    # At the bottom of stock_picking.py in warehouse_analytic_account
+    def _create_delivery_valuation_entry(self):
+        """Apply warehouse analytic to Anglo-Saxon delivery STJ entries."""
+        res = super()._create_delivery_valuation_entry()
+        for picking in self:
+            analytic = picking._get_warehouse_analytic_account()
+            if not analytic:
+                continue
+            for entry in picking.delivery_journal_entry_ids:
+                _apply_analytic_to_move_lines(entry, analytic)
+                _logger.info(
+                    'STJ delivery analytic %s applied to %s',
+                    analytic.name, entry.name
+                )
+        return res
 
-    class StockPickingAnalytic(models.Model):
-        _inherit = 'stock.picking'
-
-        def _create_delivery_valuation_entry(self):
-            """Override to apply warehouse analytic to STJ entries."""
-            res = super()._create_delivery_valuation_entry()
-            # Apply analytic to the newly created delivery journal entries
-            for picking in self:
-                analytic = self._get_picking_analytic(picking)
-                if not analytic:
-                    continue
-                for entry in picking.delivery_journal_entry_ids:
-                    _apply_analytic_to_move_lines(entry, analytic)
-            return res
-
-        def _create_receipt_valuation_entry(self):
-            """Override to apply warehouse analytic to receipt STJ entries."""
-            res = super()._create_receipt_valuation_entry()
-            for picking in self:
-                analytic = self._get_picking_analytic(picking)
-                if not analytic:
-                    continue
-                for entry in picking.receipt_journal_entry_ids:
-                    _apply_analytic_to_move_lines(entry, analytic)
-            return res
-
-        def _get_picking_analytic(self, picking):
-            """Get analytic account from warehouse linked to this picking."""
-            warehouse = getattr(
-                picking.picking_type_id, 'warehouse_id', False)
-            if warehouse and getattr(warehouse, 'analytic_account_id', False):
-                return warehouse.analytic_account_id
-            return False
-
-    def _apply_analytic_to_move_lines(move, analytic):
-        """Apply analytic distribution to all lines of an account.move."""
-        if not move or not analytic:
-            return
-        key = str(analytic.id)
-        for line in move.line_ids.filtered(lambda l: l.account_id):
-            existing = line.analytic_distribution or {}
-            if key not in existing:
-                new_dist = dict(existing)
-                new_dist[key] = 100.0
-                try:
-                    line.sudo().with_context(
-                        check_move_validity=False,
-                        skip_account_move_synchronization=True,
-                    ).analytic_distribution = new_dist
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(
-                        'Could not apply analytic to STJ line %s: %s',
-                        line.id, e
-                    )
+    def _create_receipt_valuation_entry(self):
+        """Apply warehouse analytic to Anglo-Saxon receipt STJ entries."""
+        res = super()._create_receipt_valuation_entry()
+        for picking in self:
+            analytic = picking._get_warehouse_analytic_account()
+            if not analytic:
+                continue
+            for entry in picking.receipt_journal_entry_ids:
+                _apply_analytic_to_move_lines(entry, analytic)
+                _logger.info(
+                    'STJ receipt analytic %s applied to %s',
+                    analytic.name, entry.name
+                )
+        return res
