@@ -453,12 +453,11 @@ _logger = logging.getLogger(__name__)
 
 _WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
 
-# move_type values that represent invoices/bills/refunds AND plain journal entries
-# 'entry' covers: customer payments, vendor payments, bank statements, misc entries
+# All move_type values we want to stamp analytic on
 _HANDLED_MOVE_TYPES = (
     'in_invoice', 'in_refund',
     'out_invoice', 'out_refund',
-    'entry',
+    'entry',  # covers payments, bank statements, misc journal entries
 )
 
 
@@ -485,7 +484,8 @@ class AccountMove(models.Model):
         Covers:
           - Vendor bills, customer invoices, credit notes and refunds
           - Customer payments, vendor payments (move_type = 'entry')
-          - Any other plain journal entry
+          - Bank statement entries, manual journal entries
+        Works on both draft and posted moves by temporarily unlocking if needed.
         """
         analytic_account = self._get_warehouse_analytic_account()
         if not analytic_account:
@@ -496,34 +496,60 @@ class AccountMove(models.Model):
             if move.move_type not in _HANDLED_MOVE_TYPES:
                 continue
 
-            # Apply to invoice lines (visible in Invoice Lines tab for invoices/bills)
-            for line in move.invoice_line_ids.filtered(
-                lambda l: l.account_id and not l.display_type
-            ):
-                existing = line.analytic_distribution or {}
-                if key not in existing:
-                    new_dist = dict(existing)
-                    new_dist[key] = 100.0
-                    line.analytic_distribution = new_dist
+            # Collect all lines needing the analytic (line_ids covers everything)
+            lines_missing = move.line_ids.filtered(
+                lambda l: l.account_id
+                and not l.display_type
+                and key not in (l.analytic_distribution or {})
+            )
+            # Also invoice_line_ids for invoices/bills
+            inv_lines_missing = move.invoice_line_ids.filtered(
+                lambda l: l.account_id
+                and not l.display_type
+                and key not in (l.analytic_distribution or {})
+            )
 
-            # Apply to ALL journal entry lines (visible in Journal Items tab)
-            # This includes receivable, payable, outstanding receipts,
-            # tax lines, cash/bank lines — for full branch visibility.
-            # This also covers payment entries (move_type='entry') like
-            # PCSCHL/xxxx which have no invoice_line_ids.
-            for line in move.line_ids.filtered(
-                lambda l: l.account_id and not l.display_type
-            ):
-                existing = line.analytic_distribution or {}
-                if key not in existing:
+            all_missing = lines_missing | inv_lines_missing
+            if not all_missing:
+                continue
+
+            # If posted, we must temporarily reset to draft to write analytic
+            was_posted = move.state == 'posted'
+            unlocked = False
+            if was_posted:
+                try:
+                    move.with_context(
+                        force_delete=True,
+                        no_resequence=True,
+                    ).button_draft()
+                    unlocked = True
+                except Exception as e:
+                    _logger.warning(
+                        'Could not unlock move %s to apply analytic: %s — '
+                        'will attempt sudo write instead.',
+                        move.name, e,
+                    )
+
+            try:
+                for line in all_missing:
+                    existing = line.analytic_distribution or {}
                     new_dist = dict(existing)
                     new_dist[key] = 100.0
-                    line.analytic_distribution = new_dist
+                    line.sudo().analytic_distribution = new_dist
                     _logger.debug(
-                        'Warehouse analytic %s applied to journal line %s (%s) on move %s',
+                        'Warehouse analytic %s → line %s (%s) on move %s',
                         analytic_account.name, line.id,
                         line.account_id.code, move.name,
                     )
+            finally:
+                if was_posted and unlocked:
+                    try:
+                        move.with_context(no_resequence=True).action_post()
+                    except Exception as e:
+                        _logger.warning(
+                            'Could not re-post move %s after analytic update: %s',
+                            move.name, e,
+                        )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -539,7 +565,10 @@ class AccountMove(models.Model):
 
     def action_post(self):
         self._apply_warehouse_analytic_to_lines()
-        return super().action_post()
+        result = super().action_post()
+        # Apply again after posting — Odoo may regenerate lines during post
+        self._apply_warehouse_analytic_to_lines()
+        return result
 
 
 class AccountMoveLine(models.Model):
@@ -559,7 +588,6 @@ class AccountMoveLine(models.Model):
 
     @api.onchange('product_id', 'account_id')
     def _onchange_product_apply_warehouse_analytic(self):
-        # Also applies to 'entry' type moves (payments) now
         if not self.move_id or self.move_id.move_type not in _HANDLED_MOVE_TYPES:
             return
         wh = _get_user_warehouse(self.env.user)
@@ -578,13 +606,22 @@ class AccountPayment(models.Model):
 
     def action_post(self):
         """
-        After a direct customer/vendor payment is posted, apply the warehouse
-        analytic account to its underlying journal entry (move_type='entry').
-        This covers direct payments like PCSCHL/xxxx, PBILL/xxxx, etc.
+        Covers: Register Payment flow, manual payment form, payment from invoice.
+        Odoo finalises move_id lines during super().action_post(), so we
+        apply the analytic AFTER the super call.
         """
         result = super().action_post()
         for payment in self:
-            move = payment.move_id
-            if move:
-                move._apply_warehouse_analytic_to_lines()
+            if payment.move_id:
+                payment.move_id._apply_warehouse_analytic_to_lines()
+        return result
+
+    def write(self, vals):
+        result = super().write(vals)
+        # Catch state changes to 'posted' triggered by bank reconciliation
+        # or other indirect flows that don't go through action_post()
+        if vals.get('state') == 'posted':
+            for payment in self:
+                if payment.move_id:
+                    payment.move_id._apply_warehouse_analytic_to_lines()
         return result
