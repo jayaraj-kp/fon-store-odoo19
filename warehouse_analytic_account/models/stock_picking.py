@@ -460,3 +460,61 @@ class StockPicking(models.Model):
             )
             picking._push_analytic_to_stock_journal_entries(analytic)
         return result
+
+    # At the bottom of stock_picking.py in warehouse_analytic_account
+
+    class StockPickingAnalytic(models.Model):
+        _inherit = 'stock.picking'
+
+        def _create_delivery_valuation_entry(self):
+            """Override to apply warehouse analytic to STJ entries."""
+            res = super()._create_delivery_valuation_entry()
+            # Apply analytic to the newly created delivery journal entries
+            for picking in self:
+                analytic = self._get_picking_analytic(picking)
+                if not analytic:
+                    continue
+                for entry in picking.delivery_journal_entry_ids:
+                    _apply_analytic_to_move_lines(entry, analytic)
+            return res
+
+        def _create_receipt_valuation_entry(self):
+            """Override to apply warehouse analytic to receipt STJ entries."""
+            res = super()._create_receipt_valuation_entry()
+            for picking in self:
+                analytic = self._get_picking_analytic(picking)
+                if not analytic:
+                    continue
+                for entry in picking.receipt_journal_entry_ids:
+                    _apply_analytic_to_move_lines(entry, analytic)
+            return res
+
+        def _get_picking_analytic(self, picking):
+            """Get analytic account from warehouse linked to this picking."""
+            warehouse = getattr(
+                picking.picking_type_id, 'warehouse_id', False)
+            if warehouse and getattr(warehouse, 'analytic_account_id', False):
+                return warehouse.analytic_account_id
+            return False
+
+    def _apply_analytic_to_move_lines(move, analytic):
+        """Apply analytic distribution to all lines of an account.move."""
+        if not move or not analytic:
+            return
+        key = str(analytic.id)
+        for line in move.line_ids.filtered(lambda l: l.account_id):
+            existing = line.analytic_distribution or {}
+            if key not in existing:
+                new_dist = dict(existing)
+                new_dist[key] = 100.0
+                try:
+                    line.sudo().with_context(
+                        check_move_validity=False,
+                        skip_account_move_synchronization=True,
+                    ).analytic_distribution = new_dist
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        'Could not apply analytic to STJ line %s: %s',
+                        line.id, e
+                    )
