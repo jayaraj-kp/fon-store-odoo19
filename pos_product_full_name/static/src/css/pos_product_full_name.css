@@ -2,10 +2,20 @@
    POS Product Full Name Display - Custom CSS
    Removes truncation so full product name is visible
    Compatible with Odoo 19 CE
+
+   FIX: All selectors are strictly scoped to the product
+   grid area only — order lines on the left panel are
+   completely unaffected.
    ===================================================== */
 
-/* Main product name span - OWL component class */
-.product-name {
+/* ── PRODUCT GRID: Name text ── */
+.product-list .product .product-name,
+.product-list-container .product .product-name,
+.pos-content .product-list .product .product-name,
+.pos .product-list .product .product-name,
+.posproduct .product-name,
+.pos-product .product-name,
+.product-card .product-name {
     white-space: normal !important;
     overflow: visible !important;
     text-overflow: unset !important;
@@ -20,44 +30,47 @@
     text-align: center !important;
 }
 
-/* Product card body - allow flexible height */
+/* ── PRODUCT GRID: Card content area ── */
+.product-list .product .product-content,
+.product-list-container .product .product-content,
 .pos-content .product-list .product .product-content,
-.pos .product-list .product .product-content,
-.product-list-container .product .product-content {
+.pos .product-list .product .product-content {
     height: auto !important;
     min-height: 40px !important;
     overflow: visible !important;
     padding: 4px !important;
 }
 
-/* Product card - allow it to grow taller */
+/* ── PRODUCT GRID: Card wrapper ── */
+.product-list .product,
+.product-list-container .product,
 .pos-content .product-list .product,
 .pos .product-list .product,
-.product-list-container .product {
-    height: auto !important;
-    min-height: 120px !important;
-    overflow: visible !important;
-}
-
-/* Odoo 19 OWL component selectors */
-.posproduct .product-name,
-.pos-product .product-name,
-.product-card .product-name {
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: unset !important;
-    word-break: break-word !important;
-    height: auto !important;
-    max-height: none !important;
-    font-size: 11px !important;
-    line-height: 1.3 !important;
-}
-
-/* Ensure the card wrapper allows overflow */
 .posproduct,
 .pos-product,
 .product-card {
     height: auto !important;
     min-height: 120px !important;
     overflow: visible !important;
+}
+
+/* ── ORDER LINES (left panel): Restore normal display ──
+   Explicitly undo any accidental inheritance so order
+   line product names look exactly as Odoo intended.     */
+.order-container .product-name,
+.orderline .product-name,
+.order .orderline .product-name,
+.pos-order .orderline .product-name {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    -webkit-line-clamp: unset !important;
+    display: block !important;
+    word-break: normal !important;
+    word-wrap: normal !important;
+    height: auto !important;
+    max-height: none !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    text-align: left !important;
 }
