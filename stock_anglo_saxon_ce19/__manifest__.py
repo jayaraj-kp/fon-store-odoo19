@@ -22,7 +22,7 @@
         Reads all accounts from stock_account_category_fix custom fields.
     """,
     'author': 'Custom Development',
-    'depends': ['stock_account', 'purchase_stock', 'account'],
+    'depends': ['stock_account', 'purchase_stock', 'account' ,'point_of_sale'],
     'data': [
         'security/ir.model.access.csv',
         'views/stock_picking_views.xml',
