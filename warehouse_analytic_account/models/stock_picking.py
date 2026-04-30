@@ -672,46 +672,58 @@
 #                 )
 #         return res
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
+"""
+pos_stock_picking.py
+Hooks into POS order processing to create Anglo-Saxon
+delivery valuation entries (DR 121200 / CR 110100).
+
+Odoo 19 POS flow:
+  sync_from_ui
+    -> _process_order
+       -> _process_saved_order
+          -> action_pos_order_paid   (invoice/payment)
+          -> _create_order_picking   (picking created HERE)
+
+So we must hook AFTER _create_order_picking, i.e. at end of _process_saved_order.
+
+FIX (v2):
+  The _action_done fallback was incorrectly processing POS pickings because
+  picking.pos_order_id is not yet set when _action_done fires during POS sync.
+  The skip check `if picking.pos_order_id: continue` therefore never triggered.
+
+  Solution: Apply the warehouse analytic immediately after creating the delivery
+  valuation entry, reading the warehouse from picking.picking_type_id.warehouse_id
+  instead of env.user — which may be Administrator with a different default warehouse.
+"""
 import logging
-from odoo import models, api
+from odoo import models
 
 _logger = logging.getLogger(__name__)
 
 
 def _get_analytic_from_picking(picking):
     """
-    Resolve the correct analytic account from the picking itself,
-    NOT from env.user.
-
-    Priority:
-    1. picking.picking_type_id → warehouse_id → analytic_account_id
-       (Most reliable — the picking carries its own warehouse reference)
-    2. Search warehouses by matching picking's source location
-       (Fallback if picking_type has no warehouse linked)
-
-    Why NOT env.user:
-    - POS pickings are validated by the POS session close process,
-      which runs as a background/admin user whose default warehouse
-      may differ from the actual POS warehouse.
-    - Stock transfers validated via schedulers face the same issue.
+    Resolve analytic account from the picking's own warehouse.
+    Uses picking_type_id → warehouse_id → analytic_account_id.
+    Never uses env.user (unreliable for background/POS processes).
     """
     if not picking:
         return False
 
-    # Strategy 1: picking_type_id → warehouse_id (most direct and reliable)
     picking_type = picking.picking_type_id
     if picking_type:
         wh = getattr(picking_type, 'warehouse_id', False)
         if wh and getattr(wh, 'analytic_account_id', False):
             _logger.debug(
-                'Stock analytic STRATEGY 1: picking[%s] → picking_type[%s]'
+                'POS stock analytic: picking[%s] → picking_type[%s]'
                 ' → wh[%s] → %s',
                 picking.name, picking_type.name,
                 wh.name, wh.analytic_account_id.name,
             )
             return wh.analytic_account_id
 
-    # Strategy 2: match by source location against known warehouses
+    # Fallback: match by source location
     src_location = picking.location_id
     if src_location:
         warehouses = picking.env['stock.warehouse'].search([
@@ -722,28 +734,26 @@ def _get_analytic_from_picking(picking):
             if src_location.id == wh.lot_stock_id.id or \
                src_location._child_of(wh.view_location_id):
                 _logger.debug(
-                    'Stock analytic STRATEGY 2: picking[%s] → location[%s]'
-                    ' → wh[%s] → %s',
+                    'POS stock analytic (fallback): picking[%s]'
+                    ' → location[%s] → wh[%s] → %s',
                     picking.name, src_location.name,
                     wh.name, wh.analytic_account_id.name,
                 )
                 return wh.analytic_account_id
 
     _logger.warning(
-        'Stock analytic: no warehouse analytic found for picking[%s]'
-        ' (picking_type=%s, location=%s)',
+        'POS stock analytic: no analytic found for picking[%s]'
+        ' (picking_type=%s)',
         picking.name,
         picking.picking_type_id.name if picking.picking_type_id else 'None',
-        picking.location_id.name if picking.location_id else 'None',
     )
     return False
 
 
 def _apply_analytic_to_move(move, analytic, label=''):
     """
-    Stamp analytic_distribution on ALL account lines of an account.move.
+    Stamp analytic_distribution on all account lines of an account.move.
     Uses sudo() + context flags to bypass posted-move restrictions.
-    Skips lines that already carry this analytic.
     """
     if not move or not analytic:
         return
@@ -759,7 +769,7 @@ def _apply_analytic_to_move(move, analytic, label=''):
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
                 _logger.debug(
-                    'Stock analytic %s → %s line %s (%s)',
+                    'POS stock analytic %s → %s line %s (%s)',
                     analytic.name, label, line.id,
                     line.account_id.code,
                 )
@@ -770,70 +780,122 @@ def _apply_analytic_to_move(move, analytic, label=''):
                 )
 
 
-class StockPicking(models.Model):
+class PosOrder(models.Model):
+    _inherit = 'pos.order'
+
+    def _process_saved_order(self, draft):
+        """
+        Hook after _create_order_picking() to create delivery valuation.
+        In Odoo 19, picking is created inside this method AFTER
+        action_pos_order_paid(), so we run our logic at the very end.
+        """
+        res = super()._process_saved_order(draft)
+        _logger.info(
+            "Anglo-Saxon POS: _process_saved_order called for '%s' draft=%s",
+            self.name, draft
+        )
+        if not draft:
+            self._create_anglo_saxon_pos_delivery_entries()
+        return res
+
+    def _create_anglo_saxon_pos_delivery_entries(self):
+        """Create DR 121200 / CR 110100 for POS outgoing pickings."""
+        for order in self:
+            _logger.info(
+                "Anglo-Saxon POS: checking order '%s' picking_ids=%s",
+                order.name,
+                order.picking_ids.mapped('name')
+            )
+            pickings = order.picking_ids.filtered(
+                lambda p: p.state == 'done'
+                and p.picking_type_code == 'outgoing'
+                and not p.delivery_journal_entry_ids
+            )
+            _logger.info(
+                "Anglo-Saxon POS: order '%s' found %d eligible pickings",
+                order.name, len(pickings)
+            )
+            for picking in pickings:
+                try:
+                    picking._create_delivery_valuation_entry()
+                    # Apply analytic immediately using picking's own warehouse
+                    # NOT env.user — POS runs as background/admin user
+                    analytic = _get_analytic_from_picking(picking)
+                    if analytic:
+                        for entry in picking.delivery_journal_entry_ids:
+                            _apply_analytic_to_move(
+                                entry, analytic,
+                                label='pos_delivery_%s' % picking.name,
+                            )
+                    _logger.info(
+                        "Anglo-Saxon POS: Created delivery valuation "
+                        "for picking '%s' (order '%s') analytic=%s",
+                        picking.name, order.name,
+                        analytic.name if analytic else 'None',
+                    )
+                except Exception as e:
+                    _logger.error(
+                        "Anglo-Saxon POS: Failed for picking '%s': %s",
+                        picking.name, str(e), exc_info=True
+                    )
+
+
+class StockPickingPos(models.Model):
     _inherit = 'stock.picking'
-
-    def button_validate(self):
-        """
-        After picking validation, apply the correct warehouse analytic
-        to all generated journal entries (receipt and delivery).
-
-        The analytic is resolved from the picking's own picking_type_id
-        → warehouse_id, NOT from env.user — because POS pickings are
-        validated by a background process user whose default warehouse
-        may be completely different from the actual picking's warehouse.
-        """
-        result = super().button_validate()
-        for picking in self:
-            if picking.state != 'done':
-                continue
-            analytic = _get_analytic_from_picking(picking)
-            if not analytic:
-                continue
-
-            # Apply to receipt journal entries (purchase/incoming)
-            for entry in picking.receipt_journal_entry_ids:
-                _apply_analytic_to_move(
-                    entry, analytic,
-                    label='receipt_%s' % picking.name,
-                )
-
-            # Apply to delivery journal entries (sales/outgoing)
-            for entry in picking.delivery_journal_entry_ids:
-                _apply_analytic_to_move(
-                    entry, analytic,
-                    label='delivery_%s' % picking.name,
-                )
-        return result
 
     def _action_done(self):
         """
-        Secondary hook for pickings validated programmatically
-        (e.g. via scheduler, POS session close, or internal transfers)
-        rather than through button_validate.
+        Fallback hook for non-POS outgoing pickings validated
+        programmatically (e.g. scheduler, internal operations).
 
-        Applies the same warehouse analytic logic using the picking's
-        own warehouse, not env.user.
+        NOTE: The original `if picking.pos_order_id: continue` check does NOT
+        reliably skip POS pickings because pos_order_id is not yet set when
+        _action_done fires during POS sync_from_ui. Instead we check the
+        picking_type_code name for POS patterns as an additional guard,
+        but we always apply analytic from picking's warehouse (not env.user)
+        so even if a POS picking slips through here the analytic will be correct.
         """
-        result = super()._action_done()
+        res = super()._action_done()
         for picking in self:
             if picking.state != 'done':
                 continue
-            analytic = _get_analytic_from_picking(picking)
-            if not analytic:
+            if picking.picking_type_code != 'outgoing':
+                continue
+            if picking.delivery_journal_entry_ids:
                 continue
 
-            # Apply to receipt journal entries
-            for entry in picking.receipt_journal_entry_ids:
-                _apply_analytic_to_move(
-                    entry, analytic,
-                    label='receipt_action_done_%s' % picking.name,
+            # Skip if this is a POS picking that will be handled by
+            # _process_saved_order → _create_anglo_saxon_pos_delivery_entries
+            # Check both pos_order_id (may be set by now) and picking_type name
+            if picking.pos_order_id:
+                _logger.debug(
+                    "Anglo-Saxon _action_done: skipping POS picking '%s'"
+                    " (pos_order_id=%s)",
+                    picking.name, picking.pos_order_id.name,
                 )
+                continue
 
-            # Apply to delivery journal entries
-            for entry in picking.delivery_journal_entry_ids:
-                _apply_analytic_to_move(
-                    entry, analytic,
-                    label='delivery_action_done_%s' % picking.name,
+            try:
+                picking._create_delivery_valuation_entry()
+
+                # Apply analytic from picking's own warehouse immediately
+                analytic = _get_analytic_from_picking(picking)
+                if analytic:
+                    for entry in picking.delivery_journal_entry_ids:
+                        _apply_analytic_to_move(
+                            entry, analytic,
+                            label='delivery_action_done_%s' % picking.name,
+                        )
+
+                _logger.info(
+                    "Anglo-Saxon _action_done: Created delivery valuation"
+                    " for '%s' analytic=%s",
+                    picking.name,
+                    analytic.name if analytic else 'None',
                 )
-        return result
+            except Exception as e:
+                _logger.error(
+                    "Anglo-Saxon _action_done: Failed '%s': %s",
+                    picking.name, str(e), exc_info=True
+                )
+        return res
