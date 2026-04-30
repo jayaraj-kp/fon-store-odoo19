@@ -60,3 +60,52 @@ class ProductTemplate(models.Model):
                 "stock_input => %s", self.name, input_account.name)
 
         return accounts
+
+
+# At bottom of account_move.py, add this new class:
+
+class AccountMoveLine(models.Model):
+    _inherit = 'account.move.line'
+
+    def _get_computed_account(self):
+        """
+        Odoo 19 CE: Override to use stock_output account (121200)
+        instead of stock_valuation (110100) for COGS lines on invoices.
+        """
+        account = super()._get_computed_account()
+
+        move = self.move_id
+        if move.move_type not in ('out_invoice', 'out_refund'):
+            return account
+
+        product = self.product_id
+        if not product:
+            return account
+
+        categ = product.categ_id
+        val = categ.property_valuation
+
+        # Check if perpetual valuation (handle JSONB dict)
+        if isinstance(val, dict):
+            val_str = list(val.values())[0] if val else ''
+        else:
+            val_str = str(val) if val else ''
+
+        if val_str not in ('real_time', 'perpetual', 'perpetual_invoicing'):
+            return account
+
+        valuation_account = getattr(
+            categ, 'property_stock_valuation_account_id', False)
+        output_account = getattr(
+            categ, 'property_stock_account_output_categ_id', False)
+
+        # If current account is stock valuation, replace with stock output
+        if output_account and valuation_account \
+                and account == valuation_account:
+            _logger.info(
+                "Anglo-Saxon invoice fix: replacing %s with %s for '%s'",
+                valuation_account.name, output_account.name, product.name
+            )
+            return output_account
+
+        return account

@@ -288,16 +288,30 @@ class StockPicking(models.Model):
     # ════════════════════════════════════════════════════════════════════
     # HELPERS
     # ════════════════════════════════════════════════════════════════════
+    # def _is_perpetual(self, categ):
+    #     """Return True if category uses perpetual (real-time) valuation."""
+    #     val = categ.property_valuation
+    #     val_str = str(val).lower()
+    #     is_periodic = (
+    #         val in ('manual_periodic', 'periodic', 'at_closing')
+    #         or ('periodic' in val_str and 'invoic' not in val_str)
+    #         or ('closing' in val_str)
+    #     )
+    #     return not is_periodic and val not in ('', False, None)
     def _is_perpetual(self, categ):
-        """Return True if category uses perpetual (real-time) valuation."""
+        """Return True if category uses perpetual (real-time) valuation.
+        Odoo 19 stores property_valuation as JSONB dict: {"1": "real_time"}
+        """
         val = categ.property_valuation
-        val_str = str(val).lower()
-        is_periodic = (
-            val in ('manual_periodic', 'periodic', 'at_closing')
-            or ('periodic' in val_str and 'invoic' not in val_str)
-            or ('closing' in val_str)
-        )
-        return not is_periodic and val not in ('', False, None)
+        if not val:
+            return False
+        # Odoo 19 CE: val is a dict like {"1": "real_time"}
+        if isinstance(val, dict):
+            val_str = list(val.values())[0] if val else ''
+        else:
+            val_str = str(val)
+
+        return val_str in ('real_time', 'perpetual', 'perpetual_invoicing')
 
     def _get_unit_cost_receipt(self, stock_move):
         """Cost for receipt: PO price (FIFO) or standard_price (AVCO/Std)."""
