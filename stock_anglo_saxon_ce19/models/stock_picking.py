@@ -430,12 +430,14 @@ class StockPicking(models.Model):
     @api.depends('receipt_journal_entry_ids')
     def _compute_receipt_journal_entry_count(self):
         for rec in self:
-            rec.receipt_journal_entry_count = len(rec.receipt_journal_entry_ids)
+            # sudo() so warehouse/POS users (no accounting access) still see count
+            rec.receipt_journal_entry_count = len(rec.sudo().receipt_journal_entry_ids)
 
     @api.depends('delivery_journal_entry_ids')
     def _compute_delivery_journal_entry_count(self):
         for rec in self:
-            rec.delivery_journal_entry_count = len(rec.delivery_journal_entry_ids)
+            # sudo() so warehouse/POS users (no accounting access) still see count
+            rec.delivery_journal_entry_count = len(rec.sudo().delivery_journal_entry_ids)
 
     # ── button_validate override ─────────────────────────────────────────
     def button_validate(self):
@@ -445,12 +447,16 @@ class StockPicking(models.Model):
             if picking.state != 'done':
                 continue
             try:
+                # Use sudo() for duplicate check — non-admin users cannot read
+                # account.move, so without sudo the guard always returns empty
+                # and would create duplicate entries.
+                picking_sudo = picking.sudo()
                 if picking.picking_type_code == 'incoming' \
-                        and not picking.receipt_journal_entry_ids:
+                        and not picking_sudo.receipt_journal_entry_ids:
                     picking._create_receipt_valuation_entry()
 
                 elif picking.picking_type_code == 'outgoing' \
-                        and not picking.delivery_journal_entry_ids:
+                        and not picking_sudo.delivery_journal_entry_ids:
                     picking._create_delivery_valuation_entry()
 
             except Exception as e:
