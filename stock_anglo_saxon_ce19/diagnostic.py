@@ -68,99 +68,115 @@
 # print("Copy the output above and share it to diagnose the issue.")
 # print("=" * 60)
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
-DIAGNOSTIC: Verify POS Invoice Account Fix
-==========================================
-Run in Odoo shell:
-    python odoo-bin shell -d YOUR_DB
+DEEP DIAGNOSTIC - Run in Odoo shell:
+    python odoo-bin shell -d Test_DB
 
-Paste all code below into the shell.
+This will tell us EXACTLY which method creates the invoice line
+with account 110100, so we know the correct override point.
 """
 
 print("=" * 65)
-print("POS INVOICE ACCOUNT FIX — DIAGNOSTIC")
+print("DEEP POS INVOICE DIAGNOSTIC")
 print("=" * 65)
 
-# ── 1. Check product category accounts ──────────────────────────────
-print("\n[1] PRODUCT CATEGORY ACCOUNT CONFIGURATION:")
-cats = env['product.category'].search([])
-ok = True
-for cat in cats:
-    val = cat.property_valuation
-    val_str = list(val.values())[0] if isinstance(val, dict) and val else str(val)
-    if val_str not in ('real_time', 'perpetual', 'perpetual_invoicing'):
-        continue  # skip non-perpetual
-
-    val_acct = getattr(cat, 'property_stock_valuation_account_id', False)
-    out_acct = getattr(cat, 'property_stock_account_output_categ_id', False)
-    inp_acct = getattr(cat, 'property_stock_account_input_categ_id', False)
-
-    print(f"\n  Category: '{cat.name}' [{val_str}]")
-    print(f"    Stock Valuation : {val_acct.code + ' ' + val_acct.name if val_acct else '❌ NOT SET'}")
-    print(f"    Stock Output    : {out_acct.code + ' ' + out_acct.name if out_acct else '❌ NOT SET'}")
-    print(f"    Stock Input     : {inp_acct.code + ' ' + inp_acct.name if inp_acct else '❌ NOT SET'}")
-
-    if not val_acct or not out_acct:
-        print("    ⚠️  WARNING: Missing accounts — POS fix will be SKIPPED for this category!")
-        ok = False
-
-if ok:
-    print("\n  ✅ All perpetual categories have required accounts.")
-
-# ── 2. Check latest POS invoices ────────────────────────────────────
-print("\n[2] LAST 5 POS-RELATED CUSTOMER INVOICES (Journal Items):")
-invoices = env['account.move'].search([
-    ('move_type', '=', 'out_invoice'),
-], order='id desc', limit=5)
-
-for inv in invoices:
-    print(f"\n  Invoice: {inv.name} | State: {inv.state}")
-    for line in inv.line_ids:
-        print(f"    Account: {line.account_id.code} {line.account_id.name:30s} "
-              f"DR: {line.debit:>10.2f}  CR: {line.credit:>10.2f}  "
-              f"Product: {line.product_id.name or '-'}")
-
-# ── 3. Simulate _prepare_invoice_line fix ───────────────────────────
-print("\n[3] SIMULATING POS INVOICE LINE FIX:")
-# Find a storable product with a perpetual category
-product = env['product.product'].search([
-    ('type', '=', 'consu'),
-], limit=1)
-
-if product:
-    categ = product.categ_id
-    val = categ.property_valuation
-    val_str = list(val.values())[0] if isinstance(val, dict) and val else str(val)
-    val_acct = getattr(categ, 'property_stock_valuation_account_id', False)
-    out_acct = getattr(categ, 'property_stock_account_output_categ_id', False)
-
-    print(f"  Product: {product.name}")
-    print(f"  Category: {categ.name} [{val_str}]")
-    print(f"  Valuation account: {val_acct.code + ' ' + val_acct.name if val_acct else 'NOT SET'}")
-    print(f"  Output account:    {out_acct.code + ' ' + out_acct.name if out_acct else 'NOT SET'}")
-
-    if val_str in ('real_time', 'perpetual', 'perpetual_invoicing') and val_acct and out_acct:
-        if val_acct.id != out_acct.id:
-            print(f"\n  ✅ Fix WILL work: {val_acct.code} → {out_acct.code}")
-        else:
-            print(f"\n  ⚠️  Valuation and Output account are THE SAME. Check configuration.")
-    else:
-        print(f"\n  ⚠️  Fix conditions not met for this product.")
+# ── 1. Find the latest POS invoice with 110100 ──────────────────────
+print("\n[1] LATEST INVOICE WITH STOCK VALUATION (110100):")
+valuation_acct = env['account.account'].search([('code', '=', '110100')], limit=1)
+if not valuation_acct:
+    print("  110100 account not found!")
 else:
-    print("  No storable product found to test with.")
+    print(f"  Found account: {valuation_acct.code} {valuation_acct.name} (id={valuation_acct.id})")
+    lines = env['account.move.line'].search([
+        ('account_id', '=', valuation_acct.id),
+        ('move_id.move_type', '=', 'out_invoice'),
+    ], order='id desc', limit=3)
+    for line in lines:
+        inv = line.move_id
+        print(f"\n  Invoice: {inv.name} | pos_order_ids: {inv.pos_order_ids.mapped('name') if hasattr(inv, 'pos_order_ids') else 'N/A'}")
+        print(f"  Product: {line.product_id.name} | account: {line.account_id.code}")
 
-# ── 4. Check module is installed ────────────────────────────────────
-print("\n[4] MODULE STATUS:")
-mods = env['ir.module.module'].search([
-    ('name', 'in', [
-        'stock_anglo_saxon_ce19',
-        'stock_account_category_fix',
-    ])
-])
-for m in mods:
-    print(f"  {m.name}: {m.state}")
+# ── 2. Check if _prepare_invoice_line is our version ────────────────
+print("\n[2] WHICH MODULE OWNS _prepare_invoice_line ON pos.order:")
+import inspect
+PosOrder = env['pos.order'].__class__
+mro = PosOrder.__mro__
+for cls in mro:
+    if '_prepare_invoice_line' in cls.__dict__:
+        print(f"  Found in: {cls.__module__}.{cls.__name__}")
+
+# ── 3. Check if our account_move module is loaded ───────────────────
+print("\n[3] MODULE REGISTRY CHECK:")
+# Check if PosOrderAccountFix class exists in registry
+classes_found = []
+for cls in mro:
+    if 'PosOrderAccountFix' in cls.__name__ or 'anglo' in cls.__module__.lower():
+        classes_found.append(f"{cls.__module__}.{cls.__name__}")
+if classes_found:
+    print("  Anglo-Saxon classes in pos.order MRO:")
+    for c in classes_found:
+        print(f"    {c}")
+else:
+    print("  ❌ NO Anglo-Saxon classes found in pos.order MRO!")
+    print("     This means account_move.py is NOT loaded or PosOrderAccountFix")
+    print("     is not being picked up by the registry.")
+
+# ── 4. Check AccountMoveLine MRO ────────────────────────────────────
+print("\n[4] AccountMoveLine MRO (looking for our fix):")
+AML = env['account.move.line'].__class__
+aml_mro = AML.__mro__
+for cls in aml_mro:
+    if 'anglo' in cls.__module__.lower() or 'AccountMoveLineFix' in cls.__name__:
+        print(f"  Found: {cls.__module__}.{cls.__name__}")
+
+# ── 5. Check HOW the invoice was created - trace pos_order ──────────
+print("\n[5] POS SESSION INVOICE CREATION METHOD:")
+PosSession = env['pos.session'].__class__
+session_mro = PosSession.__mro__
+for cls in session_mro:
+    if '_create_account_move' in cls.__dict__:
+        print(f"  _create_account_move in: {cls.__module__}.{cls.__name__}")
+    if '_prepare_invoice_line' in cls.__dict__:
+        print(f"  _prepare_invoice_line in: {cls.__module__}.{cls.__name__}")
+
+# ── 6. Check what method builds lines for session invoices ──────────
+print("\n[6] TRACING invoice line creation for POS session:")
+for cls in mro:
+    methods = [m for m in cls.__dict__ if 'invoice' in m.lower() or 'account' in m.lower()]
+    if methods and 'anglo' in cls.__module__.lower():
+        print(f"  {cls.__module__}: {methods}")
+
+# ── 7. Check installed module state ─────────────────────────────────
+print("\n[7] MODULE STATE:")
+for mod_name in ['stock_anglo_saxon_ce19', 'stock_account_category_fix']:
+    mod = env['ir.module.module'].search([('name', '=', mod_name)], limit=1)
+    if mod:
+        print(f"  {mod_name}: {mod.state} (latest_version={mod.latest_version})")
+    else:
+        print(f"  {mod_name}: NOT FOUND")
+
+# ── 8. Check if _prepare_invoice_line actually fires ────────────────
+print("\n[8] MONKEY-PATCH TEST (simulate _prepare_invoice_line call):")
+# Get a recent POS order
+pos_order = env['pos.order'].search([('state', '=', 'done')], order='id desc', limit=1)
+if pos_order and pos_order.lines:
+    line = pos_order.lines[0]
+    print(f"  Testing with order: {pos_order.name}, line product: {line.product_id.name}")
+    try:
+        vals = pos_order._prepare_invoice_line(line)
+        acct_id = vals.get('account_id')
+        acct = env['account.account'].browse(acct_id) if acct_id else None
+        print(f"  _prepare_invoice_line returned account_id: {acct_id}")
+        print(f"  Account: {acct.code + ' ' + acct.name if acct else 'NOT FOUND'}")
+        if acct and acct.id == valuation_acct.id:
+            print("  ❌ STILL returning Stock Valuation account!")
+            print("     Our fix is NOT intercepting this method.")
+        else:
+            print("  ✅ Returning a different account (fix may be working)")
+    except Exception as e:
+        print(f"  ERROR calling _prepare_invoice_line: {e}")
 
 print("\n" + "=" * 65)
-print("If [3] shows ✅ and [1] shows no ❌, the fix should work.")
-print("Create a new POS order AFTER upgrading the module to test.")
+print("Share this full output to pinpoint the exact fix needed.")
 print("=" * 65)
