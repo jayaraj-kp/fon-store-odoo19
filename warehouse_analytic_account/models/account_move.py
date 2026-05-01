@@ -445,7 +445,6 @@
 #             self.analytic_distribution = new_dist
 
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 import logging
 from odoo import api, models
 
@@ -458,56 +457,48 @@ def _get_user_warehouse(user):
     for fname in _WAREHOUSE_FIELDS:
         if fname in user._fields:
             wh = getattr(user, fname, False)
-            _logger.debug(
-                'WHA_DEBUG _get_user_warehouse: user=%s field=%s wh=%s',
-                user.login, fname, wh.name if wh else False,
+            _logger.info(
+                'WHA_INFO _get_user_warehouse: user=%s field=%s wh=%s analytic=%s',
+                user.login, fname,
+                wh.name if wh else False,
+                wh.analytic_account_id.name if wh and wh.analytic_account_id else False,
             )
             return wh
-    _logger.debug('WHA_DEBUG _get_user_warehouse: user=%s NO warehouse field found', user.login)
+    _logger.info('WHA_INFO _get_user_warehouse: user=%s — NO warehouse field found among %s',
+                 user.login, _WAREHOUSE_FIELDS)
     return False
 
 
 def _is_pos_move(move):
     name = move.name or ''
     if name.startswith(('POSS/', 'POSJ/')):
-        _logger.debug('WHA_DEBUG _is_pos_move: %s → True (name prefix)', name)
         return True
     if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
-        _logger.debug('WHA_DEBUG _is_pos_move: %s → True (pos_order_ids)', name)
         return True
     journal = move.journal_id
     if journal:
         pm_exists = move.env['pos.payment.method'].search(
             [('journal_id', '=', journal.id)], limit=1)
         if pm_exists:
-            _logger.debug(
-                'WHA_DEBUG _is_pos_move: %s → True (journal %s is POS payment method)',
-                name, journal.name,
-            )
+            _logger.info('WHA_INFO _is_pos_move: %s journal=%s is POS → skipping', name, journal.name)
             return True
-    _logger.debug('WHA_DEBUG _is_pos_move: %s → False', name)
     return False
 
 
 def _apply_analytic_to_move_lines(move, analytic_account, label=''):
     if not move or not analytic_account:
-        _logger.debug('WHA_DEBUG _apply_analytic_to_move_lines: skipped — move=%s analytic=%s', move, analytic_account)
         return
     key = str(analytic_account.id)
     lines_to_tag = move.line_ids.filtered(
         lambda l: l.account_id
         and l.display_type not in ('line_section', 'line_note')
     )
-    _logger.debug(
-        'WHA_DEBUG _apply_analytic_to_move_lines: move=%s state=%s move_type=%s lines_to_tag=%s analytic=%s',
-        move.name, move.state, move.move_type, len(lines_to_tag), analytic_account.name,
+    _logger.info(
+        'WHA_INFO _apply_analytic_to_move_lines: label=%s move=%s state=%s lines=%s analytic=%s',
+        label, move.name, move.state, len(lines_to_tag), analytic_account.name,
     )
     for line in lines_to_tag:
         existing = line.analytic_distribution or {}
-        _logger.debug(
-            'WHA_DEBUG   line %s account=%s existing_analytic=%s',
-            line.id, line.account_id.code, existing,
-        )
         if key not in existing:
             new_dist = dict(existing)
             new_dist[key] = 100.0
@@ -516,19 +507,19 @@ def _apply_analytic_to_move_lines(move, analytic_account, label=''):
                     check_move_validity=False,
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
-                _logger.debug(
-                    'WHA_DEBUG   ✓ applied analytic %s → line %s (%s)',
+                _logger.info(
+                    'WHA_INFO   ✓ applied analytic %s → line %s account=%s',
                     analytic_account.name, line.id, line.account_id.code,
                 )
             except Exception as e:
-                _logger.warning(
-                    'WHA_DEBUG   ✗ FAILED analytic on line %s (%s): %s',
+                _logger.info(
+                    'WHA_INFO   ✗ FAILED line %s account=%s error=%s',
                     line.id, line.account_id.code, e,
                 )
         else:
-            _logger.debug(
-                'WHA_DEBUG   line %s already has analytic %s, skipping',
-                line.id, key,
+            _logger.info(
+                'WHA_INFO   line %s account=%s already has analytic — skipped',
+                line.id, line.account_id.code,
             )
 
 
@@ -538,15 +529,7 @@ class AccountMove(models.Model):
     def _get_warehouse_analytic_account(self):
         wh = _get_user_warehouse(self.env.user)
         if wh and wh.analytic_account_id:
-            _logger.debug(
-                'WHA_DEBUG _get_warehouse_analytic_account: user=%s wh=%s analytic=%s',
-                self.env.user.login, wh.name, wh.analytic_account_id.name,
-            )
             return wh.analytic_account_id
-        _logger.debug(
-            'WHA_DEBUG _get_warehouse_analytic_account: user=%s wh=%s → NO analytic',
-            self.env.user.login, wh.name if wh else False,
-        )
         return False
 
     def _apply_warehouse_analytic_to_lines(self):
@@ -558,19 +541,9 @@ class AccountMove(models.Model):
             if move.move_type not in (
                 'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
             ):
-                _logger.debug(
-                    'WHA_DEBUG _apply_warehouse_analytic_to_lines: skipping move %s move_type=%s (not invoice)',
-                    move.name, move.move_type,
-                )
                 continue
-
             if _is_pos_move(move):
-                _logger.debug(
-                    'WHA_DEBUG _apply_warehouse_analytic_to_lines: skipping POS move %s',
-                    move.name,
-                )
                 continue
-
             _apply_analytic_to_move_lines(move, analytic_account)
 
     @api.model_create_multi
@@ -648,38 +621,34 @@ class AccountPayment(models.Model):
     _inherit = 'account.payment'
 
     def action_post(self):
-        _logger.debug(
-            'WHA_DEBUG AccountPayment.action_post: CALLED for payments=%s user=%s',
+        _logger.info(
+            'WHA_INFO AccountPayment.action_post: CALLED payments=%s user=%s',
             self.ids, self.env.user.login,
         )
         result = super().action_post()
 
         wh = _get_user_warehouse(self.env.user)
-        _logger.debug(
-            'WHA_DEBUG AccountPayment.action_post: after super() — wh=%s',
-            wh.name if wh else False,
-        )
-
-        if not wh or not wh.analytic_account_id:
-            _logger.debug(
-                'WHA_DEBUG AccountPayment.action_post: NO analytic on warehouse — aborting. wh=%s',
-                wh.name if wh else False,
-            )
+        if not wh:
+            _logger.info('WHA_INFO AccountPayment.action_post: user=%s has NO warehouse — aborting',
+                         self.env.user.login)
+            return result
+        if not wh.analytic_account_id:
+            _logger.info('WHA_INFO AccountPayment.action_post: warehouse=%s has NO analytic — aborting',
+                         wh.name)
             return result
 
         analytic_account = wh.analytic_account_id
 
         for payment in self:
             move = payment.move_id
-            _logger.debug(
-                'WHA_DEBUG AccountPayment.action_post: payment=%s move=%s move_type=%s state=%s',
+            _logger.info(
+                'WHA_INFO AccountPayment.action_post: payment=%s move=%s move_type=%s state=%s',
                 payment.id,
                 move.name if move else False,
                 move.move_type if move else False,
                 move.state if move else False,
             )
             if not move:
-                _logger.debug('WHA_DEBUG AccountPayment.action_post: payment %s has no move_id', payment.id)
                 continue
             if _is_pos_move(move):
                 continue
