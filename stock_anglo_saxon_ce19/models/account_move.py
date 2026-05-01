@@ -260,66 +260,48 @@
 #
 #         return account
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
-account_move.py [v9 — FINAL]
+account_move.py [v10 — FINAL CORRECT FIX]
 
-Root cause of the bug:
-======================
-Image 2 shows the category "Accessories" has:
-  Inventory Valuation = "Perpetual (at invoicing)"
-  → Odoo 19 stores this as property_valuation = "perpetual_invoicing"
+ROOT CAUSE (confirmed from logs + chatter):
+============================================
+The invoice chatter says:
+  "This invoice has been created from the point of sale session:
+   FON-STORE KONDOTTY - 000034"
 
-The previous version checked for:
-  ('real_time', 'perpetual', 'perpetual_invoicing')  ← perpetual_invoicing WAS listed
+This means Odoo 19 creates POS invoices at SESSION CLOSING via
+pos.session._create_account_move() — NOT via pos.order._prepare_invoice_line().
 
-BUT the real problem was that POS invoices are NOT created through
-account.move.line._get_computed_account() at all.
+The session closing builds the invoice move directly using line_ids
+with raw account IDs, bypassing both:
+  - pos.order._prepare_invoice_line()   ← our previous fix target (WRONG)
+  - account.move.line._get_computed_account()  ← only fires on onchange
 
-In Odoo 19, POS invoice lines are created via:
-  pos.order._generate_pos_order_invoice()
-    → pos.order._prepare_invoice_line()
-        → This calls product.product._get_product_accounts()
-          and picks 'stock_output' key.
+THE CORRECT FIX:
+================
+Override account.move.line.create() to intercept ALL invoice line creation,
+including session-based ones. This is the one method that ALWAYS fires
+regardless of how the invoice is created.
 
-BUT in Odoo 19 CE without account_anglo_saxon, the standard
-account.move._get_stock_valuation_account() is called instead,
-which ignores 'stock_output' entirely and returns stock valuation.
-
-THE TWO FIXES HERE:
-1. ProductTemplate.get_product_accounts() — injects stock_output
-   (already in v8, kept here)
-
-2. pos.order._prepare_invoice_line() — directly replaces the account
-   on POS invoice lines AFTER they are built
-   (THIS is the fix that was missing)
-
-3. AccountMoveLine._get_computed_account() — belt-and-suspenders for
-   regular SO invoices.
+We check: if a customer invoice line is being created with the stock
+valuation account (110100), replace it with the stock output account (121200).
 """
 import logging
-from odoo import models
+from odoo import models, api
 
 _logger = logging.getLogger(__name__)
 
-# Valuation types that require Anglo-Saxon account substitution
 PERPETUAL_TYPES = frozenset({'real_time', 'perpetual', 'perpetual_invoicing'})
 
 
 def _get_valuation_str(categ):
-    """Extract valuation string from category, handling Odoo 19 JSONB dict."""
     val = categ.property_valuation
     if not val:
         return ''
     if isinstance(val, dict):
         return list(val.values())[0] if val else ''
     return str(val)
-
-
-def _get_output_account(categ):
-    """Return (valuation_account, output_account) from category custom fields."""
-    val_acct = getattr(categ, 'property_stock_valuation_account_id', False)
-    out_acct = getattr(categ, 'property_stock_account_output_categ_id', False)
-    return val_acct, out_acct
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -330,109 +312,78 @@ class ProductTemplate(models.Model):
 
     def get_product_accounts(self, fiscal_pos=None):
         accounts = super().get_product_accounts(fiscal_pos=fiscal_pos)
-
         categ = self.categ_id
-        output_account = getattr(
-            categ, 'property_stock_account_output_categ_id', False)
-        valuation_account = getattr(
-            categ, 'property_stock_valuation_account_id', False)
-        input_account = getattr(
-            categ, 'property_stock_account_input_categ_id', False)
-
+        output_account = getattr(categ, 'property_stock_account_output_categ_id', False)
+        valuation_account = getattr(categ, 'property_stock_valuation_account_id', False)
+        input_account = getattr(categ, 'property_stock_account_input_categ_id', False)
         if output_account:
             accounts['stock_output'] = output_account
         if valuation_account:
             accounts['stock_valuation'] = valuation_account
         if input_account:
             accounts['stock_input'] = input_account
-
-        _logger.debug(
-            "get_product_accounts '%s': stock_output=%s stock_valuation=%s",
-            self.name,
-            output_account.name if output_account else 'None',
-            valuation_account.name if valuation_account else 'None',
-        )
         return accounts
 
 
 # ════════════════════════════════════════════════════════════════════
-# FIX 2: POS invoice line — THE CRITICAL FIX for POS orders
-# ════════════════════════════════════════════════════════════════════
-class PosOrderAccountFix(models.Model):
-    _inherit = 'pos.order'
-
-    def _prepare_invoice_line(self, order_line):
-        """
-        POS INVOICE FIX: After Odoo builds the invoice line vals,
-        replace 110100 Stock Valuation with 121200 Stock Interim (Deliverd).
-
-        This is the ONLY reliable hook for POS invoice line accounts.
-        _get_computed_account() is NOT called for POS invoice lines in Odoo 19.
-        """
-        vals = super()._prepare_invoice_line(order_line)
-
-        product = order_line.product_id
-        if not product:
-            return vals
-
-        categ = product.categ_id
-
-        # Check valuation type
-        val_str = _get_valuation_str(categ)
-        if val_str not in PERPETUAL_TYPES:
-            _logger.debug(
-                "POS Invoice Fix: skipping '%s' (valuation=%s)",
-                product.name, val_str)
-            return vals
-
-        val_acct, out_acct = _get_output_account(categ)
-
-        if not val_acct or not out_acct:
-            _logger.warning(
-                "POS Invoice Fix: category '%s' missing accounts "
-                "(val_acct=%s, out_acct=%s). Skipping.",
-                categ.name,
-                val_acct.name if val_acct else 'NOT SET',
-                out_acct.name if out_acct else 'NOT SET',
-            )
-            return vals
-
-        if val_acct.id == out_acct.id:
-            _logger.warning(
-                "POS Invoice Fix: valuation and output account are SAME "
-                "(%s) on category '%s'. Check configuration.",
-                val_acct.name, categ.name)
-            return vals
-
-        current_account_id = vals.get('account_id')
-
-        if current_account_id == val_acct.id:
-            vals['account_id'] = out_acct.id
-            _logger.info(
-                "POS Invoice Fix ✓ product='%s' category='%s' "
-                "valuation='%s' replaced account %s (%s) → %s (%s)",
-                product.name,
-                categ.name,
-                val_str,
-                val_acct.code, val_acct.name,
-                out_acct.code, out_acct.name,
-            )
-        else:
-            _logger.debug(
-                "POS Invoice Fix: product='%s' account_id=%s is NOT "
-                "val_acct %s — no replacement needed.",
-                product.name, current_account_id, val_acct.id)
-
-        return vals
-
-
-# ════════════════════════════════════════════════════════════════════
-# FIX 3: AccountMoveLine hook — safety net for SO invoice flow
+# FIX 2: Override account.move.line.create()
+# This fires for ALL invoice line creation — session-based AND order-based
 # ════════════════════════════════════════════════════════════════════
 class AccountMoveLineFix(models.Model):
     _inherit = 'account.move.line'
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """
+        Intercept invoice line creation and replace Stock Valuation account
+        (110100) with Stock Interim Delivered account (121200) on customer
+        invoice lines.
+
+        This fires for ALL creation paths including pos.session closing.
+        """
+        for vals in vals_list:
+            account_id = vals.get('account_id')
+            product_id = vals.get('product_id')
+            move_id = vals.get('move_id')
+
+            if not account_id or not product_id or not move_id:
+                continue
+
+            move = self.env['account.move'].browse(move_id)
+            if move.move_type not in ('out_invoice', 'out_refund'):
+                continue
+
+            product = self.env['product.product'].browse(product_id)
+            categ = product.categ_id
+
+            val_str = _get_valuation_str(categ)
+            if val_str not in PERPETUAL_TYPES:
+                continue
+
+            val_acct = getattr(categ, 'property_stock_valuation_account_id', False)
+            out_acct = getattr(categ, 'property_stock_account_output_categ_id', False)
+
+            if not val_acct or not out_acct or val_acct.id == out_acct.id:
+                continue
+
+            if account_id == val_acct.id:
+                vals['account_id'] = out_acct.id
+                _logger.info(
+                    "AccountMoveLine.create Fix v10 ✓ move=%s product='%s' "
+                    "category='%s' valuation='%s' "
+                    "replaced %s (%s) -> %s (%s)",
+                    move.name or move_id,
+                    product.name,
+                    categ.name,
+                    val_str,
+                    val_acct.code, val_acct.name,
+                    out_acct.code, out_acct.name,
+                )
+
+        return super().create(vals_list)
+
     def _get_computed_account(self):
+        """Belt-and-suspenders for onchange/draft invoice flows."""
         account = super()._get_computed_account()
 
         move = self.move_id
@@ -445,15 +396,15 @@ class AccountMoveLineFix(models.Model):
 
         categ = product.categ_id
         val_str = _get_valuation_str(categ)
-
         if val_str not in PERPETUAL_TYPES:
             return account
 
-        val_acct, out_acct = _get_output_account(categ)
+        val_acct = getattr(categ, 'property_stock_valuation_account_id', False)
+        out_acct = getattr(categ, 'property_stock_account_output_categ_id', False)
 
         if out_acct and val_acct and account.id == val_acct.id:
             _logger.info(
-                "AccountMoveLine Fix ✓ product='%s' replacing %s → %s",
+                "_get_computed_account Fix v10 ✓ product='%s' %s -> %s",
                 product.name, val_acct.name, out_acct.name,
             )
             return out_acct
