@@ -494,19 +494,40 @@ class StockPicking(models.Model):
     def button_validate(self):
         res = super().button_validate()
         for picking in self:
+            _logger.info(
+                "DEBUG bv: picking='%s' state='%s' type_code='%s'",
+                picking.name, picking.state, picking.picking_type_code,
+            )
             if picking.state != 'done':
+                _logger.info("DEBUG bv: SKIP '%s' state='%s'", picking.name, picking.state)
                 continue
             try:
                 picking_sudo = picking.sudo()
-
-                if picking.picking_type_code == 'incoming' \
-                        and not picking_sudo.receipt_journal_entry_ids:
-                    picking._create_receipt_valuation_entry()
-
-                elif picking.picking_type_code == 'outgoing' \
-                        and not picking_sudo.delivery_journal_entry_ids:
-                    picking._create_delivery_valuation_entry()
-
+                existing_receipt = picking_sudo.receipt_journal_entry_ids
+                existing_delivery = picking_sudo.delivery_journal_entry_ids
+                _logger.info(
+                    "DEBUG bv: '%s' existing_receipt=%s existing_delivery=%s",
+                    picking.name,
+                    existing_receipt.mapped('name'),
+                    existing_delivery.mapped('name'),
+                )
+                if picking.picking_type_code == 'incoming':
+                    if not existing_receipt:
+                        _logger.info("DEBUG bv: CALLING receipt entry for '%s'", picking.name)
+                        picking._create_receipt_valuation_entry()
+                    else:
+                        _logger.info("DEBUG bv: SKIP receipt '%s' already exists: %s",
+                            picking.name, existing_receipt.mapped('name'))
+                elif picking.picking_type_code == 'outgoing':
+                    if not existing_delivery:
+                        _logger.info("DEBUG bv: CALLING delivery entry for '%s'", picking.name)
+                        picking._create_delivery_valuation_entry()
+                    else:
+                        _logger.info("DEBUG bv: SKIP delivery '%s' already exists: %s",
+                            picking.name, existing_delivery.mapped('name'))
+                else:
+                    _logger.info("DEBUG bv: SKIP '%s' type_code='%s'",
+                        picking.name, picking.picking_type_code)
             except Exception:
                 _logger.error(
                     "Anglo-Saxon: Failed for picking '%s'",
@@ -630,18 +651,30 @@ class StockPicking(models.Model):
                             'quantity': qty,
                         })
                 else:
-                    _logger.warning(
-                        "Anglo-Saxon (Receipt): price diff %.2f exists but no "
-                        "price difference account found for '%s'. "
-                        "Entry will be unbalanced — posting skipped.",
-                        price_diff, product.name,
+                    _logger.error(
+                        "DEBUG Receipt: price diff=%.2f but NO price_diff_account found "
+                        "for product='%s' category='%s'. "
+                        "Checked: product.property_account_creditor_price_difference, "
+                        "template.property_account_creditor_price_difference, "
+                        "categ.property_account_creditor_price_difference_categ, "
+                        "account code 611000, name Stock Variation, name Price Difference. "
+                        "REMOVING 2 lines — entry will NOT be posted.",
+                        price_diff, product.name, categ.name,
                     )
                     # Remove the two lines already added to avoid unbalanced entry
                     line_vals = line_vals[:-2]
+                    _logger.error(
+                        "DEBUG Receipt: line_vals after removal has %d lines",
+                        len(line_vals),
+                    )
                     continue
 
+        _logger.info(
+            "DEBUG Receipt: picking='%s' total line_vals count=%d before posting",
+            self.name, len(line_vals),
+        )
         if not line_vals:
-            _logger.info("Anglo-Saxon (Receipt): no lines to post for '%s'.", self.name)
+            _logger.warning("DEBUG Receipt: line_vals is EMPTY for '%s' — nothing to post.", self.name)
             return
 
         journal = self._get_stock_journal()
@@ -853,44 +886,49 @@ class StockPicking(models.Model):
     def _get_price_diff_account(self, stock_move):
         """
         Returns the price difference account for balancing AVCO receipt entries
-        where PO price ≠ AVCO value.
-
-        Resolution order:
-          1. product → property_account_creditor_price_difference
-          2. product.template → property_account_creditor_price_difference
-          3. product.category → property_account_creditor_price_difference_categ
-          4. Search by code '611000' (Stock Variation)
-          5. Search by name 'Stock Variation' or 'Price Difference'
+        where PO price != AVCO value.
         """
         product = stock_move.product_id
 
         acct = getattr(product, 'property_account_creditor_price_difference', False)
+        _logger.info("DEBUG price_diff_account: product[%s] property_account_creditor_price_difference = %s",
+            product.name, acct.code if acct else False)
         if acct:
             return acct
 
         acct = getattr(product.product_tmpl_id, 'property_account_creditor_price_difference', False)
+        _logger.info("DEBUG price_diff_account: template property_account_creditor_price_difference = %s",
+            acct.code if acct else False)
         if acct:
             return acct
 
         acct = getattr(product.categ_id, 'property_account_creditor_price_difference_categ', False)
+        _logger.info("DEBUG price_diff_account: categ[%s] property_account_creditor_price_difference_categ = %s",
+            product.categ_id.name, acct.code if acct else False)
         if acct:
             return acct
 
         Account = self.env['account.account']
-        return (
-            Account.search([
-                ('code', '=', '611000'),
-                ('company_id', '=', self.company_id.id),
-            ], limit=1)
-            or Account.search([
-                ('name', 'ilike', 'Stock Variation'),
-                ('company_id', '=', self.company_id.id),
-            ], limit=1)
-            or Account.search([
-                ('name', 'ilike', 'Price Difference'),
-                ('company_id', '=', self.company_id.id),
-            ], limit=1)
-        )
+        acct = Account.search([('code', '=', '611000'),('company_id', '=', self.company_id.id)], limit=1)
+        _logger.info("DEBUG price_diff_account: search code=611000 → %s", acct.code if acct else "NOT FOUND")
+        if acct:
+            return acct
+
+        acct = Account.search([('name', 'ilike', 'Stock Variation'),('company_id', '=', self.company_id.id)], limit=1)
+        _logger.info("DEBUG price_diff_account: search name ilike Stock Variation → %s %s",
+            acct.code if acct else "NOT FOUND", acct.name if acct else "")
+        if acct:
+            return acct
+
+        acct = Account.search([('name', 'ilike', 'Price Difference'),('company_id', '=', self.company_id.id)], limit=1)
+        _logger.info("DEBUG price_diff_account: search name ilike Price Difference → %s %s",
+            acct.code if acct else "NOT FOUND", acct.name if acct else "")
+        if acct:
+            return acct
+
+        _logger.error("DEBUG price_diff_account: NOTHING FOUND for product='%s' company='%s'",
+            product.name, self.company_id.name)
+        return False
 
     def _get_stock_journal(self):
         """
