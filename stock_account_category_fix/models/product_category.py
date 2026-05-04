@@ -11,14 +11,17 @@ class ProductCategory(models.Model):
     # These fields exist in stock_account but are not exposed in CE views.
     # We re-declare them here with company_dependent=True so they appear
     # in the Product Category form and behave as ir.property values per company.
+    #
+    # NOTE: Odoo 19 removed the `deprecated` field from account.account.
+    #       Domains updated accordingly — filter on `active` instead.
     # -------------------------------------------------------------------------
 
     property_stock_valuation_account_id = fields.Many2one(
         comodel_name='account.account',
         string='Stock Valuation Account',
         company_dependent=True,
-        domain="[('deprecated', '=', False)]",
-        help="Account used to value the inventory. Typically an asset account (e.g. 110100 Stock Valuation).",
+        domain="[('account_type', 'not in', ['equity', 'equity_unaffected']), ('active', '=', True)]",
+        help="Account used to value the inventory. Typically a current-asset account (e.g. Stock Valuation).",
         check_company=True,
     )
 
@@ -35,7 +38,7 @@ class ProductCategory(models.Model):
         comodel_name='account.account',
         string='Stock Input Account',
         company_dependent=True,
-        domain="[('deprecated', '=', False)]",
+        domain="[('active', '=', True)]",
         default=lambda self: self._default_stock_input_account(),
         help="Interim account debited when goods are received. Cleared when vendor bill is validated.",
         check_company=True,
@@ -45,7 +48,7 @@ class ProductCategory(models.Model):
         comodel_name='account.account',
         string='Stock Output Account',
         company_dependent=True,
-        domain="[('deprecated', '=', False)]",
+        domain="[('active', '=', True)]",
         default=lambda self: self._default_stock_output_account(),
         help="Interim account credited when goods are delivered. Cleared when customer invoice is validated.",
         check_company=True,
