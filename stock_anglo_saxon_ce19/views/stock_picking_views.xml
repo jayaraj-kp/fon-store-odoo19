@@ -8,26 +8,32 @@
             <field name="arch" type="xml">
                 <xpath expr="//div[@name='button_box']" position="inside">
 
-                    <!-- Receipt journal entry smart button -->
-                    <button type="object"
+                    <!-- Smart button: Receipt journal entries -->
+                    <button
+                        type="object"
                         name="action_view_receipt_journal_entries"
                         class="oe_stat_button"
                         icon="fa-book"
-                        invisible="receipt_journal_entry_count == 0">
-                        <field name="receipt_journal_entry_count"
-                               widget="statinfo"
-                               string="Receipt Entries"/>
+                        invisible="receipt_journal_entry_count == 0"
+                        groups="account.group_account_readonly">
+                        <field
+                            name="receipt_journal_entry_count"
+                            widget="statinfo"
+                            string="Receipt Entries"/>
                     </button>
 
-                    <!-- Delivery journal entry smart button -->
-                    <button type="object"
+                    <!-- Smart button: Delivery journal entries -->
+                    <button
+                        type="object"
                         name="action_view_delivery_journal_entries"
                         class="oe_stat_button"
                         icon="fa-truck"
-                        invisible="delivery_journal_entry_count == 0">
-                        <field name="delivery_journal_entry_count"
-                               widget="statinfo"
-                               string="Delivery Entries"/>
+                        invisible="delivery_journal_entry_count == 0"
+                        groups="account.group_account_readonly">
+                        <field
+                            name="delivery_journal_entry_count"
+                            widget="statinfo"
+                            string="Delivery Entries"/>
                     </button>
 
                 </xpath>

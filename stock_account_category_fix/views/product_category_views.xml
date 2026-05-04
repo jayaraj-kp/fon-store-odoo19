@@ -7,12 +7,38 @@
             <field name="inherit_id" ref="product.product_category_form_view"/>
             <field name="priority">100</field>
             <field name="arch" type="xml">
+                <!--
+                    Appends "Account Stock Properties" group inside the form sheet.
+                    Visible only when Inventory Valuation = Automated (Perpetual / real_time).
+                    These fields are needed for Anglo-Saxon stock accounting in Odoo 19 CE.
+                -->
                 <xpath expr="//sheet" position="inside">
-                    <group name="account_stock_properties" string="Account Stock Properties" invisible="property_valuation != 'real_time'">
-                        <field name="property_stock_valuation_account_id"/>
-                        <field name="property_stock_journal"/>
-                        <field name="property_stock_account_input_categ_id"/>
-                        <field name="property_stock_account_output_categ_id"/>
+                    <group
+                        name="account_stock_properties"
+                        string="Account Stock Properties"
+                        invisible="property_valuation != 'real_time'"
+                        col="2"
+                    >
+                        <group>
+                            <field
+                                name="property_stock_valuation_account_id"
+                                options="{'no_create': True}"
+                            />
+                            <field
+                                name="property_stock_journal"
+                                options="{'no_create': True}"
+                            />
+                        </group>
+                        <group>
+                            <field
+                                name="property_stock_account_input_categ_id"
+                                options="{'no_create': True}"
+                            />
+                            <field
+                                name="property_stock_account_output_categ_id"
+                                options="{'no_create': True}"
+                            />
+                        </group>
                     </group>
                 </xpath>
             </field>
