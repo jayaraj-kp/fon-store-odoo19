@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="product_category_form_view_stock_account_fix" model="ir.ui.view">
+            <field name="name">product.category.form.stock.account.fix</field>
+            <field name="model">product.category</field>
+            <field name="inherit_id" ref="product.product_category_form_view"/>
+            <field name="priority">100</field>
+            <field name="arch" type="xml">
+                <!--
+                    Appends "Account Stock Properties" group inside the form sheet.
+                    Visible only when Inventory Valuation = Automated (Perpetual / real_time).
+                    These fields are needed for Anglo-Saxon stock accounting in Odoo 19 CE.
+                -->
+                <xpath expr="//sheet" position="inside">
+                    <group
+                        name="account_stock_properties"
+                        string="Account Stock Properties"
+                        invisible="property_valuation != 'real_time'"
+                        col="2"
+                    >
+                        <group>
+                            <field
+                                name="property_stock_valuation_account_id"
+                                options="{'no_create': True}"
+                            />
+                            <field
+                                name="property_stock_journal"
+                                options="{'no_create': True}"
+                            />
+                        </group>
+                        <group>
+                            <field
+                                name="property_stock_account_input_categ_id"
+                                options="{'no_create': True}"
+                            />
+                            <field
+                                name="property_stock_account_output_categ_id"
+                                options="{'no_create': True}"
+                            />
+                        </group>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
