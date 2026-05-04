@@ -800,12 +800,11 @@ class StockPicking(models.Model):
         """
         Cost for the Stock Interim (Received) CREDIT line.
 
-        This MUST match what the vendor bill will debit, so it must always
-        be the actual PO unit price — regardless of costing method.
+        Must match the vendor bill debit — always uses actual PO price,
+        regardless of costing method (AVCO, FIFO, Standard).
 
-        - FIFO : PO price (unchanged from before)
-        - AVCO : PO price (FIXED — was incorrectly using standard_price/AVCO)
-        - Standard Price: PO price (best match for vendor bill reconciliation)
+        NOTE: po_line.price_unit in Odoo is always stored tax-EXCLUDED,
+        so no tax stripping is needed or performed here.
 
         Falls back to standard_price only if no PO line is linked.
         """
@@ -813,32 +812,27 @@ class StockPicking(models.Model):
         if po_line and po_line.price_unit > 0:
             po_price = po_line.price_unit
 
-            # Strip tax-included taxes to get untaxed unit price
-            if po_line.taxes_id:
-                tax_res = po_line.taxes_id.with_context(round=False).compute_all(
-                    po_price,
-                    currency=po_line.currency_id,
-                    quantity=1.0,
-                    product=stock_move.product_id,
-                    partner=self.partner_id or False,
-                )
-                po_price = tax_res['total_excluded']
-
             # Convert PO currency → company currency if needed
-            if po_line.currency_id and po_line.currency_id != self.company_id.currency_id:
-                po_price = po_line.currency_id._convert(
+            po_currency = getattr(po_line, 'currency_id', False)
+            company_currency = self.company_id.currency_id
+            if po_currency and po_currency != company_currency:
+                po_price = po_currency._convert(
                     po_price,
-                    self.company_id.currency_id,
+                    company_currency,
                     self.company_id,
                     self.date_done or fields.Date.today(),
                 )
 
-            # Adjust for UoM difference
+            # Adjust for UoM difference between move UoM and product internal UoM
             if stock_move.product_uom and stock_move.product_uom != stock_move.product_id.uom_id:
                 po_price = stock_move.product_uom._compute_price(
                     po_price, stock_move.product_id.uom_id
                 )
 
+            _logger.debug(
+                "Anglo-Saxon (Receipt): PO price for '%s' = %.4f",
+                stock_move.product_id.name, po_price,
+            )
             return po_price
 
         # No PO line linked — fall back to standard_price
