@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="pos_operation_type_lock.PasswordDialog">
+        <Dialog title="'🔒 Operation Type Protected'" size="'md'" contentClass="'pos-lock-dialog'">
+            <t t-set-slot="body">
+                <div class="p-3">
+
+                    <!-- Warning Banner -->
+                    <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                        <i class="fa fa-exclamation-triangle fa-lg me-2"/>
+                        <div>
+                            <strong>Security Check Required</strong><br/>
+                            The POS Operation Type is protected. Enter the administrator password to make changes.
+                        </div>
+                    </div>
+
+                    <!-- Password Input -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            <i class="fa fa-key me-1"/> Enter Password
+                        </label>
+                        <input
+                            t-ref="passwordInput"
+                            type="password"
+                            class="form-control form-control-lg"
+                            placeholder="Enter security password..."
+                            t-model="state.password"
+                            t-on-keydown="onKeyDown"
+                            autofocus="autofocus"
+                        />
+                    </div>
+
+                    <!-- Error Message -->
+                    <t t-if="state.error">
+                        <div class="alert alert-danger d-flex align-items-center" role="alert">
+                            <i class="fa fa-times-circle me-2"/>
+                            <span t-esc="state.error"/>
+                        </div>
+                    </t>
+
+                    <!-- Loading -->
+                    <t t-if="state.isLoading">
+                        <div class="text-center text-muted">
+                            <i class="fa fa-spinner fa-spin me-1"/> Verifying password...
+                        </div>
+                    </t>
+
+                </div>
+            </t>
+
+            <t t-set-slot="footer">
+                <button
+                    class="btn btn-secondary"
+                    t-on-click="onCancel"
+                    t-att-disabled="state.isLoading">
+                    <i class="fa fa-times me-1"/> Cancel
+                </button>
+                <button
+                    class="btn btn-primary"
+                    t-on-click="onConfirm"
+                    t-att-disabled="state.isLoading or !state.password">
+                    <t t-if="state.isLoading">
+                        <i class="fa fa-spinner fa-spin me-1"/> Verifying...
+                    </t>
+                    <t t-else="">
+                        <i class="fa fa-unlock me-1"/> Unlock &amp; Proceed
+                    </t>
+                </button>
+            </t>
+        </Dialog>
+    </t>
+
+</templates>

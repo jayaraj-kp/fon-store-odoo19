@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inherit POS config form to add lock indicator on operation type -->
+    <record id="view_pos_config_form_lock" model="ir.ui.view">
+        <field name="name">pos.config.form.lock</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='picking_type_id']" position="after">
+                <div class="mt-1">
+                    <span class="badge text-bg-warning" id="pos_op_type_lock_badge">
+                        <i class="fa fa-lock me-1"/> Operation Type is Password Protected
+                    </span>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
