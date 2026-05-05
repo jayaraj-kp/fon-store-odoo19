@@ -189,38 +189,77 @@ def _get_analytic_from_picking(picking):
     Priority:
     1. picking_type_id → warehouse_id → analytic_account_id
     2. Source location → match against all warehouses' locations
+    3. env.user default warehouse (last resort for UI-triggered validations)
 
-    Never uses env.user — unreliable in POS/background contexts where
-    the process runs as Administrator belonging to the wrong warehouse.
+    Strategies 1 & 2 are preferred over env.user because POS/background
+    processes run as Administrator whose default warehouse may differ.
     """
     if not picking:
         return False
+
+    # Strategy 1: picking_type_id → warehouse_id (most direct)
     picking_type = picking.picking_type_id
     if picking_type:
         wh = getattr(picking_type, 'warehouse_id', False)
-        if wh and getattr(wh, 'analytic_account_id', False):
-            _logger.debug(
-                "Anglo-Saxon analytic: picking[%s] → picking_type[%s] → wh[%s] → %s",
+        if wh:
+            analytic = getattr(wh, 'analytic_account_id', False)
+            if analytic:
+                _logger.info(
+                    "Anglo-Saxon analytic [S1]: picking[%s] → wh[%s] → %s",
+                    picking.name, wh.name, analytic.name,
+                )
+                return analytic
+            else:
+                _logger.info(
+                    "Anglo-Saxon analytic [S1]: picking[%s] → wh[%s] has NO analytic_account_id set",
+                    picking.name, wh.name,
+                )
+        else:
+            _logger.info(
+                "Anglo-Saxon analytic [S1]: picking[%s] → picking_type[%s] has no warehouse_id",
                 picking.name, picking_type.name,
-                wh.name, wh.analytic_account_id.name,
             )
-            return wh.analytic_account_id
+
+    # Strategy 2: source location → match against warehouses
     src = picking.location_id
     if src:
         warehouses = picking.env['stock.warehouse'].search([
             ('analytic_account_id', '!=', False),
             ('company_id', '=', picking.company_id.id),
         ])
+        _logger.info(
+            "Anglo-Saxon analytic [S2]: picking[%s] → searching %s warehouses with analytic",
+            picking.name, len(warehouses),
+        )
         for wh in warehouses:
             if src.id == wh.lot_stock_id.id or src._child_of(wh.view_location_id):
-                _logger.debug(
-                    "Anglo-Saxon analytic (location fallback): picking[%s] → wh[%s] → %s",
-                    picking.name, wh.name, wh.analytic_account_id.name,
+                _logger.info(
+                    "Anglo-Saxon analytic [S2]: picking[%s] → loc[%s] → wh[%s] → %s",
+                    picking.name, src.name, wh.name, wh.analytic_account_id.name,
                 )
                 return wh.analytic_account_id
+
+    # Strategy 3: env.user default warehouse (UI-triggered fallback)
+    _WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
+    user = picking.env.user
+    for fname in _WAREHOUSE_FIELDS:
+        if fname in user._fields:
+            wh = getattr(user, fname, False)
+            if wh and getattr(wh, 'analytic_account_id', False):
+                _logger.info(
+                    "Anglo-Saxon analytic [S3/user]: picking[%s] → user[%s] → wh[%s] → %s",
+                    picking.name, user.login, wh.name, wh.analytic_account_id.name,
+                )
+                return wh.analytic_account_id
+
     _logger.warning(
-        "Anglo-Saxon analytic: no warehouse analytic found for picking[%s]",
+        "Anglo-Saxon analytic: NO analytic found for picking[%s] "
+        "(picking_type=%s, location=%s, user=%s). "
+        "Set analytic_account_id on the warehouse in Inventory → Configuration → Warehouses.",
         picking.name,
+        picking.picking_type_id.name if picking.picking_type_id else 'None',
+        picking.location_id.name if picking.location_id else 'None',
+        picking.env.user.login,
     )
     return False
 
