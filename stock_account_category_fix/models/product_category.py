@@ -215,6 +215,24 @@ class ProductCategory(models.Model):
             [('name', 'ilike', 'Inventory')], limit=1
         )
 
+    def _get_default_expense_account(self):
+        """
+        Returns 401001 Cost of Goods Sold as the default Expense Account.
+        Searches by exact code first, then by exact name, then partial name.
+        """
+        Account = self.env['account.account']
+        account = (
+            Account.search([('code', '=', '401001')], limit=1)
+            or Account.search([('name', '=', 'Cost of Goods Sold')], limit=1)
+            or Account.search([('name', 'ilike', 'Cost of Goods Sold')], limit=1)
+        )
+        if not account:
+            _logger.warning(
+                "stock_account_category_fix: Could not find account 401001 Cost of Goods Sold. "
+                "Please set Expense Account manually."
+            )
+        return account
+
     # -------------------------------------------------------------------------
     # default_get: pre-fill stock account fields for every new category
     # -------------------------------------------------------------------------
@@ -222,9 +240,9 @@ class ProductCategory(models.Model):
     @api.model
     def default_get(self, fields_list):
         """
-        Pre-populate Account Stock Properties whenever a new product category
-        is created, so the fields are already filled in the form — matching the
-        same accounts used by existing categories with Perpetual valuation.
+        Pre-populate Account Stock Properties and Expense Account whenever a
+        new product category is created, so the fields are already filled in
+        the form — matching the same accounts used by existing categories.
         """
         defaults = super().default_get(fields_list)
 
@@ -232,6 +250,7 @@ class ProductCategory(models.Model):
         output_account = self._get_default_stock_output_account()
         valuation_account = self._get_default_stock_valuation_account()
         stock_journal = self._get_default_stock_journal()
+        expense_account = self._get_default_expense_account()
 
         if 'property_stock_account_input_categ_id' in fields_list and input_account:
             defaults['property_stock_account_input_categ_id'] = input_account.id
@@ -244,6 +263,11 @@ class ProductCategory(models.Model):
 
         if 'property_stock_journal' in fields_list and stock_journal:
             defaults['property_stock_journal'] = stock_journal.id
+
+        # Override the Expense Account default to Cost of Goods Sold (401001)
+        # instead of Odoo's built-in default (401000 Purchase Expense)
+        if 'property_account_expense_categ_id' in fields_list and expense_account:
+            defaults['property_account_expense_categ_id'] = expense_account.id
 
         return defaults
 
