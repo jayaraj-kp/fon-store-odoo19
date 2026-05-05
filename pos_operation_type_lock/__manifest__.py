@@ -1,6 +1,6 @@
 {
     'name': 'POS Operation Type Lock',
-    'version': '17.0.1.0.0',
+    'version': '19.0.1.0.0',
     'category': 'Point of Sale',
     'summary': 'Password protect POS Operation Type changes',
     'description': """
