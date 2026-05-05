@@ -1,3 +1,4 @@
+#
 # # -*- coding: utf-8 -*-
 # """
 # stock_picking.py
@@ -330,17 +331,35 @@
 #     def _get_unit_cost_receipt(self, stock_move):
 #         """
 #         Cost to use for a purchase receipt line.
-#         - FIFO: use the confirmed PO line price (price_unit after tax mapping).
-#         - AVCO / Standard: use product's current standard_price (AVCO updates
-#           standard_price on bill validation in At Invoicing mode).
+#
+#         For ALL cost methods (FIFO, AVCO, Standard), use the confirmed PO line
+#         price_unit.  This is the actual invoiced cost and must match what is
+#         posted to the GRNI / Stock Interim (Received) account so the two sides
+#         clear correctly when the vendor bill is validated.
+#
+#         Why NOT standard_price for AVCO:
+#             Odoo updates standard_price to the new running-average BEFORE
+#             button_validate returns, so by the time _create_receipt_valuation_entry
+#             runs, standard_price already reflects the blended cost of old stock
+#             + this receipt — not the cost of this receipt alone.
+#             Example: 10 qty @ ₹50 existing, receipt of 10 qty @ ₹55 →
+#             standard_price becomes ₹52.5 (blended) → entry posts ₹525 instead
+#             of the correct ₹550.
+#
+#         Fallback chain (if no PO line is linked):
+#             1. stock_move.price_unit  (set by Odoo from PO at move creation)
+#             2. product.standard_price (last resort — may be blended for AVCO)
 #         """
-#         product = stock_move.product_id
-#         cost_method = product.categ_id.property_cost_method
-#         if cost_method == 'fifo':
-#             po_line = getattr(stock_move, 'purchase_line_id', False)
-#             if po_line and po_line.price_unit > 0:
-#                 return po_line.price_unit
-#         return product.standard_price or 0.0
+#         po_line = getattr(stock_move, 'purchase_line_id', False)
+#         if po_line and po_line.price_unit > 0:
+#             return po_line.price_unit
+#
+#         # Fallback: Odoo copies PO price_unit onto the stock move itself
+#         move_price = getattr(stock_move, 'price_unit', 0.0)
+#         if move_price and move_price > 0:
+#             return move_price
+#
+#         return stock_move.product_id.standard_price or 0.0
 #
 #     def _get_unit_cost_delivery(self, stock_move):
 #         """
@@ -398,6 +417,7 @@
 #             'domain': [('id', 'in', self.delivery_journal_entry_ids.ids)],
 #             'context': {'default_move_type': 'entry'},
 #         }
+
 # -*- coding: utf-8 -*-
 """
 stock_picking.py
@@ -430,6 +450,119 @@ from odoo import models, fields, api, _
 _logger = logging.getLogger(__name__)
 
 PERPETUAL_VALUES = frozenset({'real_time', 'perpetual', 'perpetual_invoicing'})
+
+
+# ── Analytic helpers (warehouse from picking, not env.user) ──────────────────
+
+def _get_analytic_from_picking(picking):
+    """
+    Resolve the warehouse analytic account from the picking itself.
+
+    Priority:
+    1. picking_type_id → warehouse_id → analytic_account_id
+    2. Source location → match against all warehouses' locations
+    3. env.user default warehouse (last resort for UI-triggered validations)
+
+    Strategies 1 & 2 are preferred over env.user because POS/background
+    processes run as Administrator whose default warehouse may differ.
+    """
+    if not picking:
+        return False
+
+    # Strategy 1: picking_type_id → warehouse_id (most direct)
+    picking_type = picking.picking_type_id
+    if picking_type:
+        wh = getattr(picking_type, 'warehouse_id', False)
+        if wh:
+            analytic = getattr(wh, 'analytic_account_id', False)
+            if analytic:
+                _logger.info(
+                    "Anglo-Saxon analytic [S1]: picking[%s] → wh[%s] → %s",
+                    picking.name, wh.name, analytic.name,
+                )
+                return analytic
+            else:
+                _logger.info(
+                    "Anglo-Saxon analytic [S1]: picking[%s] → wh[%s] has NO analytic_account_id set",
+                    picking.name, wh.name,
+                )
+        else:
+            _logger.info(
+                "Anglo-Saxon analytic [S1]: picking[%s] → picking_type[%s] has no warehouse_id",
+                picking.name, picking_type.name,
+            )
+
+    # Strategy 2: source location → match against warehouses
+    src = picking.location_id
+    if src:
+        warehouses = picking.env['stock.warehouse'].search([
+            ('analytic_account_id', '!=', False),
+            ('company_id', '=', picking.company_id.id),
+        ])
+        _logger.info(
+            "Anglo-Saxon analytic [S2]: picking[%s] → searching %s warehouses with analytic",
+            picking.name, len(warehouses),
+        )
+        for wh in warehouses:
+            if src.id == wh.lot_stock_id.id or src._child_of(wh.view_location_id):
+                _logger.info(
+                    "Anglo-Saxon analytic [S2]: picking[%s] → loc[%s] → wh[%s] → %s",
+                    picking.name, src.name, wh.name, wh.analytic_account_id.name,
+                )
+                return wh.analytic_account_id
+
+    # Strategy 3: env.user default warehouse (UI-triggered fallback)
+    _WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
+    user = picking.env.user
+    for fname in _WAREHOUSE_FIELDS:
+        if fname in user._fields:
+            wh = getattr(user, fname, False)
+            if wh and getattr(wh, 'analytic_account_id', False):
+                _logger.info(
+                    "Anglo-Saxon analytic [S3/user]: picking[%s] → user[%s] → wh[%s] → %s",
+                    picking.name, user.login, wh.name, wh.analytic_account_id.name,
+                )
+                return wh.analytic_account_id
+
+    _logger.warning(
+        "Anglo-Saxon analytic: NO analytic found for picking[%s] "
+        "(picking_type=%s, location=%s, user=%s). "
+        "Set analytic_account_id on the warehouse in Inventory → Configuration → Warehouses.",
+        picking.name,
+        picking.picking_type_id.name if picking.picking_type_id else 'None',
+        picking.location_id.name if picking.location_id else 'None',
+        picking.env.user.login,
+    )
+    return False
+
+
+def _stamp_analytic_on_entry(entry, analytic, label=''):
+    """
+    Stamp analytic_distribution on all lines of a posted account.move.
+    Uses sudo() + context flags to bypass the posted-move write restriction.
+    Idempotent — skips lines that already carry this analytic.
+    """
+    if not entry or not analytic:
+        return
+    key = str(analytic.id)
+    for line in entry.line_ids.filtered(lambda l: l.account_id):
+        existing = line.analytic_distribution or {}
+        if key not in existing:
+            new_dist = {**existing, key: 100.0}
+            try:
+                line.sudo().with_context(
+                    check_move_validity=False,
+                    skip_account_move_synchronization=True,
+                ).analytic_distribution = new_dist
+                _logger.info(
+                    "Anglo-Saxon analytic: %s → %s line %s (account %s)",
+                    analytic.name, label, line.id, line.account_id.code,
+                )
+            except Exception:
+                _logger.warning(
+                    "Anglo-Saxon analytic: could not stamp %s line %s",
+                    label, line.id, exc_info=True,
+                )
 
 
 class StockPicking(models.Model):
@@ -604,6 +737,14 @@ class StockPicking(models.Model):
             "Anglo-Saxon (Receipt): Created entry '%s' for picking '%s'.",
             entry.name, self.name,
         )
+        # Stamp warehouse analytic immediately — at this point the entry is
+        # posted and linked, so all lines exist and can be tagged.
+        analytic = _get_analytic_from_picking(self)
+        if analytic:
+            _stamp_analytic_on_entry(
+                entry, analytic,
+                label='receipt_%s' % self.name,
+            )
 
     # ── DELIVERY / SALES ─────────────────────────────────────────────────────
     # DR  Stock Interim Delivered  (121200)
@@ -707,6 +848,14 @@ class StockPicking(models.Model):
             "Anglo-Saxon (Delivery): Created entry '%s' for picking '%s'.",
             entry.name, self.name,
         )
+        # Stamp warehouse analytic immediately — at this point the entry is
+        # posted and linked, so all lines exist and can be tagged.
+        analytic = _get_analytic_from_picking(self)
+        if analytic:
+            _stamp_analytic_on_entry(
+                entry, analytic,
+                label='delivery_%s' % self.name,
+            )
 
     # ── HELPERS ──────────────────────────────────────────────────────────────
 
