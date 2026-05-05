@@ -3,79 +3,51 @@
 import { patch } from "@web/core/utils/patch";
 import { PaymentScreenPaymentLines } from "@point_of_sale/app/screens/payment_screen/payment_lines/payment_lines";
 
-/**
- * Patch the POS to color-code KDTY payment buttons.
- * - Cash KDTY  → green  (.cash-kdty-btn)
- * - Card KDTY  → blue   (.card-kdty-btn)
- *
- * The logic runs after every render so it works even when
- * the DOM is rebuilt (e.g. screen transitions).
- */
+function colorKdtyButtons() {
+    document.querySelectorAll("button, .btn").forEach((btn) => {
+        const text = (btn.textContent || "").trim().toUpperCase();
 
-// ── Helper that stamps CSS classes on every rendered button ──────────────────
-function applyKdtyButtonColors() {
-    // Target both the numpad-style one-click buttons AND the regular
-    // payment-method buttons that appear in the payment screen.
-    const selectors = [
-        ".payment-method-button",   // Odoo 17-19 payment screen buttons
-        ".pos-payment-button",      // alternative class used in some builds
-        ".o_payment_method",        // older class
-        "button",                   // broad fallback – filtered by text below
-    ];
-
-    const allButtons = document.querySelectorAll(selectors.join(","));
-
-    allButtons.forEach((btn) => {
-        const label = (btn.textContent || btn.innerText || "").trim().toUpperCase();
-
-        if (label.includes("CASH KDTY") || label.includes("CASH_KDTY")) {
-            btn.classList.remove("card-kdty-btn");
-            btn.classList.add("cash-kdty-btn");
-        } else if (label.includes("CARD KDTY") || label.includes("CARD_KDTY")) {
-            btn.classList.remove("cash-kdty-btn");
-            btn.classList.add("card-kdty-btn");
+        if (text.includes("CASH KDTY")) {
+            // Force green via setAttribute so nothing can override
+            btn.setAttribute("style",
+                "background: #27ae60 !important;" +
+                "background-color: #27ae60 !important;" +
+                "color: #fff !important;" +
+                "border: 2px solid #1e8449 !important;" +
+                "border-bottom: 4px solid #145a30 !important;" +
+                "border-radius: 8px !important;" +
+                "font-weight: 800 !important;" +
+                "box-shadow: 0 4px 10px rgba(39,174,96,0.5) !important;"
+            );
+        } else if (text.includes("CARD KDTY")) {
+            // Force blue via setAttribute so nothing can override
+            btn.setAttribute("style",
+                "background: #1565c0 !important;" +
+                "background-color: #1565c0 !important;" +
+                "color: #fff !important;" +
+                "border: 2px solid #0d47a1 !important;" +
+                "border-bottom: 4px solid #083280 !important;" +
+                "border-radius: 8px !important;" +
+                "font-weight: 800 !important;" +
+                "box-shadow: 0 4px 10px rgba(21,101,192,0.5) !important;"
+            );
         }
     });
 }
 
-// ── Observe DOM mutations so new buttons are styled immediately ───────────────
-function setupObserver() {
-    const observer = new MutationObserver(() => {
-        applyKdtyButtonColors();
-    });
+// Run on every DOM change
+new MutationObserver(colorKdtyButtons).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+});
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-    });
+// Run immediately and after load
+colorKdtyButtons();
+window.addEventListener("load", colorKdtyButtons);
+window.addEventListener("DOMContentLoaded", colorKdtyButtons);
 
-    // Initial pass
-    applyKdtyButtonColors();
-}
-
-// ── Bootstrap after the POS app has mounted ──────────────────────────────────
-// We patch PaymentScreenPaymentLines (always rendered in payment flow)
-// as a reliable hook; the observer takes care of the rest.
 patch(PaymentScreenPaymentLines.prototype, {
-    setup() {
-        super.setup(...arguments);
-    },
-
-    mounted() {
-        if (super.mounted) super.mounted(...arguments);
-        applyKdtyButtonColors();
-    },
-
-    patched() {
-        if (super.patched) super.patched(...arguments);
-        applyKdtyButtonColors();
-    },
+    setup() { super.setup(...arguments); },
+    mounted() { if (super.mounted) super.mounted(...arguments); colorKdtyButtons(); },
+    patched() { if (super.patched) super.patched(...arguments); colorKdtyButtons(); },
 });
-
-// Start the global DOM observer once the window loads
-window.addEventListener("load", () => {
-    setupObserver();
-});
-
-// Also run immediately in case the module loads after the page
-applyKdtyButtonColors();

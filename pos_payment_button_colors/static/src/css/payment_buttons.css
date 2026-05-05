@@ -1,80 +1,21 @@
-/* POS Payment Button Colors - Custom Styling */
-
-/* =============================================
-   CASH KDTY Button - Green Theme
-   ============================================= */
-.pos-payment-button.cash-kdty-btn,
-.payment-buttons .cash-kdty-btn {
+/* CASH KDTY - Green */
+.cash-kdty-btn {
     background-color: #27ae60 !important;
-    border-color: #1e8449 !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 6px rgba(39, 174, 96, 0.4) !important;
-    font-weight: 700 !important;
-    transition: all 0.2s ease !important;
-}
-
-.pos-payment-button.cash-kdty-btn:hover,
-.payment-buttons .cash-kdty-btn:hover {
-    background-color: #1e8449 !important;
-    border-color: #196f3d !important;
-    box-shadow: 0 6px 10px rgba(39, 174, 96, 0.5) !important;
-    transform: translateY(-1px);
-}
-
-.pos-payment-button.cash-kdty-btn:active,
-.payment-buttons .cash-kdty-btn:active {
-    background-color: #196f3d !important;
-    transform: translateY(0px);
-}
-
-/* =============================================
-   CARD KDTY Button - Blue Theme
-   ============================================= */
-.pos-payment-button.card-kdty-btn,
-.payment-buttons .card-kdty-btn {
-    background-color: #2980b9 !important;
-    border-color: #1a6fa0 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 6px rgba(41, 128, 185, 0.4) !important;
-    font-weight: 700 !important;
-    transition: all 0.2s ease !important;
-}
-
-.pos-payment-button.card-kdty-btn:hover,
-.payment-buttons .card-kdty-btn:hover {
-    background-color: #1a6fa0 !important;
-    border-color: #155e8a !important;
-    box-shadow: 0 6px 10px rgba(41, 128, 185, 0.5) !important;
-    transform: translateY(-1px);
-}
-
-.pos-payment-button.card-kdty-btn:active,
-.payment-buttons .card-kdty-btn:active {
-    background-color: #155e8a !important;
-    transform: translateY(0px);
-}
-
-/* =============================================
-   General enhancements for KDTY buttons
-   ============================================= */
-.cash-kdty-btn,
-.card-kdty-btn {
+    border: 2px solid #1e8449 !important;
+    border-bottom: 4px solid #145a30 !important;
     border-radius: 8px !important;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    font-size: 13px !important;
-    padding: 10px 14px !important;
-    border-width: 2px !important;
-    border-style: solid !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 10px rgba(39,174,96,0.5) !important;
 }
 
-/* Icon indicator badges on buttons */
-.cash-kdty-btn::before {
-    content: "💵 ";
-    font-size: 14px;
-}
-
-.card-kdty-btn::before {
-    content: "💳 ";
-    font-size: 14px;
+/* CARD KDTY - Blue */
+.card-kdty-btn {
+    background-color: #1565c0 !important;
+    color: #ffffff !important;
+    border: 2px solid #0d47a1 !important;
+    border-bottom: 4px solid #083280 !important;
+    border-radius: 8px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 10px rgba(21,101,192,0.5) !important;
 }
