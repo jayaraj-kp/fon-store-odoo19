@@ -260,38 +260,6 @@ export class ReconcileController extends KanbanController {
         return false;
     }
 
-    /**
-     * DEBUG: Log context info to browser console (F12 -> Console).
-     * Remove debugNewButton() call from showNewButton once confirmed working.
-     */
-    debugNewButton() {
-        console.group("[ReconcileController] showNewButton debug");
-        console.log("props.context:", JSON.stringify(this.props.context, null, 2));
-        console.log("props.resModel:", this.props.resModel);
-        console.log("active_model:", this.props.context.active_model);
-        console.log("active_id:", this.props.context.active_id);
-        console.log("journalId (computed):", this.journalId);
-        console.log(
-            "props.archInfo.activeActions:",
-            JSON.stringify(this.props.archInfo?.activeActions, null, 2)
-        );
-        console.groupEnd();
-    }
-
-    /**
-     * Show the "New" button in the bank-statement-line reconcile view.
-     * Conditions (ANY = show button):
-     *   1. Opened from a journal  (active_model === "account.journal")
-     *   2. resModel is account.bank.statement.line (direct "Statement lines" view)
-     */
-    get showNewButton() {
-        this.debugNewButton();  // remove after confirming button works
-        return (
-            Boolean(this.journalId) ||
-            this.props.resModel === "account.bank.statement.line"
-        );
-    }
-
     async updateJournalInfo() {
         var journalId = this.journalId;
         if (!journalId) {
