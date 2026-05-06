@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- 1. KANBAN VIEW WITH CREATE ENABLED -->
+    <!-- 1. KANBAN VIEW -->
     <record id="bank_statement_line_reconcile_view" model="ir.ui.view">
         <field name="name">account.bank.statement.line.reconcile</field>
         <field name="model">account.bank.statement.line</field>
@@ -11,26 +11,19 @@
                 <field name="foreign_currency_id"/>
                 <field name="statement_id"/>
                 <field name="checked"/>
-                <field name="reconcile_aggregate"/>
                 <templates>
                     <t t-name="card">
                         <div class="row">
                             <div class="col-8">
                                 <field name="date"/>
                             </div>
-                            <div class="col-4" style="text-align:right"
-                                 t-attf-class="#{(!record.foreign_currency_id.raw_value and record.amount.raw_value &lt; 0) ? 'text-danger' : 'text-success'}">
+                            <div class="col-4" style="text-align:right">
                                 <field name="amount" t-if="!record.foreign_currency_id.raw_value"/>
-                                <field name="amount_currency" t-if="record.foreign_currency_id.raw_value" widget="monetary" options="{'currency_field': 'foreign_currency_id'}"/>
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-8">
+                            <div class="col-12">
                                 <field name="payment_ref"/>
-                            </div>
-                            <div class="col-4" style="text-align:right">
-                                <div t-if="!record.checked.raw_value" class="badge text-bg-warning">To check</div>
-                                <div t-if="record.is_reconciled.raw_value" class="badge text-bg-success">Reconciled</div>
                             </div>
                         </div>
                     </t>
@@ -39,7 +32,7 @@
         </field>
     </record>
 
-    <!-- 2. MAIN RECONCILE ACTION -->
+    <!-- 2. RECONCILIATION ACTIONS -->
     <record id="action_bank_statement_line_reconcile" model="ir.actions.act_window">
         <field name="name">Statement lines</field>
         <field name="res_model">account.bank.statement.line</field>
@@ -47,70 +40,58 @@
         <field name="context">{
             'default_journal_id': active_id,
             'search_default_not_reconciled': 1,
-            'create': True,
-            'view_ref': 'account_reconcile_oca.bank_statement_line_form_reconcile_view',
-            'form_view_ref': 'account_reconcile_oca.bank_statement_line_form_add_view'
+            'create': True
         }</field>
         <field name="view_mode">kanban,list</field>
-        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'kanban', 'view_id': ref('bank_statement_line_reconcile_view')}), (0, 0, {'view_mode': 'list', 'view_id': ref('account_statement_base.account_bank_statement_line_tree')})]"/>
     </record>
 
-    <!-- 3. RECONCILE ALL ACTION -->
     <record id="action_bank_statement_line_reconcile_all" model="ir.actions.act_window">
         <field name="name">Reconcile bank statement lines</field>
         <field name="res_model">account.bank.statement.line</field>
         <field name="domain">[('journal_id', '=', active_id)]</field>
-        <field name="context">{
-            'default_journal_id': active_id,
-            'search_default_not_reconciled': 1,
-            'create': True,
-            'view_ref': 'account_reconcile_oca.bank_statement_line_form_reconcile_view',
-            'form_view_ref': 'account_reconcile_oca.bank_statement_line_form_add_view'
-        }</field>
+        <field name="context">{'default_journal_id': active_id, 'create': True}</field>
         <field name="view_mode">kanban,list</field>
-        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'kanban', 'view_id': ref('bank_statement_line_reconcile_view')})]"/>
     </record>
 
-    <!-- 4. TO CHECK ACTION (The one that caused your error) -->
     <record id="action_bank_statement_line_reconcile_to_check" model="ir.actions.act_window">
-        <field name="name">Reconcile bank statement lines</field>
+        <field name="name">To Check</field>
         <field name="res_model">account.bank.statement.line</field>
-        <field name="domain">[('journal_id', '=', active_id)]</field>
-        <field name="context">{
-            'default_journal_id': active_id,
-            'search_default_to_check': 1,
-            'search_default_not_reconciled': 1,
-            'create': True,
-            'view_ref': 'account_reconcile_oca.bank_statement_line_form_reconcile_view'
-        }</field>
+        <field name="domain">[('journal_id', '=', active_id), ('checked', '=', True)]</field>
         <field name="view_mode">kanban</field>
-        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'kanban', 'view_id': ref('bank_statement_line_reconcile_view')})]"/>
     </record>
 
-    <!-- 5. MOVE VIEW ACTION -->
-    <record id="action_bank_statement_line_move_view_reconcile" model="ir.actions.act_window">
-        <field name="name">Reconcile bank statement lines</field>
-        <field name="res_model">account.bank.statement.line</field>
-        <field name="context">{
-            'search_default_move_id': active_id or False,
-            'search_default_not_reconciled': 1,
-            'create': True,
-            'view_ref': 'account_reconcile_oca.bank_statement_line_form_reconcile_view'
-        }</field>
-        <field name="view_mode">kanban</field>
-        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'kanban', 'view_id': ref('bank_statement_line_reconcile_view')})]"/>
+    <!-- 3. FORM VIEW (Defined BEFORE the action that uses it) -->
+    <record id="bank_statement_line_form_add_view" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.form.add</field>
+        <field name="model">account.bank.statement.line</field>
+        <field name="arch" type="xml">
+            <form string="Add Statement Line">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="date"/>
+                            <field name="payment_ref"/>
+                            <field name="partner_id"/>
+                        </group>
+                        <group>
+                            <field name="amount"/>
+                            <field name="journal_id" invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
     </record>
 
-    <!-- 6. STATEMENT LINE CREATE ACTION -->
+    <!-- 4. CREATE ACTION (Now it can find the ID above) -->
     <record id="action_bank_statement_line_create" model="ir.actions.act_window">
         <field name="name">Add Bank Statement Line</field>
         <field name="res_model">account.bank.statement.line</field>
         <field name="view_mode">form</field>
-        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'form', 'view_id': ref('bank_statement_line_form_add_view')})]"/>
+        <field name="view_id" ref="bank_statement_line_form_add_view"/>
         <field name="target">new</field>
     </record>
 </odoo>
-
 
 <!--<?xml version="1.0" encoding="utf-8" ?>-->
 <!--<odoo>-->
