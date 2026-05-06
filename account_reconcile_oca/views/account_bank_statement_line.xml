@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- 1. QUICK CREATE FORM: The 'Add' box at the top of the column -->
+    <!-- 1. The Small Inline Form (The red box area in your image) -->
     <record id="view_bank_statement_line_quick_create_form" model="ir.ui.view">
         <field name="name">account.bank.statement.line.quick_create</field>
         <field name="model">account.bank.statement.line</field>
@@ -12,13 +12,14 @@
                         <field name="partner_id" placeholder="Partner" nolabel="1"/>
                         <field name="amount" placeholder="0.00" nolabel="1"/>
                     </div>
-                    <field name="payment_ref" placeholder="Memo" nolabel="1"/>
+                    <field name="payment_ref" placeholder="Memo (Label)" nolabel="1"/>
                 </group>
+                <!-- Standard Odoo Quick Create saves on 'Enter' or clicking away -->
             </form>
         </field>
     </record>
 
-    <!-- 2. KANBAN VIEW: Configured to use Quick Create -->
+    <!-- 2. The Kanban View with Quick Create enabled -->
     <record id="bank_statement_line_reconcile_view" model="ir.ui.view">
         <field name="name">account.bank.statement.line.reconcile</field>
         <field name="model">account.bank.statement.line</field>
@@ -26,8 +27,7 @@
             <kanban js_class="reconcile"
                     create="1"
                     on_create="quick_create"
-                    quick_create_view="account_reconcile_oca.view_bank_statement_line_quick_create_form"
-                    default_group_by="journal_id">
+                    quick_create_view="account_reconcile_oca.view_bank_statement_line_quick_create_form">
 
                 <field name="is_reconciled"/>
                 <field name="currency_id"/>
@@ -48,7 +48,7 @@
                                 </div>
                             </div>
                             <div t-if="record.is_reconciled.raw_value" class="text-end">
-                                <i class="fa fa-check-circle text-success" title="Reconciled"/>
+                                <i class="fa fa-check text-success" title="Reconciled"/>
                             </div>
                         </div>
                     </t>
@@ -57,11 +57,11 @@
         </field>
     </record>
 
-    <!-- 3. MAIN ACTION: Forces Kanban mode to prevent the 'Form' screen -->
+    <!-- 3. The Action that forces the Kanban display -->
     <record id="action_bank_statement_line_reconcile" model="ir.actions.act_window">
         <field name="name">Bank Reconciliation</field>
         <field name="res_model">account.bank.statement.line</field>
-        <!-- We remove 'list' and 'form' to force Odoo to stay in Kanban -->
+        <!-- We ONLY allow kanban here to stop Odoo from opening the form view you see now -->
         <field name="view_mode">kanban</field>
         <field name="view_id" ref="bank_statement_line_reconcile_view"/>
         <field name="target">current</field>
@@ -72,21 +72,7 @@
         }</field>
     </record>
 
-    <!-- 4. SUPPORTING ACTIONS: Prevent External ID errors in other views -->
-    <record id="action_bank_statement_line_reconcile_all" model="ir.actions.act_window">
-        <field name="name">Transactions</field>
-        <field name="res_model">account.bank.statement.line</field>
-        <field name="view_mode">kanban</field>
-        <field name="context">{'default_journal_id': active_id}</field>
-    </record>
-
-    <record id="action_bank_statement_line_reconcile_to_check" model="ir.actions.act_window">
-        <field name="name">To Check</field>
-        <field name="res_model">account.bank.statement.line</field>
-        <field name="domain">[('journal_id', '=', active_id), ('checked', '=', True)]</field>
-        <field name="view_mode">kanban</field>
-    </record>
-
+    <!-- Supporting Actions for Move and Dashboard items -->
     <record id="action_bank_statement_line_move_view_reconcile" model="ir.actions.act_window">
         <field name="name">Bank reconcile</field>
         <field name="res_model">account.bank.statement.line</field>
