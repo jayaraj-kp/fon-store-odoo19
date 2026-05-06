@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- 1. THE QUICK CREATE FORM (This is the red box in your 2nd image) -->
+    <!-- 1. THE QUICK CREATE FORM (The box from image_857fbb.png) -->
     <record id="view_bank_statement_line_quick_create_form" model="ir.ui.view">
         <field name="name">account.bank.statement.line.quick_create</field>
         <field name="model">account.bank.statement.line</field>
         <field name="arch" type="xml">
             <form>
                 <group>
+                    <!-- Using a div to group fields tightly like your reference image -->
                     <div class="o_row">
                         <field name="date" widget="date" nolabel="1"/>
                         <field name="partner_id" placeholder="Partner" nolabel="1"/>
@@ -14,21 +15,16 @@
                     </div>
                     <field name="payment_ref" placeholder="Memo" nolabel="1"/>
                 </group>
-                <div class="mt8">
-                    <button string="Add &amp; New" type="object" name="action_save_and_new" class="btn-primary btn-sm"/>
-                    <button string="Add &amp; Close" type="object" name="action_save_and_close" class="btn-secondary btn-sm ml4"/>
-                </div>
+                <!-- Standard Odoo Quick Create saves automatically when you press Enter or 'Add' -->
             </form>
         </field>
     </record>
 
-    <!-- 2. THE KANBAN VIEW (Configured for Quick Create) -->
+    <!-- 2. THE KANBAN VIEW -->
     <record id="bank_statement_line_reconcile_view" model="ir.ui.view">
         <field name="name">account.bank.statement.line.reconcile</field>
         <field name="model">account.bank.statement.line</field>
         <field name="arch" type="xml">
-            <!-- on_create="quick_create" enables the inline box -->
-            <!-- quick_create_view links to the small form above -->
             <kanban js_class="reconcile"
                     create="1"
                     on_create="quick_create"
@@ -38,13 +34,12 @@
                 <field name="currency_id"/>
                 <templates>
                     <t t-name="card">
-                        <div t-attf-class="oe_kanban_global_click #{record.is_reconciled.raw_value ? 'bg-success-light' : ''}">
+                        <!-- Added 'oe_kanban_global_click' to make it interactive like the image -->
+                        <div class="oe_kanban_global_click">
                             <div class="row">
                                 <div class="col-8"><strong><field name="date"/></strong></div>
                                 <div class="col-4 text-end">
-                                    <span t-attf-class="#{record.amount.raw_value &lt; 0 ? 'text-danger' : 'text-success'}">
-                                        <field name="amount"/>
-                                    </span>
+                                    <field name="amount"/>
                                 </div>
                             </div>
                             <div class="row">
@@ -52,8 +47,9 @@
                                     <field name="payment_ref"/>
                                 </div>
                             </div>
+                            <!-- Visual checkmark if reconciled -->
                             <div t-if="record.is_reconciled.raw_value" class="text-end">
-                                <i class="fa fa-check-circle text-success" title="Reconciled"/>
+                                <i class="fa fa-check text-success" title="Reconciled"/>
                             </div>
                         </div>
                     </t>
@@ -62,11 +58,11 @@
         </field>
     </record>
 
-    <!-- 3. UPDATED ACTION -->
+    <!-- 3. UPDATED ACTIONS TO PREVENT ID ERRORS -->
     <record id="action_bank_statement_line_reconcile" model="ir.actions.act_window">
         <field name="name">Bank Reconciliation</field>
         <field name="res_model">account.bank.statement.line</field>
-        <field name="view_mode">kanban</field>
+        <field name="view_mode">kanban,list</field>
         <field name="view_id" ref="bank_statement_line_reconcile_view"/>
         <field name="context">{
             'default_journal_id': active_id,
@@ -74,7 +70,6 @@
         }</field>
     </record>
 
-    <!-- Mandatory Action for Account Move Button -->
     <record id="action_bank_statement_line_move_view_reconcile" model="ir.actions.act_window">
         <field name="name">Bank reconcile</field>
         <field name="res_model">account.bank.statement.line</field>
