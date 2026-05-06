@@ -34,6 +34,12 @@
                             class="pe-0 fw-bold fs-4 align-self-center btn btn-link"
                             t-esc="aggregate.balanceStr"
                     />
+                    <!--
+                    <span
+                        t-if="groupOrRecord.record.data.reconcile_aggregate != 'statement'"
+                        class="pe-0 fw-bold fs-4 align-self-center text-link"
+                        t-esc="aggregate.balanceStr"
+                    />-->
                 </div>
             </t>
         </xpath>
@@ -44,6 +50,8 @@
                     separator=" "
             />
         </xpath>
+        <!-- Group by selector disabled on the view, so we need to find the one without group,
+        then we pass to the component the selected record -->
         <xpath expr="//KanbanRecord[not(@group)]" position="attributes">
             <attribute name="selectedRecordId">props.selectedRecordId</attribute>
         </xpath>
@@ -53,6 +61,7 @@
             t-inherit="web.KanbanView"
             t-inherit-mode="primary"
     >
+        <!-- we pass to the component the selected record -->
         <xpath expr="//Layout/t[7]" position="attributes">
             <attribute name="selectedRecordId">state.selectedRecordId</attribute>
         </xpath>
@@ -74,6 +83,7 @@
         <button
                 t-on-click="onClickNewButton"
                 class="btn btn-primary"
+                t-if="showNewButton"
         >New
         </button>
     </t>
@@ -121,11 +131,19 @@
                                 </a>
                             </div>
                         </td>
+                        <!--                        <td t-esc="reconcile_line.date_format" />-->
+                        <!--                        <td>-->
+                        <!--                            <span-->
+                        <!--                                t-esc="reconcile_line.partner_id[1]"-->
+                        <!--                                t-if="reconcile_line.partner_id and reconcile_line.partner_id[1]"-->
+                        <!--                            />-->
+                        <!--                        </td>-->
+                        <!-- REPLACE WITH: -->
                         <td t-esc="reconcile_line.date_format"/>
                         <td>
                             <span
                                     t-if="reconcile_line.analytic_distribution"
-                                    t-esc="Object.keys(reconcile_line.analytic_distribution or {}).length > 0 ? 'checkmark' : ''"
+                                    t-esc="Object.keys(reconcile_line.analytic_distribution or {}).length > 0 ? '✓' : ''"
                             />
                         </td>
                         <td>
