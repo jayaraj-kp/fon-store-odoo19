@@ -1,55 +1,59 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- 1. FORM VIEW: Corrected buttons for Odoo 19 -->
-    <record id="bank_statement_line_form_add_view" model="ir.ui.view">
-        <field name="name">account.bank.statement.line.form.add</field>
+    <!-- 1. THE QUICK CREATE FORM (This is the red box in your 2nd image) -->
+    <record id="view_bank_statement_line_quick_create_form" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.quick_create</field>
         <field name="model">account.bank.statement.line</field>
         <field name="arch" type="xml">
-            <form string="Add Statement Line">
-                <sheet>
-                    <group>
-                        <group>
-                            <field name="date"/>
-                            <field name="payment_ref" string="Label" required="1"/>
-                            <field name="partner_id"/>
-                        </group>
-                        <group>
-                            <field name="amount"/>
-                            <field name="journal_id" readonly="1" force_save="1"/>
-                        </group>
-                    </group>
-                    <footer>
-                        <!-- Changed to special="save" to avoid method errors -->
-                        <button string="Save &amp; Close" special="save" class="btn-primary" data-hotkey="q"/>
-                        <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
-                    </footer>
-                </sheet>
+            <form>
+                <group>
+                    <div class="o_row">
+                        <field name="date" widget="date" nolabel="1"/>
+                        <field name="partner_id" placeholder="Partner" nolabel="1"/>
+                        <field name="amount" placeholder="0.00" nolabel="1"/>
+                    </div>
+                    <field name="payment_ref" placeholder="Memo" nolabel="1"/>
+                </group>
+                <div class="mt8">
+                    <button string="Add &amp; New" type="object" name="action_save_and_new" class="btn-primary btn-sm"/>
+                    <button string="Add &amp; Close" type="object" name="action_save_and_close" class="btn-secondary btn-sm ml4"/>
+                </div>
             </form>
         </field>
     </record>
 
-    <!-- 2. KANBAN VIEW -->
+    <!-- 2. THE KANBAN VIEW (Configured for Quick Create) -->
     <record id="bank_statement_line_reconcile_view" model="ir.ui.view">
         <field name="name">account.bank.statement.line.reconcile</field>
         <field name="model">account.bank.statement.line</field>
         <field name="arch" type="xml">
-            <kanban js_class="reconcile" create="1">
+            <!-- on_create="quick_create" enables the inline box -->
+            <!-- quick_create_view links to the small form above -->
+            <kanban js_class="reconcile"
+                    create="1"
+                    on_create="quick_create"
+                    quick_create_view="account_reconcile_oca.view_bank_statement_line_quick_create_form">
+
                 <field name="is_reconciled"/>
                 <field name="currency_id"/>
-                <field name="foreign_currency_id"/>
                 <templates>
                     <t t-name="card">
-                        <div class="row">
-                            <div class="col-8">
-                                <field name="date"/>
+                        <div t-attf-class="oe_kanban_global_click #{record.is_reconciled.raw_value ? 'bg-success-light' : ''}">
+                            <div class="row">
+                                <div class="col-8"><strong><field name="date"/></strong></div>
+                                <div class="col-4 text-end">
+                                    <span t-attf-class="#{record.amount.raw_value &lt; 0 ? 'text-danger' : 'text-success'}">
+                                        <field name="amount"/>
+                                    </span>
+                                </div>
                             </div>
-                            <div class="col-4" style="text-align:right">
-                                <field name="amount"/>
+                            <div class="row">
+                                <div class="col-12 text-muted">
+                                    <field name="payment_ref"/>
+                                </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-12">
-                                <field name="payment_ref"/>
+                            <div t-if="record.is_reconciled.raw_value" class="text-end">
+                                <i class="fa fa-check-circle text-success" title="Reconciled"/>
                             </div>
                         </div>
                     </t>
@@ -58,35 +62,19 @@
         </field>
     </record>
 
-    <!-- 3. ACTIONS -->
+    <!-- 3. UPDATED ACTION -->
     <record id="action_bank_statement_line_reconcile" model="ir.actions.act_window">
-        <field name="name">Statement lines</field>
+        <field name="name">Bank Reconciliation</field>
         <field name="res_model">account.bank.statement.line</field>
-        <field name="domain">[('journal_id', '=', active_id)]</field>
+        <field name="view_mode">kanban</field>
+        <field name="view_id" ref="bank_statement_line_reconcile_view"/>
         <field name="context">{
             'default_journal_id': active_id,
-            'search_default_not_reconciled': 1,
-            'create': True,
-            'form_view_ref': 'account_reconcile_oca.bank_statement_line_form_add_view'
+            'search_default_not_reconciled': 1
         }</field>
-        <field name="view_mode">kanban,list</field>
     </record>
 
-    <record id="action_bank_statement_line_reconcile_all" model="ir.actions.act_window">
-        <field name="name">Transactions</field>
-        <field name="res_model">account.bank.statement.line</field>
-        <field name="domain">[('journal_id', '=', active_id)]</field>
-        <field name="context">{'default_journal_id': active_id, 'create': True}</field>
-        <field name="view_mode">kanban,list</field>
-    </record>
-
-    <record id="action_bank_statement_line_reconcile_to_check" model="ir.actions.act_window">
-        <field name="name">To Check</field>
-        <field name="res_model">account.bank.statement.line</field>
-        <field name="domain">[('journal_id', '=', active_id), ('checked', '=', True)]</field>
-        <field name="view_mode">kanban</field>
-    </record>
-
+    <!-- Mandatory Action for Account Move Button -->
     <record id="action_bank_statement_line_move_view_reconcile" model="ir.actions.act_window">
         <field name="name">Bank reconcile</field>
         <field name="res_model">account.bank.statement.line</field>
@@ -94,7 +82,6 @@
         <field name="view_id" ref="bank_statement_line_reconcile_view"/>
     </record>
 </odoo>
-
 <!--<?xml version="1.0" encoding="utf-8" ?>-->
 <!--<odoo>-->
 <!--    <record id="bank_statement_line_reconcile_view" model="ir.ui.view">-->
