@@ -206,6 +206,8 @@
 //
 //ReconcileController.template = "account_reconcile_oca.ReconcileController";
 //ReconcileController.defaultProps = {};
+
+
 const {onMounted, onWillStart, useState, useSubEnv} = owl;
 import {useBus, useService} from "@web/core/utils/hooks";
 import {KanbanController} from "@web/views/kanban/kanban_controller";
@@ -259,14 +261,35 @@ export class ReconcileController extends KanbanController {
     }
 
     /**
-     * Show the "New" button whenever we are in the bank-statement-line
-     * reconcile view (i.e. a journal is active).  The button triggers
-     * action_new_line, which is a dedicated wizard – it does NOT rely on
-     * the standard kanban "create" active action, so we use our own flag
-     * instead of props.archInfo.activeActions.create.
+     * DEBUG: Log context info to browser console (F12 -> Console).
+     * Remove debugNewButton() call from showNewButton once confirmed working.
+     */
+    debugNewButton() {
+        console.group("[ReconcileController] showNewButton debug");
+        console.log("props.context:", JSON.stringify(this.props.context, null, 2));
+        console.log("props.resModel:", this.props.resModel);
+        console.log("active_model:", this.props.context.active_model);
+        console.log("active_id:", this.props.context.active_id);
+        console.log("journalId (computed):", this.journalId);
+        console.log(
+            "props.archInfo.activeActions:",
+            JSON.stringify(this.props.archInfo?.activeActions, null, 2)
+        );
+        console.groupEnd();
+    }
+
+    /**
+     * Show the "New" button in the bank-statement-line reconcile view.
+     * Conditions (ANY = show button):
+     *   1. Opened from a journal  (active_model === "account.journal")
+     *   2. resModel is account.bank.statement.line (direct "Statement lines" view)
      */
     get showNewButton() {
-        return Boolean(this.journalId);
+        this.debugNewButton();  // remove after confirming button works
+        return (
+            Boolean(this.journalId) ||
+            this.props.resModel === "account.bank.statement.line"
+        );
     }
 
     async updateJournalInfo() {
