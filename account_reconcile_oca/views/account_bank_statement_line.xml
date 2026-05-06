@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- 1. FORM VIEW (Keep this at the top) -->
+    <!-- 1. FORM VIEW: Corrected buttons for Odoo 19 -->
     <record id="bank_statement_line_form_add_view" model="ir.ui.view">
         <field name="name">account.bank.statement.line.form.add</field>
         <field name="model">account.bank.statement.line</field>
@@ -19,8 +19,9 @@
                         </group>
                     </group>
                     <footer>
-                        <button string="Save" type="object" name="action_save_close" class="btn-primary"/>
-                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                        <!-- Changed to special="save" to avoid method errors -->
+                        <button string="Save &amp; Close" special="save" class="btn-primary" data-hotkey="q"/>
+                        <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
                     </footer>
                 </sheet>
             </form>
@@ -39,11 +40,17 @@
                 <templates>
                     <t t-name="card">
                         <div class="row">
-                            <div class="col-8"><field name="date"/></div>
-                            <div class="col-4" style="text-align:right"><field name="amount"/></div>
+                            <div class="col-8">
+                                <field name="date"/>
+                            </div>
+                            <div class="col-4" style="text-align:right">
+                                <field name="amount"/>
+                            </div>
                         </div>
                         <div class="row">
-                            <div class="col-12"><field name="payment_ref"/></div>
+                            <div class="col-12">
+                                <field name="payment_ref"/>
+                            </div>
                         </div>
                     </t>
                 </templates>
@@ -51,8 +58,7 @@
         </field>
     </record>
 
-    <!-- 3. UPDATED MAIN ACTION -->
-    <!-- We add 'form_view_ref' to ensure the 'New' button uses the small popup form -->
+    <!-- 3. ACTIONS -->
     <record id="action_bank_statement_line_reconcile" model="ir.actions.act_window">
         <field name="name">Statement lines</field>
         <field name="res_model">account.bank.statement.line</field>
@@ -66,7 +72,6 @@
         <field name="view_mode">kanban,list</field>
     </record>
 
-    <!-- Other actions to prevent the RPC_ERROR -->
     <record id="action_bank_statement_line_reconcile_all" model="ir.actions.act_window">
         <field name="name">Transactions</field>
         <field name="res_model">account.bank.statement.line</field>
