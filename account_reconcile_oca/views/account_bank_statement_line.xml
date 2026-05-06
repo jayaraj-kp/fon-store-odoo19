@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- 1. FORM VIEW (Define first so actions can use it) -->
+    <!-- 1. FORM VIEW (Keep this at the top) -->
     <record id="bank_statement_line_form_add_view" model="ir.ui.view">
         <field name="name">account.bank.statement.line.form.add</field>
         <field name="model">account.bank.statement.line</field>
@@ -10,14 +10,18 @@
                     <group>
                         <group>
                             <field name="date"/>
-                            <field name="payment_ref"/>
+                            <field name="payment_ref" string="Label" required="1"/>
                             <field name="partner_id"/>
                         </group>
                         <group>
                             <field name="amount"/>
-                            <field name="journal_id" invisible="1"/>
+                            <field name="journal_id" readonly="1" force_save="1"/>
                         </group>
                     </group>
+                    <footer>
+                        <button string="Save" type="object" name="action_save_close" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
                 </sheet>
             </form>
         </field>
@@ -32,22 +36,14 @@
                 <field name="is_reconciled"/>
                 <field name="currency_id"/>
                 <field name="foreign_currency_id"/>
-                <field name="statement_id"/>
-                <field name="checked"/>
                 <templates>
                     <t t-name="card">
                         <div class="row">
-                            <div class="col-8">
-                                <field name="date"/>
-                            </div>
-                            <div class="col-4" style="text-align:right">
-                                <field name="amount" t-if="!record.foreign_currency_id.raw_value"/>
-                            </div>
+                            <div class="col-8"><field name="date"/></div>
+                            <div class="col-4" style="text-align:right"><field name="amount"/></div>
                         </div>
                         <div class="row">
-                            <div class="col-12">
-                                <field name="payment_ref"/>
-                            </div>
+                            <div class="col-12"><field name="payment_ref"/></div>
                         </div>
                     </t>
                 </templates>
@@ -55,9 +51,8 @@
         </field>
     </record>
 
-    <!-- 3. ALL REQUIRED ACTIONS -->
-
-    <!-- Dashboard: Reconcile Items -->
+    <!-- 3. UPDATED MAIN ACTION -->
+    <!-- We add 'form_view_ref' to ensure the 'New' button uses the small popup form -->
     <record id="action_bank_statement_line_reconcile" model="ir.actions.act_window">
         <field name="name">Statement lines</field>
         <field name="res_model">account.bank.statement.line</field>
@@ -65,21 +60,21 @@
         <field name="context">{
             'default_journal_id': active_id,
             'search_default_not_reconciled': 1,
-            'create': True
+            'create': True,
+            'form_view_ref': 'account_reconcile_oca.bank_statement_line_form_add_view'
         }</field>
         <field name="view_mode">kanban,list</field>
     </record>
 
-    <!-- Dashboard: Transactions -->
+    <!-- Other actions to prevent the RPC_ERROR -->
     <record id="action_bank_statement_line_reconcile_all" model="ir.actions.act_window">
-        <field name="name">Reconcile bank statement lines</field>
+        <field name="name">Transactions</field>
         <field name="res_model">account.bank.statement.line</field>
         <field name="domain">[('journal_id', '=', active_id)]</field>
         <field name="context">{'default_journal_id': active_id, 'create': True}</field>
         <field name="view_mode">kanban,list</field>
     </record>
 
-    <!-- Dashboard: Items to Check -->
     <record id="action_bank_statement_line_reconcile_to_check" model="ir.actions.act_window">
         <field name="name">To Check</field>
         <field name="res_model">account.bank.statement.line</field>
@@ -87,21 +82,11 @@
         <field name="view_mode">kanban</field>
     </record>
 
-    <!-- Account Move: Bank Reconcile Smart Button (The one that just failed) -->
     <record id="action_bank_statement_line_move_view_reconcile" model="ir.actions.act_window">
-        <field name="name">Reconcile bank statement lines</field>
+        <field name="name">Bank reconcile</field>
         <field name="res_model">account.bank.statement.line</field>
         <field name="view_mode">kanban</field>
         <field name="view_id" ref="bank_statement_line_reconcile_view"/>
-    </record>
-
-    <!-- General: Create Action -->
-    <record id="action_bank_statement_line_create" model="ir.actions.act_window">
-        <field name="name">Add Bank Statement Line</field>
-        <field name="res_model">account.bank.statement.line</field>
-        <field name="view_mode">form</field>
-        <field name="view_id" ref="bank_statement_line_form_add_view"/>
-        <field name="target">new</field>
     </record>
 </odoo>
 
