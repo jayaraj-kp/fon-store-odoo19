@@ -74,7 +74,6 @@
         <button
                 t-on-click="onClickNewButton"
                 class="btn btn-primary"
-                t-if="props.archInfo.activeActions.create"
         >New
         </button>
     </t>
