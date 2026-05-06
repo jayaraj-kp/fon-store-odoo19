@@ -1,21 +1,42 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Copyright 2023 Dixmit
-     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
 <odoo>
     <record model="ir.ui.view" id="view_account_list">
-        <field name="name">account.account.list (in account_reconcile_oca)</field>
+        <field name="name">account.account.list.inherit</field>
         <field name="model">account.account</field>
-        <field name="inherit_id" ref="account.view_account_list" />
+        <field name="inherit_id" ref="account.view_account_list"/>
         <field name="arch" type="xml">
             <list position="inside">
-                <button
-                    type="action"
-                    name="%(account_reconcile_oca.account_account_account_account_reconcile_act_window)s"
-                    string="Reconcile"
-                    class="float-end btn-secondary"
-                    invisible="reconcile == False"
-                />
+                <!-- Fixed the name attribute here to match the ID above -->
+                <button type="action"
+                        name="%(account_reconcile_oca.account_account_reconcile_act_window)s"
+                        string="Reconcile"
+                        class="btn-secondary"
+                        invisible="reconcile == False"/>
             </list>
         </field>
     </record>
 </odoo>
+
+
+
+<!--<?xml version="1.0" encoding="utf-8" ?>-->
+<!--&lt;!&ndash; Copyright 2023 Dixmit-->
+<!--     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). &ndash;&gt;-->
+<!--<odoo>-->
+<!--    <record model="ir.ui.view" id="view_account_list">-->
+<!--        <field name="name">account.account.list (in account_reconcile_oca)</field>-->
+<!--        <field name="model">account.account</field>-->
+<!--        <field name="inherit_id" ref="account.view_account_list" />-->
+<!--        <field name="arch" type="xml">-->
+<!--            <list position="inside">-->
+<!--                <button-->
+<!--                    type="action"-->
+<!--                    name="%(account_reconcile_oca.account_account_account_account_reconcile_act_window)s"-->
+<!--                    string="Reconcile"-->
+<!--                    class="float-end btn-secondary"-->
+<!--                    invisible="reconcile == False"-->
+<!--                />-->
+<!--            </list>-->
+<!--        </field>-->
+<!--    </record>-->
+<!--</odoo>-->

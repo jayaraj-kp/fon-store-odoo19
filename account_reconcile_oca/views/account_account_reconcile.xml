@@ -6,14 +6,11 @@
         <field name="arch" type="xml">
             <kanban js_class="reconcile" create="1">
                 <templates>
-                    <!-- Changed this to t-name="card" for Odoo 19 compatibility -->
                     <t t-name="card">
                         <div class="o_kanban_record_top">
-                            <div class="o_kanban_record_headings">
-                                <strong class="o_kanban_record_title">
-                                    <field name="account_id" />
-                                </strong>
-                            </div>
+                            <strong class="o_kanban_record_title">
+                                <field name="account_id" />
+                            </strong>
                         </div>
                         <div class="o_kanban_record_body">
                             <field name="partner_id" />
@@ -24,11 +21,12 @@
         </field>
     </record>
 
+    <!-- This is the ID we will reference -->
     <record model="ir.actions.act_window" id="account_account_reconcile_act_window">
         <field name="name">Reconcile</field>
         <field name="res_model">account.account.reconcile</field>
         <field name="view_mode">kanban</field>
-        <field name="context">{'create': True, 'view_ref': 'account_reconcile_oca.account_account_reconcile_form_view'}</field>
+        <field name="context">{'create': True}</field>
     </record>
 </odoo>
 
