@@ -1,6 +1,6 @@
 import traceback
 import logging
-from odoo import models, api
+from odoo import models, api, fields
 
 _logger = logging.getLogger(__name__)
 
@@ -10,90 +10,90 @@ CASH_CUSTOMER_NAME = "CASH CUSTOMER"
 class ResPartner(models.Model):
     _inherit = "res.partner"
 
+    # ── Flag to mark contacts that belong only to CASH CUSTOMER ──────────────
+    is_cash_customer_contact = fields.Boolean(
+        string="Is Cash Customer Contact",
+        default=False,
+        index=True,
+        help="If True, this contact is a sub-contact of CASH CUSTOMER and "
+             "should not appear in the main Customers list.",
+    )
+
     def _is_cash_customer_child(self):
         """Return True if this partner is a direct child of CASH CUSTOMER company."""
         self.ensure_one()
-        result = (
+        return (
             not self.is_company
             and self.parent_id
             and self.parent_id.name == CASH_CUSTOMER_NAME
             and self.parent_id.is_company
         )
-        _logger.info(
-            "PCB_DEBUG _is_cash_customer_child | partner=%s (id=%s) | "
-            "is_company=%s | parent=%s | parent_is_company=%s | RESULT=%s",
-            self.name, self.id,
-            self.is_company,
-            self.parent_id.name if self.parent_id else None,
-            self.parent_id.is_company if self.parent_id else None,
-            result,
-        )
-        return result
 
     @api.model_create_multi
     def create(self, vals_list):
-        _logger.info("PCB_DEBUG create() called with %d records", len(vals_list))
-        for i, v in enumerate(vals_list):
-            _logger.info("PCB_DEBUG   vals[%d] = %s", i, v)
+        # Pre-mark any record being created under CASH CUSTOMER
+        for vals in vals_list:
+            parent_id = vals.get("parent_id")
+            if parent_id:
+                parent = self.browse(parent_id)
+                if (
+                    parent.exists()
+                    and parent.name == CASH_CUSTOMER_NAME
+                    and parent.is_company
+                ):
+                    vals["customer_rank"] = 0
+                    vals["is_cash_customer_contact"] = True
+                    _logger.info(
+                        "PCB_DEBUG create() pre-marking as cash_customer_contact: %s",
+                        vals.get("name"),
+                    )
 
         records = super().create(vals_list)
 
-        for r in records:
-            _logger.info(
-                "PCB_DEBUG   AFTER super().create => id=%s name=%s "
-                "customer_rank=%s parent_id=%s is_company=%s",
-                r.id, r.name, r.customer_rank,
-                r.parent_id.name if r.parent_id else None,
-                r.is_company,
-            )
-
+        # Post-create: enforce again (in case ORM overrode our vals)
         cash_children = records.filtered(lambda r: r._is_cash_customer_child())
-        _logger.info("PCB_DEBUG   cash_children count = %d", len(cash_children))
-
         if cash_children:
             _logger.info(
-                "PCB_DEBUG   Resetting customer_rank=0 for: %s",
+                "PCB_DEBUG create() post-enforce on: %s",
                 cash_children.mapped("name"),
             )
-            cash_children.sudo().write({"customer_rank": 0})
-
+            # Use SQL directly to bypass ALL ORM hooks and computed field triggers
+            self.env.cr.execute(
+                "UPDATE res_partner SET customer_rank = 0, is_cash_customer_contact = TRUE "
+                "WHERE id = ANY(%s)",
+                (cash_children.ids,),
+            )
+            cash_children.invalidate_recordset(["customer_rank", "is_cash_customer_contact"])
             for r in cash_children:
-                r.invalidate_recordset(["customer_rank"])
                 _logger.info(
-                    "PCB_DEBUG   AFTER reset write => id=%s name=%s customer_rank=%s",
-                    r.id, r.name, r.customer_rank,
+                    "PCB_DEBUG   VERIFIED => id=%s name=%s customer_rank=%s flag=%s",
+                    r.id, r.name, r.customer_rank, r.is_cash_customer_contact,
                 )
 
         return records
 
     def write(self, vals):
-        if "customer_rank" in vals:
-            _logger.info(
-                "PCB_DEBUG write() called on ids=%s names=%s | "
-                "customer_rank being set to %s",
-                self.ids,
-                self.mapped("name"),
-                vals.get("customer_rank"),
-            )
-            stack = "".join(traceback.format_stack())
-            _logger.info("PCB_DEBUG write() CALL STACK:\n%s", stack)
-
         res = super().write(vals)
 
+        # After any write, enforce on cash customer children
         if "customer_rank" in vals and vals.get("customer_rank", 0) > 0:
             cash_children = self.filtered(lambda r: r._is_cash_customer_child())
             if cash_children:
                 _logger.info(
-                    "PCB_DEBUG write() blocking customer_rank>0 for: %s",
+                    "PCB_DEBUG write() enforcing customer_rank=0 via SQL for: %s",
                     cash_children.mapped("name"),
                 )
-                super(ResPartner, cash_children.sudo()).write({"customer_rank": 0})
-
-                for r in cash_children:
-                    r.invalidate_recordset(["customer_rank"])
-                    _logger.info(
-                        "PCB_DEBUG   AFTER block write => id=%s name=%s customer_rank=%s",
-                        r.id, r.name, r.customer_rank,
-                    )
+                self.env.cr.execute(
+                    "UPDATE res_partner SET customer_rank = 0, is_cash_customer_contact = TRUE "
+                    "WHERE id = ANY(%s)",
+                    (cash_children.ids,),
+                )
+                cash_children.invalidate_recordset(["customer_rank", "is_cash_customer_contact"])
 
         return res
+
+    @api.model
+    def _get_default_customers_domain(self):
+        """Override to exclude CASH CUSTOMER sub-contacts from customers list."""
+        domain = super()._get_default_customers_domain() if hasattr(super(), '_get_default_customers_domain') else [('customer_rank', '>', 0)]
+        return domain + [('is_cash_customer_contact', '=', False)]
