@@ -1581,6 +1581,7 @@ export class CreateCustomerDialog extends Component {
     static components = { Dialog };
     static props = {
         phone: { type: String, default: "" },
+        name: { type: String, default: "" },
         autoTag: { type: Object, default: null },
         onCreated: Function,
         close: Function,
@@ -1595,8 +1596,12 @@ export class CreateCustomerDialog extends Component {
         const digitsOnly = query.replace(/\D/g, "");
         const isPhone = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 3;
 
+        // If a name prop was passed directly (from quick-create redirect), use it.
+        // Otherwise fall back to the old behaviour: use phone query as name placeholder.
+        const initialName = this.props.name || (isPhone ? "" : query);
+
         this.form = useState({
-            name: query,
+            name: initialName,
             phone: isPhone ? query : "",
             email: "",
             saving: false,
@@ -1994,7 +1999,21 @@ export class PhoneCustomerBar extends Component {
         if (!query) return;
 
         const looksLikePhone = /^\d+$/.test(query);
-        if (looksLikePhone && query.replace(/\D/g, "").length !== 10) {
+
+        // If query is a valid 10-digit phone number, create directly (phone is already known)
+        if (looksLikePhone && query.replace(/\D/g, "").length === 10) {
+            const autoTag = await this._getAutoTag();
+            await this._doCreate({
+                name: query,
+                phone: query,
+                email: "",
+                tagId: autoTag ? autoTag.id : false,
+            });
+            return;
+        }
+
+        // If query looks like a phone but wrong digit count, warn and stop
+        if (looksLikePhone) {
             this.notification.add(
                 "Phone number must be exactly 10 digits.",
                 { type: "danger", sticky: false }
@@ -2002,13 +2021,16 @@ export class PhoneCustomerBar extends Component {
             return;
         }
 
+        // Query is a name — phone is unknown, so open the dialog to enforce mandatory phone
         const autoTag = await this._getAutoTag();
-
-        await this._doCreate({
+        this.dialog.add(CreateCustomerDialog, {
+            phone: "",
+            autoTag: autoTag,
+            onCreated: async (formData) => {
+                await this._doCreate(formData);
+            },
+            // Pre-fill name from the query
             name: query,
-            phone: looksLikePhone ? query : "",
-            email: "",
-            tagId: autoTag ? autoTag.id : false,
         });
     }
 
