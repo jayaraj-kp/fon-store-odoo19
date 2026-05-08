@@ -965,7 +965,6 @@
 #             'domain': [('id', 'in', self.delivery_journal_entry_ids.ids)],
 #             'context': {'default_move_type': 'entry'},
 #         }
-
 #
 # # -*- coding: utf-8 -*-
 # """
