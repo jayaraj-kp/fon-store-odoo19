@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Report Action -->
+    <record id="action_picking_summary_report" model="ir.actions.report">
+        <field name="name">Picking Summary</field>
+        <field name="model">stock.picking</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">picking_summary_report.picking_summary_template</field>
+        <field name="report_file">picking_summary_report.picking_summary_template</field>
+        <field name="print_report_name">'Picking Summary - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="stock.model_stock_picking"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="base.paperformat_euro"/>
+    </record>
+
+</odoo>

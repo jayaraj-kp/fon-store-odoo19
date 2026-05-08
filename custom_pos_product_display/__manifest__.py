@@ -2,7 +2,7 @@
     'name': 'POS Product Display - Remove Internal Reference',
     'version': '19.0.1.0.0',
     'category': 'Point of Sale',
-    'summary': 'Remove internal reference codes from POS product display',
+    'summary': 'Remove internal reference codes from POS product display PIVOT',
     'author': 'Custom Development',
     'depends': ['point_of_sale', 'product'],
     'data': [],
