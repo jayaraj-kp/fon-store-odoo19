@@ -44,6 +44,7 @@ class ProductTemplate(models.Model):
     available_in_pos = fields.Boolean(required=True, default=True)
     is_storable = fields.Boolean(required=True, default=True)
     barcode = fields.Char(required=True)
+    categ_id = fields.Many2one(required=True)
 
     @api.model
     def default_get(self, fields_list):
