@@ -7,7 +7,7 @@
         <field name="model">stock.picking</field>
         <field name="inherit_id" ref="stock.view_picking_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//button[@name='action_print_picking']" position="after">
+            <xpath expr="//button[@name='action_cancel']" position="after">
                 <button
                     name="%(picking_summary_report.action_picking_summary_report)d"
                     string="Picking Summary"
