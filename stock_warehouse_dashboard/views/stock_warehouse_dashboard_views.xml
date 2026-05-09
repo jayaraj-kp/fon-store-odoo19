@@ -48,7 +48,7 @@
     </record>
 
     <!-- ══════════════════════════════════════════════════════════════
-         2. Transfer list view — add Send/Accept column
+         2. Transfer list view — Send/Accept label column
          ══════════════════════════════════════════════════════════════ -->
 
     <record id="view_picking_list_wh_send_accept" model="ir.ui.view">
