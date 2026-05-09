@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 {
     'name': 'Stock Warehouse Dashboard – To Send / To Accept',
     'version': '19.0.1.0.0',
