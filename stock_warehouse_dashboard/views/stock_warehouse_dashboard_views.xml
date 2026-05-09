@@ -4,14 +4,13 @@
     <!--
         Odoo 19 CE – Inventory Overview kanban card extension.
 
-        Injects "To Send" and "To Accept" badge buttons into each
-        picking-type kanban card on the Inventory Overview page.
+        IMPORTANT: The xpath targets the closing </kanban> tag using
+        "last child of kanban root" which is version-independent.
 
-        The kanban view XML ID in Odoo 17/18/19 is:
-            stock.stock_picking_type_kanban
-
-        Fields wh_to_send_count and wh_to_accept_count are computed
-        on stock.picking.type in models/stock_warehouse.py.
+        We add our fields to the <kanban> fields list and inject
+        the badges at the end of the card template using a safe xpath
+        that targets the <field> elements (always present) rather than
+        CSS classes which change between versions.
     -->
 
     <record id="view_picking_type_kanban_wh_send_accept" model="ir.ui.view">
@@ -20,9 +19,15 @@
         <field name="inherit_id" ref="stock.stock_picking_type_kanban"/>
         <field name="arch" type="xml">
 
-            <xpath expr="//div[hasclass('o_kanban_primary_bottom')]" position="after">
-                <div class="o_wh_send_accept_row">
+            <!-- Declare our new computed fields so kanban can read them -->
+            <xpath expr="//kanban/field[last()]" position="after">
+                <field name="wh_to_send_count"/>
+                <field name="wh_to_accept_count"/>
+            </xpath>
 
+            <!-- Inject badges at the end of the kanban card template -->
+            <xpath expr="//t[@t-name='card']" position="inside">
+                <div class="o_wh_send_accept_row">
                     <t t-if="record.wh_to_send_count.raw_value and record.wh_to_send_count.raw_value > 0">
                         <a class="o_wh_badge o_wh_badge_send"
                            t-att-data-warehouse-id="record.warehouse_id.raw_value"
@@ -33,7 +38,6 @@
                             </span>
                         </a>
                     </t>
-
                     <t t-if="record.wh_to_accept_count.raw_value and record.wh_to_accept_count.raw_value > 0">
                         <a class="o_wh_badge o_wh_badge_accept"
                            t-att-data-warehouse-id="record.warehouse_id.raw_value"
@@ -44,7 +48,6 @@
                             </span>
                         </a>
                     </t>
-
                 </div>
             </xpath>
 
