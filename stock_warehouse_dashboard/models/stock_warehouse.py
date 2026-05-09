@@ -4,16 +4,22 @@ from odoo.exceptions import UserError
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Cross-WH Transfer flow:
-#   1. Sender clicks [Send]   → wh_send_state: pending → sent
+#   1. Transfer is created → wh_send_state auto-set to 'pending'
+#   2. Sender clicks [Send]   → wh_send_state: pending → sent
 #                               Triggers check_availability; To Send count ↓
-#   2. Receiver (or sender) clicks [Accept] → validates the transfer
+#   3. Receiver (or sender) clicks [Accept] → validates the transfer
 #                               wh_send_state: sent → accepted; To Accept ↓
 #
 # wh_send_state values:
-#   'na'       – not a cross-WH transfer (default)
-#   'pending'  – cross-WH, not yet sent
-#   'sent'     – sender clicked Send; awaiting acceptance
+#   'na'       – not a cross-WH transfer (default for non-cross-WH)
+#   'pending'  – cross-WH, not yet sent by sender
+#   'sent'     – sender clicked Send; destination WH can now Accept
 #   'accepted' – fully validated
+#
+# For cross-WH transfers:
+#   - Standard [Validate] button is hidden → users MUST use Send/Accept flow
+#   - [Send] shown only when state == 'pending'
+#   - [Accept] shown only when state == 'sent'
 # ──────────────────────────────────────────────────────────────────────────────
 
 WH_SEND_STATE = [
@@ -54,10 +60,10 @@ class StockPickingType(models.Model):
                 ('usage', '=', 'internal'),
             ])
 
-            # To Send: cross-WH transfers originating HERE that are NOT yet sent
+            # To Send: cross-WH transfers FROM this WH not yet sent
             pt.wh_to_send_count = Picking.search_count([
                 ('state', 'in', ['confirmed', 'assigned']),
-                ('wh_send_state', 'in', ['pending', 'na']),
+                ('wh_send_state', '=', 'pending'),
                 ('location_id', 'in', own_locs.ids),
                 ('location_dest_id', 'in', other_locs.ids),
             ])
@@ -94,7 +100,7 @@ class StockPickingType(models.Model):
         ])
         return self._build_action(_('To Send'), [
             ('state', 'in', ['confirmed', 'assigned']),
-            ('wh_send_state', 'in', ['pending', 'na']),
+            ('wh_send_state', '=', 'pending'),
             ('location_id', 'in', own_locs.ids),
             ('location_dest_id', 'in', other_locs.ids),
         ])
@@ -121,7 +127,7 @@ class StockPickingType(models.Model):
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
 
-    # ── Cross-WH send/accept workflow state ───────────────────────────────────
+    # ── Stored workflow state for cross-WH transfers ──────────────────────────
     wh_send_state = fields.Selection(
         WH_SEND_STATE,
         string='WH Transfer State',
@@ -130,43 +136,38 @@ class StockPicking(models.Model):
         index=True,
     )
 
-    # ── Computed helpers for the view ─────────────────────────────────────────
+    # ── Computed display flags (not stored — always fresh) ────────────────────
     wh_is_cross_transfer = fields.Boolean(
-        compute='_compute_wh_cross_flags',
-        store=False,
-    )
-    wh_is_cross_send = fields.Boolean(
-        compute='_compute_wh_cross_flags',
-        store=False,
-    )
-    wh_is_cross_accept = fields.Boolean(
-        compute='_compute_wh_cross_flags',
-        store=False,
-    )
-    send_accept_label = fields.Char(
         compute='_compute_wh_cross_flags',
         store=False,
     )
     wh_show_send_btn = fields.Boolean(
         compute='_compute_wh_cross_flags',
         store=False,
-        string='Show Send Button',
     )
     wh_show_accept_btn = fields.Boolean(
         compute='_compute_wh_cross_flags',
         store=False,
-        string='Show Accept Button',
+    )
+    wh_hide_validate_btn = fields.Boolean(
+        compute='_compute_wh_cross_flags',
+        store=False,
+        string='Hide standard Validate button',
+    )
+    send_accept_label = fields.Char(
+        compute='_compute_wh_cross_flags',
+        store=False,
     )
 
     @api.depends(
-        'location_id', 'location_dest_id', 'picking_type_code',
+        'location_id', 'location_dest_id', 'picking_type_id',
         'wh_send_state', 'state',
     )
     def _compute_wh_cross_flags(self):
         for pick in self:
-            is_internal = (pick.picking_type_code == 'internal')
             src_wh = pick.location_id.warehouse_id
             dst_wh = pick.location_dest_id.warehouse_id
+            is_internal = (pick.picking_type_id.code == 'internal')
             is_cross = bool(
                 is_internal and src_wh and dst_wh and src_wh != dst_wh
             )
@@ -174,47 +175,52 @@ class StockPicking(models.Model):
 
             pick.wh_is_cross_transfer = is_cross
 
-            if is_cross:
-                # Outgoing from src_wh perspective
-                # (we show these fields regardless of which WH the user is in;
-                #  the button visibility is handled by wh_send_state)
-                pick.wh_is_cross_send = True
-                pick.wh_is_cross_accept = True
-
-                # Label for list view badge
-                if pick.wh_send_state in ('pending', 'na'):
+            if is_cross and not_done:
+                # [Send] only when pending (not yet sent)
+                pick.wh_show_send_btn = (pick.wh_send_state == 'pending')
+                # [Accept] only when already sent
+                pick.wh_show_accept_btn = (pick.wh_send_state == 'sent')
+                # Hide standard Validate for cross-WH — enforce Send/Accept
+                pick.wh_hide_validate_btn = True
+                # List badge label
+                if pick.wh_send_state == 'pending':
                     pick.send_accept_label = 'To Send'
                 elif pick.wh_send_state == 'sent':
                     pick.send_accept_label = 'To Accept'
                 else:
                     pick.send_accept_label = False
-
-                # [Send] visible when: cross-WH, not yet sent, transfer active
-                pick.wh_show_send_btn = (
-                    not_done and pick.wh_send_state in ('pending', 'na')
-                )
-                # [Accept] visible when: cross-WH, already sent, transfer active
-                # Both the receiver AND the sender can accept (validate)
-                pick.wh_show_accept_btn = (
-                    not_done and pick.wh_send_state == 'sent'
-                )
             else:
-                pick.wh_is_cross_send = False
-                pick.wh_is_cross_accept = False
-                pick.send_accept_label = False
                 pick.wh_show_send_btn = False
                 pick.wh_show_accept_btn = False
+                pick.wh_hide_validate_btn = False
+                pick.send_accept_label = False
+
+    # ── Auto-set wh_send_state on creation ───────────────────────────────────
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        for pick in records:
+            if pick.wh_send_state == 'na':
+                src_wh = pick.location_id.warehouse_id
+                dst_wh = pick.location_dest_id.warehouse_id
+                if (pick.picking_type_id.code == 'internal'
+                        and src_wh and dst_wh and src_wh != dst_wh):
+                    pick.wh_send_state = 'pending'
+        return records
 
     # ── Send action ───────────────────────────────────────────────────────────
     def action_wh_send(self):
-        """Mark this transfer as 'sent' so the destination WH can accept it."""
+        """Mark transfer as sent so the destination WH can accept it."""
         self.ensure_one()
         if self.state in ('done', 'cancel'):
             raise UserError(_('Cannot send a completed or cancelled transfer.'))
-        if self.wh_send_state not in ('pending', 'na'):
-            raise UserError(_('This transfer has already been sent.'))
+        if self.wh_send_state != 'pending':
+            raise UserError(_(
+                'This transfer has already been sent or is not a '
+                'cross-warehouse outgoing transfer.'
+            ))
 
-        # Trigger availability check so quantities are reserved
+        # Reserve stock if not already done
         if self.state == 'confirmed':
             self.action_assign()
 
@@ -226,11 +232,12 @@ class StockPicking(models.Model):
             'params': {
                 'title': _('Transfer Sent'),
                 'message': _(
-                    'Transfer %s has been marked as sent. '
+                    'Transfer %s has been sent. '
                     'The destination warehouse can now accept it.'
                 ) % self.name,
                 'type': 'success',
                 'sticky': False,
+                'next': {'type': 'ir.actions.act_window_close'},
             },
         }
 
@@ -245,23 +252,23 @@ class StockPicking(models.Model):
                 'This transfer must be sent first before it can be accepted.'
             ))
 
-        # If not all quantities are set, use immediate transfer (set qty = demand)
+        # Fill in quantity = demand for any unfilled move lines
         for ml in self.move_line_ids:
             if not ml.quantity:
                 ml.quantity = ml.reserved_uom_qty or ml.move_id.product_uom_qty
 
-        # For moves without move_lines, set qty_done on the move itself
-        for move in self.move_ids.filtered(lambda m: m.state not in ('done', 'cancel')):
-            if not move.move_line_ids:
-                move.quantity = move.product_uom_qty
+        # For moves with no move lines, set quantity on the move itself
+        for move in self.move_ids.filtered(
+            lambda m: m.state not in ('done', 'cancel') and not m.move_line_ids
+        ):
+            move.quantity = move.product_uom_qty
 
-        # Mark as accepted before validation
         self.wh_send_state = 'accepted'
 
-        # Validate the transfer
+        # Validate — skip backorder prompt where possible
         res = self.with_context(skip_backorder=True).button_validate()
 
-        # If Odoo shows a backorder wizard, let it through
+        # If Odoo still needs a backorder confirmation, let it through
         if isinstance(res, dict) and res.get('res_model') == 'stock.backorder.confirmation':
             return res
 
@@ -270,8 +277,11 @@ class StockPicking(models.Model):
             'tag': 'display_notification',
             'params': {
                 'title': _('Transfer Accepted & Validated'),
-                'message': _('Transfer %s has been validated successfully.') % self.name,
+                'message': _(
+                    'Transfer %s has been validated successfully.'
+                ) % self.name,
                 'type': 'success',
                 'sticky': False,
+                'next': {'type': 'ir.actions.act_window_close'},
             },
         }
