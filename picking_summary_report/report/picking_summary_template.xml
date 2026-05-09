@@ -21,43 +21,74 @@
                 </div>
 
                 <!-- ── SUMMARY TABLE ───────────────────────────────── -->
-                <!--
-                    Layout per row:
-                    Sl No | Category | Location | Product | UoM | Dest-1 Qty | Dest-2 Qty | … | Dest-N Qty
-
-                    The destination sub-header row shows destination names,
-                    the data row shows the corresponding quantities.
-                    Both rows share the same <tr> by using a two-row-per-line
-                    approach via rowspan on the first five columns.
-                -->
                 <t t-foreach="summary_lines" t-as="line">
 
                     <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 0;">
-
-                        <!-- Column header (printed once per logical line) -->
                         <thead>
-                            <tr style="background-color: #1a1a2e; color: #ffffff;">
-                                <th style="padding: 7px 8px; text-align: center; width: 5%;  border: 1px solid #1a1a2e;">Sl No.</th>
-                                <th style="padding: 7px 8px; text-align: left;   width: 16%; border: 1px solid #1a1a2e;">Category</th>
-                                <th style="padding: 7px 8px; text-align: left;   width: 15%; border: 1px solid #1a1a2e;">Location</th>
-                                <th style="padding: 7px 8px; text-align: left;   width: 22%; border: 1px solid #1a1a2e;">Product</th>
-                                <th style="padding: 7px 8px; text-align: center; width: 6%;  border: 1px solid #1a1a2e;">UoM</th>
-                                <!-- Dynamic destination headers -->
+
+                            <!-- ROW 1: fixed column headers + "Destination" spanning all dest sub-columns -->
+                            <tr style="background-color: #ffffff; color: #1a1a2e; border-bottom: 2px solid #1a1a2e;">
+                                <th rowspan="2"
+                                    style="padding: 7px 8px; text-align: center; width: 5%;
+                                           border: 1px solid #ccc; vertical-align: middle;
+                                           font-weight: 700;">
+                                    Sl No.
+                                </th>
+                                <th rowspan="2"
+                                    style="padding: 7px 8px; text-align: left; width: 16%;
+                                           border: 1px solid #ccc; vertical-align: middle;
+                                           font-weight: 700;">
+                                    Category
+                                </th>
+                                <th rowspan="2"
+                                    style="padding: 7px 8px; text-align: left; width: 15%;
+                                           border: 1px solid #ccc; vertical-align: middle;
+                                           font-weight: 700;">
+                                    Location
+                                </th>
+                                <th rowspan="2"
+                                    style="padding: 7px 8px; text-align: left; width: 22%;
+                                           border: 1px solid #ccc; vertical-align: middle;
+                                           font-weight: 700;">
+                                    Product
+                                </th>
+                                <th rowspan="2"
+                                    style="padding: 7px 8px; text-align: center; width: 6%;
+                                           border: 1px solid #ccc; vertical-align: middle;
+                                           font-weight: 700;">
+                                    UoM
+                                </th>
+                                <!-- "Destination" main heading spanning all destination columns -->
+                                <t t-set="dest_count" t-value="len(line['destinations'])"/>
+                                <th t-att-colspan="dest_count"
+                                    style="padding: 7px 8px; text-align: center;
+                                           border: 1px solid #ccc;
+                                           font-weight: 700; color: #1a1a2e;
+                                           border-bottom: 1px solid #ccc;">
+                                    Destination
+                                </th>
+                            </tr>
+
+                            <!-- ROW 2: sub-headings — each destination name + picking ref -->
+                            <tr style="background-color: #f5f5f5; color: #1a1a2e;">
                                 <t t-foreach="line['destinations']" t-as="dest">
-                                    <th style="padding: 7px 8px; text-align: center; border: 1px solid #1a1a2e; font-size: 10px;">
+                                    <th style="padding: 6px 8px; text-align: center;
+                                               border: 1px solid #ccc;
+                                               font-size: 10px; font-weight: 700;">
                                         <t t-esc="dest['destination']"/>
                                         <br/>
-                                        <span style="font-size: 9px; font-weight: 400; opacity: 0.85;">
+                                        <span style="font-size: 9px; font-weight: 400; color: #666;">
                                             <t t-esc="dest['picking_ref']"/>
                                         </span>
                                     </th>
                                 </t>
                             </tr>
+
                         </thead>
 
                         <!-- Data row -->
                         <tbody>
-                            <tr t-att-style="'background-color: %s;' % ('#f9f9f9' if line_index % 2 == 0 else '#ffffff')">
+                            <tr t-att-style="'background-color: %s;' % ('#fafafa' if line_index % 2 == 0 else '#ffffff')">
                                 <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #333;">
                                     <t t-esc="line['sl_no']"/>
                                 </td>
@@ -73,7 +104,6 @@
                                 <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #555;">
                                     <t t-esc="line['uom']"/>
                                 </td>
-                                <!-- Qty per destination -->
                                 <t t-foreach="line['destinations']" t-as="dest">
                                     <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #333; font-weight: 600;">
                                         <t t-esc="dest['qty']"/>
@@ -84,8 +114,7 @@
 
                     </table>
 
-                    <!-- Small spacer between product blocks -->
-                    <div style="height: 6px;"></div>
+                    <div style="height: 8px;"></div>
 
                 </t>
 
@@ -105,11 +134,11 @@
                 <!-- ── FOOTER TOTALS ──────────────────────────────── -->
                 <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px;">
                     <tfoot>
-                        <tr style="background-color: #1a1a2e; color: #ffffff;">
-                            <td style="padding: 7px 8px; font-weight: 700; border: 1px solid #1a1a2e; text-align: right;">
+                        <tr style="background-color: #ffffff; color: #1a1a2e;">
+                            <td style="padding: 7px 8px; font-weight: 700; border: 1px solid #ccc; text-align: right;">
                                 Total Product Lines:
                             </td>
-                            <td style="padding: 7px 8px; font-weight: 700; text-align: center; border: 1px solid #1a1a2e; width: 60px;">
+                            <td style="padding: 7px 8px; font-weight: 700; text-align: center; border: 1px solid #ccc; width: 60px;">
                                 <t t-esc="total_lines"/>
                             </td>
                         </tr>
