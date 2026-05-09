@@ -67,4 +67,52 @@
         </field>
     </record>
 
+    <!-- ══════════════════════════════════════════════════════════════
+         3. Transfer form view — Send / Accept buttons
+            Inherits the standard picking form to add:
+              [Send]   — visible when cross-WH and not yet sent
+              [Accept] — visible when cross-WH and already sent
+         ══════════════════════════════════════════════════════════════ -->
+
+    <record id="view_picking_form_wh_send_accept" model="ir.ui.view">
+        <field name="name">stock.picking.form.wh.send.accept</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add computed fields to the form so attrs work -->
+            <xpath expr="//sheet" position="before">
+                <field name="wh_show_send_btn"   invisible="1"/>
+                <field name="wh_show_accept_btn" invisible="1"/>
+                <field name="wh_is_cross_transfer" invisible="1"/>
+                <field name="wh_send_state"      invisible="1"/>
+            </xpath>
+
+            <!-- Insert [Send] and [Accept] buttons at the START of the header
+                 button bar, before the existing Validate / Check Availability. -->
+            <xpath expr="//header/button[1]" position="before">
+
+                <!-- SEND button: shown when transfer is outgoing cross-WH and not yet sent -->
+                <button name="action_wh_send"
+                        string="Send"
+                        type="object"
+                        class="btn-primary o_wh_btn_send"
+                        icon="fa-paper-plane"
+                        invisible="not wh_show_send_btn"
+                        confirm="Mark this transfer as sent? The destination warehouse will be able to accept it."/>
+
+                <!-- ACCEPT button: shown when transfer has been sent (incoming at dest WH) -->
+                <button name="action_wh_accept"
+                        string="Accept"
+                        type="object"
+                        class="btn-success o_wh_btn_accept"
+                        icon="fa-check-circle"
+                        invisible="not wh_show_accept_btn"
+                        confirm="Accept and validate this transfer? Stock will be moved immediately."/>
+
+            </xpath>
+
+        </field>
+    </record>
+
 </odoo>

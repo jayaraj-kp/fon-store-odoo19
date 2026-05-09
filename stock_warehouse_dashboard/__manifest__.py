@@ -1,15 +1,23 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Stock Warehouse Dashboard – To Send / To Accept',
-    'version': '19.0.1.0.0',
+    'version': '19.0.2.0.0',
     'category': 'Inventory',
-    'summary': 'Adds To Send and To Accept counters to the Inventory Overview kanban',
+    'summary': 'Adds To Send and To Accept counters + Send/Accept buttons to cross-WH transfers',
     'description': """
 Extends the Inventory Overview to show per-warehouse:
-  - To Send   : Ready/Confirmed outgoing internal transfers not yet validated
-  - To Accept : Ready/Confirmed incoming internal transfers not yet validated
+  - To Send   : Ready/Confirmed outgoing cross-WH internal transfers not yet sent
+  - To Accept : Ready/Confirmed incoming cross-WH internal transfers awaiting acceptance
 
-Clicking either badge opens the filtered transfer list.
+Workflow:
+  1. Sender opens the transfer and clicks [Send]
+     → Transfer is marked as 'Sent'; To Send counter decreases,
+       To Accept counter at the destination warehouse increases.
+  2. Receiver (or sender) opens the transfer and clicks [Accept]
+     → Transfer is validated immediately; To Accept counter decreases.
+
+Both the sender and receiver can click [Accept] to complete the transfer.
+Clicking either badge on the kanban card opens the filtered transfer list.
     """,
     'author': 'FON-STORE',
     'website': '',
