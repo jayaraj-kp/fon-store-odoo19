@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        ══════════════════════════════════════════════════════
+        Extend the Inventory Overview kanban card to show
+        "To Send" and "To Accept" per warehouse.
+
+        We inherit stock.view_picking_type_kanban and inject
+        the two counters below the existing stats block.
+        ══════════════════════════════════════════════════════
+    -->
+
+    <record id="view_picking_type_kanban_wh_stats" model="ir.ui.view">
+        <field name="name">stock.picking.type.kanban.wh.send.accept</field>
+        <field name="model">stock.picking.type</field>
+        <field name="inherit_id" ref="stock.view_picking_type_kanban"/>
+        <field name="arch" type="xml">
+
+            <!--
+                Inject below the existing kanban bottom stats block.
+                wh_to_send_count and wh_to_accept_count are computed
+                fields on stock.picking.type (see models/stock_warehouse.py).
+            -->
+            <xpath expr="//div[hasclass('o_kanban_primary_bottom')]" position="after">
+                <div class="o_wh_send_accept_row d-flex gap-2 flex-wrap px-2 pb-2 mt-1">
+
+                    <t t-if="record.wh_to_send_count.raw_value and record.wh_to_send_count.raw_value > 0">
+                        <a
+                            class="o_wh_badge o_wh_badge_send"
+                            t-att-data-warehouse-id="record.warehouse_id.raw_value"
+                            t-att-data-direction="'send'"
+                            type="action"
+                        >
+                            To Send
+                            <span class="o_wh_badge_count">
+                                <t t-esc="record.wh_to_send_count.raw_value"/>
+                            </span>
+                        </a>
+                    </t>
+
+                    <t t-if="record.wh_to_accept_count.raw_value and record.wh_to_accept_count.raw_value > 0">
+                        <a
+                            class="o_wh_badge o_wh_badge_accept"
+                            t-att-data-warehouse-id="record.warehouse_id.raw_value"
+                            t-att-data-direction="'accept'"
+                            type="action"
+                        >
+                            To Accept
+                            <span class="o_wh_badge_count">
+                                <t t-esc="record.wh_to_accept_count.raw_value"/>
+                            </span>
+                        </a>
+                    </t>
+
+                </div>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

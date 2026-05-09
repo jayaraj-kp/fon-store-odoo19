@@ -1,0 +1,62 @@
+// ── Stock Warehouse Dashboard ── To Send / To Accept badges ─────────────────
+
+.o_wh_send_accept_row {
+    min-height: 0;
+}
+
+.o_wh_badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px 3px 8px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none !important;
+    transition: filter 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+
+    &:hover {
+        filter: brightness(0.88);
+        transform: translateY(-1px);
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+
+    .o_wh_badge_count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4px;
+        border-radius: 9px;
+        font-size: 0.68rem;
+        font-weight: 700;
+    }
+}
+
+// Teal — outgoing / To Send
+.o_wh_badge_send {
+    background-color: #00897b;
+    color: #fff;
+
+    .o_wh_badge_count {
+        background-color: rgba(255, 255, 255, 0.25);
+        color: #fff;
+    }
+}
+
+// Indigo — incoming / To Accept
+.o_wh_badge_accept {
+    background-color: #5c6bc0;
+    color: #fff;
+
+    .o_wh_badge_count {
+        background-color: rgba(255, 255, 255, 0.25);
+        color: #fff;
+    }
+}
