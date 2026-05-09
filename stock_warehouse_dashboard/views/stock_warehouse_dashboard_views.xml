@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         1. Kanban card badges — only on Internal Transfer cards
+         ══════════════════════════════════════════════════════════════ -->
+
+    <record id="view_picking_type_kanban_wh_send_accept" model="ir.ui.view">
+        <field name="name">stock.picking.type.kanban.wh.send.accept</field>
+        <field name="model">stock.picking.type</field>
+        <field name="inherit_id" ref="stock.stock_picking_type_kanban"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//kanban/field[last()]" position="after">
+                <field name="wh_to_send_count"/>
+                <field name="wh_to_accept_count"/>
+                <field name="code"/>
+            </xpath>
+
+            <xpath expr="//t[@t-name='card']" position="inside">
+                <t t-if="record.code.raw_value == 'internal'">
+                    <div class="o_wh_send_accept_row">
+                        <t t-if="record.wh_to_send_count.raw_value and record.wh_to_send_count.raw_value > 0">
+                            <a class="o_wh_badge o_wh_badge_send"
+                               t-att-data-picking-type-id="record.id.raw_value"
+                               data-direction="send">
+                                To Send
+                                <span class="o_wh_badge_count">
+                                    <t t-esc="record.wh_to_send_count.raw_value"/>
+                                </span>
+                            </a>
+                        </t>
+                        <t t-if="record.wh_to_accept_count.raw_value and record.wh_to_accept_count.raw_value > 0">
+                            <a class="o_wh_badge o_wh_badge_accept"
+                               t-att-data-picking-type-id="record.id.raw_value"
+                               data-direction="accept">
+                                To Accept
+                                <span class="o_wh_badge_count">
+                                    <t t-esc="record.wh_to_accept_count.raw_value"/>
+                                </span>
+                            </a>
+                        </t>
+                    </div>
+                </t>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         2. Transfer list view — add Send/Accept column
+         ══════════════════════════════════════════════════════════════ -->
+
+    <record id="view_picking_list_wh_send_accept" model="ir.ui.view">
+        <field name="name">stock.picking.list.wh.send.accept</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.vpicktree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="send_accept_label"
+                       string="Send/Accept"
+                       optional="show"
+                       widget="badge"
+                       decoration-success="send_accept_label == 'To Send'"
+                       decoration-info="send_accept_label == 'To Accept'"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
