@@ -39,7 +39,6 @@ document.addEventListener('click', async function (ev) {
     ev.preventDefault();
     ev.stopPropagation();
 
-    // Now using picking_type_id (not warehouse_id)
     const pickingTypeId = parseInt(badge.dataset.pickingTypeId, 10);
     const direction = badge.dataset.direction; // 'send' or 'accept'
 
@@ -53,15 +52,14 @@ document.addEventListener('click', async function (ev) {
         : 'action_open_to_accept';
 
     try {
-        // Call on stock.picking.type with the correct record id
         const action = await callKw('stock.picking.type', method, [[pickingTypeId]]);
         if (action) {
-            const env = owl.__apps__?.[0]?.env;
+            // Odoo 19: access action service via __WOWL_DEBUG__.root.env
+            const env = window.odoo?.__WOWL_DEBUG__?.root?.env;
             if (env?.services?.action) {
                 env.services.action.doAction(action);
             } else {
-                console.warn('WH Dashboard: action service not found, falling back');
-                window.location.href = '/odoo/inventory/transfers';
+                console.warn('WH Dashboard: action service not found');
             }
         }
     } catch (e) {
