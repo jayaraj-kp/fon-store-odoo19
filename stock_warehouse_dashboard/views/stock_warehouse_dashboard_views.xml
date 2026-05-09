@@ -2,42 +2,31 @@
 <odoo>
 
     <!--
-        ══════════════════════════════════════════════════════════════════
-        Odoo 19 renamed the inventory overview kanban view.
+        Odoo 19 CE – Inventory Overview kanban card extension.
 
-        The correct XML ID in Odoo 17+ is:
+        Injects "To Send" and "To Accept" badge buttons into each
+        picking-type kanban card on the Inventory Overview page.
+
+        The kanban view XML ID in Odoo 17/18/19 is:
             stock.stock_picking_type_kanban
 
-        (The old id "stock.view_picking_type_kanban" was used in Odoo ≤16)
-
-        If this still fails on your version, run this in Odoo shell to find it:
-            env['ir.ui.view'].search([
-                ('model','=','stock.picking.type'),
-                ('type','=','kanban')
-            ]).mapped(lambda v: (v.xml_id, v.name))
-        ══════════════════════════════════════════════════════════════════
+        Fields wh_to_send_count and wh_to_accept_count are computed
+        on stock.picking.type in models/stock_warehouse.py.
     -->
 
-    <record id="view_picking_type_kanban_wh_stats" model="ir.ui.view">
+    <record id="view_picking_type_kanban_wh_send_accept" model="ir.ui.view">
         <field name="name">stock.picking.type.kanban.wh.send.accept</field>
         <field name="model">stock.picking.type</field>
         <field name="inherit_id" ref="stock.stock_picking_type_kanban"/>
         <field name="arch" type="xml">
 
-            <!--
-                Inject To Send / To Accept badges below the existing stats block.
-                wh_to_send_count and wh_to_accept_count are computed fields
-                on stock.picking.type defined in models/stock_warehouse.py.
-            -->
             <xpath expr="//div[hasclass('o_kanban_primary_bottom')]" position="after">
-                <div class="o_wh_send_accept_row d-flex gap-2 flex-wrap px-2 pb-2 mt-1">
+                <div class="o_wh_send_accept_row">
 
-                    <t t-if="record.wh_to_send_count.raw_value and record.wh_to_send_count.raw_value &gt; 0">
-                        <a
-                            class="o_wh_badge o_wh_badge_send"
-                            t-att-data-warehouse-id="record.warehouse_id.raw_value"
-                            t-att-data-direction="'send'"
-                        >
+                    <t t-if="record.wh_to_send_count.raw_value and record.wh_to_send_count.raw_value > 0">
+                        <a class="o_wh_badge o_wh_badge_send"
+                           t-att-data-warehouse-id="record.warehouse_id.raw_value"
+                           data-direction="send">
                             To Send
                             <span class="o_wh_badge_count">
                                 <t t-esc="record.wh_to_send_count.raw_value"/>
@@ -45,12 +34,10 @@
                         </a>
                     </t>
 
-                    <t t-if="record.wh_to_accept_count.raw_value and record.wh_to_accept_count.raw_value &gt; 0">
-                        <a
-                            class="o_wh_badge o_wh_badge_accept"
-                            t-att-data-warehouse-id="record.warehouse_id.raw_value"
-                            t-att-data-direction="'accept'"
-                        >
+                    <t t-if="record.wh_to_accept_count.raw_value and record.wh_to_accept_count.raw_value > 0">
+                        <a class="o_wh_badge o_wh_badge_accept"
+                           t-att-data-warehouse-id="record.warehouse_id.raw_value"
+                           data-direction="accept">
                             To Accept
                             <span class="o_wh_badge_count">
                                 <t t-esc="record.wh_to_accept_count.raw_value"/>

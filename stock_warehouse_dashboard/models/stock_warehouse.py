@@ -14,24 +14,25 @@ class StockWarehouse(models.Model):
         compute='_compute_to_accept_count',
     )
 
+    def _get_other_wh_locations(self, exclude_wh_id):
+        all_wh_ids = self.search([]).ids
+        other_ids = [w for w in all_wh_ids if w != exclude_wh_id]
+        if not other_ids:
+            return self.env['stock.location']
+        return self.env['stock.location'].search([
+            ('warehouse_id', 'in', other_ids),
+            ('usage', '=', 'internal'),
+        ])
+
     @api.depends_context('uid')
     def _compute_to_send_count(self):
-        """
-        Outgoing internal transfers from this warehouse to another warehouse
-        that are Ready/Confirmed but not yet validated.
-        """
         Picking = self.env['stock.picking']
-        all_wh_ids = self.search([]).ids
-
         for wh in self:
             src_locs = self.env['stock.location'].search([
                 ('warehouse_id', '=', wh.id),
                 ('usage', '=', 'internal'),
             ])
-            other_locs = self.env['stock.location'].search([
-                ('warehouse_id', 'in', [w for w in all_wh_ids if w != wh.id]),
-                ('usage', '=', 'internal'),
-            ])
+            other_locs = self._get_other_wh_locations(wh.id)
             if not src_locs or not other_locs:
                 wh.to_send_count = 0
                 continue
@@ -44,22 +45,13 @@ class StockWarehouse(models.Model):
 
     @api.depends_context('uid')
     def _compute_to_accept_count(self):
-        """
-        Incoming internal transfers arriving at this warehouse from another
-        warehouse that are Ready/Confirmed but not yet validated.
-        """
         Picking = self.env['stock.picking']
-        all_wh_ids = self.search([]).ids
-
         for wh in self:
             dest_locs = self.env['stock.location'].search([
                 ('warehouse_id', '=', wh.id),
                 ('usage', '=', 'internal'),
             ])
-            other_locs = self.env['stock.location'].search([
-                ('warehouse_id', 'in', [w for w in all_wh_ids if w != wh.id]),
-                ('usage', '=', 'internal'),
-            ])
+            other_locs = self._get_other_wh_locations(wh.id)
             if not dest_locs or not other_locs:
                 wh.to_accept_count = 0
                 continue
@@ -72,17 +64,13 @@ class StockWarehouse(models.Model):
 
     def action_open_to_send(self):
         self.ensure_one()
-        all_wh_ids = self.search([]).ids
         src_locs = self.env['stock.location'].search([
             ('warehouse_id', '=', self.id),
             ('usage', '=', 'internal'),
         ])
-        other_locs = self.env['stock.location'].search([
-            ('warehouse_id', 'in', [w for w in all_wh_ids if w != self.id]),
-            ('usage', '=', 'internal'),
-        ])
+        other_locs = self._get_other_wh_locations(self.id)
         return {
-            'name': f'To Send – {self.name}',
+            'name': 'To Send – %s' % self.name,
             'type': 'ir.actions.act_window',
             'res_model': 'stock.picking',
             'view_mode': 'list,form',
@@ -96,17 +84,13 @@ class StockWarehouse(models.Model):
 
     def action_open_to_accept(self):
         self.ensure_one()
-        all_wh_ids = self.search([]).ids
         dest_locs = self.env['stock.location'].search([
             ('warehouse_id', '=', self.id),
             ('usage', '=', 'internal'),
         ])
-        other_locs = self.env['stock.location'].search([
-            ('warehouse_id', 'in', [w for w in all_wh_ids if w != self.id]),
-            ('usage', '=', 'internal'),
-        ])
+        other_locs = self._get_other_wh_locations(self.id)
         return {
-            'name': f'To Accept – {self.name}',
+            'name': 'To Accept – %s' % self.name,
             'type': 'ir.actions.act_window',
             'res_model': 'stock.picking',
             'view_mode': 'list,form',
@@ -133,11 +117,6 @@ class StockPickingType(models.Model):
 
     @api.depends('warehouse_id')
     def _compute_wh_transfer_counts(self):
-        """
-        Delegate to the warehouse computed fields so that
-        these values are available directly on picking type records
-        (used in the kanban view).
-        """
         Picking = self.env['stock.picking']
         all_wh_ids = self.env['stock.warehouse'].search([]).ids
 
@@ -152,10 +131,11 @@ class StockPickingType(models.Model):
                 ('warehouse_id', '=', wh.id),
                 ('usage', '=', 'internal'),
             ])
+            other_ids = [w for w in all_wh_ids if w != wh.id]
             other_locs = self.env['stock.location'].search([
-                ('warehouse_id', 'in', [w for w in all_wh_ids if w != wh.id]),
+                ('warehouse_id', 'in', other_ids),
                 ('usage', '=', 'internal'),
-            ])
+            ]) if other_ids else self.env['stock.location']
 
             if not src_locs or not other_locs:
                 pt.wh_to_send_count = 0

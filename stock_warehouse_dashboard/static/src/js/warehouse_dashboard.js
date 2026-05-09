@@ -1,40 +1,44 @@
 /** @odoo-module **/
 
-import { KanbanController } from "@web/views/kanban/kanban_controller";
-import { KanbanRenderer } from "@web/views/kanban/kanban_renderer";
-import { patch } from "@web/core/utils/patch";
-import { useService } from "@web/core/utils/hooks";
-
 /**
- * Patch the KanbanController to handle clicks on
- * .o_wh_badge_send and .o_wh_badge_accept elements.
+ * Stock Warehouse Dashboard – To Send / To Accept
+ * Odoo 19 CE compatible
  *
- * These are rendered inside the picking-type kanban cards
- * via the inherited view (stock_warehouse_dashboard_views.xml).
+ * Uses plain fetch + document-level click delegation.
+ * No OWL patching required — badges are rendered server-side
+ * via the inherited kanban view XML.
  */
-patch(KanbanController.prototype, {
-    setup() {
-        super.setup(...arguments);
-        this._warehouseDashboardOrm = useService("orm");
-        this._warehouseDashboardAction = useService("action");
-    },
-});
 
-/**
- * Delegate badge clicks at the renderer level (event delegation
- * on the kanban board container).
- */
-patch(KanbanRenderer.prototype, {
-    setup() {
-        super.setup(...arguments);
-        this._wdOrm = useService("orm");
-        this._wdAction = useService("action");
-    },
-});
+// Odoo 19 uses /web/dataset/call_kw for RPC
+async function callKw(model, method, args) {
+    const response = await fetch('/web/dataset/call_kw', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: Math.floor(Math.random() * 100000),
+            method: 'call',
+            params: {
+                model: model,
+                method: method,
+                args: args,
+                kwargs: { context: {} },
+            },
+        }),
+    });
+    const data = await response.json();
+    if (data.error) {
+        console.error('RPC error:', data.error);
+        return null;
+    }
+    return data.result;
+}
 
-// Global click handler (document-level delegation)
-document.addEventListener("click", async function (ev) {
-    const badge = ev.target.closest(".o_wh_badge_send, .o_wh_badge_accept");
+// Document-level click delegation for badge buttons
+document.addEventListener('click', async function (ev) {
+    const badge = ev.target.closest('.o_wh_badge_send, .o_wh_badge_accept');
     if (!badge) return;
 
     ev.preventDefault();
@@ -45,36 +49,23 @@ document.addEventListener("click", async function (ev) {
 
     if (!warehouseId || !direction) return;
 
-    // We need an ORM call — use fetch directly since we're outside OWL here
-    const method = direction === "send" ? "action_open_to_send" : "action_open_to_accept";
+    const method = direction === 'send'
+        ? 'action_open_to_send'
+        : 'action_open_to_accept';
 
     try {
-        const response = await fetch("/web/dataset/call_kw", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                method: "call",
-                params: {
-                    model: "stock.warehouse",
-                    method: method,
-                    args: [warehouseId],
-                    kwargs: {},
-                },
-            }),
-        });
-        const data = await response.json();
-        if (data.result) {
-            // Trigger Odoo action via the global action manager
-            const actionService = owl.Component.env?.services?.action;
-            if (actionService) {
-                actionService.doAction(data.result);
+        const action = await callKw('stock.warehouse', method, [[warehouseId]]);
+        if (action) {
+            // Use Odoo 19's action service via the global __owl__ registry
+            const env = owl.__apps__?.[0]?.env;
+            if (env?.services?.action) {
+                env.services.action.doAction(action);
             } else {
-                // Fallback: dispatch as a URL action
-                window.location.href = `/web#action=${data.result.id || ""}`;
+                // Safe fallback: navigate via hash
+                window.location.href = '/odoo/inventory';
             }
         }
     } catch (e) {
-        console.error("Warehouse badge click error:", e);
+        console.error('WH Dashboard badge error:', e);
     }
 });
