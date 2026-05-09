@@ -442,11 +442,12 @@
 #         """'Accept' button — validates the incoming cross-warehouse transfer."""
 #         return self.button_validate()
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
-
-TRANSIT_LOCATION_ID = 10   # Inter-warehouse transit (id=10 confirmed from DB)
+# Inter-warehouse transit location id=10 (confirmed from DB)
+TRANSIT_LOCATION_ID = 10
 
 
 class StockPickingType(models.Model):
@@ -455,10 +456,9 @@ class StockPickingType(models.Model):
     wh_to_send_count = fields.Integer(compute='_compute_wh_transfer_counts')
     wh_to_accept_count = fields.Integer(compute='_compute_wh_transfer_counts')
 
-    @api.depends('code', 'warehouse_id', 'default_location_src_id', 'default_location_dest_id')
+    @api.depends('code', 'warehouse_id')
     def _compute_wh_transfer_counts(self):
         Picking = self.env['stock.picking']
-        transit_id = TRANSIT_LOCATION_ID
 
         for pt in self:
             if pt.code != 'internal' or not pt.warehouse_id:
@@ -477,18 +477,18 @@ class StockPickingType(models.Model):
                 pt.wh_to_accept_count = 0
                 continue
 
-            # To Send: leg-1 pickings — own stock → transit, with dest WH set
+            # To Send: leg-1 — own stock → transit, dest WH recorded
             pt.wh_to_send_count = Picking.search_count([
                 ('state', 'in', ['confirmed', 'assigned']),
                 ('location_id', 'in', own_locs.ids),
-                ('location_dest_id', '=', transit_id),
+                ('location_dest_id', '=', TRANSIT_LOCATION_ID),
                 ('wh_transit_dest_wh_id', '!=', False),
             ])
 
-            # To Accept: leg-2 pickings — transit → own stock
+            # To Accept: leg-2 — transit → own stock
             pt.wh_to_accept_count = Picking.search_count([
                 ('state', 'in', ['confirmed', 'assigned']),
-                ('location_id', '=', transit_id),
+                ('location_id', '=', TRANSIT_LOCATION_ID),
                 ('location_dest_id', 'in', own_locs.ids),
             ])
 
@@ -504,9 +504,7 @@ class StockPickingType(models.Model):
         }
 
     def action_open_to_send(self):
-        """Open leg-1 pickings: own stock → transit."""
         self.ensure_one()
-        transit_id = TRANSIT_LOCATION_ID
         wh_id = self.warehouse_id.id
         own_locs = self.env['stock.location'].search([
             ('warehouse_id', '=', wh_id),
@@ -515,14 +513,12 @@ class StockPickingType(models.Model):
         return self._build_action('To Send', [
             ('state', 'in', ['confirmed', 'assigned']),
             ('location_id', 'in', own_locs.ids),
-            ('location_dest_id', '=', transit_id),
+            ('location_dest_id', '=', TRANSIT_LOCATION_ID),
             ('wh_transit_dest_wh_id', '!=', False),
         ])
 
     def action_open_to_accept(self):
-        """Open leg-2 pickings: transit → own stock."""
         self.ensure_one()
-        transit_id = TRANSIT_LOCATION_ID
         wh_id = self.warehouse_id.id
         own_locs = self.env['stock.location'].search([
             ('warehouse_id', '=', wh_id),
@@ -530,7 +526,7 @@ class StockPickingType(models.Model):
         ])
         return self._build_action('To Accept', [
             ('state', 'in', ['confirmed', 'assigned']),
-            ('location_id', '=', transit_id),
+            ('location_id', '=', TRANSIT_LOCATION_ID),
             ('location_dest_id', 'in', own_locs.ids),
         ])
 
@@ -538,77 +534,63 @@ class StockPickingType(models.Model):
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
 
-    # Stored on leg-1: which warehouse is the final destination
+    # Stored on leg-1 pickings only: final destination warehouse
     wh_transit_dest_wh_id = fields.Many2one(
         'stock.warehouse',
         string='Transit Destination Warehouse',
         copy=False,
-        help='Leg-1 cross-WH pickings only (stock → transit). '
-             'Used to create leg-2 on Send.',
+        index=True,
     )
 
     send_accept_label = fields.Char(
-        string='Send/Accept',
-        compute='_compute_send_accept_label',
+        compute='_compute_wh_send_labels',
         store=False,
     )
-
     wh_is_cross_send = fields.Boolean(
-        compute='_compute_wh_cross_type',
+        compute='_compute_wh_send_labels',
         store=False,
     )
     wh_is_cross_accept = fields.Boolean(
-        compute='_compute_wh_cross_type',
+        compute='_compute_wh_send_labels',
         store=False,
     )
 
-    @api.depends('location_id', 'location_dest_id', 'picking_type_code',
-                 'wh_transit_dest_wh_id')
-    def _compute_send_accept_label(self):
-        transit_id = TRANSIT_LOCATION_ID
+    @api.depends('location_id', 'location_dest_id',
+                 'picking_type_code', 'wh_transit_dest_wh_id')
+    def _compute_wh_send_labels(self):
         for pick in self:
-            if pick.picking_type_code != 'internal':
-                pick.send_accept_label = False
-                continue
-            if pick.location_dest_id.id == transit_id and pick.wh_transit_dest_wh_id:
-                pick.send_accept_label = 'To Send'
-            elif pick.location_id.id == transit_id:
-                pick.send_accept_label = 'To Accept'
-            else:
-                pick.send_accept_label = False
+            is_internal = pick.picking_type_code == 'internal'
+            is_leg1 = (pick.location_dest_id.id == TRANSIT_LOCATION_ID
+                       and bool(pick.wh_transit_dest_wh_id))
+            is_leg2 = (pick.location_id.id == TRANSIT_LOCATION_ID
+                       and not pick.wh_transit_dest_wh_id)
 
-    @api.depends('location_id', 'location_dest_id', 'picking_type_code',
-                 'wh_transit_dest_wh_id')
-    def _compute_wh_cross_type(self):
-        transit_id = TRANSIT_LOCATION_ID
-        for pick in self:
-            if pick.picking_type_code != 'internal':
-                pick.wh_is_cross_send = False
+            if is_internal and is_leg1:
+                pick.send_accept_label  = 'To Send'
+                pick.wh_is_cross_send   = True
                 pick.wh_is_cross_accept = False
-                continue
-            # Leg 1: src/Stock → transit  → Send button
-            if pick.location_dest_id.id == transit_id and pick.wh_transit_dest_wh_id:
-                pick.wh_is_cross_send = True
-                pick.wh_is_cross_accept = False
-            # Leg 2: transit → dst/Stock  → Accept button
-            elif pick.location_id.id == transit_id:
-                pick.wh_is_cross_send = False
+            elif is_internal and is_leg2:
+                pick.send_accept_label  = 'To Accept'
+                pick.wh_is_cross_send   = False
                 pick.wh_is_cross_accept = True
             else:
-                pick.wh_is_cross_send = False
+                pick.send_accept_label  = False
+                pick.wh_is_cross_send   = False
                 pick.wh_is_cross_accept = False
 
-    # ------------------------------------------------------------------ #
-    #  SEND: validate leg-1, auto-create leg-2 in destination WH          #
-    # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------
+    #  SEND: validate leg-1, auto-create leg-2 in destination warehouse
+    # ------------------------------------------------------------------
     def action_wh_send(self):
         self.ensure_one()
-        transit_loc = self.env['stock.location'].browse(TRANSIT_LOCATION_ID)
         dest_wh = self.wh_transit_dest_wh_id
         if not dest_wh:
-            raise UserError(_('No destination warehouse set on this transfer.'))
+            raise UserError(_('No destination warehouse found on this transfer.'))
 
-        # Find destination WH Internal Transfers picking type
+        transit_loc = self.env['stock.location'].browse(TRANSIT_LOCATION_ID)
+
+        # Find the destination WH "Internal Transfers" picking type
+        # Try by sequence_code first (most reliable), then fallback
         dest_pt = self.env['stock.picking.type'].search([
             ('warehouse_id', '=', dest_wh.id),
             ('code', '=', 'internal'),
@@ -624,7 +606,7 @@ class StockPicking(models.Model):
         dest_stock = self.env['stock.location'].search([
             ('warehouse_id', '=', dest_wh.id),
             ('usage', '=', 'internal'),
-            ('name', 'ilike', 'Stock'),
+            ('name', '=ilike', 'stock'),
         ], limit=1)
         if not dest_stock:
             dest_stock = self.env['stock.location'].search([
@@ -632,50 +614,58 @@ class StockPicking(models.Model):
                 ('usage', '=', 'internal'),
             ], limit=1)
 
-        # Snapshot quantities before validate (move_ids may change)
-        move_data = [(
-            m.product_id.id,
-            m.product_uom.id,
-            m.quantity,
-            m.name,
-        ) for m in self.move_ids if m.state not in ('done', 'cancel')]
+        if not dest_pt or not dest_stock:
+            raise UserError(_(
+                'Could not find Internal Transfers picking type or Stock location '
+                'for warehouse %s.'
+            ) % dest_wh.name)
 
-        # Validate leg-1 (src/Stock → transit)
+        # Capture move data BEFORE validating (state changes after validate)
+        move_data = []
+        for move in self.move_ids.filtered(
+                lambda m: m.state not in ('done', 'cancel')):
+            move_data.append({
+                'name': move.name,
+                'product_id': move.product_id.id,
+                'product_uom': move.product_uom.id,
+                # Use quantity done if set, else demand
+                'product_uom_qty': move.quantity or move.product_uom_qty,
+                'origin': self.name,
+            })
+
+        # Validate leg-1 (stock → transit)
         result = self.button_validate()
 
-        # Create leg-2: transit → dest/Stock
-        move_vals = [(0, 0, {
-            'name': name,
-            'product_id': product_id,
-            'product_uom': product_uom,
-            'product_uom_qty': qty,
-            'location_id': transit_loc.id,
-            'location_dest_id': dest_stock.id,
-            'origin': self.name,
-        }) for product_id, product_uom, qty, name in move_data]
+        # Create leg-2 (transit → dest stock)
+        if move_data:
+            leg2_moves = [(0, 0, dict(
+                m,
+                location_id=transit_loc.id,
+                location_dest_id=dest_stock.id,
+            )) for m in move_data]
 
-        leg2 = self.env['stock.picking'].create({
-            'picking_type_id': dest_pt.id,
-            'location_id': transit_loc.id,
-            'location_dest_id': dest_stock.id,
-            'origin': self.name,
-            'move_ids': move_vals,
-        })
-        leg2.action_confirm()
-        leg2.action_assign()
+            leg2 = self.env['stock.picking'].create({
+                'picking_type_id': dest_pt.id,
+                'location_id': transit_loc.id,
+                'location_dest_id': dest_stock.id,
+                'origin': self.name,
+                'move_ids': leg2_moves,
+                # wh_transit_dest_wh_id intentionally NOT set on leg-2
+            })
+            leg2.action_confirm()
+            leg2.action_assign()
 
         return result
 
-    # ------------------------------------------------------------------ #
-    #  ACCEPT: validate leg-2 (transit → dst/Stock)                       #
-    # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------
+    #  ACCEPT: validate leg-2 (transit → dest stock)
+    # ------------------------------------------------------------------
     def action_wh_accept(self):
         return self.button_validate()
 
-    # ------------------------------------------------------------------ #
-    #  Override action_confirm: intercept cross-WH internals,             #
-    #  reroute destination to transit, store final dest WH                #
-    # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------
+    #  Intercept confirm: reroute cross-WH internals through transit
+    # ------------------------------------------------------------------
     def action_confirm(self):
         res = super().action_confirm()
         transit_loc = self.env['stock.location'].browse(TRANSIT_LOCATION_ID)
@@ -683,22 +673,25 @@ class StockPicking(models.Model):
         for pick in self:
             if pick.picking_type_code != 'internal':
                 continue
+
             src_wh = pick.location_id.warehouse_id
             dst_wh = pick.location_dest_id.warehouse_id
-            # Must be cross-warehouse and not already a transit leg
+
+            # Skip: same WH, or already a transit leg
             if (not src_wh or not dst_wh or src_wh == dst_wh
                     or pick.location_dest_id.id == TRANSIT_LOCATION_ID
                     or pick.location_id.id == TRANSIT_LOCATION_ID):
                 continue
 
-            # Reroute leg-1: change dest to transit, remember final dest WH
+            # Reroute destination → transit, store final dest WH
             pick.write({
                 'location_dest_id': transit_loc.id,
                 'wh_transit_dest_wh_id': dst_wh.id,
             })
-            for move in pick.move_ids:
-                move.write({'location_dest_id': transit_loc.id})
+            for move in pick.move_ids.filtered(
+                    lambda m: m.state not in ('done', 'cancel')):
+                move.location_dest_id = transit_loc.id
                 for ml in move.move_line_ids:
-                    ml.write({'location_dest_id': transit_loc.id})
+                    ml.location_dest_id = transit_loc.id
 
         return res
