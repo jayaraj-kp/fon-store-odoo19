@@ -5,7 +5,7 @@
         <t t-call="web.internal_layout">
             <div class="page">
 
-                <!-- ── HEADER ─────────────────────────────────────── -->
+                <!-- ── HEADER ──────────────────────────────────────── -->
                 <div style="margin-bottom: 16px;">
                     <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a2e;">
                         Picking Summary
@@ -20,42 +20,43 @@
                     </p>
                 </div>
 
-                <!-- ── SUMMARY TABLE ──────────────────────────────── -->
-                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <!-- ── SUMMARY TABLE ───────────────────────────────── -->
+                <!--
+                    Layout per row:
+                    Sl No | Category | Location | Product | UoM | Dest-1 Qty | Dest-2 Qty | … | Dest-N Qty
 
-                    <!-- Table Header -->
-                    <thead>
-                        <tr style="background-color: #1a1a2e; color: #ffffff;">
-                            <th style="padding: 7px 8px; text-align: center; width: 5%; border: 1px solid #1a1a2e;">
-                                Sl No.
-                            </th>
-                            <th style="padding: 7px 8px; text-align: left; width: 18%; border: 1px solid #1a1a2e;">
-                                Category
-                            </th>
-                            <th style="padding: 7px 8px; text-align: left; width: 15%; border: 1px solid #1a1a2e;">
-                                Location
-                            </th>
-                            <th style="padding: 7px 8px; text-align: left; width: 25%; border: 1px solid #1a1a2e;">
-                                Product
-                            </th>
-                            <th style="padding: 7px 8px; text-align: center; width: 8%; border: 1px solid #1a1a2e;">
-                                Qty
-                            </th>
-                            <th style="padding: 7px 8px; text-align: center; width: 7%; border: 1px solid #1a1a2e;">
-                                UoM
-                            </th>
-                            <th style="padding: 7px 8px; text-align: left; width: 15%; border: 1px solid #1a1a2e;">
-                                Destination
-                            </th>
-                            <th style="padding: 7px 8px; text-align: left; width: 12%; border: 1px solid #1a1a2e;">
-                                Transfer Ref
-                            </th>
-                        </tr>
-                    </thead>
+                    The destination sub-header row shows destination names,
+                    the data row shows the corresponding quantities.
+                    Both rows share the same <tr> by using a two-row-per-line
+                    approach via rowspan on the first five columns.
+                -->
+                <t t-foreach="summary_lines" t-as="line">
 
-                    <!-- Table Body -->
-                    <tbody>
-                        <t t-foreach="summary_lines" t-as="line">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 0;">
+
+                        <!-- Column header (printed once per logical line) -->
+                        <thead>
+                            <tr style="background-color: #1a1a2e; color: #ffffff;">
+                                <th style="padding: 7px 8px; text-align: center; width: 5%;  border: 1px solid #1a1a2e;">Sl No.</th>
+                                <th style="padding: 7px 8px; text-align: left;   width: 16%; border: 1px solid #1a1a2e;">Category</th>
+                                <th style="padding: 7px 8px; text-align: left;   width: 15%; border: 1px solid #1a1a2e;">Location</th>
+                                <th style="padding: 7px 8px; text-align: left;   width: 22%; border: 1px solid #1a1a2e;">Product</th>
+                                <th style="padding: 7px 8px; text-align: center; width: 6%;  border: 1px solid #1a1a2e;">UoM</th>
+                                <!-- Dynamic destination headers -->
+                                <t t-foreach="line['destinations']" t-as="dest">
+                                    <th style="padding: 7px 8px; text-align: center; border: 1px solid #1a1a2e; font-size: 10px;">
+                                        <t t-esc="dest['destination']"/>
+                                        <br/>
+                                        <span style="font-size: 9px; font-weight: 400; opacity: 0.85;">
+                                            <t t-esc="dest['picking_ref']"/>
+                                        </span>
+                                    </th>
+                                </t>
+                            </tr>
+                        </thead>
+
+                        <!-- Data row -->
+                        <tbody>
                             <tr t-att-style="'background-color: %s;' % ('#f9f9f9' if line_index % 2 == 0 else '#ffffff')">
                                 <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #333;">
                                     <t t-esc="line['sl_no']"/>
@@ -69,44 +70,50 @@
                                 <td style="padding: 6px 8px; border: 1px solid #ddd; font-weight: 600; color: #1a1a2e;">
                                     <t t-esc="line['product']"/>
                                 </td>
-                                <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #333;">
-                                    <t t-esc="line['qty']"/>
-                                </td>
                                 <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #555;">
                                     <t t-esc="line['uom']"/>
                                 </td>
-                                <td style="padding: 6px 8px; border: 1px solid #ddd; color: #333;">
-                                    <t t-esc="line['destination']"/>
-                                </td>
-                                <td style="padding: 6px 8px; border: 1px solid #ddd; color: #555; font-size: 10px;">
-                                    <t t-esc="line['picking_ref']"/>
-                                </td>
+                                <!-- Qty per destination -->
+                                <t t-foreach="line['destinations']" t-as="dest">
+                                    <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #333; font-weight: 600;">
+                                        <t t-esc="dest['qty']"/>
+                                    </td>
+                                </t>
                             </tr>
-                        </t>
+                        </tbody>
 
-                        <!-- Empty state -->
-                        <t t-if="not summary_lines">
+                    </table>
+
+                    <!-- Small spacer between product blocks -->
+                    <div style="height: 6px;"></div>
+
+                </t>
+
+                <!-- Empty state -->
+                <t t-if="not summary_lines">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                        <tbody>
                             <tr>
-                                <td colspan="8" style="padding: 20px; text-align: center; color: #999; border: 1px solid #ddd;">
+                                <td style="padding: 20px; text-align: center; color: #999; border: 1px solid #ddd;">
                                     No transfer lines found.
                                 </td>
                             </tr>
-                        </t>
-                    </tbody>
+                        </tbody>
+                    </table>
+                </t>
 
-                    <!-- Table Footer total row -->
+                <!-- ── FOOTER TOTALS ──────────────────────────────── -->
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px;">
                     <tfoot>
                         <tr style="background-color: #1a1a2e; color: #ffffff;">
-                            <td colspan="4" style="padding: 7px 8px; font-weight: 700; border: 1px solid #1a1a2e; text-align: right;">
-                                Total Lines:
+                            <td style="padding: 7px 8px; font-weight: 700; border: 1px solid #1a1a2e; text-align: right;">
+                                Total Product Lines:
                             </td>
-                            <td style="padding: 7px 8px; font-weight: 700; text-align: center; border: 1px solid #1a1a2e;">
+                            <td style="padding: 7px 8px; font-weight: 700; text-align: center; border: 1px solid #1a1a2e; width: 60px;">
                                 <t t-esc="total_lines"/>
                             </td>
-                            <td colspan="3" style="border: 1px solid #1a1a2e;"></td>
                         </tr>
                     </tfoot>
-
                 </table>
 
                 <!-- ── FOOTER NOTE ─────────────────────────────────── -->
@@ -119,3 +126,126 @@
     </t>
 </template>
 </odoo>
+
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+<!--<template id="picking_summary_template">-->
+<!--    <t t-call="web.html_container">-->
+<!--        <t t-call="web.internal_layout">-->
+<!--            <div class="page">-->
+
+<!--                &lt;!&ndash; ── HEADER ─────────────────────────────────────── &ndash;&gt;-->
+<!--                <div style="margin-bottom: 16px;">-->
+<!--                    <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a2e;">-->
+<!--                        Picking Summary-->
+<!--                    </h2>-->
+<!--                    <p style="margin: 0; font-size: 11px; color: #555;">-->
+<!--                        <strong>References:</strong>-->
+<!--                        <t t-esc="picking_refs"/>-->
+<!--                    </p>-->
+<!--                    <p style="margin: 2px 0 0 0; font-size: 11px; color: #555;">-->
+<!--                        <strong>Total Lines:</strong>-->
+<!--                        <t t-esc="total_lines"/>-->
+<!--                    </p>-->
+<!--                </div>-->
+
+<!--                &lt;!&ndash; ── SUMMARY TABLE ──────────────────────────────── &ndash;&gt;-->
+<!--                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">-->
+
+<!--                    &lt;!&ndash; Table Header &ndash;&gt;-->
+<!--                    <thead>-->
+<!--                        <tr style="background-color: #1a1a2e; color: #ffffff;">-->
+<!--                            <th style="padding: 7px 8px; text-align: center; width: 5%; border: 1px solid #1a1a2e;">-->
+<!--                                Sl No.-->
+<!--                            </th>-->
+<!--                            <th style="padding: 7px 8px; text-align: left; width: 18%; border: 1px solid #1a1a2e;">-->
+<!--                                Category-->
+<!--                            </th>-->
+<!--                            <th style="padding: 7px 8px; text-align: left; width: 15%; border: 1px solid #1a1a2e;">-->
+<!--                                Location-->
+<!--                            </th>-->
+<!--                            <th style="padding: 7px 8px; text-align: left; width: 25%; border: 1px solid #1a1a2e;">-->
+<!--                                Product-->
+<!--                            </th>-->
+<!--                            <th style="padding: 7px 8px; text-align: center; width: 8%; border: 1px solid #1a1a2e;">-->
+<!--                                Qty-->
+<!--                            </th>-->
+<!--                            <th style="padding: 7px 8px; text-align: center; width: 7%; border: 1px solid #1a1a2e;">-->
+<!--                                UoM-->
+<!--                            </th>-->
+<!--                            <th style="padding: 7px 8px; text-align: left; width: 15%; border: 1px solid #1a1a2e;">-->
+<!--                                Destination-->
+<!--                            </th>-->
+<!--                            <th style="padding: 7px 8px; text-align: left; width: 12%; border: 1px solid #1a1a2e;">-->
+<!--                                Transfer Ref-->
+<!--                            </th>-->
+<!--                        </tr>-->
+<!--                    </thead>-->
+
+<!--                    &lt;!&ndash; Table Body &ndash;&gt;-->
+<!--                    <tbody>-->
+<!--                        <t t-foreach="summary_lines" t-as="line">-->
+<!--                            <tr t-att-style="'background-color: %s;' % ('#f9f9f9' if line_index % 2 == 0 else '#ffffff')">-->
+<!--                                <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #333;">-->
+<!--                                    <t t-esc="line['sl_no']"/>-->
+<!--                                </td>-->
+<!--                                <td style="padding: 6px 8px; border: 1px solid #ddd; color: #333;">-->
+<!--                                    <t t-esc="line['category']"/>-->
+<!--                                </td>-->
+<!--                                <td style="padding: 6px 8px; border: 1px solid #ddd; color: #333;">-->
+<!--                                    <t t-esc="line['source_location']"/>-->
+<!--                                </td>-->
+<!--                                <td style="padding: 6px 8px; border: 1px solid #ddd; font-weight: 600; color: #1a1a2e;">-->
+<!--                                    <t t-esc="line['product']"/>-->
+<!--                                </td>-->
+<!--                                <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #333;">-->
+<!--                                    <t t-esc="line['qty']"/>-->
+<!--                                </td>-->
+<!--                                <td style="padding: 6px 8px; text-align: center; border: 1px solid #ddd; color: #555;">-->
+<!--                                    <t t-esc="line['uom']"/>-->
+<!--                                </td>-->
+<!--                                <td style="padding: 6px 8px; border: 1px solid #ddd; color: #333;">-->
+<!--                                    <t t-esc="line['destination']"/>-->
+<!--                                </td>-->
+<!--                                <td style="padding: 6px 8px; border: 1px solid #ddd; color: #555; font-size: 10px;">-->
+<!--                                    <t t-esc="line['picking_ref']"/>-->
+<!--                                </td>-->
+<!--                            </tr>-->
+<!--                        </t>-->
+
+<!--                        &lt;!&ndash; Empty state &ndash;&gt;-->
+<!--                        <t t-if="not summary_lines">-->
+<!--                            <tr>-->
+<!--                                <td colspan="8" style="padding: 20px; text-align: center; color: #999; border: 1px solid #ddd;">-->
+<!--                                    No transfer lines found.-->
+<!--                                </td>-->
+<!--                            </tr>-->
+<!--                        </t>-->
+<!--                    </tbody>-->
+
+<!--                    &lt;!&ndash; Table Footer total row &ndash;&gt;-->
+<!--                    <tfoot>-->
+<!--                        <tr style="background-color: #1a1a2e; color: #ffffff;">-->
+<!--                            <td colspan="4" style="padding: 7px 8px; font-weight: 700; border: 1px solid #1a1a2e; text-align: right;">-->
+<!--                                Total Lines:-->
+<!--                            </td>-->
+<!--                            <td style="padding: 7px 8px; font-weight: 700; text-align: center; border: 1px solid #1a1a2e;">-->
+<!--                                <t t-esc="total_lines"/>-->
+<!--                            </td>-->
+<!--                            <td colspan="3" style="border: 1px solid #1a1a2e;"></td>-->
+<!--                        </tr>-->
+<!--                    </tfoot>-->
+
+<!--                </table>-->
+
+<!--                &lt;!&ndash; ── FOOTER NOTE ─────────────────────────────────── &ndash;&gt;-->
+<!--                <div style="margin-top: 24px; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 8px;">-->
+<!--                    Generated automatically by FON-STORE replenishment system.-->
+<!--                </div>-->
+
+<!--            </div>-->
+<!--        </t>-->
+<!--    </t>-->
+<!--</template>-->
+<!--</odoo>-->
