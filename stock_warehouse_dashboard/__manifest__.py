@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Stock Warehouse Dashboard – To Send / To Accept',
-    'version': '16.0.1.0.0',
+    'version': '19.0.1.0.0',
     'category': 'Inventory',
     'summary': 'Adds To Send and To Accept counters to the Inventory Overview kanban',
     'description': """
