@@ -2,20 +2,16 @@
 
 /**
  * Stock Warehouse Dashboard – To Send / To Accept
- * Odoo 19 CE compatible
+ * Odoo 19 CE
  *
- * Uses plain fetch + document-level click delegation.
- * No OWL patching required — badges are rendered server-side
- * via the inherited kanban view XML.
+ * Calls action_open_to_send / action_open_to_accept on stock.picking.type
+ * using the picking_type_id from the kanban card (data-picking-type-id).
  */
 
-// Odoo 19 uses /web/dataset/call_kw for RPC
 async function callKw(model, method, args) {
     const response = await fetch('/web/dataset/call_kw', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             jsonrpc: '2.0',
             id: Math.floor(Math.random() * 100000),
@@ -30,13 +26,12 @@ async function callKw(model, method, args) {
     });
     const data = await response.json();
     if (data.error) {
-        console.error('RPC error:', data.error);
+        console.error('WH Dashboard RPC error:', data.error);
         return null;
     }
     return data.result;
 }
 
-// Document-level click delegation for badge buttons
 document.addEventListener('click', async function (ev) {
     const badge = ev.target.closest('.o_wh_badge_send, .o_wh_badge_accept');
     if (!badge) return;
@@ -44,28 +39,32 @@ document.addEventListener('click', async function (ev) {
     ev.preventDefault();
     ev.stopPropagation();
 
-    const warehouseId = parseInt(badge.dataset.warehouseId, 10);
+    // Now using picking_type_id (not warehouse_id)
+    const pickingTypeId = parseInt(badge.dataset.pickingTypeId, 10);
     const direction = badge.dataset.direction; // 'send' or 'accept'
 
-    if (!warehouseId || !direction) return;
+    if (!pickingTypeId || !direction) {
+        console.warn('WH Dashboard: missing pickingTypeId or direction', badge.dataset);
+        return;
+    }
 
     const method = direction === 'send'
         ? 'action_open_to_send'
         : 'action_open_to_accept';
 
     try {
-        const action = await callKw('stock.warehouse', method, [[warehouseId]]);
+        // Call on stock.picking.type with the correct record id
+        const action = await callKw('stock.picking.type', method, [[pickingTypeId]]);
         if (action) {
-            // Use Odoo 19's action service via the global __owl__ registry
             const env = owl.__apps__?.[0]?.env;
             if (env?.services?.action) {
                 env.services.action.doAction(action);
             } else {
-                // Safe fallback: navigate via hash
-                window.location.href = '/odoo/inventory';
+                console.warn('WH Dashboard: action service not found, falling back');
+                window.location.href = '/odoo/inventory/transfers';
             }
         }
     } catch (e) {
-        console.error('WH Dashboard badge error:', e);
+        console.error('WH Dashboard badge click error:', e);
     }
 });
