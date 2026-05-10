@@ -83,9 +83,8 @@
             50x30mm label layout (all table-based — works in wkhtmltopdf):
 
             ROW 1 (5mm)  : Product name — centred, bold
-            ROW 2 (14mm) : Barcode image (slightly reduced to fit price rows)
-            ROW 3 (5mm)  : Barcode number (left) | MRP Rs.X (right)
-            ROW 4 (5mm)  : (empty left)           | SP Rs.X  (right)
+            ROW 2 (17mm) : Barcode image
+            ROW 3 (5mm)  : Barcode number (left) | MRP price (right)
         -->
         <table width="189" height="113" border="0" cellspacing="0" cellpadding="0"
                style="width:189px;height:113px;table-layout:fixed;border-collapse:collapse;
@@ -93,27 +92,24 @@
 
             <t t-if="product.barcode">
                 <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>
-                <!-- Resolve MRP price from the product template -->
-                <t t-set="mrp_price" t-value="product.product_tmpl_id.mrp_price or 0.0"/>
-                <t t-set="sales_price" t-value="product.lst_price or 0.0"/>
 
                 <!-- ROW 1: Product name -->
-                <tr height="17">
-                    <td colspan="2" width="189" height="17" align="center" valign="middle"
-                        style="width:189px;height:17px;padding:1px 3px 0 3px;
+                <tr height="19">
+                    <td colspan="2" width="189" height="19" align="center" valign="middle"
+                        style="width:189px;height:19px;padding:1px 3px 0 3px;
                                font-size:8pt;font-weight:bold;color:#000;
                                overflow:hidden;">
                         <t t-esc="product.name"/>
                     </td>
                 </tr>
 
-                <!-- ROW 2: Barcode image (reduced height to make room for 2 price rows) -->
-                <tr height="62">
-                    <td colspan="2" width="189" height="62" align="center" valign="middle"
-                        style="width:189px;height:62px;padding:1px 2px;">
+                <!-- ROW 2: Barcode image -->
+                <tr height="75">
+                    <td colspan="2" width="189" height="75" align="center" valign="middle"
+                        style="width:189px;height:75px;padding:1px 2px;">
                         <t t-if="bc_src">
-                            <img t-att-src="bc_src" width="181" height="58"
-                                 style="display:block;width:181px;height:58px;margin:0 auto;"
+                            <img t-att-src="bc_src" width="181" height="70"
+                                 style="display:block;width:181px;height:70px;margin:0 auto;"
                                  alt="barcode"/>
                         </t>
                         <t t-else="">
@@ -122,61 +118,40 @@
                     </td>
                 </tr>
 
-                <!-- ROW 3: Barcode number (left) + MRP Price (right) -->
-                <tr height="17">
-                    <td width="100" height="17" align="left" valign="middle"
-                        style="width:100px;height:17px;padding:0 0 0 3px;
-                               font-size:6pt;font-weight:bold;color:#000;
-                               letter-spacing:0.4pt;overflow:hidden;">
+                <!-- ROW 3: Barcode number (left) + MRP price (right) -->
+                <tr height="19">
+                    <td width="113" height="19" align="left" valign="middle"
+                        style="width:113px;height:19px;padding:0 0 1px 3px;
+                               font-size:6.5pt;font-weight:bold;color:#000;
+                               letter-spacing:0.5pt;overflow:hidden;">
                         <t t-esc="product.barcode"/>
                     </td>
-                    <td width="89" height="17" align="right" valign="middle"
-                        style="width:89px;height:17px;padding:0 3px 0 0;
-                               font-size:7pt;font-weight:bold;color:#000;">
-                        MRP Rs.<t t-esc="'%.2f' % mrp_price"/>
-                    </td>
-                </tr>
-
-                <!-- ROW 4: (empty left) + Sales Price (right) -->
-                <tr height="17">
-                    <td width="100" height="17"/>
-                    <td width="89" height="17" align="right" valign="middle"
-                        style="width:89px;height:17px;padding:0 3px 1px 0;
-                               font-size:7pt;font-weight:bold;color:#555;">
-                        SP Rs.<t t-esc="'%.2f' % sales_price"/>
+                    <td width="76" height="19" align="right" valign="middle"
+                        style="width:76px;height:19px;padding:0 3px 1px 0;
+                               font-size:7.5pt;font-weight:bold;color:#000;">
+                        MRP Rs.<t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
                     </td>
                 </tr>
             </t>
 
             <t t-else="">
-                <!-- No barcode fallback: name + both prices -->
-                <tr height="45">
-                    <td colspan="2" width="189" height="45" align="center" valign="middle"
-                        style="width:189px;height:45px;padding:2px;
+                <!-- No barcode fallback: name + price only -->
+                <tr height="57">
+                    <td colspan="2" width="189" height="57" align="center" valign="middle"
+                        style="width:189px;height:57px;padding:2px;
                                font-size:8pt;font-weight:bold;color:#000;">
                         <t t-esc="product.name"/>
                         <br/>
                         <span style="font-size:7pt;color:#aaa;font-style:italic;">No barcode</span>
                     </td>
                 </tr>
-                <tr height="17">
-                    <td width="100" height="17"/>
-                    <td width="89" height="17" align="right" valign="middle"
-                        style="width:89px;height:17px;padding:0 3px 0 0;
-                               font-size:7pt;font-weight:bold;color:#000;">
-                        MRP Rs.<t t-esc="'%.2f' % (product.product_tmpl_id.mrp_price or 0.0)"/>
+                <tr height="19">
+                    <td width="113" height="19"/>
+                    <td width="76" height="19" align="right" valign="middle"
+                        style="width:76px;height:19px;padding:0 3px 1px 0;
+                               font-size:7.5pt;font-weight:bold;color:#000;">
+                        MRP Rs.<t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
                     </td>
-                </tr>
-                <tr height="17">
-                    <td width="100" height="17"/>
-                    <td width="89" height="17" align="right" valign="middle"
-                        style="width:89px;height:17px;padding:0 3px 1px 0;
-                               font-size:7pt;font-weight:bold;color:#555;">
-                        SP Rs.<t t-esc="'%.2f' % (product.lst_price or 0.0)"/>
-                    </td>
-                </tr>
-                <tr height="17">
-                    <td colspan="2" width="189" height="17"/>
                 </tr>
             </t>
 
