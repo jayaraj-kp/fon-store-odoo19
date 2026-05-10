@@ -2,48 +2,51 @@
 
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
-import { Dialog } from "@web/core/dialog/dialog";
-import { Component, useState, useRef } from "@odoo/owl";
+import { Component, useState, useRef, onMounted, onWillUnmount } from "@odoo/owl";
 
 /**
  * BarcodeLabelPrintDialog
  *
- * Identical split-screen layout to the invoice print dialog.
- * The key difference: pdfPreviewUrl comes directly from params.pdf_url
- * (our custom controller /custom_barcode_label/report/pdf/<ids>?qty=<n>)
- * instead of being constructed as /report/pdf/<report>/<id>.
- *
- * This bypasses the standard Odoo report route which doesn't support
- * passing label_qty via GET parameters.
+ * Custom modal (no Dialog component) to avoid Odoo version prop changes.
+ * Uses Bootstrap modal classes directly — always available in Odoo backend.
  */
 export class BarcodeLabelPrintDialog extends Component {
     static template = "custom_barcode_label.BarcodeLabelPrintDialog";
-    static components = { Dialog };
+    static components = {};
     static props = {
         pdfUrl:       { type: String },
         recordName:   { type: String, optional: true },
         docLabel:     { type: String, optional: true },
         labelQty:     { type: Number, optional: true },
         productCount: { type: Number, optional: true },
+        // Injected by dialog service
         close:        { type: Function, optional: true },
     };
 
     setup() {
-        this.notification    = useService("notification");
-        this.iframeRef       = useRef("previewIframe");
+        this.notification = useService("notification");
+        this.iframeRef    = useRef("previewIframe");
 
-        // Use our custom controller URL directly
         this.pdfPreviewUrl  = this.props.pdfUrl;
         this.pdfDownloadUrl = this.props.pdfUrl +
             (this.props.pdfUrl.includes('?') ? '&' : '?') + 'download=true';
 
         this.state = useState({
-            loading:   true,
-            loadError: false,
-            format:    "pdf",
-            savePath:  "",
+            loading:    true,
+            loadError:  false,
+            savePath:   "",
             fileHandle: null,
-            saving:    false,
+            saving:     false,
+        });
+
+        // Add backdrop + prevent body scroll when mounted
+        onMounted(() => {
+            document.body.classList.add("modal-open");
+        });
+
+        // Clean up when unmounted
+        onWillUnmount(() => {
+            document.body.classList.remove("modal-open");
         });
     }
 
@@ -141,12 +144,11 @@ export class BarcodeLabelPrintDialog extends Component {
         return `Print — ${label}${name ? ": " + name : ""}`;
     }
 
-    get saveButtonLabel()  { return this.state.saving ? "Saving..." : "Save as PDF"; }
-    get saveButtonIcon()   { return this.state.saving ? "fa fa-spinner fa-spin" : "fa fa-file-pdf-o"; }
+    get saveButtonLabel()     { return this.state.saving ? "Saving..." : "Save as PDF"; }
+    get saveButtonIcon()      { return this.state.saving ? "fa fa-spinner fa-spin" : "fa fa-file-pdf-o"; }
     get locationPlaceholder() { return `${this.props.recordName || "barcode_labels"}.pdf`; }
 }
 
-// Register under our own tag so it doesn't conflict with custom_print_dialog
 registry.category("actions").add(
     "custom_barcode_label.open_print_dialog",
     async (env, action) => {
@@ -160,6 +162,7 @@ registry.category("actions").add(
         });
     }
 );
+
 
 
 ///** @odoo-module **/
