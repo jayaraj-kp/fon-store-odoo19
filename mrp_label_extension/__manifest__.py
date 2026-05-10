@@ -6,8 +6,7 @@
     'category': 'Inventory',
     'depends': ['product_label_print'],
     'data': [
-        'wizard/product_label_wizard_inherit.xml',
-        'report/product_label_report_inherit.xml',
+        'wizard/product_label_layout_inherit.xml',
     ],
     'installable': True,
     'application': False,

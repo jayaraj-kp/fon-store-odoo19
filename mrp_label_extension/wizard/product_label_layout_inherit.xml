@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Inherit the standard "Print Product Labels" wizard view
+        (product_label_print.product_label_wizard_view_form) and add
+        "Show MRP Price" checkbox directly below the "Show Sales Price" field.
+
+        The standard field is named show_mrp (which shows lst_price on labels).
+        We insert our new show_mrp_price field after it.
+    -->
+    <record id="product_label_wizard_view_form_mrp_inherit" model="ir.ui.view">
+        <field name="name">product.label.wizard.form.mrp.inherit</field>
+        <field name="model">product.label.layout</field>
+        <field name="inherit_id" ref="product_label_print.product_label_wizard_view_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='show_mrp']" position="after">
+                <field name="show_mrp_price"
+                       string="Show MRP Price"
+                       help="When enabled, the MRP Price (mrp_price) is also printed on the label."/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
