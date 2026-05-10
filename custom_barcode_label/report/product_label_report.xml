@@ -119,7 +119,7 @@
                 </tr>
 
                 <!-- ROW 3: Barcode number (left) + MRP price (right) -->
-                <!-- MODIFIED: Changed from product.lst_price to product.mrp_price -->
+                <!-- ✅ CORRECTED: Changed from product.lst_price to product.mrp_price -->
                 <tr height="19">
                     <td width="113" height="19" align="left" valign="middle"
                         style="width:113px;height:19px;padding:0 0 1px 3px;
@@ -146,7 +146,7 @@
                         <span style="font-size:7pt;color:#aaa;font-style:italic;">No barcode</span>
                     </td>
                 </tr>
-                <!-- MODIFIED: Changed from product.lst_price to product.mrp_price -->
+                <!-- ✅ CORRECTED: Changed from product.lst_price to product.mrp_price -->
                 <tr height="19">
                     <td width="113" height="19"/>
                     <td width="76" height="19" align="right" valign="middle"
@@ -161,6 +161,170 @@
     </template>
 
 </odoo>
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+
+<!--    <record id="paperformat_custom_label" model="report.paperformat">-->
+<!--        <field name="name">Custom Label 50x30mm</field>-->
+<!--        <field name="default">False</field>-->
+<!--        <field name="format">custom</field>-->
+<!--        <field name="page_height">30</field>-->
+<!--        <field name="page_width">50</field>-->
+<!--        <field name="orientation">Portrait</field>-->
+<!--        <field name="margin_top">0</field>-->
+<!--        <field name="margin_bottom">0</field>-->
+<!--        <field name="margin_left">0</field>-->
+<!--        <field name="margin_right">0</field>-->
+<!--        <field name="header_line">False</field>-->
+<!--        <field name="header_spacing">0</field>-->
+<!--        <field name="dpi">96</field>-->
+<!--    </record>-->
+
+<!--    <record id="action_report_custom_label" model="ir.actions.report">-->
+<!--        <field name="name">Custom Product Label</field>-->
+<!--        <field name="model">product.product</field>-->
+<!--        <field name="report_type">qweb-pdf</field>-->
+<!--        <field name="report_name">custom_barcode_label.report_custom_label_document</field>-->
+<!--        <field name="report_file">custom_barcode_label.report_custom_label_document</field>-->
+<!--        <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>-->
+<!--    </record>-->
+
+<!--    <record id="action_report_custom_label_tmpl" model="ir.actions.report">-->
+<!--        <field name="name">Custom Product Label</field>-->
+<!--        <field name="model">product.template</field>-->
+<!--        <field name="report_type">qweb-pdf</field>-->
+<!--        <field name="report_name">custom_barcode_label.report_custom_label_tmpl_document</field>-->
+<!--        <field name="report_file">custom_barcode_label.report_custom_label_tmpl_document</field>-->
+<!--        <field name="paperformat_id" ref="custom_barcode_label.paperformat_custom_label"/>-->
+<!--    </record>-->
+
+<!--    <template id="report_custom_label_document">-->
+<!--        <t t-call="web.html_container">-->
+<!--            <t t-foreach="docs" t-as="product">-->
+<!--                <t t-set="qty" t-value="label_qty.get(product.id, 1) if label_qty.get(product.id, 0) else 1"/>-->
+<!--                <t t-foreach="range(int(qty))" t-as="copy_index">-->
+<!--                    <div style="page-break-after: always;">-->
+<!--                        <t t-call="custom_barcode_label.report_custom_label_content"/>-->
+<!--                    </div>-->
+<!--                </t>-->
+<!--            </t>-->
+<!--        </t>-->
+<!--    </template>-->
+
+<!--    <template id="report_custom_label_tmpl_document">-->
+<!--        <t t-call="web.html_container">-->
+<!--            <t t-foreach="docs" t-as="product">-->
+<!--                <t t-set="qty" t-value="label_qty.get(product.id, 1) if label_qty.get(product.id, 0) else 1"/>-->
+<!--                <t t-foreach="range(int(qty))" t-as="copy_index">-->
+<!--                    <div style="page-break-after: always;">-->
+<!--                        <t t-call="custom_barcode_label.report_custom_label_content"/>-->
+<!--                    </div>-->
+<!--                </t>-->
+<!--            </t>-->
+<!--        </t>-->
+<!--    </template>-->
+
+<!--    <template id="report_custom_label_content">-->
+<!--        <style type="text/css">-->
+<!--            @page {-->
+<!--                margin: 0mm;-->
+<!--                padding: 0mm;-->
+<!--                size: 50mm 30mm portrait;-->
+<!--            }-->
+<!--            html, body {-->
+<!--                margin: 0mm !important;-->
+<!--                padding: 0mm !important;-->
+<!--                width: 50mm;-->
+<!--                height: 30mm;-->
+<!--            }-->
+<!--            .page { margin: 0 !important; padding: 0 !important; }-->
+<!--            table { border-collapse: collapse; }-->
+<!--            tr, td, th { border: none !important; }-->
+<!--        </style>-->
+
+<!--        &lt;!&ndash;-->
+<!--            50x30mm label layout (all table-based — works in wkhtmltopdf):-->
+
+<!--            ROW 1 (5mm)  : Product name — centred, bold-->
+<!--            ROW 2 (17mm) : Barcode image-->
+<!--            ROW 3 (5mm)  : Barcode number (left) | MRP price (right)-->
+<!--        &ndash;&gt;-->
+<!--        <table width="189" height="113" border="0" cellspacing="0" cellpadding="0"-->
+<!--               style="width:189px;height:113px;table-layout:fixed;border-collapse:collapse;-->
+<!--                      font-family:Arial,Helvetica,sans-serif;background:#fff;">-->
+
+<!--            <t t-if="product.barcode">-->
+<!--                <t t-set="bc_src" t-value="get_barcode(product.barcode)"/>-->
+
+<!--                &lt;!&ndash; ROW 1: Product name &ndash;&gt;-->
+<!--                <tr height="19">-->
+<!--                    <td colspan="2" width="189" height="19" align="center" valign="middle"-->
+<!--                        style="width:189px;height:19px;padding:1px 3px 0 3px;-->
+<!--                               font-size:8pt;font-weight:bold;color:#000;-->
+<!--                               overflow:hidden;">-->
+<!--                        <t t-esc="product.name"/>-->
+<!--                    </td>-->
+<!--                </tr>-->
+
+<!--                &lt;!&ndash; ROW 2: Barcode image &ndash;&gt;-->
+<!--                <tr height="75">-->
+<!--                    <td colspan="2" width="189" height="75" align="center" valign="middle"-->
+<!--                        style="width:189px;height:75px;padding:1px 2px;">-->
+<!--                        <t t-if="bc_src">-->
+<!--                            <img t-att-src="bc_src" width="181" height="70"-->
+<!--                                 style="display:block;width:181px;height:70px;margin:0 auto;"-->
+<!--                                 alt="barcode"/>-->
+<!--                        </t>-->
+<!--                        <t t-else="">-->
+<!--                            <span style="font-size:7pt;color:#aaa;font-style:italic;">No barcode image</span>-->
+<!--                        </t>-->
+<!--                    </td>-->
+<!--                </tr>-->
+
+<!--                &lt;!&ndash; ROW 3: Barcode number (left) + MRP price (right) &ndash;&gt;-->
+<!--                &lt;!&ndash; MODIFIED: Changed from product.lst_price to product.mrp_price &ndash;&gt;-->
+<!--                <tr height="19">-->
+<!--                    <td width="113" height="19" align="left" valign="middle"-->
+<!--                        style="width:113px;height:19px;padding:0 0 1px 3px;-->
+<!--                               font-size:6.5pt;font-weight:bold;color:#000;-->
+<!--                               letter-spacing:0.5pt;overflow:hidden;">-->
+<!--                        <t t-esc="product.barcode"/>-->
+<!--                    </td>-->
+<!--                    <td width="76" height="19" align="right" valign="middle"-->
+<!--                        style="width:76px;height:19px;padding:0 3px 1px 0;-->
+<!--                               font-size:7.5pt;font-weight:bold;color:#000;">-->
+<!--                        MRP Rs.<t t-esc="'%.2f' % (product.mrp_price or 0.0)"/>-->
+<!--                    </td>-->
+<!--                </tr>-->
+<!--            </t>-->
+
+<!--            <t t-else="">-->
+<!--                &lt;!&ndash; No barcode fallback: name + price only &ndash;&gt;-->
+<!--                <tr height="57">-->
+<!--                    <td colspan="2" width="189" height="57" align="center" valign="middle"-->
+<!--                        style="width:189px;height:57px;padding:2px;-->
+<!--                               font-size:8pt;font-weight:bold;color:#000;">-->
+<!--                        <t t-esc="product.name"/>-->
+<!--                        <br/>-->
+<!--                        <span style="font-size:7pt;color:#aaa;font-style:italic;">No barcode</span>-->
+<!--                    </td>-->
+<!--                </tr>-->
+<!--                &lt;!&ndash; MODIFIED: Changed from product.lst_price to product.mrp_price &ndash;&gt;-->
+<!--                <tr height="19">-->
+<!--                    <td width="113" height="19"/>-->
+<!--                    <td width="76" height="19" align="right" valign="middle"-->
+<!--                        style="width:76px;height:19px;padding:0 3px 1px 0;-->
+<!--                               font-size:7.5pt;font-weight:bold;color:#000;">-->
+<!--                        MRP Rs.<t t-esc="'%.2f' % (product.mrp_price or 0.0)"/>-->
+<!--                    </td>-->
+<!--                </tr>-->
+<!--            </t>-->
+
+<!--        </table>-->
+<!--    </template>-->
+
+<!--</odoo>-->
 
 
 <!--<?xml version="1.0" encoding="utf-8"?>-->
