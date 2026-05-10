@@ -84,7 +84,7 @@
 
             ROW 1 (5mm)  : Product name — centred, bold
             ROW 2 (17mm) : Barcode image
-            ROW 3 (5mm)  : Barcode number (left) | Sales Price (right)
+            ROW 3 (5mm)  : Barcode number (left) | MRP price (right)
         -->
         <table width="189" height="113" border="0" cellspacing="0" cellpadding="0"
                style="width:189px;height:113px;table-layout:fixed;border-collapse:collapse;
@@ -118,7 +118,7 @@
                     </td>
                 </tr>
 
-                <!-- ROW 3: Barcode number (left) + Sales Price (right) -->
+                <!-- ROW 3: Barcode number (left) + MRP price (right) -->
                 <tr height="19">
                     <td width="113" height="19" align="left" valign="middle"
                         style="width:113px;height:19px;padding:0 0 1px 3px;
@@ -325,6 +325,8 @@
 <!--    </template>-->
 
 <!--</odoo>-->
+
+
 
 
 <!--<?xml version="1.0" encoding="utf-8"?>-->
