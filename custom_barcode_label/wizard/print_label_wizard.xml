@@ -14,11 +14,6 @@
                                    help="Number of label copies to print for each selected product"
                                    required="1"/>
                         </group>
-                        <group string="Label Display Options">
-                            <field name="show_mrp_price"
-                                   string="Show MRP Price"
-                                   help="When enabled, the MRP Price (mrp_price field) is printed on the label instead of the Sales Price."/>
-                        </group>
                     </group>
                     <div class="alert alert-info" role="alert">
                         <i class="fa fa-info-circle me-1"/>
@@ -64,66 +59,3 @@
     </record>
 
 </odoo>
-
-
-<!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<odoo>-->
-
-<!--    <record id="view_print_label_wizard_form" model="ir.ui.view">-->
-<!--        <field name="name">custom_barcode_label.print_wizard.form</field>-->
-<!--        <field name="model">custom_barcode_label.print_wizard</field>-->
-<!--        <field name="arch" type="xml">-->
-<!--            <form string="Print Barcode Labels">-->
-<!--                <sheet>-->
-<!--                    <group>-->
-<!--                        <group string="Print Settings">-->
-<!--                            <field name="label_qty"-->
-<!--                                   string="Copies per Label"-->
-<!--                                   help="Number of label copies to print for each selected product"-->
-<!--                                   required="1"/>-->
-<!--                        </group>-->
-<!--                    </group>-->
-<!--                    <div class="alert alert-info" role="alert">-->
-<!--                        <i class="fa fa-info-circle me-1"/>-->
-<!--                        Click <strong>Open Print Dialog</strong> to preview labels and-->
-<!--                        print directly to any connected printer.-->
-<!--                    </div>-->
-<!--                </sheet>-->
-<!--                <footer>-->
-<!--                    <button name="action_open_print_dialog"-->
-<!--                            string="🖨️  Open Print Dialog"-->
-<!--                            type="object"-->
-<!--                            class="btn-primary"/>-->
-<!--                    <button string="Cancel"-->
-<!--                            class="btn-secondary"-->
-<!--                            special="cancel"/>-->
-<!--                </footer>-->
-<!--            </form>-->
-<!--        </field>-->
-<!--    </record>-->
-
-<!--    &lt;!&ndash; Action menu binding: product.product &ndash;&gt;-->
-<!--    <record id="action_custom_label_wizard_product" model="ir.actions.act_window">-->
-<!--        <field name="name">Custom Product Label</field>-->
-<!--        <field name="res_model">custom_barcode_label.print_wizard</field>-->
-<!--        <field name="view_mode">form</field>-->
-<!--        <field name="target">new</field>-->
-<!--        <field name="binding_model_id"-->
-<!--               search="[('model','=','product.product')]"-->
-<!--               model="ir.model"/>-->
-<!--        <field name="binding_type">action</field>-->
-<!--    </record>-->
-
-<!--    &lt;!&ndash; Action menu binding: product.template &ndash;&gt;-->
-<!--    <record id="action_custom_label_wizard_tmpl" model="ir.actions.act_window">-->
-<!--        <field name="name">Custom Product Label</field>-->
-<!--        <field name="res_model">custom_barcode_label.print_wizard</field>-->
-<!--        <field name="view_mode">form</field>-->
-<!--        <field name="target">new</field>-->
-<!--        <field name="binding_model_id"-->
-<!--               search="[('model','=','product.template')]"-->
-<!--               model="ir.model"/>-->
-<!--        <field name="binding_type">action</field>-->
-<!--    </record>-->
-
-<!--</odoo>-->
