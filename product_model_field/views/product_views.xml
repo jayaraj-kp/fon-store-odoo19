@@ -1,109 +1,184 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
 
-        <!-- ═══════════════════════════════════════════════════════════
-             PRODUCT TEMPLATE – Form View
-             ═══════════════════════════════════════════════════════════ -->
-        <record id="product_template_form_view_model" model="ir.ui.view">
-            <field name="name">product.template.form.model</field>
-            <field name="model">product.template</field>
-            <field name="inherit_id" ref="product.product_template_form_view"/>
-            <field name="arch" type="xml">
+    <!-- ══════════════════════════════════════════════════════════════════
+         product.template form view — add Model & MRP Price fields
+         ══════════════════════════════════════════════════════════════════ -->
+    <record id="view_product_template_form_mrp" model="ir.ui.view">
+        <field name="name">product.template.form.mrp.price</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <!-- Place MRP Price right after Sales Price -->
+            <xpath expr="//field[@name='list_price']" position="after">
+                <field name="mrp_price"/>
+            </xpath>
+            <!-- Place Model after Barcode (General Information tab) -->
+            <xpath expr="//field[@name='barcode']" position="after">
+                <field name="model_number"
+                       placeholder="e.g. IP14PM"
+                       help="Alphanumeric model number/identifier"/>
+            </xpath>
+        </field>
+    </record>
 
-                <!-- MRP Price directly below Sales Price -->
-                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']" position="after">
-                    <label for="mrp_price" string="MRP Price"/>
-                    <div name="mrp_price_div">
-                        <field name="mrp_price"
-                               class="oe_inline"
-                               widget="monetary"
-                               options="{'currency_field': 'currency_id', 'field_digits': True}"
-                               nolabel="1"/>
-                    </div>
-                </xpath>
+    <!-- ══════════════════════════════════════════════════════════════════
+         product.template list/tree view — optional columns
+         ══════════════════════════════════════════════════════════════════ -->
+    <record id="view_product_template_tree_mrp" model="ir.ui.view">
+        <field name="name">product.template.tree.mrp.price</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='list_price']" position="after">
+                <field name="mrp_price" optional="show"/>
+                <field name="model_number" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
 
-                <!-- Sales Price editable ONLY for Administrator -->
-                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']/field[@name='list_price']"
-                       position="attributes">
-                    <attribute name="groups">base.group_erp_manager</attribute>
-                </xpath>
+    <!-- ══════════════════════════════════════════════════════════════════
+         product.template search view
+         FIX: model_number belongs to product.template — safe to search here
+         ══════════════════════════════════════════════════════════════════ -->
+    <record id="view_product_template_search_mrp" model="ir.ui.view">
+        <field name="name">product.template.search.mrp.price</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="model_number" string="Model"/>
+            </xpath>
+        </field>
+    </record>
 
-                <!-- Sales Price readonly for non-admin users -->
-                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']" position="inside">
-                    <field name="list_price"
-                           class="oe_inline"
-                           widget="monetary"
-                           options="{'currency_field': 'currency_id', 'field_digits': True}"
-                           nolabel="1"
-                           readonly="1"
-                           groups="!base.group_erp_manager"/>
-                </xpath>
-                <!-- Model after Category -->
-                <xpath expr="//group[@name='group_standard_price']/field[@name='categ_id']" position="after">
-                    <field name="model_number"
-                           string="Model"
-                           placeholder="e.g., IP14PM"/>
-                </xpath>
+    <!-- ══════════════════════════════════════════════════════════════════
+         product.product search view  ← THE FIX IS HERE
+         model_number does NOT exist on product.product directly.
+         We search via the template relation using a filter_domain.
+         ══════════════════════════════════════════════════════════════════ -->
+    <record id="view_product_product_search_mrp" model="ir.ui.view">
+        <field name="name">product.product.search.mrp.price</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_search_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <!-- Use filter_domain so Odoo resolves through the template -->
+                <field name="name"
+                       string="Model"
+                       filter_domain="[('product_tmpl_id.model_number', 'ilike', self)]"/>
+            </xpath>
+        </field>
+    </record>
 
-            </field>
-        </record>
-
-        <!-- ═══════════════════════════════════════════════════════════
-             PRODUCT VARIANT – Form View
-             ═══════════════════════════════════════════════════════════ -->
-        <record id="product_product_form_view_model" model="ir.ui.view">
-            <field name="name">product.product.form.model</field>
-            <field name="model">product.product</field>
-            <field name="inherit_id" ref="product.product_normal_form_view"/>
-            <field name="arch" type="xml">
-
-                <xpath expr="//field[@name='barcode']" position="after">
-                    <field name="model_number"
-                           string="Model"
-                           placeholder="e.g., IP14PM"/>
-                    <field name="mrp_price"
-                           string="MRP Price"
-                           widget="monetary"
-                           options="{'currency_field': 'currency_id'}"/>
-                </xpath>
-
-            </field>
-        </record>
-
-        <!-- ═══════════════════════════════════════════════════════════
-             PRODUCT TEMPLATE – List / Tree View
-             ═══════════════════════════════════════════════════════════ -->
-        <record id="product_template_tree_view_model" model="ir.ui.view">
-            <field name="name">product.template.tree.model</field>
-            <field name="model">product.template</field>
-            <field name="inherit_id" ref="product.product_template_tree_view"/>
-            <field name="arch" type="xml">
-
-                <xpath expr="//field[@name='list_price']" position="after">
-                    <field name="mrp_price" optional="show" string="MRP Price"/>
-                    <field name="model_number" optional="show" string="Model"/>
-                </xpath>
-
-            </field>
-        </record>
-
-        <!-- ═══════════════════════════════════════════════════════════
-             PRODUCT TEMPLATE – Search View
-             ═══════════════════════════════════════════════════════════ -->
-        <record id="product_template_search_view_model" model="ir.ui.view">
-            <field name="name">product.template.search.model</field>
-            <field name="model">product.template</field>
-            <field name="inherit_id" ref="product.product_template_search_view"/>
-            <field name="arch" type="xml">
-
-                <xpath expr="//field[@name='name']" position="after">
-                    <field name="model_number" string="Model"/>
-                    <field name="mrp_price" string="MRP Price"/>
-                </xpath>
-
-            </field>
-        </record>
-
-    </data>
 </odoo>
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+<!--    <data>-->
+
+<!--        &lt;!&ndash; ═══════════════════════════════════════════════════════════-->
+<!--             PRODUCT TEMPLATE – Form View-->
+<!--             ═══════════════════════════════════════════════════════════ &ndash;&gt;-->
+<!--        <record id="product_template_form_view_model" model="ir.ui.view">-->
+<!--            <field name="name">product.template.form.model</field>-->
+<!--            <field name="model">product.template</field>-->
+<!--            <field name="inherit_id" ref="product.product_template_form_view"/>-->
+<!--            <field name="arch" type="xml">-->
+
+<!--                &lt;!&ndash; MRP Price directly below Sales Price &ndash;&gt;-->
+<!--                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']" position="after">-->
+<!--                    <label for="mrp_price" string="MRP Price"/>-->
+<!--                    <div name="mrp_price_div">-->
+<!--                        <field name="mrp_price"-->
+<!--                               class="oe_inline"-->
+<!--                               widget="monetary"-->
+<!--                               options="{'currency_field': 'currency_id', 'field_digits': True}"-->
+<!--                               nolabel="1"/>-->
+<!--                    </div>-->
+<!--                </xpath>-->
+
+<!--                &lt;!&ndash; Sales Price editable ONLY for Administrator &ndash;&gt;-->
+<!--                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']/field[@name='list_price']"-->
+<!--                       position="attributes">-->
+<!--                    <attribute name="groups">base.group_erp_manager</attribute>-->
+<!--                </xpath>-->
+
+<!--                &lt;!&ndash; Sales Price readonly for non-admin users &ndash;&gt;-->
+<!--                <xpath expr="//group[@name='group_standard_price']/div[@name='list_price_uom']" position="inside">-->
+<!--                    <field name="list_price"-->
+<!--                           class="oe_inline"-->
+<!--                           widget="monetary"-->
+<!--                           options="{'currency_field': 'currency_id', 'field_digits': True}"-->
+<!--                           nolabel="1"-->
+<!--                           readonly="1"-->
+<!--                           groups="!base.group_erp_manager"/>-->
+<!--                </xpath>-->
+<!--                &lt;!&ndash; Model after Category &ndash;&gt;-->
+<!--                <xpath expr="//group[@name='group_standard_price']/field[@name='categ_id']" position="after">-->
+<!--                    <field name="model_number"-->
+<!--                           string="Model"-->
+<!--                           placeholder="e.g., IP14PM"/>-->
+<!--                </xpath>-->
+
+<!--            </field>-->
+<!--        </record>-->
+
+<!--        &lt;!&ndash; ═══════════════════════════════════════════════════════════-->
+<!--             PRODUCT VARIANT – Form View-->
+<!--             ═══════════════════════════════════════════════════════════ &ndash;&gt;-->
+<!--        <record id="product_product_form_view_model" model="ir.ui.view">-->
+<!--            <field name="name">product.product.form.model</field>-->
+<!--            <field name="model">product.product</field>-->
+<!--            <field name="inherit_id" ref="product.product_normal_form_view"/>-->
+<!--            <field name="arch" type="xml">-->
+
+<!--                <xpath expr="//field[@name='barcode']" position="after">-->
+<!--                    <field name="model_number"-->
+<!--                           string="Model"-->
+<!--                           placeholder="e.g., IP14PM"/>-->
+<!--                    <field name="mrp_price"-->
+<!--                           string="MRP Price"-->
+<!--                           widget="monetary"-->
+<!--                           options="{'currency_field': 'currency_id'}"/>-->
+<!--                </xpath>-->
+
+<!--            </field>-->
+<!--        </record>-->
+
+<!--        &lt;!&ndash; ═══════════════════════════════════════════════════════════-->
+<!--             PRODUCT TEMPLATE – List / Tree View-->
+<!--             ═══════════════════════════════════════════════════════════ &ndash;&gt;-->
+<!--        <record id="product_template_tree_view_model" model="ir.ui.view">-->
+<!--            <field name="name">product.template.tree.model</field>-->
+<!--            <field name="model">product.template</field>-->
+<!--            <field name="inherit_id" ref="product.product_template_tree_view"/>-->
+<!--            <field name="arch" type="xml">-->
+
+<!--                <xpath expr="//field[@name='list_price']" position="after">-->
+<!--                    <field name="mrp_price" optional="show" string="MRP Price"/>-->
+<!--                    <field name="model_number" optional="show" string="Model"/>-->
+<!--                </xpath>-->
+
+<!--            </field>-->
+<!--        </record>-->
+
+<!--        &lt;!&ndash; ═══════════════════════════════════════════════════════════-->
+<!--             PRODUCT TEMPLATE – Search View-->
+<!--             ═══════════════════════════════════════════════════════════ &ndash;&gt;-->
+<!--        <record id="product_template_search_view_model" model="ir.ui.view">-->
+<!--            <field name="name">product.template.search.model</field>-->
+<!--            <field name="model">product.template</field>-->
+<!--            <field name="inherit_id" ref="product.product_template_search_view"/>-->
+<!--            <field name="arch" type="xml">-->
+
+<!--                <xpath expr="//field[@name='name']" position="after">-->
+<!--                    <field name="model_number" string="Model"/>-->
+<!--                    <field name="mrp_price" string="MRP Price"/>-->
+<!--                </xpath>-->
+
+<!--            </field>-->
+<!--        </record>-->
+
+<!--    </data>-->
+<!--</odoo>-->
