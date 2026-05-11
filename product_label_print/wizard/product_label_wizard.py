@@ -1,5 +1,3 @@
-#
-#
 # from odoo import models, fields, api, _
 # from odoo.exceptions import UserError
 # import base64
@@ -16,11 +14,11 @@
 #     product_tmpl_ids = fields.Many2many('product.template', string='Product Templates')
 #     product_ids = fields.Many2many('product.product', string='Product Variants')
 #     quantity = fields.Integer(string='Number of Labels per Product', default=1, required=True)
-#     show_mrp = fields.Boolean(string='Show MRP', default=True)
+#     show_mrp = fields.Boolean(string='Show sales price', default=True)
 #     show_qr = fields.Boolean(string='Show QR Code', default=True)
 #     show_label_code = fields.Boolean(string='Show Label Code', default=True)
 #     label_type = fields.Selection([
-#         ('large', 'Large Label (65x54mm) — GP-1125T Roll'),
+#         ('large', 'Key chain size(65x54mm) — GP-1125T Roll'),
 #         ('small', 'Small Label (25x15mm)'),
 #         ('medium', 'Medium Label (40x25mm) — Barcode'),
 #     ], string='Label Size', default='large', required=True)
@@ -132,8 +130,8 @@
 #
 #         def _name_font_size(name):
 #             n = len(name or '')
-#             if n <= 10:   return 20
-#             elif n <= 15: return 16
+#             if n <= 10:   return 21
+#             elif n <= 15: return 19
 #             elif n <= 22: return 13
 #             else:         return 10
 #
@@ -180,8 +178,8 @@
 #
 #             bot_cell = (
 #                 '<tr><td style="height:' + str(BOT_H) + 'mm;'
-#                 'padding-bottom:3mm;padding-left:12mm;padding-right:2mm;padding-top:2mm;'
-#                 'vertical-align:top;overflow:hidden;">'
+#                 'padding-bottom:3mm;padding-left:12mm;padding-right:2mm;padding-top:1mm;'
+#                 'vertical-align:top;overflow:hidden;margin-top:1mm;">'
 #                 '<div style="font-size:' + name_fs + ';'
 #                 'text-transform:uppercase;word-break:break-word;'
 #                 'word-wrap:break-word;white-space:normal;line-height:2;'
@@ -254,7 +252,7 @@
 #         QR_SIZE_MM = 11.0
 #
 #         COL_GAP_MM = 5.0
-#         L_MAR_MM   = 33.0
+#         L_MAR_MM   = 20.0
 #         PW_MM      = 2 * LW_MM + COL_GAP_MM + 2 * L_MAR_MM
 #
 #         LW = LW_MM * MM
@@ -268,7 +266,7 @@
 #
 #         def _name_font(name):
 #             n = len(name or '')
-#             if n <= 8:    return '7.5pt'
+#             if n <= 10:    return '7.5pt'
 #             elif n <= 14: return '6pt'
 #             elif n <= 20: return '5pt'
 #             else:         return '4pt'
@@ -408,8 +406,9 @@
 #     #  ┌────────────────────────────────────────┐
 #     #  │         PRODUCT NAME (centred)         │
 #     #  │- - - - - - - - - - - - - - - - - - - -│
+#     #  │  KC11034                              │  ← code, full width
 #     #  │  ||||||||||||||||||||||||||||||||||||  │  ← barcode, natural size, no rescale
-#     #  │  KC11034                MRP Rs.9999   │
+#     #  │  MRP Rs.9999                          │  ← MRP, full width
 #     #  └────────────────────────────────────────┘
 #     #
 #     # KEY FIXES for barcode scanning:
@@ -430,16 +429,16 @@
 #
 #         def _name_font(name):
 #             n = len(name or '')
-#             if n <= 12:   return '11pt'
-#             elif n <= 20: return '9pt'
-#             elif n <= 28: return '7.5pt'
-#             else:         return '6pt'
+#             if n <= 12:   return '10pt'
+#             elif n <= 20: return '8pt'
+#             elif n <= 28: return '6.5pt'
+#             else:         return '5.5pt'
 #
 #         def _code_font(code):
 #             n = len(code or '')
-#             if n <= 10:   return '9pt'
-#             elif n <= 16: return '8pt'
-#             else:         return '7pt'
+#             if n <= 10:   return '8pt'
+#             elif n <= 16: return '7pt'
+#             else:         return '6pt'
 #
 #         def one_label(lbl):
 #             name   = lbl['name'] or ''
@@ -450,7 +449,7 @@
 #             # ── Row 1: Product name ───────────────────────────────────────────
 #             name_row = (
 #                 '<tr><td style="'
-#                 'padding:2mm 2mm 1mm 2mm;'
+#                 'padding:1.5mm 2mm 1mm 2mm;'
 #                 'text-align:center;'
 #                 'font-size:' + _name_font(name) + ';'
 #                 'font-weight:bold;'
@@ -465,7 +464,23 @@
 #                 + '</td></tr>'
 #             )
 #
-#             # ── Row 2: Barcode ─────────────────────────────────────────────────
+#             # ── Row 2: Code (full width) ───────────────────────────────────────
+#             code_row = ''
+#             if self.show_label_code and code:
+#                 code_row = (
+#                     '<tr><td style="'
+#                     'padding:0.5mm 2mm 0.5mm 2mm;'
+#                     'text-align:left;'
+#                     'font-size:' + _code_font(code) + ';'
+#                     'font-weight:bold;'
+#                     'white-space:normal;'
+#                     'word-break:break-word;'
+#                     'overflow:hidden;">'
+#                     + code
+#                     + '</td></tr>'
+#                 )
+#
+#             # ── Row 3: Barcode ─────────────────────────────────────────────────
 #             # FIXED: width/height auto so the PNG renders at its natural pixel
 #             # size → bar widths are preserved exactly as generated.
 #             # image-rendering:pixelated prevents wkhtmltopdf from blurring bars.
@@ -476,7 +491,7 @@
 #                     'style="'
 #                     'width:auto;'
 #                     'height:auto;'
-#                     'max-width:38mm;'
+#                     'max-width:36mm;'
 #                     'display:block;'
 #                     'margin:0 auto;'
 #                     'image-rendering:pixelated;'
@@ -484,49 +499,26 @@
 #                 )
 #             barcode_row = (
 #                 '<tr><td style="'
-#                 'padding:1mm 1mm 0.5mm 1mm;'
+#                 'padding:0.5mm 1mm 0.5mm 1mm;'
 #                 'text-align:center;'
 #                 'vertical-align:middle;">'
 #                 + barcode_img
 #                 + '</td></tr>'
 #             )
 #
-#             # ── Row 3: Code left, MRP right ───────────────────────────────────
-#             code_cell = ''
-#             if self.show_label_code and code:
-#                 code_cell = (
-#                     '<td style="'
-#                     'width:50%;'
-#                     'text-align:left;vertical-align:middle;'
-#                     'font-size:' + _code_font(code) + ';'
-#                     'font-weight:bold;'
-#                     'white-space:nowrap;">'
-#                     + code + '</td>'
-#                 )
-#             else:
-#                 code_cell = '<td></td>'
-#
-#             mrp_cell = ''
+#             # ── Row 4: MRP (full width) ────────────────────────────────────────
+#             mrp_row = ''
 #             if self.show_mrp:
-#                 mrp_cell = (
-#                     '<td style="'
-#                     'width:50%;'
-#                     'text-align:right;vertical-align:middle;'
-#                     'font-size:9pt;'
+#                 mrp_row = (
+#                     '<tr><td style="'
+#                     'padding:0.5mm 2mm 1.5mm 2mm;'
+#                     'text-align:left;'
+#                     'font-size:8pt;'
 #                     'font-weight:bold;'
 #                     'white-space:nowrap;">'
-#                     'MRP Rs.' + str(mrp) + '</td>'
+#                     'MRP Rs.' + str(mrp)
+#                     + '</td></tr>'
 #                 )
-#             else:
-#                 mrp_cell = '<td></td>'
-#
-#             bottom_row = (
-#                 '<tr><td style="padding:0.5mm 2mm 1.5mm 2mm;">'
-#                 '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
-#                 '<tr>' + code_cell + mrp_cell + '</tr>'
-#                 '</table>'
-#                 '</td></tr>'
-#             )
 #
 #             return (
 #                 '<table style="'
@@ -538,8 +530,9 @@
 #                 'background:white;'
 #                 'table-layout:fixed;">'
 #                 + name_row
+#                 + code_row
 #                 + barcode_row
-#                 + bottom_row
+#                 + mrp_row
 #                 + '</table>'
 #             )
 #
@@ -678,7 +671,6 @@
 #             },
 #         }
 
-
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
@@ -695,7 +687,7 @@ class ProductLabelWizard(models.TransientModel):
     product_tmpl_ids = fields.Many2many('product.template', string='Product Templates')
     product_ids = fields.Many2many('product.product', string='Product Variants')
     quantity = fields.Integer(string='Number of Labels per Product', default=1, required=True)
-    show_mrp = fields.Boolean(string='Show MRP', default=True)
+    show_mrp = fields.Boolean(string='Show MRP Price', default=True)   # ← label renamed
     show_qr = fields.Boolean(string='Show QR Code', default=True)
     show_label_code = fields.Boolean(string='Show Label Code', default=True)
     label_type = fields.Selection([
@@ -728,9 +720,6 @@ class ProductLabelWizard(models.TransientModel):
             )
 
     # ── Barcode generator (Code128 -> base64 PNG) ─────────────────────────────
-    # FIXED: module_width increased to 0.5 (was 0.28) so bars are wide enough
-    # for a 203 DPI thermal printer to print cleanly and scanners to read them.
-    # quiet_zone increased to 6.5 (required by Code128 spec).
 
     def _make_barcode_base64(self, value):
         try:
@@ -743,9 +732,9 @@ class ProductLabelWizard(models.TransientModel):
             )
             buf = io.BytesIO()
             code.write(buf, options={
-                'module_height': 15.0,   # taller bars → easier to scan
-                'module_width':  0.5,    # FIXED: ~4 dots per bar at 203 DPI ✓
-                'quiet_zone':    6.5,    # required quiet zone for Code128 spec
+                'module_height': 15.0,
+                'module_width':  0.5,
+                'quiet_zone':    6.5,
                 'font_size':     0,
                 'text_distance': 1.0,
                 'write_text':    False,
@@ -778,7 +767,11 @@ class ProductLabelWizard(models.TransientModel):
             tmpl = product.product_tmpl_id
             label_code = (getattr(tmpl, 'label_code', None) or
                           product.default_code or '')
-            mrp = int(tmpl.list_price or 0)
+
+            # ── FIX: use mrp_price (custom field) instead of list_price ──────
+            mrp = int(getattr(tmpl, 'mrp_price', 0) or 0)
+            # ─────────────────────────────────────────────────────────────────
+
             qr_value = (product.barcode or product.default_code or
                         tmpl.name or str(product.id))
             qr_b64 = self._make_qr_base64(qr_value)
@@ -796,7 +789,6 @@ class ProductLabelWizard(models.TransientModel):
         return label_list
 
     # ── LARGE label HTML builder (65x54mm, GP-1125T roll) ────────────────────
-    # !! UNCHANGED !!
 
     def _build_html_large(self, label_list):
         LW      = 65
@@ -919,7 +911,6 @@ class ProductLabelWizard(models.TransientModel):
         return html, PW, page_h
 
     # ── SMALL label HTML builder (25x15mm, 2 per row) ────────────────────────
-    # !! UNCHANGED !!
 
     def _build_html_small(self, label_list):
         MM = 3.7795  # mm -> px
@@ -1088,17 +1079,9 @@ class ProductLabelWizard(models.TransientModel):
     #  │         PRODUCT NAME (centred)         │
     #  │- - - - - - - - - - - - - - - - - - - -│
     #  │  KC11034                              │  ← code, full width
-    #  │  ||||||||||||||||||||||||||||||||||||  │  ← barcode, natural size, no rescale
-    #  │  MRP Rs.9999                          │  ← MRP, full width
+    #  │  ||||||||||||||||||||||||||||||||||||  │  ← barcode, natural size
+    #  │  MRP Rs.9999                          │  ← MRP Price, full width
     #  └────────────────────────────────────────┘
-    #
-    # KEY FIXES for barcode scanning:
-    #   1. _make_barcode_base64: module_width=0.5 (was 0.28) → wider bars
-    #   2. _make_barcode_base64: quiet_zone=6.5 (was 1.5) → proper quiet zone
-    #   3. _make_barcode_base64: module_height=15.0 (was 12.0) → taller bars
-    #   4. HTML img: width/height:auto → NO rescaling of barcode image
-    #   5. HTML img: image-rendering:pixelated → no anti-alias blur on bars
-    #   6. wkhtmltopdf --zoom 1 already set → no additional scaling
 
     def _build_html_medium(self, label_list):
         LW_MM      = 40.0
@@ -1145,7 +1128,7 @@ class ProductLabelWizard(models.TransientModel):
                 + '</td></tr>'
             )
 
-            # ── Row 2: Code (full width) ───────────────────────────────────────
+            # ── Row 2: Code (full width) ──────────────────────────────────────
             code_row = ''
             if self.show_label_code and code:
                 code_row = (
@@ -1161,10 +1144,7 @@ class ProductLabelWizard(models.TransientModel):
                     + '</td></tr>'
                 )
 
-            # ── Row 3: Barcode ─────────────────────────────────────────────────
-            # FIXED: width/height auto so the PNG renders at its natural pixel
-            # size → bar widths are preserved exactly as generated.
-            # image-rendering:pixelated prevents wkhtmltopdf from blurring bars.
+            # ── Row 3: Barcode ────────────────────────────────────────────────
             barcode_img = ''
             if bc_b64:
                 barcode_img = (
@@ -1187,7 +1167,7 @@ class ProductLabelWizard(models.TransientModel):
                 + '</td></tr>'
             )
 
-            # ── Row 4: MRP (full width) ────────────────────────────────────────
+            # ── Row 4: MRP Price (full width) ─────────────────────────────────
             mrp_row = ''
             if self.show_mrp:
                 mrp_row = (
