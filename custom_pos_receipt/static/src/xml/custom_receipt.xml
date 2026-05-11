@@ -115,42 +115,39 @@
                 <t t-foreach="order.getReceiptLines()" t-as="line" t-key="line.sn">
                     <tr class="items-row">
                         <td class="col-sn"><t t-esc="line.sn"/></td>
+                        <!--                        <td class="col-item">-->
+                        <!--                            <div class="item-name"><t t-esc="line.name"/></div>-->
+                        <!--                            <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/>-->
+                        <!--                                /-->
+                        <!--                                <t t-esc="line.uom"/></div>-->
+                        <!--                            <t t-if="line.discount > 0">-->
+                        <!--                                <div class="item-discount-line">-->
+                        <!--                                    &#x1F3F7; <t t-esc="line.discount"/>% discount off on &#x20B9;-->
+                        <!--                                    <t t-esc="line.originalTotal"/>-->
+                        <!--                                </div>-->
+                        <!--                            </t>-->
+                        <!--                            <t t-if="line.note">-->
+                        <!--                                <div class="item-note"><t t-esc="line.note"/></div>-->
+                        <!--                            </t>-->
+                        <!--                        </td>-->
                         <td class="col-item">
-<!--                            <div class="item-name"><t t-esc="line.name"/></div>-->
-                            <!--                            <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/>-->
-                            <!--                                /-->
-                            <!--                                <t t-esc="line.uom"/></div>-->
-                            <!--                            <t t-if="line.discount > 0">-->
-                            <div class="item-name"><t t-esc="line.name"/></div>
+    <div class="item-name"><t t-esc="line.name"/></div>
                             <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/>
                                 /
                                 <t t-esc="line.uom"/></div>
-                            <t t-if="line.mrp and line.mrp > 0 and line.mrp != line.rate">
-    <div class="item-rate-uom" style="text-decoration:line-through; color:#888;">
-        MRP: &#x20B9; <t t-esc="line.mrp"/>
-    </div>
-</t>
                             <t t-if="line.discount > 0">
-                                <div class="item-discount-line">
-                                    &#x1F3F7; <t t-esc="line.discount"/>% discount off on &#x20B9;
-                                    <t t-esc="line.originalTotal"/>
-                                </div>
-                            </t>
-                            <t t-if="line.note">
-                                <div class="item-note"><t t-esc="line.note"/></div>
-                            </t>
-                        </td>
-                        <td class="col-qty"><t t-esc="line.qty"/></td>
-                        <t t-if="false"><td class="col-gst"><t t-esc="line.gst"/>%</td></t>
-                        <!--                        <td class="col-total"><t t-esc="formatCurrency(line.total)"/></td>-->
-                        <td class="col-total">
-    <t t-if="line.mrp and line.mrp > 0 and line.mrp != line.rate">
-        <div style="text-decoration:line-through; color:#888; font-size:9px;">
-            <t t-esc="formatCurrency(line.mrp * line.qty)"/>
+        <div class="item-discount-line">
+            &#x1F3F7; <t t-esc="line.discount"/>% discount off on &#x20B9;
+            <t t-esc="line.originalTotal"/>
         </div>
     </t>
-                            <div><t t-esc="formatCurrency(line.total)"/></div>
+                            <t t-if="line.note">
+        <div class="item-note"><t t-esc="line.note"/></div>
+    </t>
 </td>
+                        <td class="col-qty"><t t-esc="line.qty"/></td>
+                        <t t-if="false"><td class="col-gst"><t t-esc="line.gst"/>%</td></t>
+                        <td class="col-total"><t t-esc="formatCurrency(line.total)"/></td>
                     </tr>
                 </t>
             </tbody>
