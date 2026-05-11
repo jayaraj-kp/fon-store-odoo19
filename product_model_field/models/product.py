@@ -98,17 +98,17 @@ class ProductProduct(models.Model):
     _inherit = 'product.product'
 
     model_number = fields.Char(
+        related='product_tmpl_id.model_number',
         string='Model',
-        size=255,
-        tracking=True,
-        help='Alphanumeric model number/identifier for the product'
+        store=True,
+        readonly=False,
     )
 
     mrp_price = fields.Float(
+        related='product_tmpl_id.mrp_price',
         string='MRP Price',
-        digits='Product Price',
-        tracking=True,
-        help='Maximum Retail Price (MRP) of the product'
+        store=True,
+        readonly=False,
     )
 
     @api.model
