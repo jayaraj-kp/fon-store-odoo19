@@ -13,8 +13,9 @@
             <xpath expr="//field[@name='list_price']" position="after">
                 <field name="mrp_price"/>
             </xpath>
-            <!-- Place Model after Internal Reference (default_code always exists in Odoo 19) -->
-            <xpath expr="//field[@name='default_code']" position="after">
+            <!-- Place Model after Barcode — both are inside the categ_id block in Odoo 19.
+                 We target the barcode field using its full path to avoid ambiguity. -->
+            <xpath expr="//field[@name='categ_id']" position="after">
                 <field name="model_number"
                        placeholder="e.g. IP14PM"
                        help="Alphanumeric model number/identifier"/>
