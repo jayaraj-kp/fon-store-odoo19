@@ -116,10 +116,20 @@
                     <tr class="items-row">
                         <td class="col-sn"><t t-esc="line.sn"/></td>
                         <td class="col-item">
+<!--                            <div class="item-name"><t t-esc="line.name"/></div>-->
+                            <!--                            <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/>-->
+                            <!--                                /-->
+                            <!--                                <t t-esc="line.uom"/></div>-->
+                            <!--                            <t t-if="line.discount > 0">-->
                             <div class="item-name"><t t-esc="line.name"/></div>
                             <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/>
                                 /
                                 <t t-esc="line.uom"/></div>
+                            <t t-if="line.mrp and line.mrp > 0 and line.mrp != line.rate">
+                             <div class="item-rate-uom" style="text-decoration:line-through; color:#888;">
+                               MRP: &#x20B9; <t t-esc="line.mrp"/>
+                             </div>
+                              </t>
                             <t t-if="line.discount > 0">
                                 <div class="item-discount-line">
                                     &#x1F3F7; <t t-esc="line.discount"/>% discount off on &#x20B9;

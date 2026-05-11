@@ -531,6 +531,7 @@ patch(PosOrder.prototype, {
                 qty,
                 uom:           line.product_id?.uom_id?.name || 'Units',
                 rate,
+                mrp:           line.product_id?.mrp_price || 0,
                 gst:           gstRate,
                 discount,
                 originalTotal,
