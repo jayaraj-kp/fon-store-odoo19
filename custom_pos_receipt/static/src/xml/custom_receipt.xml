@@ -115,36 +115,21 @@
                 <t t-foreach="order.getReceiptLines()" t-as="line" t-key="line.sn">
                     <tr class="items-row">
                         <td class="col-sn"><t t-esc="line.sn"/></td>
-                        <!--                        <td class="col-item">-->
-                        <!--                            <div class="item-name"><t t-esc="line.name"/></div>-->
-                        <!--                            <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/>-->
-                        <!--                                /-->
-                        <!--                                <t t-esc="line.uom"/></div>-->
-                        <!--                            <t t-if="line.discount > 0">-->
-                        <!--                                <div class="item-discount-line">-->
-                        <!--                                    &#x1F3F7; <t t-esc="line.discount"/>% discount off on &#x20B9;-->
-                        <!--                                    <t t-esc="line.originalTotal"/>-->
-                        <!--                                </div>-->
-                        <!--                            </t>-->
-                        <!--                            <t t-if="line.note">-->
-                        <!--                                <div class="item-note"><t t-esc="line.note"/></div>-->
-                        <!--                            </t>-->
-                        <!--                        </td>-->
                         <td class="col-item">
-    <div class="item-name"><t t-esc="line.name"/></div>
+                            <div class="item-name"><t t-esc="line.name"/></div>
                             <div class="item-rate-uom">&#x20B9; <t t-esc="line.rate"/>
                                 /
                                 <t t-esc="line.uom"/></div>
                             <t t-if="line.discount > 0">
-        <div class="item-discount-line">
-            &#x1F3F7; <t t-esc="line.discount"/>% discount off on &#x20B9;
-            <t t-esc="line.originalTotal"/>
-        </div>
-    </t>
+                                <div class="item-discount-line">
+                                    &#x1F3F7; <t t-esc="line.discount"/>% discount off on &#x20B9;
+                                    <t t-esc="line.originalTotal"/>
+                                </div>
+                            </t>
                             <t t-if="line.note">
-        <div class="item-note"><t t-esc="line.note"/></div>
-    </t>
-</td>
+                                <div class="item-note"><t t-esc="line.note"/></div>
+                            </t>
+                        </td>
                         <td class="col-qty"><t t-esc="line.qty"/></td>
                         <t t-if="false"><td class="col-gst"><t t-esc="line.gst"/>%</td></t>
                         <td class="col-total"><t t-esc="formatCurrency(line.total)"/></td>
