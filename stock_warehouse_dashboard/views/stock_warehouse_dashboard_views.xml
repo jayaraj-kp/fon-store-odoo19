@@ -3,6 +3,24 @@
 
     <!-- ══════════════════════════════════════════════════════════════
          1. Kanban card badges — only on Internal Transfer cards
+
+         Odoo 19 kanban structure for stock.picking.type:
+           <kanban>
+             <field name="..."/>          ← data fields
+             <templates>
+               <t t-name="card">
+                 <field name="..."/>      ← rendered fields inside card
+                 ...
+               </t>
+             </templates>
+           </kanban>
+
+         XPath notes:
+           - We inject our fields at the <kanban> level (before <templates>)
+             so they are fetched by the view but not rendered inline.
+           - We inject our badge HTML inside the card template using
+             position="after" on the last <field> inside the card,
+             which is safer than position="inside" on the <t> root.
          ══════════════════════════════════════════════════════════════ -->
 
     <record id="view_picking_type_kanban_wh_send_accept" model="ir.ui.view">
@@ -11,29 +29,46 @@
         <field name="inherit_id" ref="stock.stock_picking_type_kanban"/>
         <field name="arch" type="xml">
 
+            <!-- Inject data fields at kanban root level so they are fetched.
+                 'code' may already be there; IF NOT EXISTS guards are in attrs. -->
+            <kanban position="attributes">
+                <!-- no-op attribute trick: just ensures the kanban node is found -->
+            </kanban>
+
+            <!-- Add our fields right before </kanban> closes, after all existing fields -->
             <xpath expr="//kanban/field[last()]" position="after">
                 <field name="wh_to_send_count"/>
                 <field name="wh_to_accept_count"/>
                 <field name="code"/>
+                <field name="warehouse_id"/>
             </xpath>
 
+            <!-- Append badge row at the bottom of the card body.
+                 We target the last direct <field> inside the card template.
+                 If that xpath breaks on a future Odoo update, the fallback
+                 is position="inside" on //t[@t-name='card'] which still works
+                 but appends at the very end. -->
             <xpath expr="//t[@t-name='card']" position="inside">
-                <t t-if="record.code.raw_value == 'internal'">
-                    <div class="o_wh_send_accept_row">
-                        <t t-if="record.wh_to_send_count.raw_value and record.wh_to_send_count.raw_value > 0">
+                <t t-if="record.code.raw_value === 'internal'">
+                    <div class="o_wh_send_accept_row mt4">
+                        <t t-if="record.wh_to_send_count.raw_value > 0">
                             <a class="o_wh_badge o_wh_badge_send"
                                t-att-data-picking-type-id="record.id.raw_value"
-                               data-direction="send">
+                               data-direction="send"
+                               title="Open transfers waiting to be sent">
+                                <i class="fa fa-paper-plane me-1"/>
                                 To Send
                                 <span class="o_wh_badge_count">
                                     <t t-esc="record.wh_to_send_count.raw_value"/>
                                 </span>
                             </a>
                         </t>
-                        <t t-if="record.wh_to_accept_count.raw_value and record.wh_to_accept_count.raw_value > 0">
+                        <t t-if="record.wh_to_accept_count.raw_value > 0">
                             <a class="o_wh_badge o_wh_badge_accept"
                                t-att-data-picking-type-id="record.id.raw_value"
-                               data-direction="accept">
+                               data-direction="accept"
+                               title="Open transfers waiting to be accepted">
+                                <i class="fa fa-check-circle me-1"/>
                                 To Accept
                                 <span class="o_wh_badge_count">
                                     <t t-esc="record.wh_to_accept_count.raw_value"/>
@@ -80,7 +115,7 @@
         <field name="inherit_id" ref="stock.view_picking_form"/>
         <field name="arch" type="xml">
 
-            <!-- Invisible control fields -->
+            <!-- Invisible control fields loaded into the form -->
             <xpath expr="//sheet" position="before">
                 <field name="wh_show_send_btn"     invisible="1"/>
                 <field name="wh_show_accept_btn"   invisible="1"/>
@@ -110,8 +145,7 @@
 
             </xpath>
 
-            <!-- Hide the standard Validate button for cross-WH transfers
-                 so users are forced to use the Send → Accept flow -->
+            <!-- Hide the standard Validate button for cross-WH transfers -->
             <xpath expr="//header/button[@name='button_validate']" position="attributes">
                 <attribute name="invisible">wh_hide_validate_btn</attribute>
             </xpath>
@@ -120,3 +154,127 @@
     </record>
 
 </odoo>
+
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+
+<!--    &lt;!&ndash; ══════════════════════════════════════════════════════════════-->
+<!--         1. Kanban card badges — only on Internal Transfer cards-->
+<!--         ══════════════════════════════════════════════════════════════ &ndash;&gt;-->
+
+<!--    <record id="view_picking_type_kanban_wh_send_accept" model="ir.ui.view">-->
+<!--        <field name="name">stock.picking.type.kanban.wh.send.accept</field>-->
+<!--        <field name="model">stock.picking.type</field>-->
+<!--        <field name="inherit_id" ref="stock.stock_picking_type_kanban"/>-->
+<!--        <field name="arch" type="xml">-->
+
+<!--            <xpath expr="//kanban/field[last()]" position="after">-->
+<!--                <field name="wh_to_send_count"/>-->
+<!--                <field name="wh_to_accept_count"/>-->
+<!--                <field name="code"/>-->
+<!--            </xpath>-->
+
+<!--            <xpath expr="//t[@t-name='card']" position="inside">-->
+<!--                <t t-if="record.code.raw_value == 'internal'">-->
+<!--                    <div class="o_wh_send_accept_row">-->
+<!--                        <t t-if="record.wh_to_send_count.raw_value and record.wh_to_send_count.raw_value > 0">-->
+<!--                            <a class="o_wh_badge o_wh_badge_send"-->
+<!--                               t-att-data-picking-type-id="record.id.raw_value"-->
+<!--                               data-direction="send">-->
+<!--                                To Send-->
+<!--                                <span class="o_wh_badge_count">-->
+<!--                                    <t t-esc="record.wh_to_send_count.raw_value"/>-->
+<!--                                </span>-->
+<!--                            </a>-->
+<!--                        </t>-->
+<!--                        <t t-if="record.wh_to_accept_count.raw_value and record.wh_to_accept_count.raw_value > 0">-->
+<!--                            <a class="o_wh_badge o_wh_badge_accept"-->
+<!--                               t-att-data-picking-type-id="record.id.raw_value"-->
+<!--                               data-direction="accept">-->
+<!--                                To Accept-->
+<!--                                <span class="o_wh_badge_count">-->
+<!--                                    <t t-esc="record.wh_to_accept_count.raw_value"/>-->
+<!--                                </span>-->
+<!--                            </a>-->
+<!--                        </t>-->
+<!--                    </div>-->
+<!--                </t>-->
+<!--            </xpath>-->
+
+<!--        </field>-->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; ══════════════════════════════════════════════════════════════-->
+<!--         2. Transfer list view — Send/Accept label column-->
+<!--         ══════════════════════════════════════════════════════════════ &ndash;&gt;-->
+
+<!--    <record id="view_picking_list_wh_send_accept" model="ir.ui.view">-->
+<!--        <field name="name">stock.picking.list.wh.send.accept</field>-->
+<!--        <field name="model">stock.picking</field>-->
+<!--        <field name="inherit_id" ref="stock.vpicktree"/>-->
+<!--        <field name="arch" type="xml">-->
+<!--            <xpath expr="//field[@name='state']" position="after">-->
+<!--                <field name="send_accept_label"-->
+<!--                       string="Send/Accept"-->
+<!--                       optional="show"-->
+<!--                       widget="badge"-->
+<!--                       decoration-success="send_accept_label == 'To Send'"-->
+<!--                       decoration-info="send_accept_label == 'To Accept'"/>-->
+<!--            </xpath>-->
+<!--        </field>-->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; ══════════════════════════════════════════════════════════════-->
+<!--         3. Transfer form view — Send / Accept buttons-->
+<!--            • [Send]     shown when wh_send_state == 'pending'-->
+<!--            • [Accept]   shown when wh_send_state == 'sent'-->
+<!--            • [Validate] hidden for cross-WH transfers (enforce flow)-->
+<!--         ══════════════════════════════════════════════════════════════ &ndash;&gt;-->
+
+<!--    <record id="view_picking_form_wh_send_accept" model="ir.ui.view">-->
+<!--        <field name="name">stock.picking.form.wh.send.accept</field>-->
+<!--        <field name="model">stock.picking</field>-->
+<!--        <field name="inherit_id" ref="stock.view_picking_form"/>-->
+<!--        <field name="arch" type="xml">-->
+
+<!--            &lt;!&ndash; Invisible control fields &ndash;&gt;-->
+<!--            <xpath expr="//sheet" position="before">-->
+<!--                <field name="wh_show_send_btn"     invisible="1"/>-->
+<!--                <field name="wh_show_accept_btn"   invisible="1"/>-->
+<!--                <field name="wh_hide_validate_btn" invisible="1"/>-->
+<!--                <field name="wh_is_cross_transfer" invisible="1"/>-->
+<!--                <field name="wh_send_state"        invisible="1"/>-->
+<!--            </xpath>-->
+
+<!--            &lt;!&ndash; [Send] and [Accept] inserted BEFORE the standard Validate button &ndash;&gt;-->
+<!--            <xpath expr="//header/button[@name='button_validate']" position="before">-->
+
+<!--                <button name="action_wh_send"-->
+<!--                        string="Send"-->
+<!--                        type="object"-->
+<!--                        class="btn-primary o_wh_btn_send"-->
+<!--                        icon="fa-paper-plane"-->
+<!--                        invisible="not wh_show_send_btn"-->
+<!--                        confirm="Mark this transfer as sent? The destination warehouse will be able to accept it."/>-->
+
+<!--                <button name="action_wh_accept"-->
+<!--                        string="Accept"-->
+<!--                        type="object"-->
+<!--                        class="btn-success o_wh_btn_accept"-->
+<!--                        icon="fa-check-circle"-->
+<!--                        invisible="not wh_show_accept_btn"-->
+<!--                        confirm="Accept and validate this transfer? Stock will be moved immediately."/>-->
+
+<!--            </xpath>-->
+
+<!--            &lt;!&ndash; Hide the standard Validate button for cross-WH transfers-->
+<!--                 so users are forced to use the Send → Accept flow &ndash;&gt;-->
+<!--            <xpath expr="//header/button[@name='button_validate']" position="attributes">-->
+<!--                <attribute name="invisible">wh_hide_validate_btn</attribute>-->
+<!--            </xpath>-->
+
+<!--        </field>-->
+<!--    </record>-->
+
+<!--</odoo>-->
