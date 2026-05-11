@@ -13,8 +13,8 @@
             <xpath expr="//field[@name='list_price']" position="after">
                 <field name="mrp_price"/>
             </xpath>
-            <!-- Place Model after Barcode (General Information tab) -->
-            <xpath expr="//field[@name='barcode']" position="after">
+            <!-- Place Model after Internal Reference (default_code always exists in Odoo 19) -->
+            <xpath expr="//field[@name='default_code']" position="after">
                 <field name="model_number"
                        placeholder="e.g. IP14PM"
                        help="Alphanumeric model number/identifier"/>
@@ -72,7 +72,6 @@
     </record>
 
 </odoo>
-
 <!--<?xml version="1.0" encoding="utf-8"?>-->
 <!--<odoo>-->
 <!--    <data>-->
