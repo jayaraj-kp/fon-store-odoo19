@@ -34,7 +34,7 @@
     # ── FIX: added your MRP module name so mrp_price field is available ──────
     # Replace 'product_mrp_model' below with the actual folder/technical name
     # of your first module (the one that adds the mrp_price field).
-    'depends': ['product', 'stock', 'web', 'product_mrp_model'],
+    'depends': ['product', 'stock', 'web', 'product_model_field'],
     # ─────────────────────────────────────────────────────────────────────────
     'data': [
         'security/ir.model.access.csv',
