@@ -531,7 +531,13 @@ patch(PosOrder.prototype, {
                 qty,
                 uom:           line.product_id?.uom_id?.name || 'Units',
                 rate,
-                mrp:           line.product_id?.mrp_price || 0,
+               mrp: (() => {
+    const prod = line.product_id;
+    if (!prod) return 0;
+    const rawSym = Object.getOwnPropertySymbols(prod).find(s => s.toString().includes('raw'));
+    if (!rawSym) return 0;
+    return prod[rawSym]?.mrp_price || 0;
+})(),
                 gst:           gstRate,
                 discount,
                 originalTotal,
