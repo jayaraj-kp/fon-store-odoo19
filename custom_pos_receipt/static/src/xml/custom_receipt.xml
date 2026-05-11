@@ -142,7 +142,15 @@
                         </td>
                         <td class="col-qty"><t t-esc="line.qty"/></td>
                         <t t-if="false"><td class="col-gst"><t t-esc="line.gst"/>%</td></t>
-                        <td class="col-total"><t t-esc="formatCurrency(line.total)"/></td>
+                        <!--                        <td class="col-total"><t t-esc="formatCurrency(line.total)"/></td>-->
+                        <td class="col-total">
+    <t t-if="line.mrp and line.mrp > 0 and line.mrp != line.rate">
+        <div style="text-decoration:line-through; color:#888; font-size:9px;">
+            <t t-esc="formatCurrency(line.mrp * line.qty)"/>
+        </div>
+    </t>
+                            <div><t t-esc="formatCurrency(line.total)"/></div>
+</td>
                     </tr>
                 </t>
             </tbody>
