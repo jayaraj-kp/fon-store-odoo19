@@ -1,8 +1,10 @@
-from odoo import api, models
-
+from odoo import api, models, fields
+# ... existing imports ...
 
 class ProductProduct(models.Model):
     _inherit = 'product.product'
+
+    # ... existing fields ...
 
     @api.model
     def _load_pos_data_fields(self, config):
