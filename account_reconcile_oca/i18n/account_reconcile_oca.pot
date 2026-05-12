@@ -182,7 +182,7 @@ msgstr ""
 #. module: account_reconcile_oca
 #. odoo-javascript
 #: code:addons/account_reconcile_oca/static/src/xml/reconcile.xml:0
-msgid "Create"
+msgid "New"
 msgstr ""
 
 #. module: account_reconcile_oca
