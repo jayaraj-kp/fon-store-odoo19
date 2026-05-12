@@ -92,6 +92,10 @@
                 display: none !important;
             }
         }
+        .o_reconcile_sidebar_actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
     }
     .o_account_reconcile_oca_info {
         flex: 1 1 0;

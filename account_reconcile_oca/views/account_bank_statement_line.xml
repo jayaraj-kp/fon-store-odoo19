@@ -77,13 +77,14 @@
                         <field name="company_id"/>
                         <field name="currency_id"/>
                     </group>
+                    <!-- Object buttons in sheet: embedded forms often do not show <footer> -->
+                    <div class="o_reconcile_sidebar_actions d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+                        <button name="action_reconcile_inline_save_and_new" type="object" string="Add &amp; New"
+                                class="btn btn-primary"/>
+                        <button name="action_reconcile_inline_save_and_close" type="object" string="Add &amp; Close"
+                                class="btn btn-secondary"/>
+                    </div>
                 </sheet>
-                <footer>
-                    <button name="action_reconcile_inline_save_and_new" type="object" string="Add &amp; New"
-                            class="btn-primary"/>
-                    <button name="action_reconcile_inline_save_and_close" type="object" string="Add &amp; Close"
-                            class="btn-secondary"/>
-                </footer>
             </form>
         </field>
     </record>
@@ -338,6 +339,7 @@
         <field name="target">new</field>
     </record>
 </odoo>
+
 
 
 
