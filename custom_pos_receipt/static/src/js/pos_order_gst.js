@@ -1379,6 +1379,8 @@
 //    },
 //
 //});
+
+
 /** @odoo-module **/
 
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
@@ -1386,7 +1388,6 @@ import { patch } from "@web/core/utils/patch";
 
 patch(PosOrder.prototype, {
 
-    /* ================= DATE FORMATTED dd/mm/yyyy ================= */
     getReceiptDateFormatted() {
         const d = this.date_order ? new Date(this.date_order) : new Date();
         const day   = String(d.getDate()).padStart(2, '0');
@@ -1395,7 +1396,6 @@ patch(PosOrder.prototype, {
         return `${day}/${month}/${year}`;
     },
 
-    /* ================= DATE + TIME: dd/mm/yyyy HH:MM ================= */
     getReceiptDateTimeFormatted() {
         const d = this.date_order ? new Date(this.date_order) : new Date();
         const day   = String(d.getDate()).padStart(2, '0');
@@ -1406,7 +1406,6 @@ patch(PosOrder.prototype, {
         return `${day}/${month}/${year} ${hours}:${mins}`;
     },
 
-    /* ================= HELPER: any date → dd/mm/yyyy ================= */
     _formatDateDMY(dateStr) {
         if (!dateStr) return null;
         try {
@@ -1428,40 +1427,23 @@ patch(PosOrder.prototype, {
         } catch (_) { return 0; }
     },
 
-    /* ================= CUSTOMER UNIQUE REF ================= */
     getCustomerRef() {
         const id = this.partner_id?.id || 0;
         const padded = String(id).padStart(5, '0');
-
-        const cfg =
-            this.config ||
-            this.session?.config ||
-            this.pos?.config ||
-            null;
-
+        const cfg = this.config || this.session?.config || this.pos?.config || null;
         const customPrefix = (cfg?.pos_customer_prefix || '').toUpperCase().replace(/[^A-Z]/g, '');
-        if (customPrefix.length >= 2) {
-            return customPrefix + '-' + padded;
-        }
-
+        if (customPrefix.length >= 2) return customPrefix + '-' + padded;
         const shopName = (cfg?.name || '').toUpperCase().replace(/[^A-Z]/g, '');
-
         let prefix = '';
         if (shopName.length >= 2) {
             const consonants = shopName.replace(/[AEIOU]/g, '');
-            if (consonants.length >= 2) {
-                prefix = consonants.substring(0, 4);
-            } else {
-                prefix = shopName.substring(0, 4);
-            }
+            prefix = consonants.length >= 2 ? consonants.substring(0, 4) : shopName.substring(0, 4);
         } else {
             prefix = (shopName + 'CST').substring(0, 3);
         }
-
         return prefix + '-' + padded;
     },
 
-    /* ================= COMPANY NAME SPLIT ================= */
     getCompanyNameLines() {
         const name = this.company?.name || '';
         const idx  = name.indexOf(' ');
@@ -1469,22 +1451,11 @@ patch(PosOrder.prototype, {
         return [name];
     },
 
-    /* ================= POS ADDRESS ================= */
     getPosAddress() {
-        const cfg =
-            this.config ||
-            this.session?.config ||
-            this.pos?.config ||
-            null;
-
+        const cfg = this.config || this.session?.config || this.pos?.config || null;
         if (!cfg) return null;
-        if (
-            !cfg.pos_address_street &&
-            !cfg.pos_address_place &&
-            !cfg.pos_address_city_pin &&
-            !cfg.pos_address_phone
-        ) return null;
-
+        if (!cfg.pos_address_street && !cfg.pos_address_place &&
+            !cfg.pos_address_city_pin && !cfg.pos_address_phone) return null;
         return {
             street:  cfg.pos_address_street  || '',
             place:   cfg.pos_address_place   || '',
@@ -1493,17 +1464,10 @@ patch(PosOrder.prototype, {
         };
     },
 
-    /* ================= WAREHOUSE / SHOP INFO ================= */
     getWarehouseInfo() {
-        const wh =
-            this.config?.warehouse_id ||
-            this.session?.config?.warehouse_id ||
-            null;
-
+        const wh = this.config?.warehouse_id || this.session?.config?.warehouse_id || null;
         if (!wh) return null;
-
         const p = wh.partner_id || null;
-
         return {
             name:   wh.name   || '',
             street: p?.street || '',
@@ -1515,15 +1479,12 @@ patch(PosOrder.prototype, {
         };
     },
 
-    /* ================= GST BREAKDOWN ================= */
     getGstBreakdown() {
         const grouped = {};
         const lines   = this.lines || this.orderlines || [];
-
         for (const line of lines) {
             const lineTaxes = line.tax_ids || [];
             const linePrice = line.price_subtotal || 0;
-
             for (const tax of lineTaxes) {
                 const rate = tax.amount || 0;
                 const key  = `rate_${rate}`;
@@ -1539,12 +1500,11 @@ patch(PosOrder.prototype, {
         return Object.values(grouped).sort((a, b) => a.rate - b.rate);
     },
 
-    /* ================= CHARITY DONATION ================= */
     getCharityDonation() {
         return this._charity_donation_amount || 0;
     },
 
-    /* ================= LINE ITEMS FOR TABLE ================= */
+    /* ================= LINE ITEMS ================= */
     getReceiptLines() {
         const allLines   = this.lines || this.orderlines || [];
         const charityAmt = this.getCharityDonation();
@@ -1554,9 +1514,9 @@ patch(PosOrder.prototype, {
             let name = (line.product_id?.display_name || line.full_product_name || '')
                 .replace(/^\[.*?\]\s*/, '').trim();
 
-            const gstRate  = (line.tax_ids || []).length > 0 ? ((line.tax_ids[0].amount) || 0) : 0;
-            const qty      = line.qty || 0;
-            const discount = line.discount || 0;
+            const gstRate       = (line.tax_ids || []).length > 0 ? ((line.tax_ids[0].amount) || 0) : 0;
+            const qty           = line.qty || 0;
+            const discount      = line.discount || 0;
 
             const isCharityLine = charityAmt > 0 && index === lastIndex;
             const sellingRate   = isCharityLine
@@ -1567,11 +1527,12 @@ patch(PosOrder.prototype, {
                 ? Math.round(((line.price_subtotal_incl || 0) - charityAmt) * 100) / 100
                 : (line.price_subtotal_incl || 0);
 
-            // Get MRP — use as display price if available
             const mrp = this._getMrpFromProduct(line.product_id);
 
-            const displayRate  = mrp > 0 ? mrp : sellingRate;
-            const displayTotal = mrp > 0 ? Math.round(mrp * qty * 100) / 100 : sellingTotal;
+            // Rate line shows MRP if available, else selling price
+            // But total column shows SELLING price always
+            const displayRate = mrp > 0 ? mrp : sellingRate;
+            const originalTotal = Math.round(sellingRate * qty * 100) / 100;
 
             return {
                 sn:            index + 1,
@@ -1582,15 +1543,14 @@ patch(PosOrder.prototype, {
                 mrp,
                 gst:           gstRate,
                 discount,
-                originalTotal: displayTotal,
-                total:         displayTotal,
+                originalTotal,
+                total:         sellingTotal,  // always selling price
                 note:          line.customerNote || '',
             };
         });
     },
 
-    /* ================= TOTALS ================= */
-
+    /* ================= TOTALS — all based on SELLING price ================= */
     getTotalTaxableAmount() {
         const allLines   = this.lines || this.orderlines || [];
         const charityAmt = this.getCharityDonation();
@@ -1599,13 +1559,9 @@ patch(PosOrder.prototype, {
         return allLines.reduce((s, line, index) => {
             const qty     = line.qty || 0;
             const taxRate = (line.tax_ids || []).reduce((t, tx) => t + (tx.amount || 0), 0);
-            const mrp     = this._getMrpFromProduct(line.product_id);
-
-            const rate = mrp > 0 ? mrp : (
-                (charityAmt > 0 && index === lastIndex)
-                    ? Math.max(0, (line.price_unit || 0) - charityAmt)
-                    : (line.price_unit || 0)
-            );
+            const rate    = (charityAmt > 0 && index === lastIndex)
+                ? Math.max(0, (line.price_unit || 0) - charityAmt)
+                : (line.price_unit || 0);
             return s + Math.round(rate * qty * (1 + taxRate / 100) * 100) / 100;
         }, 0);
     },
@@ -1625,55 +1581,39 @@ patch(PosOrder.prototype, {
         return diff === 0 ? 0 : diff;
     },
 
+    // Grand Total based on SELLING price
     getRoundedGrandTotal() {
-        const allLines   = this.lines || this.orderlines || [];
-        const charityAmt = this.getCharityDonation();
-        const lastIndex  = allLines.length - 1;
-
-        const mrpTotal = allLines.reduce((s, line, index) => {
-            const qty  = line.qty || 0;
-            const mrp  = this._getMrpFromProduct(line.product_id);
-
-            const isCharityLine = charityAmt > 0 && index === lastIndex;
-            const rate = mrp > 0 ? mrp : (
-                isCharityLine
-                    ? Math.max(0, (line.price_unit || 0) - charityAmt)
-                    : (line.price_unit || 0)
-            );
-            return s + Math.round(rate * qty * 100) / 100;
-        }, 0);
-
-        return Math.round(mrpTotal);
+        return Math.round((this.amount_total || 0) - this.getCharityDonation());
     },
 
     getGrandTotal() {
         return this.getRoundedGrandTotal();
     },
 
-getTotalSaved() {
-    const allLines   = this.lines || this.orderlines || [];
-    const charityAmt = this.getCharityDonation();
-    const lastIndex  = allLines.length - 1;
+    /* ================= YOU SAVED — based on MRP ================= */
+    getTotalSaved() {
+        const allLines   = this.lines || this.orderlines || [];
+        const charityAmt = this.getCharityDonation();
+        const lastIndex  = allLines.length - 1;
 
-    return allLines.reduce((s, line, index) => {
-        const qty  = line.qty || 0;
-        const mrp  = this._getMrpFromProduct(line.product_id);
+        return allLines.reduce((s, line, index) => {
+            const qty  = line.qty || 0;
+            const mrp  = this._getMrpFromProduct(line.product_id);
 
-        const isCharityLine = charityAmt > 0 && index === lastIndex;
-        const sellingRate = isCharityLine
-            ? Math.max(0, (line.price_unit || 0) - charityAmt)
-            : (line.price_unit || 0);
+            const isCharityLine = charityAmt > 0 && index === lastIndex;
+            const sellingRate   = isCharityLine
+                ? Math.max(0, (line.price_unit || 0) - charityAmt)
+                : (line.price_unit || 0);
 
-        // If MRP exists: saved = (MRP - selling price) × qty
-        // If no MRP: saved = discount amount as before
-        if (mrp > 0 && mrp > sellingRate) {
-            return s + Math.round((mrp - sellingRate) * qty * 100) / 100;
-        }
-        return s + sellingRate * qty * ((line.discount || 0) / 100);
-    }, 0);
-},
+            // If MRP exists: saved = (MRP - selling price) × qty
+            // If no MRP: saved = discount amount as before
+            if (mrp > 0 && mrp > sellingRate) {
+                return s + Math.round((mrp - sellingRate) * qty * 100) / 100;
+            }
+            return s + sellingRate * qty * ((line.discount || 0) / 100);
+        }, 0);
+    },
 
-    /* ================= LOYALTY POINTS + EXPIRY ================= */
     getLoyaltyInfo() {
         const result = [];
         try {
@@ -1682,12 +1622,10 @@ getTotalSaved() {
                 if (!change || typeof change !== 'object') continue;
                 const pts = change.points || 0;
                 if (pts === 0) continue;
-
                 const program = change.program_id?.name || change.program?.name || 'Loyalty';
                 const coupon  = change.coupon_id;
                 let balance   = null;
                 let expiry    = null;
-
                 if (coupon && typeof coupon === 'object') {
                     const existing = typeof coupon.points === 'number' ? coupon.points : 0;
                     balance = Math.round((existing + pts) * 100) / 100;
@@ -1695,7 +1633,6 @@ getTotalSaved() {
                         coupon.expiration_date || coupon.expiry_date || coupon.validity_date || null
                     );
                 }
-
                 result.push({
                     program,
                     points:  pts % 1 === 0 ? pts : Math.round(pts * 100) / 100,
@@ -1707,7 +1644,6 @@ getTotalSaved() {
         return result;
     },
 
-    /* ================= AMOUNT IN WORDS ================= */
     getAmountInWords() {
         const amount = this.getRoundedGrandTotal();
         const w = ["Zero","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
@@ -1726,7 +1662,6 @@ getTotalSaved() {
         return amount === 0 ? "Zero Only" : convert(amount) + " Only";
     },
 
-    /* ================= CASHIER NAME ================= */
     getCashierName() {
         return (
             this.employee_id?.name ||
