@@ -1519,20 +1519,30 @@ patch(PosOrder.prototype, {
             const discount      = line.discount || 0;
 
             const isCharityLine = charityAmt > 0 && index === lastIndex;
-            const sellingRate   = isCharityLine
+
+            // Selling price per unit (before discount, before charity adjustment)
+            const sellingRate = isCharityLine
                 ? Math.round(((line.price_unit || 0) - charityAmt) * 100) / 100
                 : (line.price_unit || 0);
 
+            // Selling total (after discount, this is what customer pays)
             const sellingTotal = isCharityLine
                 ? Math.round(((line.price_subtotal_incl || 0) - charityAmt) * 100) / 100
                 : (line.price_subtotal_incl || 0);
 
+            // MRP
             const mrp = this._getMrpFromProduct(line.product_id);
 
-            // Rate line shows MRP if available, else selling price
-            // But total column shows SELLING price always
+            // Rate line: show MRP if available, else selling price
             const displayRate = mrp > 0 ? mrp : sellingRate;
-            const originalTotal = Math.round(sellingRate * qty * 100) / 100;
+
+            // Discount line: show "X% off on MRP" if MRP exists, else on selling price
+            const originalTotal = mrp > 0
+                ? Math.round(mrp * qty * 100) / 100
+                : Math.round(sellingRate * qty * 100) / 100;
+
+            // Total column: always selling price (before discount = price_unit × qty)
+            const displayTotal = Math.round(sellingRate * qty * 100) / 100;
 
             return {
                 sn:            index + 1,
@@ -1544,25 +1554,26 @@ patch(PosOrder.prototype, {
                 gst:           gstRate,
                 discount,
                 originalTotal,
-                total:         sellingTotal,  // always selling price
+                total:         displayTotal,
                 note:          line.customerNote || '',
             };
         });
     },
 
-    /* ================= TOTALS — all based on SELLING price ================= */
+    /* ================= TOTALS — selling price ================= */
+
+    // Total Amount = sum of (selling price × qty) before discount
     getTotalTaxableAmount() {
         const allLines   = this.lines || this.orderlines || [];
         const charityAmt = this.getCharityDonation();
         const lastIndex  = allLines.length - 1;
 
         return allLines.reduce((s, line, index) => {
-            const qty     = line.qty || 0;
-            const taxRate = (line.tax_ids || []).reduce((t, tx) => t + (tx.amount || 0), 0);
-            const rate    = (charityAmt > 0 && index === lastIndex)
+            const qty  = line.qty || 0;
+            const rate = (charityAmt > 0 && index === lastIndex)
                 ? Math.max(0, (line.price_unit || 0) - charityAmt)
                 : (line.price_unit || 0);
-            return s + Math.round(rate * qty * (1 + taxRate / 100) * 100) / 100;
+            return s + Math.round(rate * qty * 100) / 100;
         }, 0);
     },
 
@@ -1581,16 +1592,26 @@ patch(PosOrder.prototype, {
         return diff === 0 ? 0 : diff;
     },
 
-    // Grand Total based on SELLING price
+    // Grand Total = selling price × qty (before discount)
     getRoundedGrandTotal() {
-        return Math.round((this.amount_total || 0) - this.getCharityDonation());
+        const allLines   = this.lines || this.orderlines || [];
+        const charityAmt = this.getCharityDonation();
+        const lastIndex  = allLines.length - 1;
+
+        return Math.round(allLines.reduce((s, line, index) => {
+            const qty  = line.qty || 0;
+            const rate = (charityAmt > 0 && index === lastIndex)
+                ? Math.max(0, (line.price_unit || 0) - charityAmt)
+                : (line.price_unit || 0);
+            return s + Math.round(rate * qty * 100) / 100;
+        }, 0));
     },
 
     getGrandTotal() {
         return this.getRoundedGrandTotal();
     },
 
-    /* ================= YOU SAVED — based on MRP ================= */
+    /* ================= YOU SAVED — MRP - selling price ================= */
     getTotalSaved() {
         const allLines   = this.lines || this.orderlines || [];
         const charityAmt = this.getCharityDonation();
@@ -1606,7 +1627,7 @@ patch(PosOrder.prototype, {
                 : (line.price_unit || 0);
 
             // If MRP exists: saved = (MRP - selling price) × qty
-            // If no MRP: saved = discount amount as before
+            // If no MRP: saved = discount amount
             if (mrp > 0 && mrp > sellingRate) {
                 return s + Math.round((mrp - sellingRate) * qty * 100) / 100;
             }
