@@ -6,7 +6,8 @@
             t-inherit-mode="primary"
     >
         <xpath expr="//t[@t-as='groupOrRecord']" position="before">
-            <div class="m-2 d-flex w-100 align-items-center gap-2 flex-nowrap" t-if="env.parentController.journalId">
+            <div class="o_reconcile_sidebar_header m-2 d-flex w-100 align-items-center gap-2 flex-nowrap"
+                 t-if="env.parentController.journalId">
                 <button
                         type="button"
                         class="btn btn-primary flex-shrink-0 o_reconcile_new_statement_line"
@@ -255,6 +256,7 @@
         <button class="btn btn-primary" t-on-click="clickAddAll">Add all</button>
     </t>
 </templates>
+
 
 
 

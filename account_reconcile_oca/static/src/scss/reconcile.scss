@@ -39,6 +39,35 @@
             border-right: thick solid $o-brand-primary;
         }
     }
+    /* Ungrouped KanbanRenderer is d-flex + flex-wrap (row). Our header / inline form and
+       each card are flex siblings; without full-width basis they share one row and
+       cards shrink to ~0 width → text stacks one character per line. */
+    .o_account_reconcile_oca_selector.o_kanban_renderer.o_kanban_ungrouped {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        align-content: stretch;
+    }
+    .o_account_reconcile_oca_selector.o_kanban_ungrouped .o_reconcile_sidebar_header,
+    .o_account_reconcile_oca_selector.o_kanban_ungrouped .o_account_reconcile_oca_inline_create,
+    /* Statement-group headers injected before cards (same flex-row bug if not full width) */
+    .o_account_reconcile_oca_selector.o_kanban_ungrouped > div:not(.o_kanban_record):not(.o_kanban_ghost) {
+        width: 100%;
+        max-width: 100%;
+        flex: 0 0 auto;
+        box-sizing: border-box;
+    }
+    .o_account_reconcile_oca_selector.o_kanban_ungrouped .o_kanban_record {
+        width: 100%;
+        max-width: 100%;
+        flex: 0 0 auto;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    /* Ghost flex spacers are for multi-column row layout; they break column stacking */
+    .o_account_reconcile_oca_selector .o_kanban_ghost {
+        display: none !important;
+    }
     .o_account_reconcile_oca_selector {
         box-sizing: border-box;
         width: 30%;
