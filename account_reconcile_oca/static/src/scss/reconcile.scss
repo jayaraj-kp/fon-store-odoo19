@@ -4,6 +4,8 @@
     display: flex;
     -webkit-flex-flow: row wrap;
     flex-flow: row wrap;
+    align-items: stretch;
+    min-height: 0;
     height: 100%;
     .o_kanban_renderer.o_kanban_ungrouped .o_kanban_record {
         &:hover {
@@ -16,7 +18,10 @@
             margin: 0;
         }
         margin: 0 0 0;
-        min-width: fit-content;
+        /* fit-content forced overflow in narrow sidebars; keep cards within column */
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
         width: 100%;
         .o_reconcile_create_statement {
             position: absolute;
@@ -35,12 +40,19 @@
         }
     }
     .o_account_reconcile_oca_selector {
+        box-sizing: border-box;
         width: 30%;
+        max-width: 420px;
+        min-width: 280px;
         height: 100%;
         padding: 0;
         position: relative;
-        border-right: 1px solid $o-gray-300;
-        overflow: auto;
+        /* Separator between statement list and reconcile form; set to none to hide */
+        border-right: 1px solid rgba($o-gray-500, 0.22);
+        overflow-x: hidden;
+        overflow-y: auto;
+        /* When the kanban column is a flex item, never shrink past min-width */
+        flex-shrink: 0;
     }
     .o_account_reconcile_oca_inline_create {
         .o_reconcile_sidebar_inline_form {
@@ -53,7 +65,9 @@
         }
     }
     .o_account_reconcile_oca_info {
-        width: 70%;
+        flex: 1 1 0;
+        min-width: 0;
+        width: auto;
         height: 100%;
         overflow: auto;
     }
