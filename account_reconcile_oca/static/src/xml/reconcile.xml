@@ -23,6 +23,25 @@
                         t-esc="env.parentController.journalBalanceStr"
                 />
             </div>
+            <div
+                    t-if="env.parentController.state.showInlineNewLine and env.parentController.props.resModel === 'account.bank.statement.line'"
+                    class="mx-2 mb-2 border rounded bg-view o_account_reconcile_oca_inline_create"
+            >
+                <div class="d-flex justify-content-end align-items-center px-2 pt-1">
+                    <button
+                            type="button"
+                            class="btn btn-sm btn-light border-0 text-muted"
+                            title="Discard"
+                            t-on-click="() => env.parentController.closeInlineNewLine()"
+                    >
+                        <i class="fa fa-trash-o"/>
+                    </button>
+                </div>
+                <View
+                        t-props="env.parentController.viewInlineNewLineProps"
+                        t-key="env.parentController.state.inlineFormKey"
+                />
+            </div>
             <t t-set="aggregates" t-value="getAggregates()"/>
         </xpath>
         <xpath expr="//t[@t-else='']/KanbanRecord" position="before">
@@ -236,6 +255,7 @@
         <button class="btn btn-primary" t-on-click="clickAddAll">Add all</button>
     </t>
 </templates>
+
 
 
 

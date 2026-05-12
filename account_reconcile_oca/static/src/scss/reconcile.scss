@@ -42,6 +42,16 @@
         border-right: 1px solid $o-gray-300;
         overflow: auto;
     }
+    .o_account_reconcile_oca_inline_create {
+        .o_reconcile_sidebar_inline_form {
+            .o_form_sheet {
+                padding-bottom: 0.5rem;
+            }
+            .o_form_statusbar {
+                display: none !important;
+            }
+        }
+    }
     .o_account_reconcile_oca_info {
         width: 70%;
         height: 100%;
