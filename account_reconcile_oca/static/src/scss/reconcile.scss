@@ -82,6 +82,25 @@
         overflow-y: auto;
         /* When the kanban column is a flex item, never shrink past min-width */
         flex-shrink: 0;
+        /* Compact statement line cards */
+        .o_kanban_record {
+            padding: 0.35rem 0.5rem !important;
+            margin-bottom: 0.2rem !important;
+            min-height: 0 !important;
+        }
+        .o_kanban_record .o_reconcile_kanban_row {
+            margin-left: 0;
+            margin-right: 0;
+        }
+        .o_kanban_record .o_field_widget,
+        .o_kanban_record .o_kanban_field {
+            margin-bottom: 0 !important;
+        }
+        .o_kanban_record .badge {
+            font-size: 0.65rem;
+            line-height: 1.1;
+            padding: 0.15em 0.35em;
+        }
     }
     .o_account_reconcile_oca_inline_create {
         .o_reconcile_sidebar_inline_form {

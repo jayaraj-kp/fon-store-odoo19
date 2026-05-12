@@ -22,22 +22,22 @@
                                name="add_statement">Statement
                             </a>
                         </div>
-                        <div class="row">
-                            <div class="col-8">
+                        <div class="row g-0 o_reconcile_kanban_row">
+                            <div class="col-8 pe-1">
                                 <field name="date"/>
                             </div>
-                            <div class="col-4" style="text-align:right"
+                            <div class="col-4 ps-1" style="text-align:right"
                                  t-attf-class="col-4 #{(!record.foreign_currency_id.raw_value and record.amount.raw_value &lt; 0) or (record.foreign_currency_id.raw_value and record.amount_currency.raw_value &lt; 0) ? 'o_reconcile_amount_negative' : 'o_reconcile_amount_positive'}">
                                 <field name="amount" t-if="!record.foreign_currency_id.raw_value"/>
                                 <field name="amount_currency" t-if="record.foreign_currency_id.raw_value"
                                        widget="monetary" options="{'currency_field': 'foreign_currency_id'}"/>
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-8">
+                        <div class="row g-0 o_reconcile_kanban_row mt-1">
+                            <div class="col-8 pe-1">
                                 <field name="payment_ref"/>
                             </div>
-                            <div class="col-4" style="text-align:right">
+                            <div class="col-4 ps-1" style="text-align:right">
                                 <div t-if="!record.checked.raw_value" class="badge text-bg-warning">To check</div>
                                 <div t-if="record.is_reconciled.raw_value" class="badge text-bg-success">Reconciled
                                 </div>
@@ -335,6 +335,7 @@
         <field name="target">new</field>
     </record>
 </odoo>
+
 
 
 
