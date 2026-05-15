@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Unset 'is_default' for all existing filters to remove "default favorites" -->
+        <function model="ir.filters" name="write">
+            <value model="ir.filters" eval="obj().search([('is_default', '=', True)]).ids"/>
+            <value eval="{'is_default': False}"/>
+        </function>
+    </data>
+</odoo>
