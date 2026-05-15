@@ -10,6 +10,7 @@
     ],
     'assets': {
         'web.assets_backend': [
+            'favorites/static/src/css/favorites.css',
             'favorites/static/src/xml/favorites.xml',
         ],
     },
