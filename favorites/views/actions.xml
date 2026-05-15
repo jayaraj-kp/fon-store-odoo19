@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Remove default 'Favorites' filter from Accounting Dashboard action -->
+    <record id="account.open_account_journal_dashboard_kanban" model="ir.actions.act_window">
+        <field name="context">{'search_default_favorites': 0}</field>
+    </record>
+</odoo>
