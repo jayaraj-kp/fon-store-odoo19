@@ -1,8 +1,0 @@
-.o_favorite_menu {
-    display: none !important;
-}
-
-/* Hide the "Save Search" section if it's not inside o_favorite_menu */
-.o_add_favorite {
-    display: none !important;
-}

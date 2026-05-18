@@ -9,12 +9,6 @@
         'data/data.xml',
         'views/actions.xml',
     ],
-    'assets': {
-        'web.assets_backend': [
-            'favorites/static/src/css/favorites.css',
-            'favorites/static/src/xml/favorites.xml',
-        ],
-    },
     'installable': True,
     'auto_install': False,
     'license': 'LGPL-3',

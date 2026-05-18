@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<templates xml:space="preserve">
-    <t t-inherit="web.SearchDropdown" t-inherit-mode="extension">
-        <xpath expr="//FavoriteMenu" position="replace"/>
-    </t>
-</templates>
