@@ -21,7 +21,7 @@
                 'optional="show"' means the column is visible by default
                 but users can hide it via the column-toggle (≡) button.
             -->
-            <xpath expr="//field[@name='order_line']//list//field[@name='product_no']"
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']"
                    position="after">
                 <field name="rack"
                        string="Rack"
