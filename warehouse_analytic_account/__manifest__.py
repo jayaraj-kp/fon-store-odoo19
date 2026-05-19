@@ -14,6 +14,7 @@
         - POS Orders & Session Closing Journal Entries
         - Bank Statement Lines & Reconciliation widget (Analytic column)
         - Stock Moves / Pickings (on validation)
+         - Physical Inventory Adjustments (STJ/ entries via stock.quant)
     """,
     'author': 'Custom',
     'depends': [

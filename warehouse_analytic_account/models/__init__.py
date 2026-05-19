@@ -7,3 +7,4 @@ from . import sale_order
 from . import purchase_order
 from . import pos_order
 from . import bank_reconcile
+from . import stock_quant
