@@ -4,6 +4,16 @@ from odoo import models
 
 _logger = logging.getLogger(__name__)
 
+_WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
+
+
+def _get_user_warehouse(user):
+    """Return the user's default warehouse, trying known field names."""
+    for fname in _WAREHOUSE_FIELDS:
+        if fname in user._fields:
+            return getattr(user, fname, False)
+    return False
+
 
 def _get_warehouse_from_location(env, location, company_id):
     """
@@ -69,20 +79,21 @@ class StockQuant(models.Model):
         Override _apply_inventory to stamp the warehouse analytic account
         on all STJ (inventory adjustment) journal entries generated.
 
-        In Odoo 19, action_apply_inventory() passes a `date` argument, so
-        we accept and forward it via *args to stay version-safe.
+        Priority for analytic resolution:
+        1. Logged-in user's default warehouse analytic  ← CORRECT for manual
+           inventory adjustments done by a branch user.
+        2. Location-based warehouse fallback (only if user has no warehouse set).
 
-        We snapshot existing account.move IDs before super(), then diff
-        afterward to find newly created STJ entries to tag.
+        In Odoo 19, action_apply_inventory() passes a `date` argument, so
+        we accept and forward it.
         """
-        # Snapshot existing general journal entry IDs
+        # Snapshot existing general journal entry IDs before super()
         existing_move_ids = set(
             self.env['account.move'].search([
                 ('journal_id.type', '=', 'general'),
             ]).ids
         )
 
-        # Call super with or without date depending on what was passed
         if date is not None:
             result = super()._apply_inventory(date)
         else:
@@ -97,8 +108,26 @@ class StockQuant(models.Model):
         if not new_moves:
             return result
 
+        # --- Resolve analytic ONCE from the user's default warehouse ---
+        # This is correct: the person doing the physical count belongs to a
+        # branch (warehouse), and the STJ entry should reflect THEIR branch,
+        # not the physical location of the product (which may differ).
+        user_analytic = False
+        wh = _get_user_warehouse(self.env.user)
+        if wh and getattr(wh, 'analytic_account_id', False):
+            user_analytic = wh.analytic_account_id
+            _logger.debug(
+                'Inventory analytic: using user[%s] warehouse[%s] -> %s',
+                self.env.user.login, wh.name, user_analytic.name,
+            )
+
         for move in new_moves:
-            analytic = self._get_inventory_analytic(move)
+            analytic = user_analytic
+
+            # Fallback: resolve from the stock location if user has no warehouse
+            if not analytic:
+                analytic = self._get_inventory_analytic_from_location(move)
+
             if analytic:
                 _apply_analytic_to_move(
                     move, analytic,
@@ -112,24 +141,18 @@ class StockQuant(models.Model):
 
         return result
 
-    def _get_inventory_analytic(self, account_move):
+    def _get_inventory_analytic_from_location(self, account_move):
         """
-        Resolve the analytic account for an inventory-adjustment account.move.
+        Location-based fallback: resolve analytic by tracing the stock.move
+        location back to a warehouse.
 
-        In Odoo 19, the stock.move -> account.move link is stored on
-        account.move.line as 'stock_move_id' (Many2one on the line level).
-        There is NO 'account_move_ids' or 'account_move_id' field on stock.move.
-
-        Strategy:
-        1. Read account.move.line.stock_move_id from the move's own lines
-           to get the originating stock.move records — no search on stock.move.
-        2. From each stock.move, resolve location -> warehouse -> analytic.
-        3. Fallback: use the quants' own location_id directly.
+        In Odoo 19, account.move.line carries 'stock_move_id' (Many2one).
+        We read it via getattr() to stay safe across versions.
         """
         env = self.env
         company_id = account_move.company_id.id
 
-        # Strategy 1: read stock_move_id from account.move.line (Odoo 19)
+        # Read stock_move_id from account.move.line (Odoo 19 style)
         stock_move_ids = set()
         for line in account_move.line_ids:
             sm = getattr(line, 'stock_move_id', False)
@@ -139,21 +162,20 @@ class StockQuant(models.Model):
         if stock_move_ids:
             stock_moves = env['stock.move'].browse(list(stock_move_ids))
             for sm in stock_moves:
-                # For inventory adjustments, destination is the stock location
                 for loc in (sm.location_dest_id, sm.location_id):
                     if not loc:
                         continue
                     wh = _get_warehouse_from_location(env, loc, company_id)
                     if wh:
                         _logger.debug(
-                            'Inventory analytic: move %s -> stock.move %s'
-                            ' -> loc %s -> wh %s -> %s',
+                            'Inventory analytic (loc fallback): move %s'
+                            ' -> stock.move %s -> loc %s -> wh %s -> %s',
                             account_move.name, sm.id, loc.name,
                             wh.name, wh.analytic_account_id.name,
                         )
                         return wh.analytic_account_id
 
-        # Fallback: use the quants' own location_id directly
+        # Last resort: quant's own location
         for quant in self:
             loc = quant.location_id
             if not loc:
@@ -161,8 +183,8 @@ class StockQuant(models.Model):
             wh = _get_warehouse_from_location(env, loc, company_id)
             if wh:
                 _logger.debug(
-                    'Inventory analytic (quant fallback): quant %s -> loc %s'
-                    ' -> wh %s -> %s',
+                    'Inventory analytic (quant fallback): quant %s'
+                    ' -> loc %s -> wh %s -> %s',
                     quant.id, loc.name, wh.name, wh.analytic_account_id.name,
                 )
                 return wh.analytic_account_id
