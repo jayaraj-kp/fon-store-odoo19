@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Adds the 'Rack' column to the Order Lines tab of the
+        Sale Order / Quotation form view.
+
+        Odoo 19 CE sale order line list columns (left → right):
+          # | Product | Code (product_no) | Quantity | Unit Price | Taxes | Disc% | Amount
+        We insert Rack right after Code.
+    -->
+    <record id="view_sale_order_line_rack_inherit" model="ir.ui.view">
+        <field name="name">sale.order.line.rack.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!--
+                Target the 'product_no' field (Code column) inside the
+                order_line One2many list and insert Rack right after it.
+                'optional="show"' means the column is visible by default
+                but users can hide it via the column-toggle (≡) button.
+            -->
+            <xpath expr="//field[@name='order_line']//list//field[@name='product_no']"
+                   position="after">
+                <field name="rack"
+                       string="Rack"
+                       optional="show"
+                       placeholder="e.g. A-01-03"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
