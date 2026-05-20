@@ -146,6 +146,105 @@ class BalanceSheetController(http.Controller):
         return [{'id': a['id'], 'name': f"[{a['code']}] {a['name']}" if a['code'] else a['name']} for a in accounts]
 
     # ------------------------------------------------------------------
+    # Diagnostic Debug Page
+    # ------------------------------------------------------------------
+    @http.route('/bak/balance_sheet/debug', type='http', auth='user')
+    def balance_sheet_debug(self, **kwargs):
+        cr = request.env.cr
+        
+        # 1. Total count of account.move.line
+        cr.execute("SELECT count(*) FROM account_move_line")
+        total_aml = cr.fetchone()[0]
+        
+        # 2. Count of account.move.line with analytic_distribution
+        cr.execute("SELECT count(*) FROM account_move_line WHERE analytic_distribution IS NOT NULL AND analytic_distribution != '{}'::jsonb")
+        aml_with_dist = cr.fetchone()[0]
+        
+        # 3. Total count of account.analytic.line
+        cr.execute("SELECT count(*) FROM account_analytic_line")
+        total_aal = cr.fetchone()[0]
+        
+        # 4. Count of account.analytic.line with move_line_id
+        cr.execute("SELECT count(*) FROM account_analytic_line WHERE move_line_id IS NOT NULL")
+        aal_with_ml = cr.fetchone()[0]
+        
+        # 5. Get distribution of analytic accounts in account_analytic_line
+        cr.execute("""
+            SELECT aaa.id, aaa.name, count(*) 
+            FROM account_analytic_line aal 
+            JOIN account_analytic_account aaa ON aaa.id = aal.account_id 
+            GROUP BY aaa.id, aaa.name
+        """)
+        aal_dist = cr.fetchall()
+        
+        # 6. Sample of account.move.line with analytic_distribution but no account_analytic_line
+        cr.execute("""
+            SELECT aml.id, aml.account_id, aa.code, aa.name, aml.analytic_distribution 
+            FROM account_move_line aml 
+            JOIN account_account aa ON aa.id = aml.account_id 
+            WHERE aml.analytic_distribution IS NOT NULL 
+              AND aml.analytic_distribution != '{}'::jsonb 
+              AND NOT EXISTS (SELECT 1 FROM account_analytic_line aal WHERE aal.move_line_id = aml.id)
+            LIMIT 10
+        """)
+        mismatch_samples = cr.fetchall()
+
+        # 7. Sample of account.move.line that DOES have account_analytic_line
+        cr.execute("""
+            SELECT aml.id, aml.account_id, aa.code, aa.name, aal.account_id, aaa.name
+            FROM account_move_line aml 
+            JOIN account_account aa ON aa.id = aml.account_id 
+            JOIN account_analytic_line aal ON aal.move_line_id = aml.id
+            JOIN account_analytic_account aaa ON aaa.id = aal.account_id
+            LIMIT 10
+        """)
+        match_samples = cr.fetchall()
+        
+        # Format HTML output
+        html = f"""
+        <html>
+        <head><title>Balance Sheet Diagnostic Debug</title></head>
+        <body style="font-family: monospace; padding: 20px; line-height: 1.6;">
+            <h2>Diagnostic Debug Results</h2>
+            <hr/>
+            <p><strong>Total account.move.line records:</strong> {total_aml}</p>
+            <p><strong>account.move.line with analytic_distribution set:</strong> {aml_with_dist}</p>
+            <p><strong>Total account.analytic.line records:</strong> {total_aal}</p>
+            <p><strong>account.analytic.line linked to move_line_id:</strong> {aal_with_ml}</p>
+            
+            <h3>Analytic Line Distribution:</h3>
+            <ul>
+        """
+        for acc_id, acc_name, cnt in aal_dist:
+            html += f"<li>ID {acc_id}: {acc_name} ({cnt} lines)</li>"
+        html += """
+            </ul>
+            
+            <h3>Samples of move lines with analytic_distribution but NO analytic line (Draft or missing sync):</h3>
+            <table border="1" cellpadding="5" style="border-collapse:collapse;">
+                <tr><th>Move Line ID</th><th>Account Code</th><th>Account Name</th><th>Analytic Distribution JSON</th></tr>
+        """
+        for ml_id, acc_id, code, name, dist in mismatch_samples:
+            html += f"<tr><td>{ml_id}</td><td>{code}</td><td>{name}</td><td>{json.dumps(dist)}</td></tr>"
+            
+        html += """
+            </table>
+            
+            <h3>Samples of move lines successfully matching analytic lines:</h3>
+            <table border="1" cellpadding="5" style="border-collapse:collapse;">
+                <tr><th>Move Line ID</th><th>Account Code</th><th>Account Name</th><th>Analytic Account ID</th><th>Analytic Account Name</th></tr>
+        """
+        for ml_id, acc_id, code, name, aaa_id, aaa_name in match_samples:
+            html += f"<tr><td>{ml_id}</td><td>{code}</td><td>{name}</td><td>{aaa_id}</td><td>{aaa_name}</td></tr>"
+            
+        html += """
+            </table>
+        </body>
+        </html>
+        """
+        return Response(html, content_type='text/html', status=200)
+
+    # ------------------------------------------------------------------
     # JSON endpoint – fetch report data
     # ------------------------------------------------------------------
     @http.route('/bak/balance_sheet/data', type='json', auth='user')
