@@ -31,8 +31,10 @@ class ProfitLossController(http.Controller):
         return Response(html, content_type='text/html;charset=utf-8', status=200)
 
     def _render_page(self, wizard_id, date_to, date_from, target_move, display_debit_credit):
-        css_url = '/bak_profit_loss_report/static/src/css/profit_loss.css?v=1.0.1'
-        js_url  = '/bak_profit_loss_report/static/src/js/profit_loss_action.js?v=1.0.1'
+        import time
+        v = int(time.time())
+        css_url = f'/bak_profit_loss_report/static/src/css/profit_loss.css?v={v}'
+        js_url  = f'/bak_profit_loss_report/static/src/js/profit_loss_action.js?v={v}'
         dc_val  = 'true' if display_debit_credit else 'false'
 
         return f"""<!DOCTYPE html>
@@ -80,6 +82,18 @@ class ProfitLossController(http.Controller):
             <input type="date" id="flt_date_to" class="bak-input"/>
         </div>
         <div class="bak-filter-group">
+            <label>Analytic Account</label>
+            <div class="bak-dropdown" id="analytic_dropdown">
+                <div class="bak-dropdown-button" id="analytic_dropdown_btn">Select Analytic Accounts...</div>
+                <div class="bak-dropdown-content" id="analytic_dropdown_content" style="display: none;">
+                    <input type="text" id="analytic_search" placeholder="Search..." class="bak-input" style="width: 100%; margin-bottom: 6px;"/>
+                    <div class="bak-dropdown-items" id="analytic_items_list">
+                        <!-- Options dynamically loaded via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bak-filter-group">
             <label class="bak-check-label">
                 <input type="checkbox" id="chk_dc"/> Show Debit/Credit
             </label>
@@ -113,13 +127,24 @@ class ProfitLossController(http.Controller):
 </html>"""
 
     # ------------------------------------------------------------------
+    # Analytic accounts endpoint
+    # ------------------------------------------------------------------
+    @http.route('/bak/profit_loss/analytic_accounts', type='json', auth='user')
+    def get_analytic_accounts(self, **kwargs):
+        accounts = request.env['account.analytic.account'].search_read(
+            [('company_id', '=', request.env.company.id)],
+            ['id', 'name', 'code']
+        )
+        return [{'id': a['id'], 'name': f"[{a['code']}] {a['name']}" if a['code'] else a['name']} for a in accounts]
+
+    # ------------------------------------------------------------------
     # JSON endpoint
     # ------------------------------------------------------------------
     @http.route('/bak/profit_loss/data', type='json', auth='user')
     def profit_loss_data(self, wizard_id, date_from=None, date_to=None,
                          target_move='posted', display_debit_credit=False,
                          enable_comparison=False, comparison_date_from=None,
-                         comparison_date_to=None, **kwargs):
+                         comparison_date_to=None, analytic_ids=None, **kwargs):
         env    = request.env
         wizard = env['bak.profit.loss.report'].browse(int(wizard_id))
         if not wizard.exists():
@@ -135,6 +160,9 @@ class ProfitLossController(http.Controller):
         if enable_comparison:
             vals['comparison_date_from'] = comparison_date_from or False
             vals['comparison_date_to']   = comparison_date_to   or False
+
+        if analytic_ids is not None:
+            vals['analytic_ids'] = [(6, 0, [int(i) for i in analytic_ids])]
 
         wizard.write(vals)
         return wizard.get_report_data()
@@ -455,7 +483,7 @@ td{{padding:4px 8px;border-bottom:1px solid #eee}}
     # Drilldown to Journal Items
     # ------------------------------------------------------------------
     @http.route('/bak/profit_loss/drilldown', type='http', auth='user')
-    def profit_loss_drilldown(self, account_id, date_from=None, date_to=None, target_move='posted', **kwargs):
+    def profit_loss_drilldown(self, account_id, date_from=None, date_to=None, target_move='posted', analytic_ids=None, **kwargs):
         env = request.env
         account_id = int(account_id)
         account = env['account.account'].browse(account_id)
@@ -473,8 +501,27 @@ td{{padding:4px 8px;border-bottom:1px solid #eee}}
         if target_move == 'posted':
             domain.append(('move_id.state', '=', 'posted'))
 
+        # Add analytic account filters if present
+        parsed_analytic_ids = []
+        if analytic_ids:
+            try:
+                import json
+                parsed_analytic_ids = json.loads(analytic_ids)
+                if parsed_analytic_ids:
+                    domain.append(('analytic_account_ids', 'in', parsed_analytic_ids))
+            except Exception as e:
+                _logger.error("Error parsing analytic_ids in drilldown: %s", e)
+
         action_name = f"P&L Drilldown (User {user_id}) - {account.code or ''} {account.name}"
-        context_str = "{'search_default_posted': 1}" if target_move == 'posted' else "{}"
+        
+        # Build context
+        context_dict = {}
+        if target_move == 'posted':
+            context_dict['search_default_posted'] = 1
+        if parsed_analytic_ids:
+            context_dict['search_default_analytic_account_ids'] = parsed_analytic_ids
+
+        context_str = str(context_dict)
 
         # Find or create a user-specific dynamic action to avoid multi-user conflicts
         act_window_obj = env['ir.actions.act_window'].sudo()

@@ -27,6 +27,7 @@ class ProfitLossReport(models.TransientModel):
     comparison_date_from = fields.Date(string='Comparison Start Date')
     comparison_date_to   = fields.Date(string='Comparison End Date')
     enable_comparison    = fields.Boolean(string='Enable Comparison', default=False)
+    analytic_ids         = fields.Many2many('account.analytic.account', string='Analytic Accounts')
 
     # ------------------------------------------------------------------
     # Schema introspection helpers
@@ -129,6 +130,7 @@ class ProfitLossReport(models.TransientModel):
         state_sql    = "AND am.state = 'posted'" if self.target_move == 'posted' else ''
         datefrom_sql = ''
         dateto_sql   = ''
+        analytic_sql = ''
 
         if date_from:
             datefrom_sql = 'AND aml.date >= %s'
@@ -136,6 +138,17 @@ class ProfitLossReport(models.TransientModel):
         if date_to:
             dateto_sql = 'AND aml.date <= %s'
             params.append(date_to)
+
+        if self.analytic_ids:
+            analytic_sql = """
+                AND aml.analytic_distribution IS NOT NULL
+                AND aml.analytic_distribution != '{}'::jsonb
+                AND EXISTS (
+                    SELECT 1 FROM jsonb_object_keys(aml.analytic_distribution) k
+                    WHERE k IN %s
+                )
+            """
+            params.append(tuple(str(i) for i in self.analytic_ids.ids))
 
         cr.execute(f"""
             SELECT
@@ -149,6 +162,7 @@ class ProfitLossReport(models.TransientModel):
               {state_sql}
               {datefrom_sql}
               {dateto_sql}
+              {analytic_sql}
             GROUP BY aml.account_id
         """, params)
 

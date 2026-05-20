@@ -29,6 +29,7 @@
         comparison:   false,
         compDateFrom: '',
         compDateTo:   '',
+        analyticIds:  [],
     };
 
     // ── Wire controls ──────────────────────────────────────────
@@ -48,6 +49,22 @@
             if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
         });
 
+        // Dropdown toggle listener
+        const dropdownBtn = $('#analytic_dropdown_btn');
+        const dropdownContent = $('#analytic_dropdown_content');
+        if (dropdownBtn && dropdownContent) {
+            dropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const show = dropdownContent.style.display === 'none';
+                dropdownContent.style.display = show ? 'block' : 'none';
+            });
+            document.addEventListener('click', (e) => {
+                if (!dropdownContent.contains(e.target) && e.target !== dropdownBtn) {
+                    dropdownContent.style.display = 'none';
+                }
+            });
+        }
+
         // Drilldown click delegation
         const reportWrap = $('#bak_report_content');
         if (reportWrap) {
@@ -58,7 +75,10 @@
                     const dateFrom = target.dataset.dateFrom;
                     const dateTo = target.dataset.dateTo;
                     if (accId) {
-                        const url = `/bak/profit_loss/drilldown?account_id=${accId}&date_from=${encodeURIComponent(dateFrom || '')}&date_to=${encodeURIComponent(dateTo || '')}&target_move=${encodeURIComponent(state.targetMove || 'posted')}`;
+                        let url = `/bak/profit_loss/drilldown?account_id=${accId}&date_from=${encodeURIComponent(dateFrom || '')}&date_to=${encodeURIComponent(dateTo || '')}&target_move=${encodeURIComponent(state.targetMove || 'posted')}`;
+                        if (state.analyticIds && state.analyticIds.length > 0) {
+                            url += `&analytic_ids=${encodeURIComponent(JSON.stringify(state.analyticIds))}`;
+                        }
                         window.open(url, '_blank');
                     }
                 }
@@ -98,6 +118,7 @@
                     enable_comparison:     state.comparison,
                     comparison_date_from:  state.compDateFrom || null,
                     comparison_date_to:    state.compDateTo   || null,
+                    analytic_ids:          state.analyticIds || [],
                 },
             };
             const res  = await fetch('/bak/profit_loss/data', {
@@ -113,6 +134,70 @@
             renderReport(json.result);
         } catch (err) {
             showError('Network error: ' + err.message);
+        }
+    }
+
+    // ── Fetch and initialize Analytic Accounts ─────────────────
+    async function loadAnalyticAccounts() {
+        try {
+            const body = {
+                jsonrpc: '2.0',
+                method: 'call',
+                id: 2,
+                params: {},
+            };
+            const res = await fetch('/bak/profit_loss/analytic_accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const json = await res.json();
+            if (json.result) {
+                renderAnalyticDropdown(json.result);
+            }
+        } catch (e) {
+            console.error("Failed to load analytic accounts:", e);
+        }
+    }
+
+    function renderAnalyticDropdown(accounts) {
+        const list = $('#analytic_items_list');
+        if (!list) return;
+        list.innerHTML = '';
+        
+        accounts.forEach(acc => {
+            const item = el('label', 'bak-dropdown-item');
+            item.innerHTML = `<input type="checkbox" data-id="${acc.id}" value="${acc.name}"/> <span>${acc.name}</span>`;
+            list.appendChild(item);
+        });
+
+        const btn = $('#analytic_dropdown_btn');
+        const checkboxes = $$('input[type="checkbox"]', list);
+        
+        checkboxes.forEach(chk => {
+            chk.addEventListener('change', () => {
+                const selected = checkboxes.filter(c => c.checked);
+                state.analyticIds = selected.map(c => parseInt(c.dataset.id));
+                if (selected.length === 0) {
+                    btn.innerText = 'Select Analytic Accounts...';
+                } else if (selected.length === 1) {
+                    btn.innerText = selected[0].value;
+                } else {
+                    btn.innerText = `${selected.length} Selected`;
+                }
+            });
+        });
+        
+        const searchInput = $('#analytic_search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const q = e.target.value.toLowerCase();
+                const items = $$('.bak-dropdown-item', list);
+                items.forEach(item => {
+                    const text = item.querySelector('span').innerText.toLowerCase();
+                    item.style.display = text.includes(q) ? '' : 'none';
+                });
+            });
         }
     }
 
@@ -316,11 +401,19 @@
     }
 
     // ── Init ────────────────────────────────────────────────────
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => { initControls(); fetchReport(); });
-    } else {
+    let initialized = false;
+    function boot() {
+        if (initialized) return;
+        initialized = true;
         initControls();
+        loadAnalyticAccounts();
         fetchReport();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
     }
 
 })();
