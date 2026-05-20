@@ -486,7 +486,7 @@ td{{padding:4px 8px;border-bottom:1px solid #eee}}
         vals = {
             'name': action_name,
             'res_model': 'account.move.line',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': str(domain),
             'context': context_str,
             'target': 'current',
