@@ -287,6 +287,8 @@
         }
 
         const context = {
+            active_id: parseInt(accId),
+            active_ids: [parseInt(accId)],
             search_default_posted: state.targetMove === 'posted' ? 1 : 0
         };
 
