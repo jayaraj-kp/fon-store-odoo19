@@ -473,13 +473,14 @@ class BalanceSheetInlineReport(models.TransientModel):
 
         if self.analytic_ids:
             analytic_sql = """
+                AND aml.analytic_distribution IS NOT NULL
+                AND aml.analytic_distribution != '{}'::jsonb
                 AND EXISTS (
-                    SELECT 1 FROM account_analytic_line aal
-                    WHERE aal.move_line_id = aml.id
-                      AND aal.account_id IN %s
+                    SELECT 1 FROM jsonb_object_keys(aml.analytic_distribution) k
+                    WHERE k IN %s
                 )
             """
-            params.append(tuple(self.analytic_ids.ids))
+            params.append(tuple(str(i) for i in self.analytic_ids.ids))
 
         cr.execute(f"""
             SELECT
