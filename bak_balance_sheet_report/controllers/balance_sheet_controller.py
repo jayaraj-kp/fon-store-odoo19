@@ -82,12 +82,12 @@ class BalanceSheetController(http.Controller):
     <!-- ── FILTER BAR ───────────────────────────────────────── -->
     <div class="bak-bs-filterbar">
         <div class="bak-filter-group">
-            <label>From Date</label>
-            <input type="date" id="flt_date_from" class="bak-input"/>
+            <label>As of Date</label>
+            <input type="date" id="flt_date_to" class="bak-input"/>
         </div>
         <div class="bak-filter-group">
-            <label>To Date</label>
-            <input type="date" id="flt_date_to" class="bak-input"/>
+            <label>From Date</label>
+            <input type="date" id="flt_date_from" class="bak-input"/>
         </div>
         <div class="bak-filter-group">
             <label>Analytic Account</label>
@@ -106,13 +106,13 @@ class BalanceSheetController(http.Controller):
                 <input type="checkbox" id="chk_dc"/> Show Debit/Credit
             </label>
         </div>
+        <div class="bak-filter-group" id="grp_comparison" style="display:none">
+            <label>Compare As of</label>
+            <input type="date" id="flt_comp_date_to" class="bak-input"/>
+        </div>
         <div class="bak-filter-group" id="grp_comparison_from" style="display:none">
             <label>Compare From</label>
             <input type="date" id="flt_comp_date_from" class="bak-input"/>
-        </div>
-        <div class="bak-filter-group" id="grp_comparison" style="display:none">
-            <label>Compare To</label>
-            <input type="date" id="flt_comp_date_to" class="bak-input"/>
         </div>
         <div class="bak-filter-group">
             <button class="bak-btn bak-btn-primary" id="btn_apply">&#8635; Apply</button>
@@ -295,7 +295,8 @@ td{{padding:4px 8px;border-bottom:1px solid #eee}}
 .num{{text-align:right}}.negative{{color:#c00}}.indent{{padding-left:22px}}
 </style></head><body>
 <h1>{data.get('company_name','')} &mdash; Balance Sheet</h1>
-<p class="sub">{'From ' + data['date_from'] + ' to ' if data.get('date_from') else 'As of '}{data.get('date_to','')}
+<p class="sub">As of {data.get('date_to','')}
+{'&nbsp;|&nbsp; From ' + data['date_from'] if data.get('date_from') else ''}
 &nbsp;|&nbsp; {'Posted Entries' if data.get('target_move')=='posted' else 'All Entries'}
 </p>
 <table><thead><tr>{col_headers}</tr></thead><tbody>{body}</tbody></table>

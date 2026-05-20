@@ -199,7 +199,8 @@
         hdr.innerHTML = `
             <div class="bak-rpt-company">${data.company_name}</div>
             <div class="bak-rpt-period">
-                ${data.date_from ? 'From <strong>' + data.date_from + '</strong> to ' : 'As of '}<strong>${data.date_to}</strong>
+                As of <strong>${data.date_to}</strong>
+                ${data.date_from ? ' &mdash; From ' + data.date_from : ''}
                 &nbsp;|&nbsp;
                 ${data.target_move === 'posted' ? 'Posted Entries' : 'All Entries'}
             </div>`;
