@@ -293,7 +293,7 @@
         };
 
         console.log("[Balance Sheet] Navigating to journal items with domain:", domain, "and context:", context);
-        const url = `/odoo/action-account.action_move_line_select?domain=${encodeURIComponent(JSON.stringify(domain))}&context=${encodeURIComponent(JSON.stringify(context))}`;
+        const url = `/odoo/action-account.action_move_line_select?active_id=${accId}&active_ids=[${accId}]&domain=${encodeURIComponent(JSON.stringify(domain))}&context=${encodeURIComponent(JSON.stringify(context))}`;
         console.log("[Balance Sheet] Generated redirection URL:", url);
         window.open(url, '_blank');
     }
