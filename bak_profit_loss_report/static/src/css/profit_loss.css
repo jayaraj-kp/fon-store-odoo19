@@ -228,6 +228,23 @@
 .bak-rpt-table .negative { color: var(--bak-negative); }
 .bak-rpt-table .col-code { width: 80px; font-size: 11px; color: var(--bak-muted); }
 
+/* Interactive drilldown */
+.bak-amount-clickable {
+    cursor: pointer;
+    text-decoration: underline dotted rgba(46, 82, 102, 0.3);
+    transition: color 0.15s, text-decoration-color 0.15s, background-color 0.15s;
+}
+.bak-amount-clickable:hover {
+    color: var(--bak-accent) !important;
+    text-decoration: underline solid var(--bak-accent);
+    background-color: rgba(74, 125, 154, 0.08);
+}
+.bak-amount-clickable.negative:hover {
+    color: var(--bak-negative) !important;
+    text-decoration: underline solid var(--bak-negative);
+}
+
+
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 640px) {
     .bak-pl-filterbar { flex-direction: column; align-items: flex-start; }

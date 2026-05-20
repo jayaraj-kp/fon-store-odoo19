@@ -47,6 +47,23 @@
             const inp = document.getElementById(id);
             if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
         });
+
+        // Drilldown click delegation
+        const reportWrap = $('#bak_report_content');
+        if (reportWrap) {
+            reportWrap.addEventListener('click', e => {
+                const target = e.target.closest('.bak-amount-clickable');
+                if (target) {
+                    const accId = target.dataset.accountId;
+                    const dateFrom = target.dataset.dateFrom;
+                    const dateTo = target.dataset.dateTo;
+                    if (accId) {
+                        const url = `/bak/profit_loss/drilldown?account_id=${accId}&date_from=${encodeURIComponent(dateFrom || '')}&date_to=${encodeURIComponent(dateTo || '')}&target_move=${encodeURIComponent(state.targetMove || 'posted')}`;
+                        window.open(url, '_blank');
+                    }
+                }
+            });
+        }
     }
 
     function toggleComparison() {
@@ -171,17 +188,20 @@
                 (sub.rows || []).forEach(row => {
                     const accRow = el('tr', 'bak-row-account');
                     const negCls = row.balance < 0 ? ' negative' : '';
+                    const mainDataAttrs = `data-account-id="${row.id}" data-date-from="${state.dateFrom || ''}" data-date-to="${state.dateTo || ''}"`;
+                    const compDataAttrs = `data-account-id="${row.id}" data-date-from="${state.compDateFrom || ''}" data-date-to="${state.compDateTo || ''}"`;
+
                     let html = `
                         <td class="col-code">${row.code || ''}</td>
                         <td>${row.name}</td>`;
                     if (showDC) {
-                        html += `<td class="num">${fmt(row.debit)}</td>
-                                 <td class="num">${fmt(row.credit)}</td>`;
+                        html += `<td class="num bak-amount-clickable" ${mainDataAttrs}>${fmt(row.debit)}</td>
+                                 <td class="num bak-amount-clickable" ${mainDataAttrs}>${fmt(row.credit)}</td>`;
                     }
-                    html += `<td class="num${negCls}">${fmt(row.balance)}</td>`;
+                    html += `<td class="num${negCls} bak-amount-clickable" ${mainDataAttrs}>${fmt(row.balance)}</td>`;
                     if (showComp) {
                         const cn = row.comp_balance < 0 ? ' negative' : '';
-                        html += `<td class="num${cn}">${fmt(row.comp_balance)}</td>`;
+                        html += `<td class="num${cn} bak-amount-clickable" ${compDataAttrs}>${fmt(row.comp_balance)}</td>`;
                     }
                     accRow.innerHTML = html;
                     tbody.appendChild(accRow);

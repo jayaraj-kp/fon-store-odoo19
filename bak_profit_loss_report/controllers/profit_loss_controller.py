@@ -450,6 +450,56 @@ td{{padding:4px 8px;border-bottom:1px solid #eee}}
             ]
         )
 
+
+    # ------------------------------------------------------------------
+    # Drilldown to Journal Items
+    # ------------------------------------------------------------------
+    @http.route('/bak/profit_loss/drilldown', type='http', auth='user')
+    def profit_loss_drilldown(self, account_id, date_from=None, date_to=None, target_move='posted', **kwargs):
+        env = request.env
+        account_id = int(account_id)
+        account = env['account.account'].browse(account_id)
+        if not account.exists():
+            return Response('Account not found', status=404)
+
+        user_id = env.user.id
+
+        # Build dynamic domain for account.move.line
+        domain = [('account_id', '=', account_id)]
+        if date_from:
+            domain.append(('date', '>=', date_from))
+        if date_to:
+            domain.append(('date', '<=', date_to))
+        if target_move == 'posted':
+            domain.append(('move_id.state', '=', 'posted'))
+
+        action_name = f"P&L Drilldown (User {user_id}) - {account.code or ''} {account.name}"
+        context_str = "{'search_default_posted': 1}" if target_move == 'posted' else "{}"
+
+        # Find or create a user-specific dynamic action to avoid multi-user conflicts
+        act_window_obj = env['ir.actions.act_window'].sudo()
+        action = act_window_obj.search([
+            ('res_model', '=', 'account.move.line'),
+            ('name', 'ilike', f"P&L Drilldown (User {user_id})")
+        ], limit=1)
+
+        vals = {
+            'name': action_name,
+            'res_model': 'account.move.line',
+            'view_mode': 'tree,form',
+            'domain': str(domain),
+            'context': context_str,
+            'target': 'current',
+        }
+
+        if action:
+            action.write(vals)
+        else:
+            action = act_window_obj.create(vals)
+
+        # Redirect the user to the web client loaded with this action ID
+        return request.redirect(f'/web#action={action.id}')
+
     # ------------------------------------------------------------------
     # Debug schema (same as balance sheet — for troubleshooting)
     # ------------------------------------------------------------------
