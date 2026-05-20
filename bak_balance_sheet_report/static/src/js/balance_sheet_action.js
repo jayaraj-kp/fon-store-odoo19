@@ -247,8 +247,10 @@
         table.addEventListener('click', (ev) => {
             const target = ev.target.closest('.bak-clickable-amount');
             if (target) {
+                console.log("[Balance Sheet] Clicked amount cell:", target);
                 const accId = target.dataset.accId;
                 const type = target.dataset.type;
+                console.log("[Balance Sheet] Extracted dataset values:", { accId, type });
                 openJournalItems(accId, type);
             }
         });
@@ -258,6 +260,7 @@
 
     // ── Open Journal Items Action ────────────────────────────────
     function openJournalItems(accId, type) {
+        console.log("[Balance Sheet] openJournalItems called with:", { accId, type });
         const domain = [['account_id', '=', parseInt(accId)]];
         let dateFrom = state.dateFrom;
         let dateTo = state.dateTo;
@@ -287,7 +290,9 @@
             search_default_posted: state.targetMove === 'posted' ? 1 : 0
         };
 
+        console.log("[Balance Sheet] Navigating to journal items with domain:", domain, "and context:", context);
         const url = `/odoo/action-account.action_move_line_select?domain=${encodeURIComponent(JSON.stringify(domain))}&context=${encodeURIComponent(JSON.stringify(context))}`;
+        console.log("[Balance Sheet] Generated redirection URL:", url);
         window.open(url, '_blank');
     }
 

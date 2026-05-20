@@ -36,8 +36,10 @@ class BalanceSheetController(http.Controller):
     def _render_page(self, wizard_id, date_to, date_from,
                      target_move, display_debit_credit):
         """Return the full HTML page as a string."""
-        css_url = '/bak_balance_sheet_report/static/src/css/balance_sheet.css'
-        js_url  = '/bak_balance_sheet_report/static/src/js/balance_sheet_action.js'
+        import time
+        v = int(time.time())
+        css_url = f'/bak_balance_sheet_report/static/src/css/balance_sheet.css?v={v}'
+        js_url  = f'/bak_balance_sheet_report/static/src/js/balance_sheet_action.js?v={v}'
         dc_val  = 'true' if display_debit_credit else 'false'
 
         return f"""<!DOCTYPE html>
