@@ -329,8 +329,11 @@
         table.addEventListener('click', (ev) => {
             const target = ev.target.closest('.bak-clickable-amount');
             if (target) {
-                console.log("[Balance Sheet] Clicked amount cell:", target);
                 const accId = target.dataset.accId;
+                if (accId === 'current_year_earnings') {
+                    // Do not drill down for the synthetic Current Year Earnings line
+                    return;
+                }
                 const type = target.dataset.type;
                 console.log("[Balance Sheet] Extracted dataset values:", { accId, type });
                 openJournalItems(accId, type);
