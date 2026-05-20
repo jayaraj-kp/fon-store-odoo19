@@ -29,6 +29,7 @@
         comparison:  false,
         compDateTo:  '',
         compDateFrom:'',
+        analyticIds: [],
     };
 
     // ── Wire up filter controls ─────────────────────────────────
@@ -48,6 +49,22 @@
             const inp = document.getElementById(id);
             if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
         });
+
+        // Dropdown toggle listener
+        const dropdownBtn = $('#analytic_dropdown_btn');
+        const dropdownContent = $('#analytic_dropdown_content');
+        if (dropdownBtn && dropdownContent) {
+            dropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const show = dropdownContent.style.display === 'none';
+                dropdownContent.style.display = show ? 'block' : 'none';
+            });
+            document.addEventListener('click', (e) => {
+                if (!dropdownContent.contains(e.target) && e.target !== dropdownBtn) {
+                    dropdownContent.style.display = 'none';
+                }
+            });
+        }
     }
 
     function toggleComparison() {
@@ -85,6 +102,7 @@
                     enable_comparison:  state.comparison,
                     comparison_date_to: state.compDateTo || null,
                     comparison_date_from: state.compDateFrom || null,
+                    analytic_ids:       state.analyticIds || [],
                 },
             };
             const res  = await fetch('/bak/balance_sheet/data', {
@@ -100,6 +118,70 @@
             renderReport(json.result);
         } catch (err) {
             showError('Network error: ' + err.message);
+        }
+    }
+
+    // ── Fetch and initialize Analytic Accounts ─────────────────
+    async function loadAnalyticAccounts() {
+        try {
+            const body = {
+                jsonrpc: '2.0',
+                method: 'call',
+                id: 2,
+                params: {},
+            };
+            const res = await fetch('/bak/balance_sheet/analytic_accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const json = await res.json();
+            if (json.result) {
+                renderAnalyticDropdown(json.result);
+            }
+        } catch (e) {
+            console.error("Failed to load analytic accounts:", e);
+        }
+    }
+
+    function renderAnalyticDropdown(accounts) {
+        const list = $('#analytic_items_list');
+        if (!list) return;
+        list.innerHTML = '';
+        
+        accounts.forEach(acc => {
+            const item = el('label', 'bak-dropdown-item');
+            item.innerHTML = `<input type="checkbox" data-id="${acc.id}" value="${acc.name}"/> <span>${acc.name}</span>`;
+            list.appendChild(item);
+        });
+
+        const btn = $('#analytic_dropdown_btn');
+        const checkboxes = $$('#analytic_items_list input[type="checkbox"]');
+        
+        checkboxes.forEach(chk => {
+            chk.addEventListener('change', () => {
+                const selected = checkboxes.filter(c => c.checked);
+                state.analyticIds = selected.map(c => parseInt(c.dataset.id));
+                if (selected.length === 0) {
+                    btn.innerText = 'Select Analytic Accounts...';
+                } else if (selected.length === 1) {
+                    btn.innerText = selected[0].value;
+                } else {
+                    btn.innerText = `${selected.length} Selected`;
+                }
+            });
+        });
+        
+        const searchInput = $('#analytic_search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const q = e.target.value.toLowerCase();
+                const items = $$('.bak-dropdown-item', list);
+                items.forEach(item => {
+                    const text = item.querySelector('span').innerText.toLowerCase();
+                    item.style.display = text.includes(q) ? '' : 'none';
+                });
+            });
         }
     }
 
@@ -286,11 +368,19 @@
             domain.push(['parent_state', '=', 'posted']);
         }
 
+        if (state.analyticIds && state.analyticIds.length > 0) {
+            domain.push(['analytic_account_ids', 'in', state.analyticIds]);
+        }
+
         const context = {
             active_id: parseInt(accId),
             active_ids: [parseInt(accId)],
             search_default_posted: state.targetMove === 'posted' ? 1 : 0
         };
+
+        if (state.analyticIds && state.analyticIds.length > 0) {
+            context['search_default_analytic_account_ids'] = state.analyticIds;
+        }
 
         console.log("[Balance Sheet] Navigating to journal items with domain:", domain, "and context:", context);
         const url = `/odoo/action-account.action_move_line_select?active_id=${accId}&active_ids=[${accId}]&domain=${encodeURIComponent(JSON.stringify(domain))}&context=${encodeURIComponent(JSON.stringify(context))}`;
@@ -326,15 +416,18 @@
     }
 
     // ── Boot ─────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', () => {
+    let initialized = false;
+    function boot() {
+        if (initialized) return;
+        initialized = true;
         initControls();
+        loadAnalyticAccounts();
         fetchReport();
-    });
+    }
 
-    // Also fire immediately if DOM already loaded
+    document.addEventListener('DOMContentLoaded', boot);
     if (document.readyState !== 'loading') {
-        initControls();
-        fetchReport();
+        boot();
     }
 
 })();

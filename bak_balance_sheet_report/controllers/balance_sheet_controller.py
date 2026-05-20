@@ -90,6 +90,18 @@ class BalanceSheetController(http.Controller):
             <input type="date" id="flt_date_from" class="bak-input"/>
         </div>
         <div class="bak-filter-group">
+            <label>Analytic Account</label>
+            <div class="bak-dropdown" id="analytic_dropdown">
+                <div class="bak-dropdown-button" id="analytic_dropdown_btn">Select Analytic Accounts...</div>
+                <div class="bak-dropdown-content" id="analytic_dropdown_content" style="display: none;">
+                    <input type="text" id="analytic_search" placeholder="Search..." class="bak-input" style="width: 100%; margin-bottom: 6px;"/>
+                    <div class="bak-dropdown-items" id="analytic_items_list">
+                        <!-- Options dynamically loaded via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bak-filter-group">
             <label class="bak-check-label">
                 <input type="checkbox" id="chk_dc"/> Show Debit/Credit
             </label>
@@ -123,13 +135,24 @@ class BalanceSheetController(http.Controller):
 </html>"""
 
     # ------------------------------------------------------------------
+    # Analytic accounts endpoint
+    # ------------------------------------------------------------------
+    @http.route('/bak/balance_sheet/analytic_accounts', type='json', auth='user')
+    def get_analytic_accounts(self, **kwargs):
+        accounts = request.env['account.analytic.account'].search_read(
+            [('company_id', '=', request.env.company.id)],
+            ['id', 'name', 'code']
+        )
+        return [{'id': a['id'], 'name': f"[{a['code']}] {a['name']}" if a['code'] else a['name']} for a in accounts]
+
+    # ------------------------------------------------------------------
     # JSON endpoint – fetch report data
     # ------------------------------------------------------------------
     @http.route('/bak/balance_sheet/data', type='json', auth='user')
     def balance_sheet_data(self, wizard_id, date_from=None, date_to=None,
                            target_move='posted', display_debit_credit=True,
                            enable_comparison=False, comparison_date_from=None,
-                           comparison_date_to=None, **kwargs):
+                           comparison_date_to=None, analytic_ids=None, **kwargs):
         env = request.env
         wizard = env['bak.balance.sheet.report'].browse(int(wizard_id))
         if not wizard.exists():
@@ -145,6 +168,9 @@ class BalanceSheetController(http.Controller):
         if enable_comparison:
             vals['comparison_date_from'] = comparison_date_from or False
             vals['comparison_date_to']   = comparison_date_to or False
+
+        if analytic_ids is not None:
+            vals['analytic_ids'] = [(6, 0, [int(i) for i in analytic_ids])]
 
         wizard.write(vals)
         return wizard.get_report_data()

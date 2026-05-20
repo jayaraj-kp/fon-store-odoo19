@@ -335,6 +335,7 @@ class BalanceSheetInlineReport(models.TransientModel):
     comparison_date_from = fields.Date(string='Comparison Start Date')
     comparison_date_to   = fields.Date(string='Comparison End Date')
     enable_comparison    = fields.Boolean(string='Enable Comparison', default=False)
+    analytic_ids         = fields.Many2many('account.analytic.account', string='Analytic Accounts')
 
     # ------------------------------------------------------------------
     # Account types whose natural balance is CREDIT (negative in Odoo's
@@ -461,6 +462,7 @@ class BalanceSheetInlineReport(models.TransientModel):
         state_sql    = "AND am.state = 'posted'" if self.target_move == 'posted' else ''
         datefrom_sql = ''
         dateto_sql   = ''
+        analytic_sql = ''
 
         if date_from:
             datefrom_sql = 'AND aml.date >= %s'
@@ -468,6 +470,16 @@ class BalanceSheetInlineReport(models.TransientModel):
         if date_to:
             dateto_sql = 'AND aml.date <= %s'
             params.append(date_to)
+
+        if self.analytic_ids:
+            analytic_sql = """
+                AND EXISTS (
+                    SELECT 1 FROM account_analytic_line aal
+                    WHERE aal.move_line_id = aml.id
+                      AND aal.account_id IN %s
+                )
+            """
+            params.append(tuple(self.analytic_ids.ids))
 
         cr.execute(f"""
             SELECT
@@ -481,6 +493,7 @@ class BalanceSheetInlineReport(models.TransientModel):
               {state_sql}
               {datefrom_sql}
               {dateto_sql}
+              {analytic_sql}
             GROUP BY aml.account_id
         """, params)
 
