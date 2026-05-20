@@ -349,6 +349,7 @@ class BalanceSheetInlineReport(models.TransientModel):
         'liability_non_current',
         'equity',
         'equity_unaffected',
+        'current_year_earnings',
     }
 
     # ------------------------------------------------------------------
@@ -558,6 +559,7 @@ class BalanceSheetInlineReport(models.TransientModel):
             'liability_non_current': ('liabilities', 'Plus Non-current Liabilities'),
             'equity_unaffected':     ('equity',      'Unallocated Earnings'),
             'equity':                ('equity',      'Retained Earnings'),
+            'current_year_earnings': ('equity', 'Current Year Earnings'),
         }
 
         sections = {'assets': {}, 'liabilities': {}, 'equity': {}}
