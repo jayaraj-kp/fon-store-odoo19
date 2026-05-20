@@ -182,13 +182,13 @@
                         <td>${row.name}</td>`;
                     if (showDC) {
                         html += `
-                        <td class="num">${fmt(row.debit)}</td>
-                        <td class="num">${fmt(row.credit)}</td>`;
+                        <td class="num"><span class="bak-clickable-amount" data-type="debit" data-acc-id="${row.id}">${fmt(row.debit)}</span></td>
+                        <td class="num"><span class="bak-clickable-amount" data-type="credit" data-acc-id="${row.id}">${fmt(row.credit)}</span></td>`;
                     }
-                    html += `<td class="num${negClass}">${fmt(row.balance)}</td>`;
+                    html += `<td class="num${negClass}"><span class="bak-clickable-amount" data-type="balance" data-acc-id="${row.id}">${fmt(row.balance)}</span></td>`;
                     if (showComp) {
                         const cn = row.comp_balance < 0 ? ' negative' : '';
-                        html += `<td class="num${cn}">${fmt(row.comp_balance)}</td>`;
+                        html += `<td class="num${cn}"><span class="bak-clickable-amount" data-type="comp_balance" data-acc-id="${row.id}">${fmt(row.comp_balance)}</span></td>`;
                     }
                     accRow.innerHTML = html;
                     tbody.appendChild(accRow);
@@ -242,7 +242,53 @@
         tbody.appendChild(leRow);
 
         table.appendChild(tbody);
+
+        // Click delegation for clickable amounts to drill down to journal items
+        table.addEventListener('click', (ev) => {
+            const target = ev.target.closest('.bak-clickable-amount');
+            if (target) {
+                const accId = target.dataset.accId;
+                const type = target.dataset.type;
+                openJournalItems(accId, type);
+            }
+        });
+
         wrap.appendChild(table);
+    }
+
+    // ── Open Journal Items Action ────────────────────────────────
+    function openJournalItems(accId, type) {
+        const domain = [['account_id', '=', parseInt(accId)]];
+        let dateFrom = state.dateFrom;
+        let dateTo = state.dateTo;
+
+        if (type === 'comp_balance') {
+            const compFromInp = document.getElementById('flt_comp_date_from');
+            const compToInp = document.getElementById('flt_comp_date_to');
+            dateFrom = compFromInp ? compFromInp.value : '';
+            dateTo = compToInp ? compToInp.value : '';
+        } else if (type === 'debit') {
+            domain.push(['debit', '>', 0]);
+        } else if (type === 'credit') {
+            domain.push(['credit', '>', 0]);
+        }
+
+        if (dateFrom) {
+            domain.push(['date', '>=', dateFrom]);
+        }
+        if (dateTo) {
+            domain.push(['date', '<=', dateTo]);
+        }
+        if (state.targetMove === 'posted') {
+            domain.push(['parent_state', '=', 'posted']);
+        }
+
+        const context = {
+            search_default_posted: state.targetMove === 'posted' ? 1 : 0
+        };
+
+        const url = `/odoo/action-account.action_move_line_select?domain=${encodeURIComponent(JSON.stringify(domain))}&context=${encodeURIComponent(JSON.stringify(context))}`;
+        window.open(url, '_blank');
     }
 
     // ── Loading / error states ───────────────────────────────────

@@ -312,6 +312,19 @@
     color: var(--bak-muted);
 }
 
+/* Clickable balance sheet amounts */
+.bak-clickable-amount {
+    cursor: pointer;
+    border-bottom: 1px dashed transparent;
+    transition: border-color 0.15s, color 0.15s;
+    display: inline-block;
+}
+.bak-clickable-amount:hover {
+    color: var(--bak-accent);
+    border-bottom-color: var(--bak-accent);
+}
+
+
 /* ── Unposted warning banner ────────────────────────────────── */
 .bak-warn-banner {
     background: #FFF3CD;
