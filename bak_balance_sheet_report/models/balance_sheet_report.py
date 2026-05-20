@@ -602,78 +602,8 @@ class BalanceSheetInlineReport(models.TransientModel):
                 'balance':      balance,
                 'comp_balance': comp_balance,
             })
-            # ── Inject Current Year Earnings (virtual account) ──────────
-            cye = self._compute_current_year_earnings(date_from, date_to)
-            if cye != 0.0:
-                sections['equity'].setdefault('Current Year Earnings', []).append({
-                    'id': 0,
-                    'code': '999999',
-                    'name': 'Current Year Earnings',
-                    'debit': 0.0,
-                    'credit': 0.0,
-                    'balance': cye,
-                    'comp_balance': 0.0,
-                })
 
         return sections
-
-    def _compute_current_year_earnings(self, date_from, date_to):
-        """
-        Current Year Earnings = Total Income - Total Expenses
-        Computed from P&L account types since account 999999 has no real entries.
-        """
-        cr = self.env.cr
-        params = [self.company_id.id]
-
-        state_sql = "AND am.state = 'posted'" if self.target_move == 'posted' else ''
-        datefrom_sql = ''
-        dateto_sql = ''
-
-        if date_from:
-            datefrom_sql = 'AND aml.date >= %s'
-            params.append(date_from)
-        if date_to:
-            dateto_sql = 'AND aml.date <= %s'
-            params.append(date_to)
-
-        # Income account types (credit normal = positive when credit > debit)
-        income_types = (
-            'income', 'income_other', 'other_income',
-        )
-        # Expense account types (debit normal)
-        expense_types = (
-            'expense', 'expense_depreciation', 'expense_direct_cost',
-            'cost_of_revenue',
-        )
-
-        pl_types = income_types + expense_types
-
-        cr.execute(f"""
-            SELECT
-                aa.account_type,
-                COALESCE(SUM(aml.balance), 0)
-            FROM account_move_line aml
-            JOIN account_move am ON am.id = aml.move_id
-            JOIN account_account aa ON aa.id = aml.account_id
-            WHERE aml.company_id = %s
-              AND aa.account_type IN %s
-              {state_sql}
-              {datefrom_sql}
-              {dateto_sql}
-            GROUP BY aa.account_type
-        """, params + [pl_types])
-
-        income_total = 0.0
-        expense_total = 0.0
-
-        for acc_type, bal in cr.fetchall():
-            if acc_type in income_types:
-                income_total += -bal  # Income is credit normal, flip sign
-            else:
-                expense_total += bal  # Expense is debit normal, keep sign
-
-        # Net Profit = Income - Expenses
-        return income_total - expense_total
 
     # ------------------------------------------------------------------
     # Public: full report dict for controller / JS
