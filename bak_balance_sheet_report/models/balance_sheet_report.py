@@ -560,18 +560,39 @@ class BalanceSheetInlineReport(models.TransientModel):
             'equity':                ('equity',      'Retained Earnings'),
         }
 
+        PL_ACCOUNT_TYPES = {
+            'income',
+            'income_other',
+            'expense_direct_cost',
+            'expense',
+            'expense_depreciation',
+        }
+
         sections = {'assets': {}, 'liabilities': {}, 'equity': {}}
 
-        for acc_id, code, name, account_type in rows:
-            if account_type not in SECTION_MAP:
-                continue
-            section, subsection = SECTION_MAP[account_type]
+        unallocated_balance = 0.0
+        comp_unallocated_balance = 0.0
 
+        for acc_id, code, name, account_type in rows:
             bal      = balances.get(acc_id, {})
             comp_bal = comp_balances.get(acc_id, {})
 
             balance      = bal.get('balance', 0.0)
             comp_balance = comp_bal.get('balance', 0.0)
+
+            # Accumulate P&L accounts for Current Year Earnings
+            if account_type in PL_ACCOUNT_TYPES:
+                # Odoo internal balance is Debit - Credit.
+                # Net Profit is Credit (Income) - Debit (Expenses).
+                # So Net Profit = - (sum of P&L account balances).
+                unallocated_balance += -balance
+                comp_unallocated_balance += -comp_balance
+                continue
+
+            if account_type not in SECTION_MAP:
+                continue
+
+            section, subsection = SECTION_MAP[account_type]
 
             # ----------------------------------------------------------------
             # FIX: Liability and Equity accounts have a CREDIT normal balance.
@@ -601,6 +622,18 @@ class BalanceSheetInlineReport(models.TransientModel):
                 # Sign-corrected balance for display
                 'balance':      balance,
                 'comp_balance': comp_balance,
+            })
+
+        # Add the computed Current Year Earnings to the Retained Earnings section
+        if unallocated_balance != 0.0 or comp_unallocated_balance != 0.0:
+            sections['equity'].setdefault('Retained Earnings', []).append({
+                'id':           'current_year_earnings',
+                'code':         '',
+                'name':         'Current Year Earnings',
+                'debit':        0.0,
+                'credit':       0.0,
+                'balance':      unallocated_balance,
+                'comp_balance': comp_unallocated_balance,
             })
 
         return sections
