@@ -31,8 +31,8 @@ class ProfitLossController(http.Controller):
         return Response(html, content_type='text/html;charset=utf-8', status=200)
 
     def _render_page(self, wizard_id, date_to, date_from, target_move, display_debit_credit):
-        css_url = '/bak_profit_loss_report/static/src/css/profit_loss.css'
-        js_url  = '/bak_profit_loss_report/static/src/js/profit_loss_action.js'
+        css_url = '/bak_profit_loss_report/static/src/css/profit_loss.css?v=1.0.1'
+        js_url  = '/bak_profit_loss_report/static/src/js/profit_loss_action.js?v=1.0.1'
         dc_val  = 'true' if display_debit_credit else 'false'
 
         return f"""<!DOCTYPE html>
