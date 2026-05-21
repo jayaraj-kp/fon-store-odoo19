@@ -272,9 +272,8 @@ def _apply_analytic_to_move(move, analytic, label=''):
     key = str(analytic.id)
     for line in move.line_ids.filtered(lambda l: l.account_id):
         existing = line.analytic_distribution or {}
-        if key not in existing:
-            new_dist = dict(existing)
-            new_dist[key] = 100.0
+        if existing.get(key) != 100.0 or len(existing) > 1:
+            new_dist = {key: 100.0}
             try:
                 line.sudo().with_context(
                     check_move_validity=False,
