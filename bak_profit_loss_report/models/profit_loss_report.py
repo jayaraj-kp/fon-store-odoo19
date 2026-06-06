@@ -27,7 +27,7 @@ class ProfitLossReport(models.TransientModel):
     comparison_date_from = fields.Date(string='Comparison Start Date')
     comparison_date_to   = fields.Date(string='Comparison End Date')
     enable_comparison    = fields.Boolean(string='Enable Comparison', default=False)
-    analytic_ids         = fields.Many2many('account.analytic.account', string='Analytic Accounts')
+    analytic_ids         = fields.Many2many('account.analytic.account', 'bak_pl_report_analytic_rel', 'report_id', 'analytic_id', string='Analytic Accounts')
 
     # ------------------------------------------------------------------
     # Schema introspection helpers
