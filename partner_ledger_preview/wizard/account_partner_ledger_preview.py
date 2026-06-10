@@ -214,6 +214,16 @@ class AccountPartnerLedgerPreview(models.TransientModel):
              'the filter you have set.',
     )
 
+    def _get_report_data(self, data):
+        """Pass the initial_balance flag to the PDF report."""
+        data = super(AccountPartnerLedgerPreview, self)._get_report_data(data)
+        data['form'].update({'initial_balance': self.initial_balance})
+        # If checked, ensure date_from is provided
+        if self.initial_balance and not data['form'].get('date_from'):
+            raise UserError(_('You must define a Start Date when '
+                              'Include Initial Balances is enabled.'))
+        return data
+
     # ------------------------------------------------------------------
     # Public action – called by the Preview button in the wizard
     # ------------------------------------------------------------------
@@ -627,3 +637,67 @@ class AccountPartnerLedgerPreview(models.TransientModel):
 
         parts.append('</div>')
         return ''.join(parts)
+
+
+class ReportPartnerLedgerPreview(models.AbstractModel):
+    """
+    Inherits the PDF report logic for Partner Ledger to support
+    the Include Initial Balances feature.
+    """
+    _inherit = 'report.accounting_pdf_reports.report_partnerledger'
+
+    def _get_initial_balance(self, data, partner):
+        date_from = data['form'].get('date_from')
+        if not date_from:
+            return {'debit': 0.0, 'credit': 0.0, 'balance': 0.0}
+
+        ctx = dict(data['form'].get('used_context', {}))
+        ctx['date_from'] = date_from
+        ctx['date_to'] = False
+        ctx['initial_bal'] = True
+
+        query_get_data = self.env['account.move.line'].with_context(ctx)._query_get()
+        reconcile_clause = (
+            "" if data['form'].get('reconciled')
+            else ' AND "account_move_line".full_reconcile_id IS NULL '
+        )
+
+        params = [
+            partner.id,
+            tuple(data['computed']['move_state']),
+            tuple(data['computed']['account_ids']),
+        ] + query_get_data[2]
+
+        query = """
+            SELECT COALESCE(SUM("account_move_line".debit), 0) AS debit,
+                   COALESCE(SUM("account_move_line".credit), 0) AS credit,
+                   COALESCE(SUM("account_move_line".debit), 0)
+                     - COALESCE(SUM("account_move_line".credit), 0) AS balance
+            FROM """ + query_get_data[0] + """
+            LEFT JOIN account_move m ON (m.id = "account_move_line".move_id)
+            WHERE "account_move_line".partner_id = %s
+                AND m.state IN %s
+                AND "account_move_line".account_id IN %s
+                AND """ + query_get_data[1] + reconcile_clause
+
+        self.env.cr.execute(query, tuple(params))
+        row = self.env.cr.dictfetchone()
+        return row or {'debit': 0.0, 'credit': 0.0, 'balance': 0.0}
+
+    def _lines(self, data, partner):
+        """Override _lines to add the initial balance offset to the progress."""
+        full_account = super(ReportPartnerLedgerPreview, self)._lines(data, partner)
+        if data['form'].get('initial_balance'):
+            init_bal = self._get_initial_balance(data, partner)
+            init_offset = init_bal.get('balance', 0.0)
+            if init_offset:
+                for r in full_account:
+                    r['progress'] += init_offset
+        return full_account
+
+    @api.model
+    def _get_report_values(self, docids, data=None):
+        """Override to pass the get_initial_balance function to the QWeb template."""
+        res = super(ReportPartnerLedgerPreview, self)._get_report_values(docids, data)
+        res['get_initial_balance'] = self._get_initial_balance
+        return res

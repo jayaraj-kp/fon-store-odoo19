@@ -25,6 +25,33 @@
         </field>
     </record>
 
+    <!--
+        Inherits the Partner Ledger PDF report to display the Initial Balance row
+    -->
+    <template id="report_partnerledger_inherit_initial_balance" inherit_id="accounting_pdf_reports.report_partnerledger">
+        <xpath expr="//tr[@t-foreach='lines(data, o)']" position="before">
+            <t t-if="data['form'].get('initial_balance')">
+                <t t-set="init_bal" t-value="get_initial_balance(data, o)"/>
+                <tr style="background-color: #fef9e7; color: #7d6608; font-style: italic; border-bottom: 1px dashed #d4ac0d;">
+                    <td colspan="4" class="text-end">
+                        <strong>Initial Balance</strong>
+                    </td>
+                    <td class="text-end">
+                        <strong t-esc="init_bal['debit']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                    </td>
+                    <td class="text-end">
+                        <strong t-esc="init_bal['credit']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                    </td>
+                    <td class="text-end">
+                        <strong t-esc="init_bal['balance']" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                    </td>
+                    <td class="text-end" t-if="data['form']['amount_currency']">
+                    </td>
+                </tr>
+            </t>
+        </xpath>
+    </template>
+
 </odoo>
 
 
