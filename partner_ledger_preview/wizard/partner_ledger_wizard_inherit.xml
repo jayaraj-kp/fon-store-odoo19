@@ -11,6 +11,9 @@
         <field name="model">account.report.partner.ledger</field>
         <field name="inherit_id" ref="accounting_pdf_reports.account_report_partner_ledger_view"/>
         <field name="arch" type="xml">
+            <xpath expr="//field[@name='reconciled']" position="after">
+                <field name="initial_balance"/>
+            </xpath>
             <xpath expr="//footer" position="inside">
                 <button name="action_preview_report"
                         string="Preview"

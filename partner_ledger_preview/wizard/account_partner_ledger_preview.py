@@ -187,6 +187,7 @@
 #         parts.append('</div>')
 #         return ''.join(parts)
 from odoo import fields, models, api, _
+from odoo.exceptions import UserError
 
 
 class AccountPartnerLedgerPreview(models.TransientModel):
@@ -204,6 +205,13 @@ class AccountPartnerLedgerPreview(models.TransientModel):
         string='Preview',
         sanitize=False,
         readonly=True,
+    )
+
+    initial_balance = fields.Boolean(
+        string='Include Initial Balances',
+        help='If you selected date, this field allow you to add a row '
+             'to display the amount of debit/credit/balance that precedes '
+             'the filter you have set.',
     )
 
     # ------------------------------------------------------------------
@@ -237,8 +245,12 @@ class AccountPartnerLedgerPreview(models.TransientModel):
         form = self.read([
             'date_from', 'date_to', 'journal_ids', 'target_move',
             'result_selection', 'reconciled', 'amount_currency',
-            'partner_ids',
+            'partner_ids', 'initial_balance',
         ])[0]
+        # Validate: initial_balance requires a date_from
+        if form.get('initial_balance') and not form.get('date_from'):
+            raise UserError(_('You must define a Start Date when '
+                              'Include Initial Balances is enabled.'))
         form['journal_ids'] = form.get('journal_ids') or []
         form['partner_ids'] = form.get('partner_ids') or []
         form['used_context'] = {
@@ -327,6 +339,53 @@ class AccountPartnerLedgerPreview(models.TransientModel):
         return f'<td class="{css}">{inner}</td>'
 
     # ------------------------------------------------------------------
+    # Initial balance computation
+    # ------------------------------------------------------------------
+    def _get_initial_balance(self, data, partner):
+        """
+        Compute the sum of debit, credit, and balance for a partner
+        on all move lines BEFORE the date_from filter.
+        Returns a dict: {'debit': ..., 'credit': ..., 'balance': ...}
+        """
+        date_from = data['form'].get('date_from')
+        if not date_from:
+            return {'debit': 0.0, 'credit': 0.0, 'balance': 0.0}
+
+        # Build a context for "initial balance" period: everything < date_from
+        ctx = dict(data['form'].get('used_context', {}))
+        ctx['date_from'] = date_from
+        ctx['date_to'] = False
+        ctx['initial_bal'] = True
+
+        query_get_data = self.env['account.move.line'].with_context(ctx)._query_get()
+        reconcile_clause = (
+            "" if data['form'].get('reconciled')
+            else ' AND "account_move_line".full_reconcile_id IS NULL '
+        )
+
+        params = [
+            partner.id,
+            tuple(data['computed']['move_state']),
+            tuple(data['computed']['account_ids']),
+        ] + query_get_data[2]
+
+        query = """
+            SELECT COALESCE(SUM("account_move_line".debit), 0) AS debit,
+                   COALESCE(SUM("account_move_line".credit), 0) AS credit,
+                   COALESCE(SUM("account_move_line".debit), 0)
+                     - COALESCE(SUM("account_move_line".credit), 0) AS balance
+            FROM """ + query_get_data[0] + """
+            LEFT JOIN account_move m ON (m.id = "account_move_line".move_id)
+            WHERE "account_move_line".partner_id = %s
+                AND m.state IN %s
+                AND "account_move_line".account_id IN %s
+                AND """ + query_get_data[1] + reconcile_clause
+
+        self.env.cr.execute(query, tuple(params))
+        row = self.env.cr.dictfetchone()
+        return row or {'debit': 0.0, 'credit': 0.0, 'balance': 0.0}
+
+    # ------------------------------------------------------------------
     # Main HTML builder
     # ------------------------------------------------------------------
     def _build_preview_html(self, report_values, data):
@@ -344,6 +403,7 @@ class AccountPartnerLedgerPreview(models.TransientModel):
         target_move = data['form'].get('target_move', 'all')
         target_lbl  = 'All Posted Entries' if target_move == 'posted' else 'All Entries'
         show_cur    = data['form'].get('amount_currency', False)
+        show_init   = data['form'].get('initial_balance', False)
 
         lines_fn = report_values['lines']
         sum_fn   = report_values['sum_partner']
@@ -389,6 +449,11 @@ class AccountPartnerLedgerPreview(models.TransientModel):
   /* Detail rows */
   .pl-line > td { background: #fff; }
   .pl-line:hover > td { background: #f5f8ff; }
+
+  /* Initial balance row */
+  .pl-init > td { background: #fef9e7; font-weight: 600; font-style: italic;
+                  border-bottom: 1px dashed #d4ac0d; color: #7d6608; }
+  .pl-init > td.r { text-align: right; }
 
   /* Empty / no-lines */
   .pl-no-lines > td { color: #aaa; font-style: italic; padding-left: 24px; }
@@ -479,6 +544,27 @@ class AccountPartnerLedgerPreview(models.TransientModel):
                     f'{extra}</tr>'
                 )
 
+                # --- Initial Balance row ---
+                init_offset = 0.0
+                if show_init:
+                    init_bal = self._get_initial_balance(data, partner)
+                    init_d = init_bal.get('debit', 0.0)
+                    init_c = init_bal.get('credit', 0.0)
+                    init_b = init_bal.get('balance', 0.0)
+                    init_offset = init_b
+                    extra_init = '<td class="r"></td>' if show_cur else ''
+                    parts.append(
+                        f'<tr class="pl-init">'
+                        f'<td></td>'
+                        f'<td></td>'
+                        f'<td></td>'
+                        f'<td>Initial Balance</td>'
+                        f'<td class="r">{money(init_d)}</td>'
+                        f'<td class="r">{money(init_c)}</td>'
+                        f'<td class="r">{money(init_b)}</td>'
+                        f'{extra_init}</tr>'
+                    )
+
                 move_lines = lines_fn(data, partner)
                 if not move_lines:
                     ncols = 8 if show_cur else 7
@@ -501,6 +587,9 @@ class AccountPartnerLedgerPreview(models.TransientModel):
                     d_val = line.get('debit', 0.0)
                     c_val = line.get('credit', 0.0)
                     b_val = line.get('progress', 0.0)
+                    # Offset the running balance by initial balance
+                    if show_init:
+                        b_val += init_offset
 
                     parts.append(
                         f'<tr class="pl-line">'
