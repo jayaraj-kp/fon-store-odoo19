@@ -145,9 +145,12 @@
 
             </xpath>
 
-            <!-- Hide the standard Validate button for cross-WH transfers -->
-            <xpath expr="//header/button[@name='button_validate']" position="attributes">
-                <attribute name="invisible">wh_hide_validate_btn</attribute>
+            <!-- Hide the standard Validate buttons for cross-WH transfers -->
+            <xpath expr="//header/button[@name='button_validate' and contains(@class, 'oe_highlight')]" position="attributes">
+                <attribute name="invisible">state in ('draft', 'confirmed', 'done', 'cancel') or wh_hide_validate_btn</attribute>
+            </xpath>
+            <xpath expr="//header/button[@name='button_validate' and contains(@class, 'o_btn_validate')]" position="attributes">
+                <attribute name="invisible">state in ('waiting', 'assigned', 'done', 'cancel') or wh_hide_validate_btn</attribute>
             </xpath>
 
         </field>
