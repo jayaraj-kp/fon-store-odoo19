@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         Extend the Inventory Settings page with a dedicated section
+         for Internal Transfer Journal Entry configuration.
+
+         Odoo 19 CE: inherit from stock.res_config_settings_view_form
+         xpath targets the last <block> inside the Inventory app settings.
+         ================================================================ -->
+
+    <record id="res_config_settings_view_form_internal_transfer" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.internal.transfer.je</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="stock.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Append after the last existing block in the Inventory settings -->
+            <xpath expr="//app[@name='stock']" position="inside">
+
+                <block title="Internal Transfer Journal Entry"
+                       name="internal_transfer_je_block">
+
+                    <setting string="Stock Transfer Journal"
+                             help="Journal where internal stock transfer entries are posted.">
+                        <field name="internal_transfer_journal_id"
+                               domain="[('type', 'in', ['general', 'miscellaneous'])]"
+                               placeholder="Select a journal…"/>
+                    </setting>
+
+                    <setting string="Stock Transfer Account"
+                             help="Account used for BOTH the Debit (DR) and Credit (CR) lines.">
+                        <field name="internal_transfer_account_id"
+                               placeholder="Select an account…"/>
+                    </setting>
+
+                    <!-- Info banner inside the block -->
+                    <div class="alert alert-info mt8 col-12" role="alert">
+                        <strong>Auto Journal Entry Format on Internal Transfer Validation:</strong>
+                        <br/>
+                        &#160;&#160;&#160;&#160;Stock Transfer A/C &#160;&#160;
+                        <strong>DR</strong> &#160; (Σ qty_done × standard_price)
+                        <br/>
+                        &#160;&#160;&#160;&#160;Stock Transfer A/C &#160;&#160;
+                        <strong>CR</strong> &#160; (same amount)
+                    </div>
+
+                </block>
+
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

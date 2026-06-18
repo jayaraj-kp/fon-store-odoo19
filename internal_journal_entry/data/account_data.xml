@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!--
+            =============================================================
+            Default Journal: "Stock Transfer Journal" (type = general)
+            Created only if it does not already exist.
+            =============================================================
+        -->
+        <record id="stock_internal_transfer_journal" model="account.journal">
+            <field name="name">Stock Transfer Journal</field>
+            <field name="type">general</field>
+            <field name="code">SITJ</field>
+            <field name="show_on_dashboard" eval="False"/>
+        </record>
+
+        <!--
+            =============================================================
+            Default Account: "Stock Transfer Account"
+            Uses account type = 'asset_current' as a safe default.
+            The administrator should reassign this to their COA account.
+            =============================================================
+        -->
+        <record id="stock_internal_transfer_account" model="account.account">
+            <field name="name">Stock Transfer Account</field>
+            <field name="code">199900</field>
+            <field name="account_type">asset_current</field>
+            <field name="reconcile" eval="False"/>
+        </record>
+
+    </data>
+</odoo>

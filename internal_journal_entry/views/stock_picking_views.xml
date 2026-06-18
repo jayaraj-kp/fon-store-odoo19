@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         Extend stock.picking form view:
+         - Add a smart button linking to the journal entry
+         - Add a page/tab showing journal entry details
+
+         NOTE: Odoo 17+ / 19 → attrs="" removed; use inline invisible="domain"
+         ================================================================ -->
+
+    <record id="stock_picking_form_inherit_internal_je" model="ir.ui.view">
+        <field name="name">stock.picking.form.inherit.internal.transfer.je</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+
+            <!-- ── Smart Button ──────────────────────────────────────── -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button type="object"
+                        name="action_view_internal_transfer_move"
+                        class="oe_stat_button"
+                        icon="fa-book"
+                        invisible="not internal_transfer_move_id">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Journal Entry</span>
+                        <span class="o_stat_value">
+                            <field name="internal_transfer_move_state"/>
+                        </span>
+                    </div>
+                </button>
+            </xpath>
+
+            <!-- ── Extra tab: Journal Entry details ──────────────────── -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Transfer Journal Entry"
+                      name="internal_transfer_je_tab"
+                      invisible="picking_type_code != 'internal'">
+
+                    <group>
+                        <group string="Journal Entry">
+                            <field name="internal_transfer_move_id"
+                                   readonly="1"/>
+                            <field name="internal_transfer_move_state"
+                                   readonly="1"/>
+                        </group>
+                    </group>
+
+                    <!-- Shown when NO journal entry exists yet -->
+                    <div class="alert alert-warning mt8"
+                         invisible="internal_transfer_move_id">
+                        <i class="fa fa-info-circle"/> &#160;
+                        No journal entry yet. Validate this transfer to auto-generate one.
+                    </div>
+
+                    <!-- Shown when journal entry HAS been created -->
+                    <div class="alert alert-success mt8"
+                         invisible="not internal_transfer_move_id">
+                        <i class="fa fa-check-circle"/> &#160;
+                        Journal entry has been automatically posted for this internal transfer.
+                        <br/>
+                        <strong>Entry: </strong>
+                        <field name="internal_transfer_move_id"
+                               readonly="1"
+                               nolabel="1"/>
+                    </div>
+
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
