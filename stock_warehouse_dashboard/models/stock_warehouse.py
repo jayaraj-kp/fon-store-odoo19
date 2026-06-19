@@ -69,21 +69,18 @@ class StockWarehouseAccounting(models.Model):
     wh_stock_transfer_out_account_id = fields.Many2one(
         'account.account',
         string='Stock Transfer Out Account',
-        domain=[('deprecated', '=', False)],
         help='Debited when sender clicks [Send]. '
              'Represents stock in-transit leaving this warehouse.',
     )
     wh_stock_valuation_account_id = fields.Many2one(
         'account.account',
         string='Stock Valuation Account',
-        domain=[('deprecated', '=', False)],
         help='Credited on Send (stock leaving valuation) and '
              'Debited on Accept (stock entering valuation at destination).',
     )
     wh_stock_transfer_in_account_id = fields.Many2one(
         'account.account',
         string='Stock Transfer In Account',
-        domain=[('deprecated', '=', False)],
         help='Credited when receiver clicks [Accept]. '
              'Represents in-transit stock arriving at this warehouse.',
     )
