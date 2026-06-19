@@ -369,22 +369,37 @@ class StockPicking(models.Model):
     def _wh_compute_accept_amount(self):
         """
         Compute total monetary value for the Accept entry.
-        Prefers Stock Valuation Layer (SVL) amounts written during button_validate.
-        Falls back to standard price × qty_done on move lines.
+        Prefers Stock Valuation Layer amounts when stock_account is installed.
+        Otherwise mirrors the Send journal entry, then standard price × qty.
         """
+        self.ensure_one()
+
+        # SVL exists only when stock_account is installed
+        if 'stock.valuation.layer' in self.env:
+            svl = self.env['stock.valuation.layer'].search([
+                ('stock_move_id', 'in', self.move_ids.ids),
+            ])
+            if svl:
+                return abs(sum(svl.mapped('value')))
+
+        # Mirror the Send entry so Accept uses the same amount
+        if self.wh_send_journal_entry_id:
+            debit_total = sum(
+                line.debit for line in self.wh_send_journal_entry_id.line_ids
+            )
+            if debit_total:
+                return debit_total
+
+        # Fallback: standard price × qty on done moves (or demand if not yet done)
         total = 0.0
-        # Try SVL first (Odoo writes these during button_validate)
-        svl = self.env['stock.valuation.layer'].search([
-            ('picking_id', '=', self.id),
-        ])
-        if svl:
-            total = abs(sum(svl.mapped('value')))
-        else:
-            # Fallback: standard price × qty_done
-            for move in self.move_ids.filtered(lambda m: m.state == 'done'):
-                price = move.product_id.standard_price or 0.0
-                qty = move.quantity or 0.0
-                total += price * qty
+        done_moves = self.move_ids.filtered(lambda m: m.state == 'done')
+        moves_to_use = done_moves or self.move_ids.filtered(
+            lambda m: m.state not in ('done', 'cancel')
+        )
+        for move in moves_to_use:
+            price = move.product_id.standard_price or 0.0
+            qty = (move.quantity if move.state == 'done' else move.product_uom_qty) or 0.0
+            total += price * qty
         return total
 
     def _wh_create_journal_entry(self, journal, debit_account, credit_account,
