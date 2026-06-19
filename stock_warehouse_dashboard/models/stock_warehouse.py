@@ -354,6 +354,7 @@ class StockPicking(models.Model):
         return total
 
     def _wh_create_transfer_journal_entry(self, journal, account, amount, ref,
+                                          picking=None,
                                           debit_analytic=None, credit_analytic=None):
         """
         Create and post a journal entry on the same account:
@@ -393,6 +394,9 @@ class StockPicking(models.Model):
                 (0, 0, credit_line_vals),
             ],
         }
+        if picking:
+            move_vals['wh_stock_picking_id'] = picking.id
+
         move = self.env['account.move'].create(move_vals)
         move.action_post()
         return move
@@ -521,12 +525,13 @@ class StockPicking(models.Model):
             if transfer_acc and journal:
                 amount = self._wh_compute_accept_amount()
                 if amount > 0:
-                    ref = _('Stock Transfer: %s') % self.name
+                    ref = self.name
                     move = self._wh_create_transfer_journal_entry(
                         journal=journal,
                         account=transfer_acc,
                         amount=amount,
                         ref=ref,
+                        picking=self,
                         debit_analytic=debit_analytic,
                         credit_analytic=credit_analytic,
                     )
