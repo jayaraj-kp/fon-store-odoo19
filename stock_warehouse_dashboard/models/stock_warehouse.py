@@ -1,290 +1,3 @@
-# # -*- coding: utf-8 -*-
-# from odoo import models, fields, api, _
-# from odoo.exceptions import UserError
-#
-# # ──────────────────────────────────────────────────────────────────────────────
-# # Cross-WH Transfer flow:
-# #   1. Transfer is created → wh_send_state auto-set to 'pending'
-# #   2. Sender clicks [Send]   → wh_send_state: pending → sent
-# #                               Triggers check_availability; To Send count ↓
-# #   3. Receiver (or sender) clicks [Accept] → validates the transfer
-# #                               wh_send_state: sent → accepted; To Accept ↓
-# #
-# # wh_send_state values:
-# #   'na'       – not a cross-WH transfer (default for non-cross-WH)
-# #   'pending'  – cross-WH, not yet sent by sender
-# #   'sent'     – sender clicked Send; destination WH can now Accept
-# #   'accepted' – fully validated
-# #
-# # For cross-WH transfers:
-# #   - Standard [Validate] button is hidden → users MUST use Send/Accept flow
-# #   - [Send] shown only when state == 'pending'
-# #   - [Accept] shown only when state == 'sent'
-# # ──────────────────────────────────────────────────────────────────────────────
-#
-# WH_SEND_STATE = [
-#     ('na',       'N/A'),
-#     ('pending',  'Pending'),
-#     ('sent',     'Sent'),
-#     ('accepted', 'Accepted'),
-# ]
-#
-#
-# class StockPickingType(models.Model):
-#     _inherit = 'stock.picking.type'
-#
-#     wh_to_send_count = fields.Integer(compute='_compute_wh_transfer_counts')
-#     wh_to_accept_count = fields.Integer(compute='_compute_wh_transfer_counts')
-#
-#     @api.depends('code', 'warehouse_id')
-#     def _compute_wh_transfer_counts(self):
-#         Picking = self.env['stock.picking']
-#         for pt in self:
-#             if pt.code != 'internal' or not pt.warehouse_id:
-#                 pt.wh_to_send_count = 0
-#                 pt.wh_to_accept_count = 0
-#                 continue
-#
-#             own_locs = self.env['stock.location'].search([
-#                 ('warehouse_id', '=', pt.warehouse_id.id),
-#                 ('usage', '=', 'internal'),
-#             ])
-#             if not own_locs:
-#                 pt.wh_to_send_count = 0
-#                 pt.wh_to_accept_count = 0
-#                 continue
-#
-#             other_locs = self.env['stock.location'].search([
-#                 ('warehouse_id', '!=', pt.warehouse_id.id),
-#                 ('warehouse_id', '!=', False),
-#                 ('usage', '=', 'internal'),
-#             ])
-#
-#             # To Send: cross-WH transfers FROM this WH not yet sent
-#             pt.wh_to_send_count = Picking.search_count([
-#                 ('state', 'in', ['confirmed', 'assigned']),
-#                 ('wh_send_state', '=', 'pending'),
-#                 ('location_id', 'in', own_locs.ids),
-#                 ('location_dest_id', 'in', other_locs.ids),
-#             ])
-#
-#             # To Accept: cross-WH transfers arriving HERE that have been sent
-#             pt.wh_to_accept_count = Picking.search_count([
-#                 ('state', 'in', ['confirmed', 'assigned']),
-#                 ('wh_send_state', '=', 'sent'),
-#                 ('location_id', 'in', other_locs.ids),
-#                 ('location_dest_id', 'in', own_locs.ids),
-#             ])
-#
-#     def _build_action(self, name, domain):
-#         return {
-#             'name': name,
-#             'type': 'ir.actions.act_window',
-#             'res_model': 'stock.picking',
-#             'view_mode': 'list,form',
-#             'views': [(False, 'list'), (False, 'form')],
-#             'target': 'current',
-#             'domain': domain,
-#         }
-#
-#     def action_open_to_send(self):
-#         self.ensure_one()
-#         own_locs = self.env['stock.location'].search([
-#             ('warehouse_id', '=', self.warehouse_id.id),
-#             ('usage', '=', 'internal'),
-#         ])
-#         other_locs = self.env['stock.location'].search([
-#             ('warehouse_id', '!=', self.warehouse_id.id),
-#             ('warehouse_id', '!=', False),
-#             ('usage', '=', 'internal'),
-#         ])
-#         return self._build_action(_('To Send'), [
-#             ('state', 'in', ['confirmed', 'assigned']),
-#             ('wh_send_state', '=', 'pending'),
-#             ('location_id', 'in', own_locs.ids),
-#             ('location_dest_id', 'in', other_locs.ids),
-#         ])
-#
-#     def action_open_to_accept(self):
-#         self.ensure_one()
-#         own_locs = self.env['stock.location'].search([
-#             ('warehouse_id', '=', self.warehouse_id.id),
-#             ('usage', '=', 'internal'),
-#         ])
-#         other_locs = self.env['stock.location'].search([
-#             ('warehouse_id', '!=', self.warehouse_id.id),
-#             ('warehouse_id', '!=', False),
-#             ('usage', '=', 'internal'),
-#         ])
-#         return self._build_action(_('To Accept'), [
-#             ('state', 'in', ['confirmed', 'assigned']),
-#             ('wh_send_state', '=', 'sent'),
-#             ('location_id', 'in', other_locs.ids),
-#             ('location_dest_id', 'in', own_locs.ids),
-#         ])
-#
-#
-# class StockPicking(models.Model):
-#     _inherit = 'stock.picking'
-#
-#     # ── Stored workflow state for cross-WH transfers ──────────────────────────
-#     wh_send_state = fields.Selection(
-#         WH_SEND_STATE,
-#         string='WH Transfer State',
-#         default='na',
-#         copy=False,
-#         index=True,
-#     )
-#
-#     # ── Computed display flags (not stored — always fresh) ────────────────────
-#     wh_is_cross_transfer = fields.Boolean(
-#         compute='_compute_wh_cross_flags',
-#         store=False,
-#     )
-#     wh_show_send_btn = fields.Boolean(
-#         compute='_compute_wh_cross_flags',
-#         store=False,
-#     )
-#     wh_show_accept_btn = fields.Boolean(
-#         compute='_compute_wh_cross_flags',
-#         store=False,
-#     )
-#     wh_hide_validate_btn = fields.Boolean(
-#         compute='_compute_wh_cross_flags',
-#         store=False,
-#         string='Hide standard Validate button',
-#     )
-#     send_accept_label = fields.Char(
-#         compute='_compute_wh_cross_flags',
-#         store=False,
-#     )
-#
-#     @api.depends(
-#         'location_id', 'location_dest_id', 'picking_type_id',
-#         'wh_send_state', 'state',
-#     )
-#     def _compute_wh_cross_flags(self):
-#         for pick in self:
-#             src_wh = pick.location_id.warehouse_id
-#             dst_wh = pick.location_dest_id.warehouse_id
-#             is_internal = (pick.picking_type_id.code == 'internal')
-#             is_cross = bool(
-#                 is_internal and src_wh and dst_wh and src_wh != dst_wh
-#             )
-#             not_done = pick.state not in ('done', 'cancel')
-#
-#             pick.wh_is_cross_transfer = is_cross
-#
-#             if is_cross and not_done:
-#                 # [Send] only when pending (not yet sent)
-#                 pick.wh_show_send_btn = (pick.wh_send_state == 'pending')
-#                 # [Accept] only when already sent
-#                 pick.wh_show_accept_btn = (pick.wh_send_state == 'sent')
-#                 # Hide standard Validate for cross-WH — enforce Send/Accept
-#                 pick.wh_hide_validate_btn = True
-#                 # List badge label
-#                 if pick.wh_send_state == 'pending':
-#                     pick.send_accept_label = 'To Send'
-#                 elif pick.wh_send_state == 'sent':
-#                     pick.send_accept_label = 'To Accept'
-#                 else:
-#                     pick.send_accept_label = False
-#             else:
-#                 pick.wh_show_send_btn = False
-#                 pick.wh_show_accept_btn = False
-#                 pick.wh_hide_validate_btn = False
-#                 pick.send_accept_label = False
-#
-#     # ── Auto-set wh_send_state on creation ───────────────────────────────────
-#     @api.model_create_multi
-#     def create(self, vals_list):
-#         records = super().create(vals_list)
-#         for pick in records:
-#             if pick.wh_send_state == 'na':
-#                 src_wh = pick.location_id.warehouse_id
-#                 dst_wh = pick.location_dest_id.warehouse_id
-#                 if (pick.picking_type_id.code == 'internal'
-#                         and src_wh and dst_wh and src_wh != dst_wh):
-#                     pick.wh_send_state = 'pending'
-#         return records
-#
-#     # ── Send action ───────────────────────────────────────────────────────────
-#     def action_wh_send(self):
-#         """Mark transfer as sent so the destination WH can accept it."""
-#         self.ensure_one()
-#         if self.state in ('done', 'cancel'):
-#             raise UserError(_('Cannot send a completed or cancelled transfer.'))
-#         if self.wh_send_state != 'pending':
-#             raise UserError(_(
-#                 'This transfer has already been sent or is not a '
-#                 'cross-warehouse outgoing transfer.'
-#             ))
-#
-#         # Reserve stock if not already done
-#         if self.state == 'confirmed':
-#             self.action_assign()
-#
-#         self.wh_send_state = 'sent'
-#
-#         return {
-#             'type': 'ir.actions.client',
-#             'tag': 'display_notification',
-#             'params': {
-#                 'title': _('Transfer Sent'),
-#                 'message': _(
-#                     'Transfer %s has been sent. '
-#                     'The destination warehouse can now accept it.'
-#                 ) % self.name,
-#                 'type': 'success',
-#                 'sticky': False,
-#                 'next': {'type': 'ir.actions.act_window_close'},
-#             },
-#         }
-#
-#     # ── Accept action ─────────────────────────────────────────────────────────
-#     def action_wh_accept(self):
-#         """Accept and validate this incoming cross-WH transfer."""
-#         self.ensure_one()
-#         if self.state in ('done', 'cancel'):
-#             raise UserError(_('Cannot accept a completed or cancelled transfer.'))
-#         if self.wh_send_state != 'sent':
-#             raise UserError(_(
-#                 'This transfer must be sent first before it can be accepted.'
-#             ))
-#
-#         # Fill in quantity = demand for any unfilled move lines
-#         for ml in self.move_line_ids:
-#             if not ml.quantity:
-#                 ml.quantity = ml.reserved_uom_qty or ml.move_id.product_uom_qty
-#
-#         # For moves with no move lines, set quantity on the move itself
-#         for move in self.move_ids.filtered(
-#             lambda m: m.state not in ('done', 'cancel') and not m.move_line_ids
-#         ):
-#             move.quantity = move.product_uom_qty
-#
-#         self.wh_send_state = 'accepted'
-#
-#         # Validate — skip backorder prompt where possible
-#         res = self.with_context(skip_backorder=True).button_validate()
-#
-#         # If Odoo still needs a backorder confirmation, let it through
-#         if isinstance(res, dict) and res.get('res_model') == 'stock.backorder.confirmation':
-#             return res
-#
-#         return {
-#             'type': 'ir.actions.client',
-#             'tag': 'display_notification',
-#             'params': {
-#                 'title': _('Transfer Accepted & Validated'),
-#                 'message': _(
-#                     'Transfer %s has been validated successfully.'
-#                 ) % self.name,
-#                 'type': 'success',
-#                 'sticky': False,
-#                 'next': {'type': 'ir.actions.act_window_close'},
-#             },
-#         }
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
@@ -294,8 +7,12 @@ from odoo.exceptions import UserError
 #   1. Transfer is created → wh_send_state auto-set to 'pending'
 #   2. Sender clicks [Send]   → wh_send_state: pending → sent
 #                               Triggers check_availability; To Send count ↓
+#                               *** Journal entry created: Dr Stock Transfer Out
+#                                                          Cr Stock Valuation ***
 #   3. Receiver (or sender) clicks [Accept] → validates the transfer
 #                               wh_send_state: sent → accepted; To Accept ↓
+#                               *** Journal entry created: Dr Stock Valuation (analytic)
+#                                                          Cr Stock Transfer In ***
 #
 # wh_send_state values:
 #   'na'       – not a cross-WH transfer (default for non-cross-WH)
@@ -338,6 +55,60 @@ def _resolve_warehouse(location):
         loc = loc.location_id  # parent
     return location.env['stock.warehouse'].browse()
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Warehouse — accounting configuration fields
+# ──────────────────────────────────────────────────────────────────────────────
+
+class StockWarehouseAccounting(models.Model):
+    """Extend stock.warehouse with accounting configuration for the
+    cross-WH Send / Accept journal entries."""
+    _inherit = 'stock.warehouse'
+
+    # ── Accounts ──────────────────────────────────────────────────────────────
+    wh_stock_transfer_out_account_id = fields.Many2one(
+        'account.account',
+        string='Stock Transfer Out Account',
+        domain=[('deprecated', '=', False)],
+        help='Debited when sender clicks [Send]. '
+             'Represents stock in-transit leaving this warehouse.',
+    )
+    wh_stock_valuation_account_id = fields.Many2one(
+        'account.account',
+        string='Stock Valuation Account',
+        domain=[('deprecated', '=', False)],
+        help='Credited on Send (stock leaving valuation) and '
+             'Debited on Accept (stock entering valuation at destination).',
+    )
+    wh_stock_transfer_in_account_id = fields.Many2one(
+        'account.account',
+        string='Stock Transfer In Account',
+        domain=[('deprecated', '=', False)],
+        help='Credited when receiver clicks [Accept]. '
+             'Represents in-transit stock arriving at this warehouse.',
+    )
+
+    # ── Journal ───────────────────────────────────────────────────────────────
+    wh_stock_journal_id = fields.Many2one(
+        'account.journal',
+        string='Stock Transfer Journal',
+        domain=[('type', 'in', ['general', 'purchase', 'sale'])],
+        help='Journal used for the Send and Accept journal entries. '
+             'Leave empty to auto-select the first "General" journal.',
+    )
+
+    # ── Analytic ──────────────────────────────────────────────────────────────
+    wh_analytic_account_id = fields.Many2one(
+        'account.analytic.account',
+        string='Analytic Account',
+        help='Applied to the Stock Valuation debit line when an '
+             'Accept entry is posted for transfers arriving at this warehouse.',
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# StockPickingType — dashboard counters
+# ──────────────────────────────────────────────────────────────────────────────
 
 class StockPickingType(models.Model):
     _inherit = 'stock.picking.type'
@@ -448,6 +219,10 @@ class StockPickingType(models.Model):
         ])
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# StockPicking — cross-WH workflow + journal entries
+# ──────────────────────────────────────────────────────────────────────────────
+
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
 
@@ -458,6 +233,22 @@ class StockPicking(models.Model):
         default='na',
         copy=False,
         index=True,
+    )
+
+    # ── Journal entry links ───────────────────────────────────────────────────
+    wh_send_journal_entry_id = fields.Many2one(
+        'account.move',
+        string='Send Journal Entry',
+        copy=False,
+        readonly=True,
+        help='Journal entry automatically created when [Send] is clicked.',
+    )
+    wh_accept_journal_entry_id = fields.Many2one(
+        'account.move',
+        string='Accept Journal Entry',
+        copy=False,
+        readonly=True,
+        help='Journal entry automatically created when [Accept] is clicked.',
     )
 
     # ── Computed display flags (not stored — always fresh) ────────────────────
@@ -550,6 +341,102 @@ class StockPicking(models.Model):
         if pt_ids:
             pt_ids.invalidate_recordset(['wh_to_send_count', 'wh_to_accept_count'])
 
+    def _wh_get_journal(self, warehouse):
+        """
+        Return the journal to use for warehouse transfer entries.
+        Falls back to the first 'general' journal in the company if not set.
+        """
+        if warehouse.wh_stock_journal_id:
+            return warehouse.wh_stock_journal_id
+        journal = self.env['account.journal'].search([
+            ('type', '=', 'general'),
+            ('company_id', '=', (warehouse.company_id or self.env.company).id),
+        ], limit=1)
+        return journal
+
+    def _wh_compute_transfer_amount(self):
+        """
+        Compute total monetary value of this transfer using standard price × qty.
+        Used for the Send entry (before stock is physically moved).
+        Returns a float.
+        """
+        total = 0.0
+        for move in self.move_ids.filtered(
+            lambda m: m.state not in ('done', 'cancel')
+        ):
+            price = move.product_id.standard_price or 0.0
+            qty = move.product_uom_qty or 0.0
+            total += price * qty
+        return total
+
+    def _wh_compute_accept_amount(self):
+        """
+        Compute total monetary value for the Accept entry.
+        Prefers Stock Valuation Layer (SVL) amounts written during button_validate.
+        Falls back to standard price × qty_done on move lines.
+        """
+        total = 0.0
+        # Try SVL first (Odoo writes these during button_validate)
+        svl = self.env['stock.valuation.layer'].search([
+            ('picking_id', '=', self.id),
+        ])
+        if svl:
+            total = abs(sum(svl.mapped('value')))
+        else:
+            # Fallback: standard price × qty_done
+            for move in self.move_ids.filtered(lambda m: m.state == 'done'):
+                price = move.product_id.standard_price or 0.0
+                qty = move.quantity or 0.0
+                total += price * qty
+        return total
+
+    def _wh_create_journal_entry(self, journal, debit_account, credit_account,
+                                  amount, ref, analytic_account=None):
+        """
+        Create and post a journal entry with one debit and one credit line.
+
+        :param journal: account.journal record
+        :param debit_account: account.account record (debited)
+        :param credit_account: account.account record (credited)
+        :param amount: float — entry amount in company currency
+        :param ref: str — journal entry reference / label
+        :param analytic_account: optional account.analytic.account for debit line
+        :return: account.move record
+        """
+        company = self.company_id or self.env.company
+
+        debit_line_vals = {
+            'name': ref,
+            'account_id': debit_account.id,
+            'debit': amount,
+            'credit': 0.0,
+        }
+        if analytic_account:
+            # Odoo 17+ uses analytic_distribution dict  {analytic_account_id_str: 100.0}
+            debit_line_vals['analytic_distribution'] = {
+                str(analytic_account.id): 100.0
+            }
+
+        credit_line_vals = {
+            'name': ref,
+            'account_id': credit_account.id,
+            'debit': 0.0,
+            'credit': amount,
+        }
+
+        move_vals = {
+            'ref': ref,
+            'journal_id': journal.id,
+            'company_id': company.id,
+            'line_ids': [
+                (0, 0, debit_line_vals),
+                (0, 0, credit_line_vals),
+            ],
+        }
+        move = self.env['account.move'].create(move_vals)
+        move.action_post()
+        return move
+
     # ── Auto-set wh_send_state on creation ───────────────────────────────────
     @api.model_create_multi
     def create(self, vals_list):
@@ -577,9 +464,43 @@ class StockPicking(models.Model):
 
         return res
 
+    # ── Journal entry smart-button actions ────────────────────────────────────
+
+    def action_view_wh_send_journal_entry(self):
+        """Open the Send journal entry in form view."""
+        self.ensure_one()
+        if not self.wh_send_journal_entry_id:
+            raise UserError(_('No Send journal entry has been created yet.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Send Journal Entry'),
+            'res_model': 'account.move',
+            'res_id': self.wh_send_journal_entry_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def action_view_wh_accept_journal_entry(self):
+        """Open the Accept journal entry in form view."""
+        self.ensure_one()
+        if not self.wh_accept_journal_entry_id:
+            raise UserError(_('No Accept journal entry has been created yet.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Accept Journal Entry'),
+            'res_model': 'account.move',
+            'res_id': self.wh_accept_journal_entry_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
     # ── Send action ───────────────────────────────────────────────────────────
     def action_wh_send(self):
-        """Mark transfer as sent so the destination WH can accept it."""
+        """Mark transfer as sent so the destination WH can accept it.
+        Creates a journal entry:
+            Dr  Stock Transfer Out  (source WH account)
+            Cr  Stock Valuation     (source WH account)
+        """
         self.ensure_one()
         if self.state in ('done', 'cancel'):
             raise UserError(_('Cannot send a completed or cancelled transfer.'))
@@ -594,6 +515,26 @@ class StockPicking(models.Model):
             self.action_assign()
 
         self.wh_send_state = 'sent'
+
+        # ── Create journal entry ──────────────────────────────────────────────
+        src_wh = _resolve_warehouse(self.location_id)
+        if src_wh:
+            out_acc = src_wh.wh_stock_transfer_out_account_id
+            val_acc = src_wh.wh_stock_valuation_account_id
+            journal = self._wh_get_journal(src_wh)
+
+            if out_acc and val_acc and journal:
+                amount = self._wh_compute_transfer_amount()
+                if amount > 0:
+                    ref = _('Stock Transfer Out: %s') % self.name
+                    move = self._wh_create_journal_entry(
+                        journal=journal,
+                        debit_account=out_acc,
+                        credit_account=val_acc,
+                        amount=amount,
+                        ref=ref,
+                    )
+                    self.wh_send_journal_entry_id = move.id
 
         return {
             'type': 'ir.actions.client',
@@ -612,7 +553,11 @@ class StockPicking(models.Model):
 
     # ── Accept action ─────────────────────────────────────────────────────────
     def action_wh_accept(self):
-        """Accept and validate this incoming cross-WH transfer."""
+        """Accept and validate this incoming cross-WH transfer.
+        Creates a journal entry:
+            Dr  Stock Valuation   (dest WH account, with WH analytic)
+            Cr  Stock Transfer In (dest WH account)
+        """
         self.ensure_one()
         if self.state in ('done', 'cancel'):
             raise UserError(_('Cannot accept a completed or cancelled transfer.'))
@@ -640,6 +585,28 @@ class StockPicking(models.Model):
         # If Odoo still needs a backorder confirmation, let it through
         if isinstance(res, dict) and res.get('res_model') == 'stock.backorder.confirmation':
             return res
+
+        # ── Create journal entry ──────────────────────────────────────────────
+        dst_wh = _resolve_warehouse(self.location_dest_id)
+        if dst_wh:
+            val_acc = dst_wh.wh_stock_valuation_account_id
+            in_acc = dst_wh.wh_stock_transfer_in_account_id
+            journal = self._wh_get_journal(dst_wh)
+            analytic = dst_wh.wh_analytic_account_id or False
+
+            if val_acc and in_acc and journal:
+                amount = self._wh_compute_accept_amount()
+                if amount > 0:
+                    ref = _('Stock Transfer In: %s') % self.name
+                    move = self._wh_create_journal_entry(
+                        journal=journal,
+                        debit_account=val_acc,
+                        credit_account=in_acc,
+                        amount=amount,
+                        ref=ref,
+                        analytic_account=analytic,
+                    )
+                    self.wh_accept_journal_entry_id = move.id
 
         return {
             'type': 'ir.actions.client',
