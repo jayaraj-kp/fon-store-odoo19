@@ -7,12 +7,11 @@ from odoo.exceptions import UserError
 #   1. Transfer is created → wh_send_state auto-set to 'pending'
 #   2. Sender clicks [Send]   → wh_send_state: pending → sent
 #                               Triggers check_availability; To Send count ↓
-#                               *** Journal entry created: Dr Stock Transfer Out
-#                                                          Cr Stock Valuation ***
 #   3. Receiver (or sender) clicks [Accept] → validates the transfer
 #                               wh_send_state: sent → accepted; To Accept ↓
-#                               *** Journal entry created: Dr Stock Valuation (analytic)
-#                                                          Cr Stock Transfer In ***
+#                               *** Journal entry created (Accept only):
+#                                   Dr Stock Transfer A/C (receiver WH analytic)
+#                                   Cr Stock Transfer A/C (sender WH analytic) ***
 #
 # wh_send_state values:
 #   'na'       – not a cross-WH transfer (default for non-cross-WH)
@@ -62,44 +61,29 @@ def _resolve_warehouse(location):
 
 class StockWarehouseAccounting(models.Model):
     """Extend stock.warehouse with accounting configuration for the
-    cross-WH Send / Accept journal entries."""
+    cross-WH Accept journal entry."""
     _inherit = 'stock.warehouse'
 
-    # ── Accounts ──────────────────────────────────────────────────────────────
-    wh_stock_transfer_out_account_id = fields.Many2one(
+    wh_stock_transfer_account_id = fields.Many2one(
         'account.account',
-        string='Stock Transfer Out Account',
-        help='Debited when sender clicks [Send]. '
-             'Represents stock in-transit leaving this warehouse.',
-    )
-    wh_stock_valuation_account_id = fields.Many2one(
-        'account.account',
-        string='Stock Valuation Account',
-        help='Credited on Send (stock leaving valuation) and '
-             'Debited on Accept (stock entering valuation at destination).',
-    )
-    wh_stock_transfer_in_account_id = fields.Many2one(
-        'account.account',
-        string='Stock Transfer In Account',
-        help='Credited when receiver clicks [Accept]. '
-             'Represents in-transit stock arriving at this warehouse.',
+        string='Stock Transfer Account',
+        help='Used on both debit and credit lines of the Accept journal entry. '
+             'Configure the same account on all warehouses.',
     )
 
-    # ── Journal ───────────────────────────────────────────────────────────────
     wh_stock_journal_id = fields.Many2one(
         'account.journal',
         string='Stock Transfer Journal',
         domain=[('type', 'in', ['general', 'purchase', 'sale'])],
-        help='Journal used for the Send and Accept journal entries. '
+        help='Journal used for the Accept journal entry. '
              'Leave empty to auto-select the first "General" journal.',
     )
 
-    # ── Analytic ──────────────────────────────────────────────────────────────
     wh_analytic_account_id = fields.Many2one(
         'account.analytic.account',
         string='Analytic Account',
-        help='Applied to the Stock Valuation debit line when an '
-             'Accept entry is posted for transfers arriving at this warehouse.',
+        help='Warehouse analytic: debited when this warehouse receives stock, '
+             'credited when this warehouse sends stock.',
     )
 
 
@@ -232,17 +216,9 @@ class StockPicking(models.Model):
         index=True,
     )
 
-    # ── Journal entry links ───────────────────────────────────────────────────
-    wh_send_journal_entry_id = fields.Many2one(
-        'account.move',
-        string='Send Journal Entry',
-        copy=False,
-        readonly=True,
-        help='Journal entry automatically created when [Send] is clicked.',
-    )
     wh_accept_journal_entry_id = fields.Many2one(
         'account.move',
-        string='Accept Journal Entry',
+        string='Journal Entry',
         copy=False,
         readonly=True,
         help='Journal entry automatically created when [Accept] is clicked.',
@@ -351,30 +327,14 @@ class StockPicking(models.Model):
         ], limit=1)
         return journal
 
-    def _wh_compute_transfer_amount(self):
-        """
-        Compute total monetary value of this transfer using standard price × qty.
-        Used for the Send entry (before stock is physically moved).
-        Returns a float.
-        """
-        total = 0.0
-        for move in self.move_ids.filtered(
-            lambda m: m.state not in ('done', 'cancel')
-        ):
-            price = move.product_id.standard_price or 0.0
-            qty = move.product_uom_qty or 0.0
-            total += price * qty
-        return total
-
     def _wh_compute_accept_amount(self):
         """
-        Compute total monetary value for the Accept entry.
-        Prefers Stock Valuation Layer amounts when stock_account is installed.
-        Otherwise mirrors the Send journal entry, then standard price × qty.
+        Compute total monetary value for the Accept journal entry.
+        Prefers Stock Valuation Layer amounts when stock_account is installed,
+        otherwise standard price × qty.
         """
         self.ensure_one()
 
-        # SVL exists only when stock_account is installed
         if 'stock.valuation.layer' in self.env:
             svl = self.env['stock.valuation.layer'].search([
                 ('stock_move_id', 'in', self.move_ids.ids),
@@ -382,15 +342,6 @@ class StockPicking(models.Model):
             if svl:
                 return abs(sum(svl.mapped('value')))
 
-        # Mirror the Send entry so Accept uses the same amount
-        if self.wh_send_journal_entry_id:
-            debit_total = sum(
-                line.debit for line in self.wh_send_journal_entry_id.line_ids
-            )
-            if debit_total:
-                return debit_total
-
-        # Fallback: standard price × qty on done moves (or demand if not yet done)
         total = 0.0
         done_moves = self.move_ids.filtered(lambda m: m.state == 'done')
         moves_to_use = done_moves or self.move_ids.filtered(
@@ -402,39 +353,36 @@ class StockPicking(models.Model):
             total += price * qty
         return total
 
-    def _wh_create_journal_entry(self, journal, debit_account, credit_account,
-                                  amount, ref, analytic_account=None):
+    def _wh_create_transfer_journal_entry(self, journal, account, amount, ref,
+                                          debit_analytic=None, credit_analytic=None):
         """
-        Create and post a journal entry with one debit and one credit line.
-
-        :param journal: account.journal record
-        :param debit_account: account.account record (debited)
-        :param credit_account: account.account record (credited)
-        :param amount: float — entry amount in company currency
-        :param ref: str — journal entry reference / label
-        :param analytic_account: optional account.analytic.account for debit line
-        :return: account.move record
+        Create and post a journal entry on the same account:
+            Dr Stock Transfer A/C (receiver analytic)
+            Cr Stock Transfer A/C (sender analytic)
         """
         company = self.company_id or self.env.company
 
         debit_line_vals = {
             'name': ref,
-            'account_id': debit_account.id,
+            'account_id': account.id,
             'debit': amount,
             'credit': 0.0,
         }
-        if analytic_account:
-            # Odoo 17+ uses analytic_distribution dict  {analytic_account_id_str: 100.0}
+        if debit_analytic:
             debit_line_vals['analytic_distribution'] = {
-                str(analytic_account.id): 100.0
+                str(debit_analytic.id): 100.0,
             }
 
         credit_line_vals = {
             'name': ref,
-            'account_id': credit_account.id,
+            'account_id': account.id,
             'debit': 0.0,
             'credit': amount,
         }
+        if credit_analytic:
+            credit_line_vals['analytic_distribution'] = {
+                str(credit_analytic.id): 100.0,
+            }
 
         move_vals = {
             'ref': ref,
@@ -476,30 +424,14 @@ class StockPicking(models.Model):
 
         return res
 
-    # ── Journal entry smart-button actions ────────────────────────────────────
-
-    def action_view_wh_send_journal_entry(self):
-        """Open the Send journal entry in form view."""
-        self.ensure_one()
-        if not self.wh_send_journal_entry_id:
-            raise UserError(_('No Send journal entry has been created yet.'))
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Send Journal Entry'),
-            'res_model': 'account.move',
-            'res_id': self.wh_send_journal_entry_id.id,
-            'view_mode': 'form',
-            'target': 'current',
-        }
-
     def action_view_wh_accept_journal_entry(self):
         """Open the Accept journal entry in form view."""
         self.ensure_one()
         if not self.wh_accept_journal_entry_id:
-            raise UserError(_('No Accept journal entry has been created yet.'))
+            raise UserError(_('No journal entry has been created yet.'))
         return {
             'type': 'ir.actions.act_window',
-            'name': _('Accept Journal Entry'),
+            'name': _('Journal Entry'),
             'res_model': 'account.move',
             'res_id': self.wh_accept_journal_entry_id.id,
             'view_mode': 'form',
@@ -508,11 +440,7 @@ class StockPicking(models.Model):
 
     # ── Send action ───────────────────────────────────────────────────────────
     def action_wh_send(self):
-        """Mark transfer as sent so the destination WH can accept it.
-        Creates a journal entry:
-            Dr  Stock Transfer Out  (source WH account)
-            Cr  Stock Valuation     (source WH account)
-        """
+        """Mark transfer as sent so the destination WH can accept it."""
         self.ensure_one()
         if self.state in ('done', 'cancel'):
             raise UserError(_('Cannot send a completed or cancelled transfer.'))
@@ -527,26 +455,6 @@ class StockPicking(models.Model):
             self.action_assign()
 
         self.wh_send_state = 'sent'
-
-        # ── Create journal entry ──────────────────────────────────────────────
-        src_wh = _resolve_warehouse(self.location_id)
-        if src_wh:
-            out_acc = src_wh.wh_stock_transfer_out_account_id
-            val_acc = src_wh.wh_stock_valuation_account_id
-            journal = self._wh_get_journal(src_wh)
-
-            if out_acc and val_acc and journal:
-                amount = self._wh_compute_transfer_amount()
-                if amount > 0:
-                    ref = _('Stock Transfer Out: %s') % self.name
-                    move = self._wh_create_journal_entry(
-                        journal=journal,
-                        debit_account=out_acc,
-                        credit_account=val_acc,
-                        amount=amount,
-                        ref=ref,
-                    )
-                    self.wh_send_journal_entry_id = move.id
 
         return {
             'type': 'ir.actions.client',
@@ -567,8 +475,8 @@ class StockPicking(models.Model):
     def action_wh_accept(self):
         """Accept and validate this incoming cross-WH transfer.
         Creates a journal entry:
-            Dr  Stock Valuation   (dest WH account, with WH analytic)
-            Cr  Stock Transfer In (dest WH account)
+            Dr  Stock Transfer A/C (receiver WH analytic)
+            Cr  Stock Transfer A/C (sender WH analytic)
         """
         self.ensure_one()
         if self.state in ('done', 'cancel'):
@@ -598,25 +506,29 @@ class StockPicking(models.Model):
         if isinstance(res, dict) and res.get('res_model') == 'stock.backorder.confirmation':
             return res
 
-        # ── Create journal entry ──────────────────────────────────────────────
+        # ── Create journal entry (Accept only) ────────────────────────────────
+        src_wh = _resolve_warehouse(self.location_id)
         dst_wh = _resolve_warehouse(self.location_dest_id)
-        if dst_wh:
-            val_acc = dst_wh.wh_stock_valuation_account_id
-            in_acc = dst_wh.wh_stock_transfer_in_account_id
-            journal = self._wh_get_journal(dst_wh)
-            analytic = dst_wh.wh_analytic_account_id or False
+        if src_wh and dst_wh:
+            transfer_acc = (
+                dst_wh.wh_stock_transfer_account_id
+                or src_wh.wh_stock_transfer_account_id
+            )
+            journal = self._wh_get_journal(dst_wh) or self._wh_get_journal(src_wh)
+            debit_analytic = dst_wh.wh_analytic_account_id or False
+            credit_analytic = src_wh.wh_analytic_account_id or False
 
-            if val_acc and in_acc and journal:
+            if transfer_acc and journal:
                 amount = self._wh_compute_accept_amount()
                 if amount > 0:
-                    ref = _('Stock Transfer In: %s') % self.name
-                    move = self._wh_create_journal_entry(
+                    ref = _('Stock Transfer: %s') % self.name
+                    move = self._wh_create_transfer_journal_entry(
                         journal=journal,
-                        debit_account=val_acc,
-                        credit_account=in_acc,
+                        account=transfer_acc,
                         amount=amount,
                         ref=ref,
-                        analytic_account=analytic,
+                        debit_analytic=debit_analytic,
+                        credit_analytic=credit_analytic,
                     )
                     self.wh_accept_journal_entry_id = move.id
 
