@@ -143,7 +143,7 @@
                         class="btn-success o_wh_btn_accept"
                         icon="fa-check-circle"
                         invisible="not wh_show_accept_btn"
-                        confirm="Accept and validate this transfer? Stock will be moved and a journal entry (Dr/Cr Stock Transfer A/C with warehouse analytics) will be created automatically."/>
+                        confirm="Accept and validate this transfer? Stock will be moved and a journal entry (Dr Stock Transfer In / Cr Stock Transfer Out) will be created automatically."/>
 
             </xpath>
 
@@ -186,20 +186,23 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Accounting" name="wh_accounting">
                     <group string="Cross-Warehouse Transfer" col="2">
-                        <field name="wh_stock_transfer_account_id"
+                        <field name="wh_stock_transfer_in_account_id"
                                options="{'no_create': True}"
-                               help="Same account on both Dr and Cr lines of the Accept journal entry."/>
+                               help="Debited when this warehouse receives stock (Accept entry)."/>
+                        <field name="wh_stock_transfer_out_account_id"
+                               options="{'no_create': True}"
+                               help="Credited when this warehouse sends stock (Accept entry)."/>
                         <field name="wh_stock_journal_id"
                                options="{'no_create': True}"
                                help="Journal to post the Accept entry. Leave empty to auto-select the first General journal."/>
                         <field name="wh_analytic_account_id"
                                options="{'no_create': True}"
-                               help="Debited when this warehouse receives stock; credited when it sends stock."/>
+                               help="Applied on the debit line when receiving; on the credit line when sending."/>
                     </group>
                     <div class="alert alert-info" role="alert">
                         <strong>Journal Entry Flow (on [Accept] only):</strong><br/>
-                        Dr <em>Stock Transfer A/C</em> <i>(receiver warehouse analytic)</i><br/>
-                        Cr <em>Stock Transfer A/C</em> <i>(sender warehouse analytic)</i>
+                        Dr <em>Stock Transfer In</em> <i>(receiver warehouse analytic)</i><br/>
+                        Cr <em>Stock Transfer Out</em> <i>(sender warehouse analytic)</i>
                     </div>
                 </page>
             </xpath>

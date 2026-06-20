@@ -10,8 +10,8 @@ from odoo.exceptions import UserError
 #   3. Receiver (or sender) clicks [Accept] → validates the transfer
 #                               wh_send_state: sent → accepted; To Accept ↓
 #                               *** Journal entry created (Accept only):
-#                                   Dr Stock Transfer A/C (receiver WH analytic)
-#                                   Cr Stock Transfer A/C (sender WH analytic) ***
+#                                   Dr Stock Transfer In  (receiver WH analytic)
+#                                   Cr Stock Transfer Out (sender WH analytic) ***
 #
 # wh_send_state values:
 #   'na'       – not a cross-WH transfer (default for non-cross-WH)
@@ -64,11 +64,15 @@ class StockWarehouseAccounting(models.Model):
     cross-WH Accept journal entry."""
     _inherit = 'stock.warehouse'
 
-    wh_stock_transfer_account_id = fields.Many2one(
+    wh_stock_transfer_in_account_id = fields.Many2one(
         'account.account',
-        string='Stock Transfer Account',
-        help='Used on both debit and credit lines of the Accept journal entry. '
-             'Configure the same account on all warehouses.',
+        string='Stock Transfer In Account',
+        help='Debited on the Accept journal entry when this warehouse receives stock.',
+    )
+    wh_stock_transfer_out_account_id = fields.Many2one(
+        'account.account',
+        string='Stock Transfer Out Account',
+        help='Credited on the Accept journal entry when this warehouse sends stock.',
     )
 
     wh_stock_journal_id = fields.Many2one(
@@ -353,19 +357,19 @@ class StockPicking(models.Model):
             total += price * qty
         return total
 
-    def _wh_create_transfer_journal_entry(self, journal, account, amount, ref,
-                                          picking=None,
+    def _wh_create_transfer_journal_entry(self, journal, debit_account, credit_account,
+                                          amount, ref, picking=None,
                                           debit_analytic=None, credit_analytic=None):
         """
-        Create and post a journal entry on the same account:
-            Dr Stock Transfer A/C (receiver analytic)
-            Cr Stock Transfer A/C (sender analytic)
+        Create and post a journal entry:
+            Dr Stock Transfer In  (receiver analytic)
+            Cr Stock Transfer Out (sender analytic)
         """
         company = self.company_id or self.env.company
 
         debit_line_vals = {
             'name': ref,
-            'account_id': account.id,
+            'account_id': debit_account.id,
             'debit': amount,
             'credit': 0.0,
         }
@@ -376,7 +380,7 @@ class StockPicking(models.Model):
 
         credit_line_vals = {
             'name': ref,
-            'account_id': account.id,
+            'account_id': credit_account.id,
             'debit': 0.0,
             'credit': amount,
         }
@@ -479,8 +483,8 @@ class StockPicking(models.Model):
     def action_wh_accept(self):
         """Accept and validate this incoming cross-WH transfer.
         Creates a journal entry:
-            Dr  Stock Transfer A/C (receiver WH analytic)
-            Cr  Stock Transfer A/C (sender WH analytic)
+            Dr  Stock Transfer In  (receiver WH analytic)
+            Cr  Stock Transfer Out (sender WH analytic)
         """
         self.ensure_one()
         if self.state in ('done', 'cancel'):
@@ -514,21 +518,20 @@ class StockPicking(models.Model):
         src_wh = _resolve_warehouse(self.location_id)
         dst_wh = _resolve_warehouse(self.location_dest_id)
         if src_wh and dst_wh:
-            transfer_acc = (
-                dst_wh.wh_stock_transfer_account_id
-                or src_wh.wh_stock_transfer_account_id
-            )
+            in_acc = dst_wh.wh_stock_transfer_in_account_id
+            out_acc = src_wh.wh_stock_transfer_out_account_id
             journal = self._wh_get_journal(dst_wh) or self._wh_get_journal(src_wh)
             debit_analytic = dst_wh.wh_analytic_account_id or False
             credit_analytic = src_wh.wh_analytic_account_id or False
 
-            if transfer_acc and journal:
+            if in_acc and out_acc and journal:
                 amount = self._wh_compute_accept_amount()
                 if amount > 0:
                     ref = self.name
                     move = self._wh_create_transfer_journal_entry(
                         journal=journal,
-                        account=transfer_acc,
+                        debit_account=in_acc,
+                        credit_account=out_acc,
                         amount=amount,
                         ref=ref,
                         picking=self,

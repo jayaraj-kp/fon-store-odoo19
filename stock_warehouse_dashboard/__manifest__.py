@@ -39,7 +39,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Stock Warehouse Dashboard – To Send / To Accept',
-    'version': '19.0.7.0.0',
+    'version': '19.0.8.0.0',
     'category': 'Inventory',
     'summary': 'Adds To Send and To Accept counters + Send/Accept buttons to cross-WH transfers',
     'description': """
@@ -66,11 +66,12 @@ v3 changes:
   - 'waiting' state now included in To Send / To Accept counts and actions
     so replenishment-triggered transfers appear immediately.
 
-v6 changes:
+v6+ changes:
   - Single journal entry on [Accept] only:
-      Dr Stock Transfer A/C (receiver WH analytic)
-      Cr Stock Transfer A/C (sender WH analytic)
+      Dr Stock Transfer In  (receiver WH analytic)
+      Cr Stock Transfer Out (sender WH analytic)
   - [Send] no longer creates any journal entry.
+  - Journal entry reference links to the internal transfer.
     """,
     'author': 'FON-STORE',
     'website': '',
