@@ -465,12 +465,19 @@ class KpiMatrix:
         for col in self.iter_cols():
             yield from col.iter_subcols()
 
-    def _load_account_names(self):
-        account_ids = set()
-        for detail_rows in self._detail_rows.values():
-            account_ids.update(detail_rows.keys())
-        accounts = self._account_model.search([("id", "in", list(account_ids))])
-        self._account_names = {a.id: self._get_account_name(a) for a in accounts}
+    # def _load_account_names(self):
+    #     account_ids = set()
+    #     for detail_rows in self._detail_rows.values():
+    #         account_ids.update(detail_rows.keys())
+    #     accounts = self._account_model.search([("id", "in", list(account_ids))])
+    #     self._account_names = {a.id: self._get_account_name(a) for a in accounts}
+    def get_account_name(self, account_id):
+        if account_id not in self._account_names:
+            self._load_account_names()
+        # Handle missing accounts gracefully
+        if account_id not in self._account_names:
+            return f"[Deleted Account #{account_id}]"
+        return self._account_names[account_id]
 
     def _get_account_name(self, account):
         result = f"{account.code} {account.name}"
