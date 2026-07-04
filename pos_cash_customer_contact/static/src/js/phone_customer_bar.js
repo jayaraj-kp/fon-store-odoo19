@@ -873,6 +873,57 @@ export class PhoneCustomerBar extends Component {
     }
 
     async _doCreate(formData) {
+        const nameLower = formData.name.trim().toLowerCase();
+
+        // ── Duplicate guard: check in-memory POS partner list first ──
+        const existing = this.pos.models["res.partner"].find(
+            (p) => p.name && p.name.trim().toLowerCase() === nameLower
+        );
+        if (existing) {
+            this.pos.getOrder().setPartner(existing);
+            this.state.query = existing.phone || existing.mobile || existing.name;
+            this.state.found = true;
+            this.state.selectedName = existing.name;
+            this.state.showDropdown = false;
+            this.notification.add(
+                `Customer "${existing.name}" already exists and has been selected.`,
+                { type: "warning", sticky: false }
+            );
+            return;
+        }
+
+        // ── Duplicate guard: also check the database (partner may not be loaded in POS) ──
+        const dbDupes = await this.orm.searchRead(
+            "res.partner",
+            [["name", "ilike", formData.name.trim()], ["active", "=", true]],
+            ["id", "name", "phone", "mobile"],
+            { limit: 1 }
+        );
+        if (dbDupes.length) {
+            const dupe = dbDupes[0];
+            // Load into POS local store if not already there
+            await this.pos.data.searchRead(
+                "res.partner",
+                [["id", "=", dupe.id]],
+                [],
+                { load: false }
+            );
+            const loadedPartner = this.pos.models["res.partner"].find(
+                (p) => p.id === dupe.id
+            );
+            const partnerToSet = loadedPartner || dupe;
+            this.pos.getOrder().setPartner(partnerToSet);
+            this.state.query = dupe.phone || dupe.mobile || dupe.name;
+            this.state.found = true;
+            this.state.selectedName = dupe.name;
+            this.state.showDropdown = false;
+            this.notification.add(
+                `Customer "${dupe.name}" already exists and has been selected.`,
+                { type: "warning", sticky: false }
+            );
+            return;
+        }
+
         const parentId = await this._getCashCustomerParentId();
 
         const vals = {
@@ -928,6 +979,25 @@ export class PhoneCustomerBar extends Component {
                 { type: "danger", sticky: false }
             );
             return;
+        }
+
+        // ── Duplicate guard (quick path): match by name in POS memory ──
+        if (!looksLikePhone) {
+            const nameLower = query.toLowerCase();
+            const memMatch = this.pos.models["res.partner"].find(
+                (p) => p.name && p.name.trim().toLowerCase() === nameLower
+            );
+            if (memMatch) {
+                this.pos.getOrder().setPartner(memMatch);
+                this.state.query = memMatch.phone || memMatch.mobile || memMatch.name;
+                this.state.found = true;
+                this.state.selectedName = memMatch.name;
+                this.notification.add(
+                    `Customer "${memMatch.name}" already exists and has been selected.`,
+                    { type: "warning", sticky: false }
+                );
+                return;
+            }
         }
 
         const autoTag = await this._getAutoTag();
