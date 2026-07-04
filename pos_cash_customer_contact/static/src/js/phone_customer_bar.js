@@ -1310,11 +1310,6 @@ export class PhoneCustomerBar extends Component {
         );
 
         if (!dbCheck.length) {
-            // Partner was deleted from backend — purge from POS memory
-            const idx = this.pos.models["res.partner"].indexOf(partner);
-            if (idx !== -1) {
-                this.pos.models["res.partner"].splice(idx, 1);
-            }
             // Partner was deleted from backend — mark as deleted so it is filtered
             // out of future suggestions. We do NOT call .splice() because
             // pos.models["res.partner"] is an OWL reactive store, not a plain Array.
