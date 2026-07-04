@@ -670,6 +670,10 @@ export class PhoneCustomerBar extends Component {
             activeIndex: -1,
         });
 
+        // Track partner IDs deleted from the backend during this POS session
+        // so they are filtered out of suggestions without mutating the reactive store.
+        this._deletedPartnerIds = new Set();
+
         // Block the POS SearchBar's document-level capture listener from stealing
         // keystrokes while the phone input is focused.
         // Registered at capture phase (true) so we run before the POS handler
@@ -732,6 +736,8 @@ export class PhoneCustomerBar extends Component {
         const q = query.toLowerCase();
         return this.pos.models["res.partner"]
             .filter((p) => {
+                // Exclude partners known to be deleted from the backend this session
+                if (this._deletedPartnerIds.has(p.id)) return false;
                 if (!p.name) return false;
                 return (
                     p.name.toLowerCase().includes(q) ||
@@ -835,11 +841,10 @@ export class PhoneCustomerBar extends Component {
         );
 
         if (!dbCheck.length) {
-            // Partner was deleted from backend — purge from POS memory
-            const idx = this.pos.models["res.partner"].indexOf(partner);
-            if (idx !== -1) {
-                this.pos.models["res.partner"].splice(idx, 1);
-            }
+            // Partner was deleted from backend — mark as deleted so it is filtered
+            // out of future suggestions. We do NOT call .splice() because
+            // pos.models["res.partner"] is an OWL reactive store, not a plain Array.
+            this._deletedPartnerIds.add(partner.id);
             // Refresh suggestions without the stale record
             this.state.suggestions = this._getSuggestions(this.state.query);
             this.notification.add(
