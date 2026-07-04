@@ -825,7 +825,30 @@ export class PhoneCustomerBar extends Component {
         }
     }
 
-    onSelectSuggestion(ev, partner) {
+    async onSelectSuggestion(ev, partner) {
+        // ── Verify the partner still exists in the DB (not deleted from backend) ──
+        const dbCheck = await this.orm.searchRead(
+            "res.partner",
+            [["id", "=", partner.id], ["active", "=", true]],
+            ["id"],
+            { limit: 1 }
+        );
+
+        if (!dbCheck.length) {
+            // Partner was deleted from backend — purge from POS memory
+            const idx = this.pos.models["res.partner"].indexOf(partner);
+            if (idx !== -1) {
+                this.pos.models["res.partner"].splice(idx, 1);
+            }
+            // Refresh suggestions without the stale record
+            this.state.suggestions = this._getSuggestions(this.state.query);
+            this.notification.add(
+                `Customer "${partner.name}" no longer exists. Please create a new one.`,
+                { type: "danger", sticky: false }
+            );
+            return;
+        }
+
         this.pos.getOrder().setPartner(partner);
         this.state.query = partner.phone || partner.mobile || partner.name;
         this.state.selectedName = partner.name;
@@ -880,16 +903,32 @@ export class PhoneCustomerBar extends Component {
             (p) => p.name && p.name.trim().toLowerCase() === nameLower
         );
         if (existing) {
-            this.pos.getOrder().setPartner(existing);
-            this.state.query = existing.phone || existing.mobile || existing.name;
-            this.state.found = true;
-            this.state.selectedName = existing.name;
-            this.state.showDropdown = false;
-            this.notification.add(
-                `Customer "${existing.name}" already exists and has been selected.`,
-                { type: "warning", sticky: false }
+            // Verify this in-memory partner still exists in the DB (not deleted from backend)
+            const dbVerify = await this.orm.searchRead(
+                "res.partner",
+                [["id", "=", existing.id], ["active", "=", true]],
+                ["id"],
+                { limit: 1 }
             );
-            return;
+            if (!dbVerify.length) {
+                // Partner was deleted from backend — purge stale record from POS memory
+                const idx = this.pos.models["res.partner"].indexOf(existing);
+                if (idx !== -1) {
+                    this.pos.models["res.partner"].splice(idx, 1);
+                }
+                // Fall through to DB duplicate check and then creation
+            } else {
+                this.pos.getOrder().setPartner(existing);
+                this.state.query = existing.phone || existing.mobile || existing.name;
+                this.state.found = true;
+                this.state.selectedName = existing.name;
+                this.state.showDropdown = false;
+                this.notification.add(
+                    `Customer "${existing.name}" already exists and has been selected.`,
+                    { type: "warning", sticky: false }
+                );
+                return;
+            }
         }
 
         // ── Duplicate guard: also check the database (partner may not be loaded in POS) ──
