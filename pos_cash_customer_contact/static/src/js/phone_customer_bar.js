@@ -1003,7 +1003,6 @@ export class CreateCustomerDialog extends Component {
             name: query,
             phone: isPhone ? query : "",
             email: "",
-            gender: "male",
             saving: false,
             error: "",
             tagId: this.props.autoTag ? this.props.autoTag.id : false,
@@ -1101,7 +1100,6 @@ export class CreateCustomerDialog extends Component {
                 phone: this.form.phone.trim(),
                 email: this.form.email.trim(),
                 tagId: this.form.tagId,
-                gender: this.form.gender,
             });
 
             console.log("✅ onCreated succeeded, closing dialog");
@@ -1447,7 +1445,6 @@ export class PhoneCustomerBar extends Component {
             email: formData.email || false,
             parent_id: parentId,
             customer_rank: 1,
-            gender: formData.gender || false,
         };
 
         // Attach the contact tag if resolved
