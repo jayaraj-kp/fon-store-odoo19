@@ -52,6 +52,14 @@
                         t-on-keyup="(ev) => ev.stopPropagation()"
                     />
                 </div>
+                <!-- Gender -->
+                 <div class="ccd-field ccd-icon-field">
+                     <span class="ccd-field-icon">⚧</span>
+                     <select class="ccd-input" t-model="form.gender">
+                         <option value="male">Male</option>
+                         <option value="female">Female</option>
+                     </select>
+                 </div>
 
                 <!-- Mobile -->
 <!--                <div class="ccd-field ccd-icon-field">-->
