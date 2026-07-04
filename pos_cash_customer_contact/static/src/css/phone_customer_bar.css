@@ -147,4 +147,40 @@
     background: #fef2f2; border-radius: 6px;
 }
 
+/* ── Gender Selector ────────────────────────────────────────── */
+.ccd-gender-wrap {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 8px 4px;
+}
+.ccd-gender-opt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #64748b;
+    cursor: pointer;
+    user-select: none;
+    transition: color .15s;
+}
+.ccd-gender-opt:hover { color: #4f46e5; }
+.ccd-gender-active { color: #4f46e5 !important; font-weight: 600; }
+.ccd-gender-radio {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid #94a3b8;
+    display: inline-block;
+    position: relative;
+    transition: border-color .15s, background .15s;
+}
+.ccd-gender-radio-on {
+    border-color: #6366f1 !important;
+    background: #6366f1;
+}
+.ccd-gender-radio-on::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 6px; height: 6px; border-radius: 50%; background: #fff;
+}
+
 .ccd-btn-save { margin-right: 8px; }

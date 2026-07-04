@@ -53,6 +53,23 @@
                     />
                 </div>
 
+                <!-- Gender (Male / Female) -->
+                <div class="ccd-field ccd-icon-field">
+                    <span class="ccd-field-icon">👤</span>
+                    <div class="ccd-gender-wrap">
+                        <label class="ccd-gender-opt" t-att-class="{'ccd-gender-active': form.gender === 'male'}"
+                               t-on-click="() => { this.form.gender = 'male'; }">
+                            <span class="ccd-gender-radio" t-att-class="{'ccd-gender-radio-on': form.gender === 'male'}"/>
+                            Male
+                        </label>
+                        <label class="ccd-gender-opt" t-att-class="{'ccd-gender-active': form.gender === 'female'}"
+                               t-on-click="() => { this.form.gender = 'female'; }">
+                            <span class="ccd-gender-radio" t-att-class="{'ccd-gender-radio-on': form.gender === 'female'}"/>
+                            Female
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Mobile -->
 <!--                <div class="ccd-field ccd-icon-field">-->
 <!--                    <span class="ccd-field-icon"></span>-->

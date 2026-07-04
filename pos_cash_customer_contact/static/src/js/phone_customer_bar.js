@@ -534,6 +534,7 @@ export class CreateCustomerDialog extends Component {
             name: query,
             phone: isPhone ? query : "",
             email: "",
+            gender: "",
             saving: false,
             error: "",
             tagId: this.props.autoTag ? this.props.autoTag.id : false,
@@ -623,6 +624,7 @@ export class CreateCustomerDialog extends Component {
                 name: this.form.name.trim(),
                 phone: this.form.phone.trim(),
                 email: this.form.email.trim(),
+                gender: this.form.gender,
                 tagId: this.form.tagId,
             });
 
@@ -630,6 +632,7 @@ export class CreateCustomerDialog extends Component {
                 name: this.form.name.trim(),
                 phone: this.form.phone.trim(),
                 email: this.form.email.trim(),
+                gender: this.form.gender,
                 tagId: this.form.tagId,
             });
 
@@ -974,6 +977,7 @@ export class PhoneCustomerBar extends Component {
             name: formData.name,
             phone: formData.phone || false,
             email: formData.email || false,
+            x_gender: formData.gender || false,
             parent_id: parentId,
             customer_rank: 1,
         };
@@ -1050,6 +1054,7 @@ export class PhoneCustomerBar extends Component {
             name: query,
             phone: looksLikePhone ? query : "",
             email: "",
+            gender: "",
             tagId: autoTag ? autoTag.id : false,
         });
     }

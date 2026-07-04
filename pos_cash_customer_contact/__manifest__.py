@@ -1,7 +1,10 @@
 {
     "name": "POS Cash Customer Contact",
-    "version": "2.0",
-    "depends": ["point_of_sale"],
+    "version": "3.0",
+    "depends": ["point_of_sale", "contacts"],
+    "data": [
+        "views/res_partner_views.xml",
+    ],
     "assets": {
         "point_of_sale._assets_pos": [
             "pos_cash_customer_contact/static/src/css/phone_customer_bar.css",
