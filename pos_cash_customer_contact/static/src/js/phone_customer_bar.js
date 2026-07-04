@@ -246,7 +246,7 @@
 ////                return (
 ////                    p.name.toLowerCase().includes(q) ||
 ////                    (p.phone || "").includes(q) ||
-////                    (p.mobile || "").includes(q)
+////                    false
 ////                );
 ////            })
 ////            .slice(0, 8);
@@ -323,7 +323,7 @@
 ////        this.state.showDropdown = query.length >= MIN_CHARS;
 ////
 ////        const exact = this.pos.models["res.partner"].find(
-////            (p) => p.phone === query || p.mobile === query
+////            (p) => p.phone === query
 ////        );
 ////        if (exact) {
 ////            this.pos.getOrder().setPartner(exact);
@@ -337,7 +337,7 @@
 ////
 ////    onSelectSuggestion(ev, partner) {
 ////        this.pos.getOrder().setPartner(partner);
-////        this.state.query = partner.phone || partner.mobile || partner.name;
+////        this.state.query = partner.phone || partner.name;
 ////        this.state.selectedName = partner.name;
 ////        this.state.found = true;
 ////        this.state.showDropdown = false;
@@ -736,7 +736,7 @@
 //                return (
 //                    p.name.toLowerCase().includes(q) ||
 //                    (p.phone || "").includes(q) ||
-//                    (p.mobile || "").includes(q)
+//                    false
 //                );
 //            })
 //            .slice(0, 8);
@@ -813,7 +813,7 @@
 //        this.state.showDropdown = query.length >= MIN_CHARS;
 //
 //        const exact = this.pos.models["res.partner"].find(
-//            (p) => p.phone === query || p.mobile === query
+//            (p) => p.phone === query
 //        );
 //        if (exact) {
 //            this.pos.getOrder().setPartner(exact);
@@ -827,7 +827,7 @@
 //
 //    onSelectSuggestion(ev, partner) {
 //        this.pos.getOrder().setPartner(partner);
-//        this.state.query = partner.phone || partner.mobile || partner.name;
+//        this.state.query = partner.phone || partner.name;
 //        this.state.selectedName = partner.name;
 //        this.state.found = true;
 //        this.state.showDropdown = false;
@@ -1210,8 +1210,7 @@ export class PhoneCustomerBar extends Component {
                 if (!p.name) return false;
                 return (
                     p.name.toLowerCase().includes(q) ||
-                    (p.phone || "").includes(q) ||
-                    (p.mobile || "").includes(q)
+                    (p.phone || "").includes(q)
                 );
             })
             .slice(0, 8);
@@ -1288,7 +1287,7 @@ export class PhoneCustomerBar extends Component {
         this.state.showDropdown = query.length >= MIN_CHARS;
 
         const exact = this.pos.models["res.partner"].find(
-            (p) => p.phone === query || p.mobile === query
+            (p) => p.phone === query
         );
         if (exact) {
             this.pos.getOrder().setPartner(exact);
@@ -1324,7 +1323,7 @@ export class PhoneCustomerBar extends Component {
         }
 
         this.pos.getOrder().setPartner(partner);
-        this.state.query = partner.phone || partner.mobile || partner.name;
+        this.state.query = partner.phone || partner.name;
         this.state.selectedName = partner.name;
         this.state.found = true;
         this.state.showDropdown = false;
@@ -1393,7 +1392,7 @@ export class PhoneCustomerBar extends Component {
                 // Fall through to DB duplicate check and then creation
             } else {
                 this.pos.getOrder().setPartner(existing);
-                this.state.query = existing.phone || existing.mobile || existing.name;
+                this.state.query = existing.phone || existing.name;
                 this.state.found = true;
                 this.state.selectedName = existing.name;
                 this.state.showDropdown = false;
@@ -1409,7 +1408,7 @@ export class PhoneCustomerBar extends Component {
         const dbDupes = await this.orm.searchRead(
             "res.partner",
             [["name", "ilike", formData.name.trim()], ["active", "=", true]],
-            ["id", "name", "phone", "mobile"],
+            ["id", "name", "phone"],
             { limit: 1 }
         );
         if (dbDupes.length) {
@@ -1426,7 +1425,7 @@ export class PhoneCustomerBar extends Component {
             );
             const partnerToSet = loadedPartner || dupe;
             this.pos.getOrder().setPartner(partnerToSet);
-            this.state.query = dupe.phone || dupe.mobile || dupe.name;
+            this.state.query = dupe.phone || dupe.name;
             this.state.found = true;
             this.state.selectedName = dupe.name;
             this.state.showDropdown = false;
@@ -1502,7 +1501,7 @@ export class PhoneCustomerBar extends Component {
             );
             if (memMatch) {
                 this.pos.getOrder().setPartner(memMatch);
-                this.state.query = memMatch.phone || memMatch.mobile || memMatch.name;
+                this.state.query = memMatch.phone || memMatch.name;
                 this.state.found = true;
                 this.state.selectedName = memMatch.name;
                 this.notification.add(
