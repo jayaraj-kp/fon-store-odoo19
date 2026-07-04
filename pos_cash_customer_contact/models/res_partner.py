@@ -13,6 +13,6 @@ class ResPartner(models.Model):
     def _load_pos_data_fields(self, config_id):
         """Include x_gender in the POS data bundle so it is available
         on partner records in the frontend."""
-        fields = super()._load_pos_data_fields(config_id)
-        fields += ['x_gender']
-        return fields
+        result = super()._load_pos_data_fields(config_id)
+        result += ['x_gender']
+        return result

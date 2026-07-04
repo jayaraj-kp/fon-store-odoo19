@@ -1,7 +1,7 @@
 {
     "name": "POS Cash Customer Contact",
     "version": "3.0",
-    "depends": ["point_of_sale", "contacts"],
+    "depends": ["point_of_sale"],
     "data": [
         "views/res_partner_views.xml",
     ],
