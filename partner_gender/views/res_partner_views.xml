@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add Gender field to the Contact / Customer form view -->
+    <record id="view_partner_form_gender" model="ir.ui.view">
+        <field name="name">res.partner.form.gender</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="phone" position="after">
+                <field name="gender"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Add Gender as an optional column in the Contact / Customer list view -->
+    <record id="view_partner_tree_gender" model="ir.ui.view">
+        <field name="name">res.partner.tree.gender</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <field name="display_name" position="after">
+                <field name="gender" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Add Gender filters and Group By in the Contact / Customer search view -->
+    <record id="view_res_partner_filter_gender" model="ir.ui.view">
+        <field name="name">res.partner.search.gender</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field name="gender"/>
+            </field>
+            <xpath expr="//search" position="inside">
+                <separator/>
+                <filter string="Male" name="filter_gender_male" domain="[('gender', '=', 'male')]"/>
+                <filter string="Female" name="filter_gender_female" domain="[('gender', '=', 'female')]"/>
+                <filter string="Gender" name="groupby_gender" context="{'group_by': 'gender'}"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
