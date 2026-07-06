@@ -116,6 +116,22 @@
 .ccd-name:focus { color: #1e293b; }
 .ccd-input::placeholder { color: #cbd5e1; }
 
+select.ccd-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 22px;
+    cursor: pointer;
+    color: #1e293b;
+}
+select.ccd-select:invalid,
+select.ccd-select option[value=""] {
+    color: #cbd5e1;
+}
+
 /* ── Auto Tag Badge ─────────────────────────────────────────── */
 .ccd-tag-wrap {
     display: flex;
