@@ -19,9 +19,9 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_tree"/>
         <field name="arch" type="xml">
-            <field name="display_name" position="after">
+            <xpath expr="//list | //tree" position="inside">
                 <field name="gender" optional="show"/>
-            </field>
+            </xpath>
         </field>
     </record>
 
@@ -31,10 +31,8 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_res_partner_filter"/>
         <field name="arch" type="xml">
-            <field name="name" position="after">
-                <field name="gender"/>
-            </field>
             <xpath expr="//search" position="inside">
+                <field name="gender"/>
                 <separator/>
                 <filter string="Male" name="filter_gender_male" domain="[('gender', '=', 'male')]"/>
                 <filter string="Female" name="filter_gender_female" domain="[('gender', '=', 'female')]"/>
