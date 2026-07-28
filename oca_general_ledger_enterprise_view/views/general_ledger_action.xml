@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Client action for General Ledger -->
+    <record id="action_oca_general_ledger_enterprise" model="ir.actions.client">
+        <field name="name">General Ledger</field>
+        <field name="tag">oca_gl.GeneralLedgerView</field>
+        <field name="target">current</field>
+        <field name="params">{'default_report_type': 'gl'}</field>
+    </record>
+
+    <!-- Client action for Trial Balance -->
+    <record id="action_oca_trial_balance_enterprise" model="ir.actions.client">
+        <field name="name">Trial Balance</field>
+        <field name="tag">oca_gl.GeneralLedgerView</field>
+        <field name="target">current</field>
+        <field name="params">{'default_report_type': 'tb'}</field>
+    </record>
+
+    <!-- Menu entry for General Ledger -->
+    <menuitem
+        id="menu_oca_general_ledger_enterprise"
+        name="General Ledger (Interactive)"
+        parent="account_financial_report.menu_oca_reports"
+        action="action_oca_general_ledger_enterprise"
+        sequence="5"
+        groups="account.group_account_user"
+    />
+
+    <!-- Menu entry for Trial Balance -->
+    <menuitem
+        id="menu_oca_trial_balance_enterprise"
+        name="Trial Balance (Interactive)"
+        parent="account_financial_report.menu_oca_reports"
+        action="action_oca_trial_balance_enterprise"
+        sequence="6"
+        groups="account.group_account_user"
+    />
+</odoo>

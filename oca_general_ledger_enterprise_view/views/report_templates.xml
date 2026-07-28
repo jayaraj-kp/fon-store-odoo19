@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Inject our enterprise CSS into the OCA print layout.
+        All filter suppression and styling is done purely via CSS.
+    -->
+    <template id="internal_layout_enterprise_css"
+              inherit_id="account_financial_report.internal_layout">
+        <xpath expr="//link[@href='/account_financial_report/static/src/css/report.css']" position="after">
+            <link href="/oca_general_ledger_enterprise_view/static/src/css/report_enterprise.css" rel="stylesheet"/>
+        </xpath>
+    </template>
+
+</odoo>
