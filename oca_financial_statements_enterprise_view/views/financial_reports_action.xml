@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Balance Sheet client action -->
+    <record id="action_oca_balance_sheet_enterprise" model="ir.actions.client">
+        <field name="name">Balance Sheet</field>
+        <field name="tag">oca_fs.FinancialStatementsView</field>
+        <field name="target">current</field>
+        <field name="params">{'default_report_type': 'bs'}</field>
+    </record>
+
+    <!-- Profit and Loss client action -->
+    <record id="action_oca_profit_loss_enterprise" model="ir.actions.client">
+        <field name="name">Profit and Loss</field>
+        <field name="tag">oca_fs.FinancialStatementsView</field>
+        <field name="target">current</field>
+        <field name="params">{'default_report_type': 'pl'}</field>
+    </record>
+
+    <!-- Menus under Accounting > Reporting -->
+    <menuitem
+        id="menu_oca_balance_sheet_enterprise"
+        name="Balance Sheet (Interactive)"
+        parent="account.menu_finance_reports"
+        action="action_oca_balance_sheet_enterprise"
+        sequence="25"
+        groups="account.group_account_user"
+    />
+
+    <menuitem
+        id="menu_oca_profit_loss_enterprise"
+        name="Profit and Loss (Interactive)"
+        parent="account.menu_finance_reports"
+        action="action_oca_profit_loss_enterprise"
+        sequence="26"
+        groups="account.group_account_user"
+    />
+
+</odoo>

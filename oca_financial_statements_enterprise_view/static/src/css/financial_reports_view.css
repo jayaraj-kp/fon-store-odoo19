@@ -1,0 +1,584 @@
+/* =====================================================================
+   OCA Financial Statements — Enterprise Interactive View
+   Balance Sheet & Profit and Loss
+   ===================================================================== */
+
+.oca-fs-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #1b1d26;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #f3f4f6;
+}
+
+/* Control panel */
+.oca-fs-control-panel {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    background: #1b1d26;
+    border-bottom: 1px solid #3c3e4b;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.oca-fs-left-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.oca-fs-print-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    background: #714b67;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.oca-fs-print-btn:hover {
+    background: #87567a;
+}
+
+.oca-fs-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #f3f4f6;
+    margin: 0;
+}
+
+.oca-fs-gear {
+    color: #9ca3af;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.oca-fs-filters-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.oca-fs-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid #4b5563;
+    border-radius: 4px;
+    background: #374151;
+    color: #d1d5db;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    font-weight: 500;
+}
+
+.oca-fs-filter-pill:hover {
+    background: #4b5563;
+}
+
+.oca-fs-filter-pill.active {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+    color: #93c5fd;
+}
+
+.oca-fs-date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.oca-fs-date-inputs input[type="date"] {
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: #d1d5db;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color-scheme: dark;
+}
+
+.oca-fs-date-sep {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.oca-fs-currency-badge {
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: #252633;
+    border: 1px solid #3b3e54;
+    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Dropdown */
+.oca-fs-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 200;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.5);
+    min-width: 220px;
+    padding: 6px 0;
+}
+
+.oca-fs-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #d1d5db;
+}
+
+.oca-fs-dropdown-item:hover {
+    background: #374151;
+}
+
+.oca-fs-dropdown-item.selected {
+    background: #1e3a5f;
+    color: #93c5fd;
+    font-weight: 600;
+}
+
+.oca-fs-dropdown-divider {
+    height: 1px;
+    background: #374151;
+    margin: 4px 0;
+}
+
+/* Warning banner */
+.oca-fs-warning-banner {
+    background: #1a3a5c;
+    color: #93c5fd;
+    font-size: 13px;
+    padding: 8px 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid #243b5e;
+}
+
+.oca-fs-warning-close {
+    position: absolute;
+    right: 20px;
+    font-size: 18px;
+    cursor: pointer;
+    color: #93c5fd;
+    line-height: 1;
+}
+
+.oca-fs-warning-close:hover {
+    color: #fff;
+}
+
+/* Content */
+.oca-fs-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.oca-fs-sheet {
+    background: #262a36;
+    border: 1px solid #3c3e4b;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    width: 100%;
+    max-width: 900px;
+    padding: 24px 32px 32px;
+}
+
+.oca-fs-table-header {
+    display: flex;
+    justify-content: flex-end;
+    border-bottom: 1px solid #3c3e4b;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+}
+
+.oca-fs-table-header span {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.oca-fs-comparison-header {
+    margin-left: 24px;
+}
+
+/* Report rows */
+.oca-fs-lines {
+    display: flex;
+    flex-direction: column;
+}
+
+.oca-fs-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #3c3e4b;
+    min-height: 36px;
+    transition: background 0.1s;
+}
+
+.oca-fs-row:hover {
+    background: #2f333f;
+}
+
+.oca-fs-row-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.oca-fs-caret {
+    width: 14px;
+    font-size: 11px;
+    color: #2dd4bf;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.oca-fs-caret-placeholder {
+    width: 14px;
+    flex-shrink: 0;
+}
+
+.oca-fs-label-text {
+    font-size: 14px;
+    color: #e5e7eb;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.oca-fs-amounts {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-shrink: 0;
+}
+
+.oca-fs-balance {
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 500;
+    color: #f3f4f6;
+    min-width: 120px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.oca-fs-comparison-balance {
+    color: #9ca3af;
+    min-width: 120px;
+}
+
+/* Comparison dropdown enhancements */
+.oca-fs-comparison-panel {
+    min-width: 280px;
+}
+
+.oca-fs-dropdown-item-inline {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.oca-fs-period-count-input {
+    width: 42px;
+    background: #1a1b24;
+    color: #f3f4f6;
+    border: 1px solid #3b3e54;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 2px 4px;
+    text-align: center;
+    margin-left: auto;
+}
+
+.oca-fs-period-label {
+    font-size: 12px;
+    color: #8b92a5;
+}
+
+.oca-fs-pct-of-input {
+    flex: 1;
+    min-width: 80px;
+    background: #1a1b24;
+    color: #93c5fd;
+    border: none;
+    border-bottom: 1px solid #3b82f6;
+    font-size: 12px;
+    padding: 2px 4px;
+    margin-left: auto;
+    cursor: pointer;
+}
+
+.oca-fs-pct-of-picker {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1a1b24;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    margin: 4px 8px;
+}
+
+.oca-fs-pct-of-option {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #d1d5db;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.oca-fs-pct-of-option:hover {
+    background: #374151;
+}
+
+.oca-fs-pct-of-option.selected {
+    background: #1e3a5f;
+    color: #93c5fd;
+}
+
+.oca-fs-pct-of-empty {
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.oca-fs-comparison-dates {
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.oca-fs-comparison-date-label {
+    font-size: 11px;
+    color: #8b92a5;
+}
+
+.oca-fs-comparison-date-input {
+    background: #1a1b24;
+    color: #f3f4f6;
+    border: 1px solid #3b3e54;
+    font-size: 12px;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.oca-fs-comparison-settings {
+    padding: 6px 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.oca-fs-comparison-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #8b92a5;
+}
+
+.oca-fs-comparison-select {
+    background: #1a1b24;
+    color: #f3f4f6;
+    border: 1px solid #3b3e54;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 2px 6px;
+    cursor: pointer;
+}
+
+/* Percentage of column */
+.oca-fs-pct-col {
+    min-width: 70px;
+    font-size: 13px;
+}
+
+.oca-fs-pct-header {
+    min-width: 70px;
+    text-align: right;
+}
+
+.oca-fs-pct-high {
+    color: #f87171;
+}
+
+.oca-fs-pct-mid {
+    color: #fbbf24;
+}
+
+.oca-fs-pct-zero {
+    color: #6b7280;
+}
+
+/* Indentation by level */
+.oca-fs-level-0 .oca-fs-label-text { padding-left: 0; }
+.oca-fs-level-1 .oca-fs-label-text { padding-left: 16px; }
+.oca-fs-level-2 .oca-fs-label-text { padding-left: 32px; }
+.oca-fs-level-3 .oca-fs-label-text { padding-left: 48px; }
+
+/* Header bands (ASSETS, LIABILITIES, etc.) */
+.oca-fs-header-band {
+    background: #3c3e4b !important;
+    border-bottom: 1px solid #3c3e4b !important;
+    margin-top: 8px;
+}
+
+.oca-fs-header-band .oca-fs-label-text {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #f3f4f6;
+}
+
+.oca-fs-header-band .oca-fs-balance {
+    font-weight: 700;
+}
+
+/* Subtotals (Gross Profit, Net Profit, etc.) */
+.oca-fs-subtotal {
+    background: #21242e !important;
+    border-top: 1px solid #3c3e4b;
+    border-bottom: 1px solid #3c3e4b !important;
+}
+
+.oca-fs-subtotal .oca-fs-label-text {
+    font-weight: 600;
+    color: #f3f4f6;
+}
+
+.oca-fs-subtotal .oca-fs-balance {
+    font-weight: 700;
+}
+
+/* Account lines */
+.oca-fs-account .oca-fs-label-text {
+    font-size: 13px;
+    color: #d1d5db;
+}
+
+.oca-fs-account-link {
+    color: #60a5fa;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.oca-fs-account-link:hover {
+    text-decoration: underline;
+    color: #93c5fd;
+}
+
+.oca-fs-style-computed .oca-fs-label-text {
+    color: #2dd4bf;
+}
+
+/* Group / subsection */
+.oca-fs-style-group .oca-fs-label-text,
+.oca-fs-style-subsection .oca-fs-label-text {
+    font-weight: 500;
+}
+
+/* State boxes */
+.oca-fs-state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.oca-fs-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #374151;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: oca-fs-spin 0.6s linear infinite;
+}
+
+@keyframes oca-fs-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Split Horizontally (two-column Balance Sheet layout) */
+.oca-fs-sheet-wide {
+    max-width: 1400px;
+}
+
+.oca-fs-split-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+}
+
+.oca-fs-split-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.oca-fs-split-col + .oca-fs-split-col {
+    border-left: 1px solid #3c3e4b;
+    padding-left: 32px;
+}
+
+/* Print */
+@media print {
+    .oca-fs-control-panel,
+    .oca-fs-warning-banner {
+        display: none !important;
+    }
+    .oca-fs-root {
+        background: #fff;
+        color: #000;
+    }
+    .oca-fs-sheet {
+        box-shadow: none;
+        border: none;
+        max-width: 100%;
+    }
+}

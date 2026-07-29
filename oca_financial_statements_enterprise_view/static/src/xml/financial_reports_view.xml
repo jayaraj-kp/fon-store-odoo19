@@ -1,0 +1,859 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!-- Recursive line renderer -->
+    <t t-name="oca_fs.ReportLines">
+        <t t-foreach="lines" t-as="line" t-key="line.id">
+            <div
+                t-att-class="lineRowClass(line)"
+                t-on-click="() => this.toggleLine(line)"
+            >
+                <div class="oca-fs-row-label">
+                    <t t-if="isExpandable(line)">
+                        <i
+                            t-attf-class="fa fa-caret-{{ isCollapsed(line.id) ? 'right' : 'down' }} oca-fs-caret"
+                        />
+                    </t>
+                    <t t-else="">
+                        <span class="oca-fs-caret-placeholder"/>
+                    </t>
+                    <t t-if="line.account_id">
+                        <a
+                            class="oca-fs-label-text oca-fs-account-link"
+                            href="#"
+                            t-on-click.stop="() => this.openAccount(line.account_id)"
+                            t-esc="line.name"
+                        />
+                    </t>
+                    <t t-else="">
+                        <span class="oca-fs-label-text" t-esc="line.name"/>
+                    </t>
+                </div>
+                <div class="oca-fs-amounts">
+                    <t t-if="showComparison">
+                        <t t-foreach="orderedComparisonColumns" t-as="col" t-key="col_index">
+                            <span
+                                class="oca-fs-balance oca-fs-comparison-balance"
+                                t-esc="fmtComparisonValue(line, getComparisonBalanceForColumn(line, col_index))"
+                            />
+                        </t>
+                    </t>
+                    <span class="oca-fs-balance" t-esc="fmtNumWithSym(line.balance)"/>
+                    <t t-if="showPercentageOf">
+                        <span
+                            t-att-class="'oca-fs-balance oca-fs-pct-col ' + pctOfClass(line)"
+                            t-esc="fmtPctOf(line)"
+                        />
+                    </t>
+                </div>
+            </div>
+            <t t-if="line.children and line.children.length and !isCollapsed(line.id)">
+                <t t-call="oca_fs.ReportLines">
+                    <t t-set="lines" t-value="line.children"/>
+                </t>
+            </t>
+        </t>
+    </t>
+
+    <!-- Recursive line renderer used inside the "Split Horizontally" columns -->
+    <t t-name="oca_fs.SplitReportLines">
+        <t t-foreach="lines" t-as="line" t-key="line.id">
+            <div
+                t-att-class="lineRowClass(line)"
+                t-on-click="() => this.toggleLine(line)"
+            >
+                <div class="oca-fs-row-label">
+                    <t t-if="isExpandable(line)">
+                        <i
+                            t-attf-class="fa fa-caret-{{ isCollapsed(line.id) ? 'right' : 'down' }} oca-fs-caret"
+                        />
+                    </t>
+                    <t t-else="">
+                        <span class="oca-fs-caret-placeholder"/>
+                    </t>
+                    <t t-if="line.account_id">
+                        <a
+                            class="oca-fs-label-text oca-fs-account-link"
+                            href="#"
+                            t-on-click.stop="() => this.openAccount(line.account_id)"
+                            t-esc="line.name"
+                        />
+                    </t>
+                    <t t-else="">
+                        <span class="oca-fs-label-text" t-esc="line.name"/>
+                    </t>
+                </div>
+                <div class="oca-fs-amounts">
+                    <span class="oca-fs-balance" t-esc="fmtNumWithSym(line.balance)"/>
+                </div>
+            </div>
+            <t t-if="line.children and line.children.length and !isCollapsed(line.id)">
+                <t t-call="oca_fs.SplitReportLines">
+                    <t t-set="lines" t-value="line.children"/>
+                </t>
+            </t>
+        </t>
+    </t>
+
+    <t t-name="oca_fs.FinancialStatementsView">
+        <div class="oca-fs-root">
+
+            <!-- Control Panel -->
+            <div class="oca-fs-control-panel">
+                <div class="oca-fs-left-section">
+                    <button
+                        class="oca-fs-print-btn"
+                        t-on-click="printReport"
+                        title="Print report"
+                    >
+                        <i class="fa fa-print"/> Print
+                    </button>
+                    <button
+                        class="oca-fs-print-btn"
+                        style="background:#374151;border:1px solid #4b5563;"
+                        t-on-click="exportPDF"
+                        t-att-disabled="state.exportingPdf"
+                        title="Export PDF"
+                    >
+                        <t t-if="state.exportingPdf">
+                            <span class="oca-fs-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;"/>
+                        </t>
+                        <t t-else="">
+                            <i class="fa fa-file-pdf-o"/>
+                        </t>
+                        PDF
+                    </button>
+                    <h1 class="oca-fs-title" t-esc="reportTitle"/>
+                    <span class="oca-fs-gear"><i class="fa fa-gear"/></span>
+                </div>
+
+                <div class="oca-fs-filters-section">
+                    <!-- Date filters -->
+                    <div class="oca-fs-filter-pill active">
+                        <i class="fa fa-calendar"/>
+                        <t t-if="isBalanceSheet">
+                            <span>As of</span>
+                            <input
+                                type="date"
+                                t-att-value="state.dateTo"
+                                t-on-change="onDateToChange"
+                            />
+                        </t>
+                        <t t-else="">
+                            <div class="oca-fs-date-inputs">
+                                <input
+                                    type="date"
+                                    t-att-value="state.dateFrom"
+                                    t-on-change="onDateFromChange"
+                                    title="Date from"
+                                />
+                                <span class="oca-fs-date-sep">→</span>
+                                <input
+                                    type="date"
+                                    t-att-value="state.dateTo"
+                                    t-on-change="onDateToChange"
+                                    title="Date to"
+                                />
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Comparison -->
+                    <div
+                        class="oca-fs-filter-pill"
+                        t-att-class="state.comparisonMode !== 'none' ? 'oca-fs-filter-pill active' : 'oca-fs-filter-pill'"
+                        t-on-click="openComparisonDropdown"
+                        t-ref="comparisonDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-bar-chart"/>
+                        <span t-esc="comparisonModeLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <t t-if="state.comparisonDropdownOpen">
+                            <div class="oca-fs-dropdown-panel oca-fs-comparison-panel" t-on-click.stop="">
+                                <!-- No Comparison -->
+                                <div
+                                    class="oca-fs-dropdown-item"
+                                    t-att-class="state.comparisonMode === 'none' ? 'selected' : ''"
+                                    t-on-click="() => this.setComparisonMode('none')"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'none' ? 'check' : '' }}"/>
+                                    No Comparison
+                                </div>
+
+                                <!-- Previous Period with period count -->
+                                <div
+                                    class="oca-fs-dropdown-item oca-fs-dropdown-item-inline"
+                                    t-att-class="state.comparisonMode === 'previous_period' ? 'selected' : ''"
+                                    t-on-click="() => this.setComparisonMode('previous_period')"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'previous_period' ? 'check' : '' }}"/>
+                                    <span>Previous Period</span>
+                                    <t t-if="state.comparisonMode === 'previous_period'">
+                                        <input
+                                            type="number"
+                                            class="oca-fs-period-count-input"
+                                            min="1"
+                                            max="12"
+                                            t-att-value="state.comparisonPeriodCount"
+                                            t-on-click.stop=""
+                                            t-on-change="onComparisonPeriodCount"
+                                        />
+                                        <span class="oca-fs-period-label">Period<t t-if="state.comparisonPeriodCount > 1">s</t></span>
+                                    </t>
+                                </div>
+
+                                <!-- Same Period Last Year with period count -->
+                                <div
+                                    class="oca-fs-dropdown-item oca-fs-dropdown-item-inline"
+                                    t-att-class="state.comparisonMode === 'same_period_last_year' ? 'selected' : ''"
+                                    t-on-click="() => this.setComparisonMode('same_period_last_year')"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'same_period_last_year' ? 'check' : '' }}"/>
+                                    <span>Same Period Last Year</span>
+                                    <t t-if="state.comparisonMode === 'same_period_last_year'">
+                                        <input
+                                            type="number"
+                                            class="oca-fs-period-count-input"
+                                            min="1"
+                                            max="12"
+                                            t-att-value="state.comparisonPeriodCount"
+                                            t-on-click.stop=""
+                                            t-on-change="onComparisonPeriodCount"
+                                        />
+                                        <span class="oca-fs-period-label">Period<t t-if="state.comparisonPeriodCount > 1">s</t></span>
+                                    </t>
+                                </div>
+
+                                <!-- Percentage of -->
+                                <div
+                                    class="oca-fs-dropdown-item oca-fs-dropdown-item-inline"
+                                    t-att-class="state.comparisonMode === 'percentage_of' ? 'selected' : ''"
+                                    t-on-click="togglePercentageOfPicker"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'percentage_of' ? 'check' : '' }}"/>
+                                    <span>Percentage of</span>
+                                    <input
+                                        type="text"
+                                        class="oca-fs-pct-of-input"
+                                        readonly="readonly"
+                                        t-att-placeholder="state.percentageOfLineName || 'Select line…'"
+                                        t-att-value="state.percentageOfLineName"
+                                        t-on-click.stop="togglePercentageOfPicker"
+                                    />
+                                </div>
+
+                                <!-- Percentage of line picker sub-menu -->
+                                <t t-if="state.percentageOfPickerOpen">
+                                    <div class="oca-fs-pct-of-picker">
+                                        <t t-foreach="getPercentageOfLines()" t-as="pctLine" t-key="pctLine.id">
+                                            <div
+                                                class="oca-fs-pct-of-option"
+                                                t-att-class="state.percentageOfLineId === pctLine.id ? 'selected' : ''"
+                                                t-att-style="'padding-left:' + (12 + pctLine.level * 14) + 'px'"
+                                                t-on-click.stop="() => this.selectPercentageOfLine(pctLine.id, pctLine.name)"
+                                                t-esc="pctLine.name"
+                                            />
+                                        </t>
+                                        <t t-if="!getPercentageOfLines().length">
+                                            <div class="oca-fs-pct-of-empty">Load report first to select a line</div>
+                                        </t>
+                                    </div>
+                                </t>
+
+                                <!-- Specific Date -->
+                                <div
+                                    class="oca-fs-dropdown-item"
+                                    t-att-class="state.comparisonMode === 'specific_date' ? 'selected' : ''"
+                                    t-on-click="() => this.setComparisonMode('specific_date')"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'specific_date' ? 'check' : '' }}"/>
+                                    Specific Date
+                                </div>
+
+                                <t t-if="state.comparisonMode === 'specific_date'">
+                                    <div class="oca-fs-dropdown-divider"/>
+                                    <div class="oca-fs-comparison-dates">
+                                        <t t-if="!isBalanceSheet">
+                                            <span class="oca-fs-comparison-date-label">Start Date</span>
+                                            <input
+                                                type="date"
+                                                class="oca-fs-comparison-date-input"
+                                                t-att-value="state.comparisonDateFrom"
+                                                t-on-change="onComparisonDateFromChange"
+                                            />
+                                        </t>
+                                        <span class="oca-fs-comparison-date-label">
+                                            <t t-if="isBalanceSheet">As of</t>
+                                            <t t-else="">End Date</t>
+                                        </span>
+                                        <input
+                                            type="date"
+                                            class="oca-fs-comparison-date-input"
+                                            t-att-value="state.comparisonDateTo"
+                                            t-on-change="onComparisonDateToChange"
+                                        />
+                                    </div>
+                                </t>
+
+                                <!-- Bottom settings -->
+                                <div class="oca-fs-dropdown-divider"/>
+                                <div class="oca-fs-comparison-settings">
+                                    <div class="oca-fs-comparison-setting-row">
+                                        <span>Period order</span>
+                                        <select
+                                            class="oca-fs-comparison-select"
+                                            t-att-value="state.periodOrder"
+                                            t-on-change="(ev) => this.setPeriodOrder(ev.target.value)"
+                                            t-on-click.stop=""
+                                        >
+                                            <option value="desc">Descending</option>
+                                            <option value="asc">Ascending</option>
+                                        </select>
+                                    </div>
+                                    <div class="oca-fs-comparison-setting-row">
+                                        <span>Comparison in</span>
+                                        <select
+                                            class="oca-fs-comparison-select"
+                                            t-att-value="state.comparisonFormat"
+                                            t-on-change="(ev) => this.setComparisonFormat(ev.target.value)"
+                                            t-on-click.stop=""
+                                        >
+                                            <option value="absolute">Value</option>
+                                            <option value="percentage">Percentage</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Posted / All entries -->
+                    <div
+                        class="oca-fs-filter-pill active"
+                        t-on-click="openOptionsDropdown"
+                        t-ref="optionsDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-list"/>
+                        <span t-esc="optionsDropdownLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <t t-if="state.optionsDropdownOpen">
+                            <div class="oca-fs-dropdown-panel" t-on-click.stop="">
+                                <div
+                                    class="oca-fs-dropdown-item"
+                                    t-att-class="state.targetMove === 'posted' ? 'selected' : ''"
+                                    t-on-click="() => this.setTargetMove('posted')"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.targetMove === 'posted' ? 'check-circle' : 'circle-o' }}"/>
+                                    Posted Entries, Accrual Basis
+                                </div>
+                                <div
+                                    class="oca-fs-dropdown-item"
+                                    t-att-class="state.targetMove === 'all' ? 'selected' : ''"
+                                    t-on-click="() => this.setTargetMove('all')"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.targetMove === 'all' ? 'check-circle' : 'circle-o' }}"/>
+                                    Draft &amp; Posted Entries, Accrual Basis
+                                </div>
+
+                                <t t-if="isBalanceSheet">
+                                    <div class="oca-fs-dropdown-divider"/>
+                                    <div
+                                        class="oca-fs-dropdown-item"
+                                        t-att-class="state.splitHorizontally ? 'selected' : ''"
+                                        t-on-click="toggleSplitHorizontally"
+                                    >
+                                        <i t-attf-class="fa fa-{{ state.splitHorizontally ? 'check' : '' }}"/>
+                                        Split Horizontally
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <div class="oca-fs-currency-badge">
+                    <i class="fa fa-money"/> In <t t-esc="state.currencyName"/>
+                </div>
+            </div>
+
+            <!-- Unposted warning -->
+            <t t-if="state.showUnpostedWarning and state.hasUnposted and state.targetMove === 'posted'">
+                <div class="oca-fs-warning-banner">
+                    <i class="fa fa-info-circle" style="margin-right:8px;"/>
+                    <span>There are unposted Journal Entries prior or included in this period.</span>
+                    <span class="oca-fs-warning-close" t-on-click="dismissWarning">×</span>
+                </div>
+            </t>
+
+            <!-- Report body -->
+            <div class="oca-fs-content">
+                <div
+                    class="oca-fs-sheet"
+                    t-att-class="showSplitHorizontally ? 'oca-fs-sheet oca-fs-sheet-wide' : 'oca-fs-sheet'"
+                >
+
+                    <t t-if="state.loading">
+                        <div class="oca-fs-state-box">
+                            <div class="oca-fs-spinner"/>
+                            <span>Loading <t t-esc="reportTitle"/>…</span>
+                        </div>
+                    </t>
+
+                    <t t-elif="state.error">
+                        <div class="oca-fs-state-box" style="color:#f87171;">
+                            <i class="fa fa-exclamation-triangle" style="font-size:32px;opacity:0.5;"/>
+                            <span t-esc="state.error"/>
+                            <button class="oca-fs-print-btn" t-on-click="() => this._loadData()">
+                                <i class="fa fa-refresh"/> Retry
+                            </button>
+                        </div>
+                    </t>
+
+                    <t t-elif="showSplitHorizontally">
+                        <div class="oca-fs-split-container">
+                            <div class="oca-fs-split-col">
+                                <div class="oca-fs-table-header">
+                                    <span>Balance</span>
+                                </div>
+                                <div class="oca-fs-lines">
+                                    <t t-call="oca_fs.SplitReportLines">
+                                        <t t-set="lines" t-value="splitLeftLines"/>
+                                    </t>
+                                </div>
+                            </div>
+                            <div class="oca-fs-split-col">
+                                <div class="oca-fs-table-header">
+                                    <span>Balance</span>
+                                </div>
+                                <div class="oca-fs-lines">
+                                    <t t-call="oca_fs.SplitReportLines">
+                                        <t t-set="lines" t-value="splitRightLines"/>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+
+                    <t t-else="">
+                        <div class="oca-fs-table-header">
+                            <t t-if="showComparison">
+                                <t t-foreach="orderedComparisonColumns" t-as="col" t-key="col_index">
+                                    <span
+                                        class="oca-fs-comparison-header"
+                                        t-esc="col.label"
+                                    />
+                                </t>
+                            </t>
+                            <span>Balance</span>
+                            <t t-if="showPercentageOf">
+                                <span class="oca-fs-pct-header">%</span>
+                            </t>
+                        </div>
+
+                        <div class="oca-fs-lines">
+                            <t t-call="oca_fs.ReportLines">
+                                <t t-set="lines" t-value="state.lines"/>
+                            </t>
+                        </div>
+                    </t>
+
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<templates xml:space="preserve">-->
+
+<!--    &lt;!&ndash; Recursive line renderer &ndash;&gt;-->
+<!--    <t t-name="oca_fs.ReportLines">-->
+<!--        <t t-foreach="lines" t-as="line" t-key="line.id">-->
+<!--            <div-->
+<!--                t-att-class="lineRowClass(line)"-->
+<!--                t-on-click="() => this.toggleLine(line)"-->
+<!--            >-->
+<!--                <div class="oca-fs-row-label">-->
+<!--                    <t t-if="isExpandable(line)">-->
+<!--                        <i-->
+<!--                            t-attf-class="fa fa-caret-{{ isCollapsed(line.id) ? 'right' : 'down' }} oca-fs-caret"-->
+<!--                        />-->
+<!--                    </t>-->
+<!--                    <t t-else="">-->
+<!--                        <span class="oca-fs-caret-placeholder"/>-->
+<!--                    </t>-->
+<!--                    <t t-if="line.account_id">-->
+<!--                        <a-->
+<!--                            class="oca-fs-label-text oca-fs-account-link"-->
+<!--                            href="#"-->
+<!--                            t-on-click.stop="() => this.openAccount(line.account_id)"-->
+<!--                            t-esc="line.name"-->
+<!--                        />-->
+<!--                    </t>-->
+<!--                    <t t-else="">-->
+<!--                        <span class="oca-fs-label-text" t-esc="line.name"/>-->
+<!--                    </t>-->
+<!--                </div>-->
+<!--                <div class="oca-fs-amounts">-->
+<!--                    <t t-if="showComparison">-->
+<!--                        <t t-foreach="orderedComparisonColumns" t-as="col" t-key="col_index">-->
+<!--                            <span-->
+<!--                                class="oca-fs-balance oca-fs-comparison-balance"-->
+<!--                                t-esc="fmtComparisonValue(line, getComparisonBalanceForColumn(line, col_index))"-->
+<!--                            />-->
+<!--                        </t>-->
+<!--                    </t>-->
+<!--                    <span class="oca-fs-balance" t-esc="fmtNumWithSym(line.balance)"/>-->
+<!--                    <t t-if="showPercentageOf">-->
+<!--                        <span-->
+<!--                            t-att-class="'oca-fs-balance oca-fs-pct-col ' + pctOfClass(line)"-->
+<!--                            t-esc="fmtPctOf(line)"-->
+<!--                        />-->
+<!--                    </t>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <t t-if="line.children and line.children.length and !isCollapsed(line.id)">-->
+<!--                <t t-call="oca_fs.ReportLines">-->
+<!--                    <t t-set="lines" t-value="line.children"/>-->
+<!--                </t>-->
+<!--            </t>-->
+<!--        </t>-->
+<!--    </t>-->
+
+<!--    <t t-name="oca_fs.FinancialStatementsView">-->
+<!--        <div class="oca-fs-root">-->
+
+<!--            &lt;!&ndash; Control Panel &ndash;&gt;-->
+<!--            <div class="oca-fs-control-panel">-->
+<!--                <div class="oca-fs-left-section">-->
+<!--                    <button-->
+<!--                        class="oca-fs-print-btn"-->
+<!--                        t-on-click="printReport"-->
+<!--                        title="Print report"-->
+<!--                    >-->
+<!--                        <i class="fa fa-print"/> Print-->
+<!--                    </button>-->
+<!--                    <button-->
+<!--                        class="oca-fs-print-btn"-->
+<!--                        style="background:#374151;border:1px solid #4b5563;"-->
+<!--                        t-on-click="exportPDF"-->
+<!--                        t-att-disabled="state.exportingPdf"-->
+<!--                        title="Export PDF"-->
+<!--                    >-->
+<!--                        <t t-if="state.exportingPdf">-->
+<!--                            <span class="oca-fs-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;"/>-->
+<!--                        </t>-->
+<!--                        <t t-else="">-->
+<!--                            <i class="fa fa-file-pdf-o"/>-->
+<!--                        </t>-->
+<!--                        PDF-->
+<!--                    </button>-->
+<!--                    <h1 class="oca-fs-title" t-esc="reportTitle"/>-->
+<!--                    <span class="oca-fs-gear"><i class="fa fa-gear"/></span>-->
+<!--                </div>-->
+
+<!--                <div class="oca-fs-filters-section">-->
+<!--                    &lt;!&ndash; Date filters &ndash;&gt;-->
+<!--                    <div class="oca-fs-filter-pill active">-->
+<!--                        <i class="fa fa-calendar"/>-->
+<!--                        <t t-if="isBalanceSheet">-->
+<!--                            <span>As of</span>-->
+<!--                            <input-->
+<!--                                type="date"-->
+<!--                                t-att-value="state.dateTo"-->
+<!--                                t-on-change="onDateToChange"-->
+<!--                            />-->
+<!--                        </t>-->
+<!--                        <t t-else="">-->
+<!--                            <div class="oca-fs-date-inputs">-->
+<!--                                <input-->
+<!--                                    type="date"-->
+<!--                                    t-att-value="state.dateFrom"-->
+<!--                                    t-on-change="onDateFromChange"-->
+<!--                                    title="Date from"-->
+<!--                                />-->
+<!--                                <span class="oca-fs-date-sep">→</span>-->
+<!--                                <input-->
+<!--                                    type="date"-->
+<!--                                    t-att-value="state.dateTo"-->
+<!--                                    t-on-change="onDateToChange"-->
+<!--                                    title="Date to"-->
+<!--                                />-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Comparison &ndash;&gt;-->
+<!--                    <div-->
+<!--                        class="oca-fs-filter-pill"-->
+<!--                        t-att-class="state.comparisonMode !== 'none' ? 'oca-fs-filter-pill active' : 'oca-fs-filter-pill'"-->
+<!--                        t-on-click="openComparisonDropdown"-->
+<!--                        t-ref="comparisonDropdownRef"-->
+<!--                        style="position:relative;"-->
+<!--                    >-->
+<!--                        <i class="fa fa-bar-chart"/>-->
+<!--                        <span t-esc="comparisonModeLabel"/>-->
+<!--                        <i class="fa fa-caret-down"/>-->
+
+<!--                        <t t-if="state.comparisonDropdownOpen">-->
+<!--                            <div class="oca-fs-dropdown-panel oca-fs-comparison-panel" t-on-click.stop="">-->
+<!--                                &lt;!&ndash; No Comparison &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="oca-fs-dropdown-item"-->
+<!--                                    t-att-class="state.comparisonMode === 'none' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setComparisonMode('none')"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'none' ? 'check' : '' }}"/>-->
+<!--                                    No Comparison-->
+<!--                                </div>-->
+
+<!--                                &lt;!&ndash; Previous Period with period count &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="oca-fs-dropdown-item oca-fs-dropdown-item-inline"-->
+<!--                                    t-att-class="state.comparisonMode === 'previous_period' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setComparisonMode('previous_period')"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'previous_period' ? 'check' : '' }}"/>-->
+<!--                                    <span>Previous Period</span>-->
+<!--                                    <t t-if="state.comparisonMode === 'previous_period'">-->
+<!--                                        <input-->
+<!--                                            type="number"-->
+<!--                                            class="oca-fs-period-count-input"-->
+<!--                                            min="1"-->
+<!--                                            max="12"-->
+<!--                                            t-att-value="state.comparisonPeriodCount"-->
+<!--                                            t-on-click.stop=""-->
+<!--                                            t-on-change="onComparisonPeriodCount"-->
+<!--                                        />-->
+<!--                                        <span class="oca-fs-period-label">Period<t t-if="state.comparisonPeriodCount > 1">s</t></span>-->
+<!--                                    </t>-->
+<!--                                </div>-->
+
+<!--                                &lt;!&ndash; Same Period Last Year with period count &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="oca-fs-dropdown-item oca-fs-dropdown-item-inline"-->
+<!--                                    t-att-class="state.comparisonMode === 'same_period_last_year' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setComparisonMode('same_period_last_year')"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'same_period_last_year' ? 'check' : '' }}"/>-->
+<!--                                    <span>Same Period Last Year</span>-->
+<!--                                    <t t-if="state.comparisonMode === 'same_period_last_year'">-->
+<!--                                        <input-->
+<!--                                            type="number"-->
+<!--                                            class="oca-fs-period-count-input"-->
+<!--                                            min="1"-->
+<!--                                            max="12"-->
+<!--                                            t-att-value="state.comparisonPeriodCount"-->
+<!--                                            t-on-click.stop=""-->
+<!--                                            t-on-change="onComparisonPeriodCount"-->
+<!--                                        />-->
+<!--                                        <span class="oca-fs-period-label">Period<t t-if="state.comparisonPeriodCount > 1">s</t></span>-->
+<!--                                    </t>-->
+<!--                                </div>-->
+
+<!--                                &lt;!&ndash; Percentage of &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="oca-fs-dropdown-item oca-fs-dropdown-item-inline"-->
+<!--                                    t-att-class="state.comparisonMode === 'percentage_of' ? 'selected' : ''"-->
+<!--                                    t-on-click="togglePercentageOfPicker"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'percentage_of' ? 'check' : '' }}"/>-->
+<!--                                    <span>Percentage of</span>-->
+<!--                                    <input-->
+<!--                                        type="text"-->
+<!--                                        class="oca-fs-pct-of-input"-->
+<!--                                        readonly="readonly"-->
+<!--                                        t-att-placeholder="state.percentageOfLineName || 'Select line…'"-->
+<!--                                        t-att-value="state.percentageOfLineName"-->
+<!--                                        t-on-click.stop="togglePercentageOfPicker"-->
+<!--                                    />-->
+<!--                                </div>-->
+
+<!--                                &lt;!&ndash; Percentage of line picker sub-menu &ndash;&gt;-->
+<!--                                <t t-if="state.percentageOfPickerOpen">-->
+<!--                                    <div class="oca-fs-pct-of-picker">-->
+<!--                                        <t t-foreach="getPercentageOfLines()" t-as="pctLine" t-key="pctLine.id">-->
+<!--                                            <div-->
+<!--                                                class="oca-fs-pct-of-option"-->
+<!--                                                t-att-class="state.percentageOfLineId === pctLine.id ? 'selected' : ''"-->
+<!--                                                t-att-style="'padding-left:' + (12 + pctLine.level * 14) + 'px'"-->
+<!--                                                t-on-click.stop="() => this.selectPercentageOfLine(pctLine.id, pctLine.name)"-->
+<!--                                                t-esc="pctLine.name"-->
+<!--                                            />-->
+<!--                                        </t>-->
+<!--                                        <t t-if="!getPercentageOfLines().length">-->
+<!--                                            <div class="oca-fs-pct-of-empty">Load report first to select a line</div>-->
+<!--                                        </t>-->
+<!--                                    </div>-->
+<!--                                </t>-->
+
+<!--                                &lt;!&ndash; Specific Date &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="oca-fs-dropdown-item"-->
+<!--                                    t-att-class="state.comparisonMode === 'specific_date' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setComparisonMode('specific_date')"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.comparisonMode === 'specific_date' ? 'check' : '' }}"/>-->
+<!--                                    Specific Date-->
+<!--                                </div>-->
+
+<!--                                <t t-if="state.comparisonMode === 'specific_date'">-->
+<!--                                    <div class="oca-fs-dropdown-divider"/>-->
+<!--                                    <div class="oca-fs-comparison-dates">-->
+<!--                                        <t t-if="!isBalanceSheet">-->
+<!--                                            <span class="oca-fs-comparison-date-label">Start Date</span>-->
+<!--                                            <input-->
+<!--                                                type="date"-->
+<!--                                                class="oca-fs-comparison-date-input"-->
+<!--                                                t-att-value="state.comparisonDateFrom"-->
+<!--                                                t-on-change="onComparisonDateFromChange"-->
+<!--                                            />-->
+<!--                                        </t>-->
+<!--                                        <span class="oca-fs-comparison-date-label">-->
+<!--                                            <t t-if="isBalanceSheet">As of</t>-->
+<!--                                            <t t-else="">End Date</t>-->
+<!--                                        </span>-->
+<!--                                        <input-->
+<!--                                            type="date"-->
+<!--                                            class="oca-fs-comparison-date-input"-->
+<!--                                            t-att-value="state.comparisonDateTo"-->
+<!--                                            t-on-change="onComparisonDateToChange"-->
+<!--                                        />-->
+<!--                                    </div>-->
+<!--                                </t>-->
+
+<!--                                &lt;!&ndash; Bottom settings &ndash;&gt;-->
+<!--                                <div class="oca-fs-dropdown-divider"/>-->
+<!--                                <div class="oca-fs-comparison-settings">-->
+<!--                                    <div class="oca-fs-comparison-setting-row">-->
+<!--                                        <span>Period order</span>-->
+<!--                                        <select-->
+<!--                                            class="oca-fs-comparison-select"-->
+<!--                                            t-att-value="state.periodOrder"-->
+<!--                                            t-on-change="(ev) => this.setPeriodOrder(ev.target.value)"-->
+<!--                                            t-on-click.stop=""-->
+<!--                                        >-->
+<!--                                            <option value="desc">Descending</option>-->
+<!--                                            <option value="asc">Ascending</option>-->
+<!--                                        </select>-->
+<!--                                    </div>-->
+<!--                                    <div class="oca-fs-comparison-setting-row">-->
+<!--                                        <span>Comparison in</span>-->
+<!--                                        <select-->
+<!--                                            class="oca-fs-comparison-select"-->
+<!--                                            t-att-value="state.comparisonFormat"-->
+<!--                                            t-on-change="(ev) => this.setComparisonFormat(ev.target.value)"-->
+<!--                                            t-on-click.stop=""-->
+<!--                                        >-->
+<!--                                            <option value="absolute">Value</option>-->
+<!--                                            <option value="percentage">Percentage</option>-->
+<!--                                        </select>-->
+<!--                                    </div>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Posted / All entries &ndash;&gt;-->
+<!--                    <div-->
+<!--                        class="oca-fs-filter-pill active"-->
+<!--                        t-on-click="openOptionsDropdown"-->
+<!--                        t-ref="optionsDropdownRef"-->
+<!--                        style="position:relative;"-->
+<!--                    >-->
+<!--                        <i class="fa fa-list"/>-->
+<!--                        <span t-esc="optionsDropdownLabel"/>-->
+<!--                        <i class="fa fa-caret-down"/>-->
+
+<!--                        <t t-if="state.optionsDropdownOpen">-->
+<!--                            <div class="oca-fs-dropdown-panel" t-on-click.stop="">-->
+<!--                                <div-->
+<!--                                    class="oca-fs-dropdown-item"-->
+<!--                                    t-att-class="state.targetMove === 'posted' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setTargetMove('posted')"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.targetMove === 'posted' ? 'check-circle' : 'circle-o' }}"/>-->
+<!--                                    Posted Entries, Accrual Basis-->
+<!--                                </div>-->
+<!--                                <div-->
+<!--                                    class="oca-fs-dropdown-item"-->
+<!--                                    t-att-class="state.targetMove === 'all' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setTargetMove('all')"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.targetMove === 'all' ? 'check-circle' : 'circle-o' }}"/>-->
+<!--                                    Draft &amp; Posted Entries, Accrual Basis-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+<!--                </div>-->
+
+<!--                <div class="oca-fs-currency-badge">-->
+<!--                    <i class="fa fa-money"/> In <t t-esc="state.currencyName"/>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            &lt;!&ndash; Unposted warning &ndash;&gt;-->
+<!--            <t t-if="state.showUnpostedWarning and state.hasUnposted and state.targetMove === 'posted'">-->
+<!--                <div class="oca-fs-warning-banner">-->
+<!--                    <i class="fa fa-info-circle" style="margin-right:8px;"/>-->
+<!--                    <span>There are unposted Journal Entries prior or included in this period.</span>-->
+<!--                    <span class="oca-fs-warning-close" t-on-click="dismissWarning">×</span>-->
+<!--                </div>-->
+<!--            </t>-->
+
+<!--            &lt;!&ndash; Report body &ndash;&gt;-->
+<!--            <div class="oca-fs-content">-->
+<!--                <div class="oca-fs-sheet">-->
+
+<!--                    <t t-if="state.loading">-->
+<!--                        <div class="oca-fs-state-box">-->
+<!--                            <div class="oca-fs-spinner"/>-->
+<!--                            <span>Loading <t t-esc="reportTitle"/>…</span>-->
+<!--                        </div>-->
+<!--                    </t>-->
+
+<!--                    <t t-elif="state.error">-->
+<!--                        <div class="oca-fs-state-box" style="color:#f87171;">-->
+<!--                            <i class="fa fa-exclamation-triangle" style="font-size:32px;opacity:0.5;"/>-->
+<!--                            <span t-esc="state.error"/>-->
+<!--                            <button class="oca-fs-print-btn" t-on-click="() => this._loadData()">-->
+<!--                                <i class="fa fa-refresh"/> Retry-->
+<!--                            </button>-->
+<!--                        </div>-->
+<!--                    </t>-->
+
+<!--                    <t t-else="">-->
+<!--                        <div class="oca-fs-table-header">-->
+<!--                            <t t-if="showComparison">-->
+<!--                                <t t-foreach="orderedComparisonColumns" t-as="col" t-key="col_index">-->
+<!--                                    <span-->
+<!--                                        class="oca-fs-comparison-header"-->
+<!--                                        t-esc="col.label"-->
+<!--                                    />-->
+<!--                                </t>-->
+<!--                            </t>-->
+<!--                            <span>Balance</span>-->
+<!--                            <t t-if="showPercentageOf">-->
+<!--                                <span class="oca-fs-pct-header">%</span>-->
+<!--                            </t>-->
+<!--                        </div>-->
+
+<!--                        <div class="oca-fs-lines">-->
+<!--                            <t t-call="oca_fs.ReportLines">-->
+<!--                                <t t-set="lines" t-value="state.lines"/>-->
+<!--                            </t>-->
+<!--                        </div>-->
+<!--                    </t>-->
+
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </t>-->
+
+<!--</templates>-->

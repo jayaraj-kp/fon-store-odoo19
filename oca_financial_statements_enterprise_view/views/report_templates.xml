@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="report_financial_statement_document">
+        <t t-call="web.external_layout">
+            <div class="page">
+                <h2 t-esc="report_title"/>
+                <p>
+                    <t t-if="report_type == 'bs'">
+                        As of <span t-esc="date_to"/>
+                    </t>
+                    <t t-else="">
+                        From <span t-esc="date_from"/> to <span t-esc="date_to"/>
+                    </t>
+                </p>
+                <table class="table table-sm" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Account</th>
+                            <th style="text-align:right;width:140px;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-call="oca_financial_statements_enterprise_view.report_financial_statement_lines">
+                            <t t-set="report_lines" t-value="lines"/>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_financial_statement_lines">
+        <t t-foreach="report_lines" t-as="line">
+            <tr t-att-style="line.get('style') == 'header' and 'font-weight:bold;background:#eee;' or (line.get('line_type') == 'subtotal' and 'font-weight:bold;' or '')">
+                <td t-att-style="'padding-left:%spx;' % (12 + (line.get('level') or 0) * 16)">
+                    <span t-esc="line.get('name')"/>
+                </td>
+                <td style="text-align:right;">
+                    <span t-esc="'%.2f' % (line.get('balance') or 0.0)"/>
+                    <span t-esc="currency_symbol"/>
+                </td>
+            </tr>
+            <t t-if="line.get('children')">
+                <t t-call="oca_financial_statements_enterprise_view.report_financial_statement_lines">
+                    <t t-set="report_lines" t-value="line.get('children')"/>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_financial_statement_pdf">
+        <t t-call="web.html_container">
+            <t t-call="oca_financial_statements_enterprise_view.report_financial_statement_document"/>
+        </t>
+    </template>
+
+    <record id="action_report_financial_statement_pdf" model="ir.actions.report">
+        <field name="name">Financial Statement</field>
+        <field name="model">financial.report.engine</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">oca_financial_statements_enterprise_view.report_financial_statement_pdf</field>
+        <field name="report_file">oca_financial_statements_enterprise_view.report_financial_statement_pdf</field>
+        <field name="print_report_name">'Financial Statement'</field>
+    </record>
+
+</odoo>
