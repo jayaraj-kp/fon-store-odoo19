@@ -11,61 +11,55 @@ class ReportDayBook(models.AbstractModel):
     def _get_account_move_entry(self, accounts, form_data, date):
         cr = self.env.cr
 
+        if not accounts or not form_data.get('journal_ids'):
+            return {'debit': 0.0, 'credit': 0.0, 'balance': 0.0, 'lines': []}
+
         if form_data['target_move'] == 'posted':
             target_move = "AND m.state = 'posted'"
         else:
             target_move = ''
 
         sql = ("""
-                    SELECT 0 AS lid, 
+                    SELECT l.id AS lid, 
                           l.account_id AS account_id, l.date AS ldate, j.code AS lcode, 
-                          l.amount_currency AS amount_currency,l.ref AS lref,l.name AS lname, 
-                          COALESCE(SUM(l.credit),0.0) AS credit,COALESCE(l.debit,0) AS debit,COALESCE(SUM(l.debit),0) - COALESCE(SUM(l.credit),0) as balance, 
-                              m.name AS move_name, 
-                              c.symbol AS currency_code, 
-                              p.name AS lpartner_id, 
-                              m.id AS mmove_id 
-                            FROM 
-                              account_move_line l 
-                              LEFT JOIN account_move m ON (l.move_id = m.id) 
-                              LEFT JOIN res_currency c ON (l.currency_id = c.id) 
-                              LEFT JOIN res_partner p ON (l.partner_id = p.id) 
-                              JOIN account_journal j ON (l.journal_id = j.id) 
-                              JOIN account_account acc ON (l.account_id = acc.id) 
-                            WHERE 
-                              l.account_id IN %s 
-                              AND l.journal_id IN %s """ + target_move + """ 
-                              AND l.date = %s 
-                              AND l.display_type NOT IN ('line_section', 'line_note')
-                              AND m.state != 'cancel'
-                            GROUP BY 
-                              l.id, 
-                              l.account_id, 
-                              l.date, 
-                              m.name, 
-                              m.id, 
-                              p.name, 
-                              c.symbol, 
-                              j.code, 
-                              l.ref 
-                            ORDER BY 
-                              l.date DESC
-                     """)
+                          l.amount_currency AS amount_currency, l.ref AS lref, l.name AS lname, 
+                          COALESCE(l.credit, 0.0) AS credit, COALESCE(l.debit, 0.0) AS debit,
+                          COALESCE(l.debit, 0.0) - COALESCE(l.credit, 0.0) AS balance, 
+                          m.name AS move_name, 
+                          c.symbol AS currency_code, 
+                          p.name AS lpartner_id, 
+                          m.id AS mmove_id 
+                    FROM 
+                      account_move_line l 
+                      LEFT JOIN account_move m ON (l.move_id = m.id) 
+                      LEFT JOIN res_currency c ON (l.currency_id = c.id) 
+                      LEFT JOIN res_partner p ON (l.partner_id = p.id) 
+                      JOIN account_journal j ON (l.journal_id = j.id) 
+                      JOIN account_account acc ON (l.account_id = acc.id) 
+                    WHERE 
+                      l.account_id IN %s 
+                      AND l.journal_id IN %s """ + target_move + """ 
+                      AND l.date = %s 
+                      AND l.display_type NOT IN ('line_section', 'line_note')
+                      AND m.state != 'cancel'
+                    ORDER BY 
+                      l.date DESC, l.id DESC
+             """)
 
         where_params = (tuple(accounts.ids), tuple(form_data['journal_ids']), date)
         cr.execute(sql, where_params)
         data = cr.dictfetchall()
-        res = {}
         debit = credit = balance = 0.00
         for line in data:
             debit += line['debit']
             credit += line['credit']
             balance += line['balance']
-        res['debit'] = debit
-        res['credit'] = credit
-        res['balance'] = balance
-        res['lines'] = data
-        return res
+        return {
+            'debit': debit,
+            'credit': credit,
+            'balance': balance,
+            'lines': data,
+        }
 
     @api.model
     def _get_report_values(self, docids, data=None):
@@ -82,7 +76,11 @@ class ReportDayBook(models.AbstractModel):
         if data['form'].get('journal_ids', False):
             codes = [journal.code for journal in
                      self.env['account.journal'].browse(data['form']['journal_ids'])]
-        accounts = self.env['account.account'].search([])
+        account_ids = form_data.get('account_ids', [])
+        if account_ids:
+            accounts = self.env['account.account'].browse(account_ids)
+        else:
+            accounts = self.env['account.account'].search([])
         dates = []
         record = []
         days_total = date_to - date_from

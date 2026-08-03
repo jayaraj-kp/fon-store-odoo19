@@ -9,9 +9,6 @@ class ReportCashBook(models.AbstractModel):
 
     def _get_account_move_entry(self, accounts, init_balance, sortby, display_account):
         cr = self.env.cr
-        MoveLine = self.env['account.move.line']
-        move_lines = {x: [] for x in accounts.ids}
-
         context = dict(self.env.context or {})
 
         # Build the list of accounts if none selected
@@ -19,6 +16,8 @@ class ReportCashBook(models.AbstractModel):
             journals = self.env['account.journal'].search([('type', '=', 'cash')])
             accounts = self.env['account.account']
             for journal in journals:
+                if journal.default_account_id:
+                    accounts += journal.default_account_id
                 for acc_out in journal.outbound_payment_method_line_ids:
                     if acc_out.payment_account_id:
                         accounts += acc_out.payment_account_id
@@ -29,6 +28,9 @@ class ReportCashBook(models.AbstractModel):
         # Handle case where still no accounts found
         if not accounts:
             return []
+
+        move_lines = {x: [] for x in accounts.ids}
+        running_balance = {x: 0.0 for x in accounts.ids}
 
         # ---------- INITIAL BALANCE ----------
         if init_balance and context.get('date_from'):
@@ -70,7 +72,9 @@ class ReportCashBook(models.AbstractModel):
             params = [tuple(accounts.ids)] + init_params_extra
             cr.execute(sql, params)
             for row in cr.dictfetchall():
-                move_lines[row.pop('account_id')].append(row)
+                acc_id = row.pop('account_id')
+                running_balance[acc_id] = row['balance']
+                move_lines[acc_id].append(row)
 
         # ---------- REGULAR LINES ----------
         sql_sort = 'l.date, l.move_id'
@@ -103,8 +107,8 @@ class ReportCashBook(models.AbstractModel):
         sql = """
             SELECT l.id AS lid, l.account_id AS account_id, l.date AS ldate, j.code AS lcode,
                    l.currency_id, l.amount_currency, l.ref AS lref, l.name AS lname,
-                   COALESCE(l.debit,0) AS debit, COALESCE(l.credit,0) AS credit,
-                   COALESCE(SUM(l.debit),0) - COALESCE(SUM(l.credit), 0) AS balance,
+                   COALESCE(l.debit, 0.0) AS debit, COALESCE(l.credit, 0.0) AS credit,
+                   COALESCE(l.debit, 0.0) - COALESCE(l.credit, 0.0) AS balance,
                    m.name AS move_name, c.symbol AS currency_code, p.name AS partner_name
             FROM account_move_line l
             JOIN account_move m ON (l.move_id=m.id)
@@ -123,11 +127,11 @@ class ReportCashBook(models.AbstractModel):
         cr.execute(sql, params)
 
         for row in cr.dictfetchall():
-            balance = 0
-            for line in move_lines.get(row['account_id']):
-                balance += line['debit'] - line['credit']
-            row['balance'] += balance
-            move_lines[row.pop('account_id')].append(row)
+            acc_id = row.pop('account_id')
+            current_bal = running_balance.get(acc_id, 0.0) + (row['debit'] - row['credit'])
+            running_balance[acc_id] = current_bal
+            row['balance'] = current_bal
+            move_lines[acc_id].append(row)
 
         # ---------- AGGREGATION ----------
         account_res = []
@@ -164,12 +168,14 @@ class ReportCashBook(models.AbstractModel):
         if data['form'].get('journal_ids', False):
             codes = [journal.code for journal in
                      self.env['account.journal'].browse(data['form']['journal_ids'])]
-        account_ids = data['form']['account_ids']
+        account_ids = data['form'].get('account_ids', [])
         accounts = self.env['account.account'].browse(account_ids)
         if not accounts:
             journals = self.env['account.journal'].search([('type', '=', 'cash')])
             accounts = self.env['account.account']
             for journal in journals:
+                if journal.default_account_id:
+                    accounts += journal.default_account_id
                 for acc_out in journal.outbound_payment_method_line_ids:
                     if acc_out.payment_account_id:
                         accounts += acc_out.payment_account_id

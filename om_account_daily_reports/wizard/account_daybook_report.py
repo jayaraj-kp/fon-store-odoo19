@@ -1,13 +1,12 @@
 from odoo import fields, models, _
-from datetime import date
 
 
 class AccountDayBookReport(models.TransientModel):
     _name = "account.daybook.report"
     _description = "Day Book Report"
 
-    date_from = fields.Date(string='Start Date', default=date.today(), required=True)
-    date_to = fields.Date(string='End Date', default=date.today(), required=True)
+    date_from = fields.Date(string='Start Date', default=fields.Date.context_today, required=True)
+    date_to = fields.Date(string='End Date', default=fields.Date.context_today, required=True)
     target_move = fields.Selection([('posted', 'Posted Entries'),
                                     ('all', 'All Entries')], string='Target Moves', required=True,
                                    default='posted')
