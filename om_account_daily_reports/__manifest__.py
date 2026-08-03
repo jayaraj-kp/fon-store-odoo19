@@ -18,6 +18,7 @@
         'wizard/daybook.xml',
         'wizard/cashbook.xml',
         'wizard/bankbook.xml',
+        'wizard/preview_views.xml',
         'report/reports.xml',
         'report/report_daybook.xml',
         'report/report_cashbook.xml',

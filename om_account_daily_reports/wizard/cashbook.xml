@@ -29,6 +29,12 @@
                 <footer>
                     <button name="check_report" string="Print" type="object" default_focus="1"
                             class="oe_highlight"/>
+                    <button name="action_preview_report"
+                            string="Preview"
+                            type="object"
+                            class="btn-secondary"
+                            data-hotkey="v"
+                            icon="fa-eye"/>
                     <button string="Cancel" class="btn btn-secondary" special="cancel"/>
                 </footer>
             </form>

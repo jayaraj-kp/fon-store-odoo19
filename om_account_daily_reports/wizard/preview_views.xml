@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Preview dialog for Bank Book.
+        Opened by action_preview_report() on account.bankbook.report.
+    -->
+    <record id="view_bankbook_preview_form" model="ir.ui.view">
+        <field name="name">account.bankbook.report.preview.form</field>
+        <field name="model">account.bankbook.report</field>
+        <field name="arch" type="xml">
+            <form string="Bank Book – Preview">
+                <sheet>
+                    <field name="preview_html"
+                           widget="html"
+                           nolabel="1"
+                           readonly="1"
+                           style="min-height: 450px; overflow-y: auto;"/>
+                </sheet>
+                <footer>
+                    <button string="Print PDF"
+                            name="check_report"
+                            type="object"
+                            class="btn-primary"
+                            data-hotkey="p"/>
+                    <button string="Close"
+                            class="btn-secondary"
+                            special="cancel"
+                            data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!--
+        Preview dialog for Cash Book.
+        Opened by action_preview_report() on account.cashbook.report.
+    -->
+    <record id="view_cashbook_preview_form" model="ir.ui.view">
+        <field name="name">account.cashbook.report.preview.form</field>
+        <field name="model">account.cashbook.report</field>
+        <field name="arch" type="xml">
+            <form string="Cash Book – Preview">
+                <sheet>
+                    <field name="preview_html"
+                           widget="html"
+                           nolabel="1"
+                           readonly="1"
+                           style="min-height: 450px; overflow-y: auto;"/>
+                </sheet>
+                <footer>
+                    <button string="Print PDF"
+                            name="check_report"
+                            type="object"
+                            class="btn-primary"
+                            data-hotkey="p"/>
+                    <button string="Close"
+                            class="btn-secondary"
+                            special="cancel"
+                            data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!--
+        Preview dialog for Day Book.
+        Opened by action_preview_report() on account.daybook.report.
+    -->
+    <record id="view_daybook_preview_form" model="ir.ui.view">
+        <field name="name">account.daybook.report.preview.form</field>
+        <field name="model">account.daybook.report</field>
+        <field name="arch" type="xml">
+            <form string="Day Book – Preview">
+                <sheet>
+                    <field name="preview_html"
+                           widget="html"
+                           nolabel="1"
+                           readonly="1"
+                           style="min-height: 450px; overflow-y: auto;"/>
+                </sheet>
+                <footer>
+                    <button string="Print PDF"
+                            name="check_report"
+                            type="object"
+                            class="btn-primary"
+                            data-hotkey="p"/>
+                    <button string="Close"
+                            class="btn-secondary"
+                            special="cancel"
+                            data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>
