@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Aged Receivable client action -->
+    <record id="action_aged_receivable" model="ir.actions.client">
+        <field name="name">Aged Receivable</field>
+        <field name="tag">pl.AgedReceivableView</field>
+        <field name="target">current</field>
+    </record>
+
+    <!-- Menu under Accounting > Reporting -->
+    <menuitem
+        id="menu_aged_receivable"
+        name="Aged Receivable"
+        parent="account.menu_finance_reports"
+        action="action_aged_receivable"
+        sequence="28"
+        groups="account.group_account_user"
+    />
+
+</odoo>

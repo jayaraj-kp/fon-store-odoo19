@@ -1,0 +1,994 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!-- Recursive line renderer -->
+    <t t-name="pl.PartnerLedgerLines">
+        <t t-foreach="lines" t-as="line" t-key="line.id">
+            <div
+                t-att-class="lineRowClass(line)"
+                t-on-click="() => this.toggleLine(line)"
+            >
+                <div class="pl-cell pl-cell-name">
+                    <t t-if="isExpandable(line)">
+                        <i
+                            t-attf-class="fa fa-caret-{{ isCollapsed(line) ? 'right' : 'down' }} pl-caret"
+                        />
+                    </t>
+                    <t t-else="">
+                        <span class="pl-caret-placeholder"/>
+                    </t>
+                    <t t-if="line.line_type === 'account' and line.move_id">
+                        <a
+                            href="#"
+                            class="pl-link"
+                            t-on-click.stop="() => this.openMove(line.move_id)"
+                            t-esc="line.name"
+                        />
+                    </t>
+                    <t t-elif="line.line_type === 'partner' and line.partner_id">
+                        <span
+                            class="pl-partner-name"
+                            t-esc="line.name"
+                        />
+                        <span class="pl-badges">
+                            <span
+                                class="pl-badge"
+                                t-on-click.stop="() => this.openPartner(line.partner_id)"
+                            >Partner</span>
+                            <span
+                                class="pl-badge"
+                                t-on-click.stop="(ev) => this.openPartnerJournalItems(line, ev)"
+                            >Journal Items</span>
+                        </span>
+                    </t>
+                    <t t-elif="line.line_type === 'total'">
+                        <span class="pl-label-text" t-esc="reportViewLabel"/>
+                    </t>
+                    <t t-else="">
+                        <span class="pl-label-text" t-esc="line.name"/>
+                    </t>
+                </div>
+                <t t-if="state.reportView === 'customer_statement'">
+                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.invoice_date)"/>
+                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.due_date)"/>
+                    <div class="pl-cell pl-cell-ref" t-esc="line.reference"/>
+                    <div class="pl-cell pl-cell-narration" t-esc="line.narration"/>
+                    <div class="pl-cell pl-cell-amount" t-esc="fmtNum((line.debit || 0) - (line.credit || 0))"/>
+                    <div
+                        t-att-class="'pl-cell pl-cell-amount pl-balance ' + balanceClass(line.balance)"
+                        t-esc="fmtNumWithSym(line.balance)"
+                    />
+                </t>
+                <t t-else="">
+                    <div class="pl-cell pl-cell-journal" t-esc="line.journal"/>
+                    <div class="pl-cell pl-cell-account" t-esc="line.account"/>
+                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.invoice_date)"/>
+                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.due_date)"/>
+                    <div class="pl-cell pl-cell-matching" t-esc="line.matching"/>
+                    <div class="pl-cell pl-cell-amount" t-esc="fmtNum(line.debit)"/>
+                    <div class="pl-cell pl-cell-amount" t-esc="fmtNum(line.credit)"/>
+                    <div
+                        t-att-class="'pl-cell pl-cell-amount pl-balance ' + balanceClass(line.balance)"
+                        t-esc="fmtNumWithSym(line.balance)"
+                    />
+                    <div class="pl-cell pl-cell-narration" t-esc="line.narration"/>
+                </t>
+            </div>
+            <t t-if="isExpandable(line) and !isCollapsed(line)">
+                <t t-call="pl.PartnerLedgerLines">
+                    <t t-set="lines" t-value="line.children"/>
+                </t>
+            </t>
+        </t>
+    </t>
+
+    <t t-name="pl.PartnerLedgerView">
+        <div class="pl-root">
+
+            <!-- Control Panel -->
+            <div class="pl-control-panel">
+                <div class="pl-left-section">
+                    <button
+                        class="pl-print-btn pl-secondary-btn"
+                        t-on-click="exportPDF"
+                        t-att-disabled="state.exportingPdf"
+                        title="Export PDF"
+                    >
+                        <t t-if="state.exportingPdf">
+                            <span class="pl-spinner"/>
+                        </t>
+                        <t t-else="">
+                            <i class="fa fa-file-pdf-o"/>
+                        </t>
+                        PDF
+                    </button>
+                    <button
+                        class="pl-print-btn pl-excel-btn"
+                        t-on-click="exportExcel"
+                        t-att-disabled="state.exportingExcel"
+                        title="Export Excel"
+                    >
+                        <t t-if="state.exportingExcel">
+                            <span class="pl-spinner"/>
+                        </t>
+                        <t t-else="">
+                            <i class="fa fa-file-excel-o"/>
+                        </t>
+                        Excel
+                    </button>
+                    <h1 class="pl-title" t-esc="reportTitleLabel"/>
+                    <span class="pl-gear"><i class="fa fa-gear"/></span>
+                </div>
+
+                <div class="pl-filters-section">
+
+                    <!-- Search -->
+                    <div class="pl-search-box" t-ref="searchBoxRef" style="position:relative;">
+                        <i class="fa fa-search"/>
+                        <input
+                            type="text"
+                            placeholder="Search partners, press Enter to load…"
+                            t-att-value="state.searchTerm"
+                            t-on-input="onSearchInput"
+                            t-on-keydown="onSearchKeydown"
+                            t-on-focus="onSearchFocus"
+                        />
+                        <t t-if="state.searchTerm">
+                            <i class="fa fa-times" style="cursor:pointer;" t-on-click="clearSearch" title="Clear search"/>
+                        </t>
+
+                        <!-- Live suggestions dropdown -->
+                        <t t-if="state.searchDropdownOpen and state.searchResults.length">
+                            <div class="pl-dropdown-panel" t-on-click.stop="">
+                                <t t-foreach="state.searchResults" t-as="p" t-key="p.id">
+                                    <div class="pl-partners-result-item" t-on-click="() => this.selectSearchResult(p)">
+                                        <span t-esc="p.name"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                        <t t-elif="state.searchDropdownOpen and state.searchTerm.trim()">
+                            <div class="pl-dropdown-panel">
+                                <div class="pl-partners-result-item" style="color:#6c757d;font-style:italic;cursor:default;">
+                                    No partners found
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Date / fiscal year -->
+                    <div
+                        class="pl-filter-pill"
+                        t-on-click="(ev) => this.openDropdown('date', ev)"
+                        t-ref="dateDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-calendar"/>
+                        <span t-esc="dateFilterLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <t t-if="state.dateDropdownOpen">
+                            <div class="pl-dropdown-panel pl-date-panel" t-on-click.stop="">
+
+                                <!-- Month -->
+                                <div
+                                    class="pl-date-mode-row"
+                                    t-att-class="state.dateMode === 'month' ? 'selected' : ''"
+                                    t-on-click="() => this.setDateMode('month')"
+                                >
+                                    <span class="pl-date-mode-label">
+                                        <i t-attf-class="fa fa-{{ state.dateMode === 'month' ? 'check' : '' }}"/>
+                                        Month
+                                    </span>
+                                    <span class="pl-date-mode-nav">
+                                        <i class="fa fa-chevron-left" t-on-click.stop="prevMonth"/>
+                                        <span t-esc="monthLabel"/>
+                                        <i class="fa fa-chevron-right" t-on-click.stop="nextMonth"/>
+                                    </span>
+                                </div>
+
+                                <!-- Quarter -->
+                                <div
+                                    class="pl-date-mode-row"
+                                    t-att-class="state.dateMode === 'quarter' ? 'selected' : ''"
+                                    t-on-click="() => this.setDateMode('quarter')"
+                                >
+                                    <span class="pl-date-mode-label">
+                                        <i t-attf-class="fa fa-{{ state.dateMode === 'quarter' ? 'check' : '' }}"/>
+                                        Quarter
+                                    </span>
+                                    <span class="pl-date-mode-nav">
+                                        <i class="fa fa-chevron-left" t-on-click.stop="prevQuarter"/>
+                                        <span t-esc="quarterLabel"/>
+                                        <i class="fa fa-chevron-right" t-on-click.stop="nextQuarter"/>
+                                    </span>
+                                </div>
+
+                                <!-- Fiscal Year -->
+                                <div
+                                    class="pl-date-mode-row"
+                                    t-att-class="state.dateMode === 'fiscal_year' ? 'selected' : ''"
+                                    t-on-click="() => this.setDateMode('fiscal_year')"
+                                >
+                                    <span class="pl-date-mode-label">
+                                        <i t-attf-class="fa fa-{{ state.dateMode === 'fiscal_year' ? 'check' : '' }}"/>
+                                        Fiscal Year
+                                    </span>
+                                    <span class="pl-date-mode-nav">
+                                        <i class="fa fa-chevron-left" t-on-click.stop="prevFiscalYear"/>
+                                        <span t-esc="state.periodYear"/>
+                                        <i class="fa fa-chevron-right" t-on-click.stop="nextFiscalYear"/>
+                                    </span>
+                                </div>
+
+                                <div class="pl-dropdown-divider"/>
+
+                                <!-- Custom Dates -->
+                                <div
+                                    class="pl-dropdown-item"
+                                    t-att-class="state.dateMode === 'custom' ? 'selected' : ''"
+                                    t-on-click="() => this.setDateMode('custom')"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.dateMode === 'custom' ? 'check' : '' }}"/>
+                                    Custom Dates
+                                </div>
+                                <t t-if="state.dateMode === 'custom'">
+                                    <div class="pl-date-range-inputs">
+                                        <input
+                                            type="date"
+                                            t-att-value="state.dateFrom"
+                                            t-on-change="onCustomDateFromChange"
+                                        />
+                                        <span class="pl-date-sep">→</span>
+                                        <input
+                                            type="date"
+                                            t-att-value="state.dateTo"
+                                            t-on-change="onCustomDateToChange"
+                                        />
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Account type -->
+                    <div
+                        class="pl-filter-pill active"
+                        t-on-click="(ev) => this.openDropdown('account', ev)"
+                        t-ref="accountDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-user"/>
+                        <span>Account: </span><span t-esc="accountTypeLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <t t-if="state.accountDropdownOpen">
+                            <div class="pl-dropdown-panel" t-on-click.stop="">
+                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('receivable')">
+                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('receivable') ? 'check' : '' }}"/>
+                                    Customer Ledger
+                                </div>
+                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('non_trade_receivable')">
+                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('non_trade_receivable') ? 'check' : '' }}"/>
+                                    Non Trade Customer Ledger
+                                </div>
+                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('payable')">
+                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('payable') ? 'check' : '' }}"/>
+                                    Supplier Ledger
+                                </div>
+                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('non_trade_payable')">
+                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('non_trade_payable') ? 'check' : '' }}"/>
+                                    Non Trade Supplier Ledger
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Partners / Tags -->
+                    <div
+                        class="pl-filter-pill"
+                        t-att-class="(state.selectedPartners.length or state.selectedTags.length) ? 'pl-filter-pill active' : 'pl-filter-pill'"
+                        t-on-click="(ev) => this.openDropdown('partners', ev)"
+                        t-ref="partnersDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-folder"/>
+                        <span t-esc="partnersFilterLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <t t-if="state.partnersDropdownOpen">
+                            <div class="pl-dropdown-panel pl-partners-panel" t-on-click.stop="">
+                                <div class="pl-partners-section-label">Partners</div>
+                                <t t-foreach="state.selectedPartners" t-as="p" t-key="p.id">
+                                    <span class="pl-chip">
+                                        <span t-esc="p.name"/>
+                                        <i class="fa fa-times" t-on-click="() => this.removePartner(p.id)"/>
+                                    </span>
+                                </t>
+                                <input
+                                    type="text"
+                                    class="pl-partners-search"
+                                    placeholder="Search partner…"
+                                    t-att-value="state.partnerSearchTerm"
+                                    t-on-input="onPartnerSearchInput"
+                                />
+                                <t t-if="state.partnerSearchResults.length">
+                                    <div class="pl-partners-results">
+                                        <t t-foreach="state.partnerSearchResults" t-as="p" t-key="p.id">
+                                            <div class="pl-partners-result-item" t-on-click="() => this.addPartner(p)">
+                                                <span t-esc="p.name"/>
+                                            </div>
+                                        </t>
+                                    </div>
+                                </t>
+
+                                <div class="pl-dropdown-divider"/>
+
+                                <div class="pl-partners-section-label">Tags</div>
+                                <t t-foreach="state.selectedTags" t-as="tg" t-key="tg.id">
+                                    <span class="pl-chip">
+                                        <span t-esc="tg.name"/>
+                                        <i class="fa fa-times" t-on-click="() => this.removeTag(tg.id)"/>
+                                    </span>
+                                </t>
+                                <input
+                                    type="text"
+                                    class="pl-partners-search"
+                                    placeholder="Search tag…"
+                                    t-att-value="state.tagSearchTerm"
+                                    t-on-input="onTagSearchInput"
+                                />
+                                <t t-if="state.tagSearchResults.length">
+                                    <div class="pl-partners-results">
+                                        <t t-foreach="state.tagSearchResults" t-as="tg" t-key="tg.id">
+                                            <div class="pl-partners-result-item" t-on-click="() => this.addTag(tg)">
+                                                <span t-esc="tg.name"/>
+                                            </div>
+                                        </t>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Posted / Draft entries + Unfold All -->
+                    <div
+                        class="pl-filter-pill"
+                        t-att-class="state.targetMove === 'all' ? 'pl-filter-pill active' : 'pl-filter-pill'"
+                        t-on-click="(ev) => this.openDropdown('options', ev)"
+                        t-ref="optionsDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-list"/>
+                        <span t-esc="optionsDropdownLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <t t-if="state.optionsDropdownOpen">
+                            <div class="pl-dropdown-panel" t-on-click.stop="">
+                                <div
+                                    class="pl-dropdown-item"
+                                    t-att-class="state.targetMove === 'all' ? 'selected' : ''"
+                                    t-on-click="toggleDraftEntries"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.targetMove === 'all' ? 'check' : '' }}"/>
+                                    Draft Entries
+                                </div>
+                                <div
+                                    class="pl-dropdown-item"
+                                    t-att-class="state.unfoldAll ? 'selected' : ''"
+                                    t-on-click="toggleUnfoldAll"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.unfoldAll ? 'check' : '' }}"/>
+                                    Unfold All
+                                </div>
+                                <div
+                                    class="pl-dropdown-item"
+                                    t-att-class="state.showFooter ? 'selected' : ''"
+                                    t-on-click="toggleShowFooter"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.showFooter ? 'check' : '' }}"/>
+                                    Show Bank Footer
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Report switcher -->
+                    <div
+                        class="pl-filter-pill"
+                        t-on-click="(ev) => this.openDropdown('report', ev)"
+                        t-ref="reportDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-file-text-o"/>
+                        <span>Report: <t t-esc="reportViewLabel"/></span>
+                        <i class="fa fa-caret-down"/>
+
+                        <t t-if="state.reportDropdownOpen">
+                            <div class="pl-dropdown-panel" t-on-click.stop="">
+                                <div
+                                    class="pl-dropdown-item"
+                                    t-att-class="state.reportView === 'partner_ledger' ? 'selected' : ''"
+                                    t-on-click="(ev) => this.selectReportView('partner_ledger', ev)"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.reportView === 'partner_ledger' ? 'check' : '' }}"/>
+                                    Partner Ledger
+                                </div>
+                                <div
+                                    class="pl-dropdown-item"
+                                    t-att-class="state.reportView === 'customer_statement' ? 'selected' : ''"
+                                    t-on-click="(ev) => this.selectReportView('customer_statement', ev)"
+                                >
+                                    <i t-attf-class="fa fa-{{ state.reportView === 'customer_statement' ? 'check' : '' }}"/>
+                                    Statement of Account
+                                </div>
+                                <div class="pl-dropdown-item" t-on-click="(ev) => this.selectReportView('open_items', ev)">
+                                    <i class="fa"/>
+                                    Open Items
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <button class="pl-close-btn" t-on-click="closeReport" title="Close">
+                    <i class="fa fa-times"/>
+                </button>
+            </div>
+
+            <!-- Unposted warning -->
+            <t t-if="state.showUnpostedWarning and state.hasUnposted and state.targetMove === 'posted'">
+                <div class="pl-warning-banner">
+                    <i class="fa fa-info-circle" style="margin-right:8px;"/>
+                    <span>There are unposted Journal Entries prior or included in this period.</span>
+                    <span class="pl-warning-close" t-on-click="dismissWarning">×</span>
+                </div>
+            </t>
+
+            <!-- Report body -->
+            <div class="pl-content">
+                <div class="pl-sheet">
+
+                    <t t-if="state.loading">
+                        <div class="pl-state-box">
+                            <div class="pl-spinner pl-spinner-lg"/>
+                            <span>Loading <t t-esc="reportTitleLabel"/>…</span>
+                        </div>
+                    </t>
+
+                    <t t-elif="state.error">
+                        <div class="pl-state-box" style="color:#f87171;">
+                            <i class="fa fa-exclamation-triangle" style="font-size:32px;opacity:0.5;"/>
+                            <span t-esc="state.error"/>
+                            <button class="pl-print-btn" t-on-click="() => this._loadData()">
+                                <i class="fa fa-refresh"/> Retry
+                            </button>
+                        </div>
+                    </t>
+
+                    <t t-else="">
+                        <t t-if="state.reportView === 'customer_statement'">
+                            <div class="pl-row pl-table-header pl-row-statement">
+                                <div class="pl-cell pl-cell-name"/>
+                                <div class="pl-cell pl-cell-date">Invoice Date</div>
+                                <div class="pl-cell pl-cell-date">Due Date</div>
+                                <div class="pl-cell pl-cell-ref">Reference</div>
+                                <div class="pl-cell pl-cell-narration">Narration</div>
+                                <div class="pl-cell pl-cell-amount">Amount</div>
+                                <div class="pl-cell pl-cell-amount">Balance</div>
+                            </div>
+                        </t>
+                        <t t-else="">
+                            <div class="pl-row pl-table-header">
+                                <div class="pl-cell pl-cell-name"/>
+                                <div class="pl-cell pl-cell-journal">Journal</div>
+                                <div class="pl-cell pl-cell-account">Account</div>
+                                <div class="pl-cell pl-cell-date">Invoice Date</div>
+                                <div class="pl-cell pl-cell-date">Due Date</div>
+                                <div class="pl-cell pl-cell-matching">Matching</div>
+                                <div class="pl-cell pl-cell-amount">Debit</div>
+                                <div class="pl-cell pl-cell-amount">Credit</div>
+                                <div class="pl-cell pl-cell-amount">Balance</div>
+                                <div class="pl-cell pl-cell-narration">Narration</div>
+                            </div>
+                        </t>
+
+                        <div class="pl-lines">
+                            <t t-call="pl.PartnerLedgerLines">
+                                <t t-set="lines" t-value="filteredLines"/>
+                            </t>
+                        </div>
+                    </t>
+
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>
+
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<templates xml:space="preserve">-->
+
+<!--    &lt;!&ndash; Recursive line renderer &ndash;&gt;-->
+<!--    <t t-name="pl.PartnerLedgerLines">-->
+<!--        <t t-foreach="lines" t-as="line" t-key="line.id">-->
+<!--            <div-->
+<!--                t-att-class="lineRowClass(line)"-->
+<!--                t-on-click="() => this.toggleLine(line)"-->
+<!--            >-->
+<!--                <div class="pl-cell pl-cell-name">-->
+<!--                    <t t-if="isExpandable(line)">-->
+<!--                        <i-->
+<!--                            t-attf-class="fa fa-caret-{{ isCollapsed(line) ? 'right' : 'down' }} pl-caret"-->
+<!--                        />-->
+<!--                    </t>-->
+<!--                    <t t-else="">-->
+<!--                        <span class="pl-caret-placeholder"/>-->
+<!--                    </t>-->
+<!--                    <t t-if="line.line_type === 'account' and line.move_id">-->
+<!--                        <a-->
+<!--                            href="#"-->
+<!--                            class="pl-link"-->
+<!--                            t-on-click.stop="() => this.openMove(line.move_id)"-->
+<!--                            t-esc="line.name"-->
+<!--                        />-->
+<!--                    </t>-->
+<!--                    <t t-elif="line.line_type === 'partner' and line.partner_id">-->
+<!--                        <span-->
+<!--                            class="pl-partner-name"-->
+<!--                            t-esc="line.name"-->
+<!--                        />-->
+<!--                        <span class="pl-badges">-->
+<!--                            <span-->
+<!--                                class="pl-badge"-->
+<!--                                t-on-click.stop="() => this.openPartner(line.partner_id)"-->
+<!--                            >Partner</span>-->
+<!--                            <span-->
+<!--                                class="pl-badge"-->
+<!--                                t-on-click.stop="(ev) => this.openPartnerJournalItems(line, ev)"-->
+<!--                            >Journal Items</span>-->
+<!--                        </span>-->
+<!--                    </t>-->
+<!--                    <t t-elif="line.line_type === 'total'">-->
+<!--                        <span class="pl-label-text" t-esc="reportViewLabel"/>-->
+<!--                    </t>-->
+<!--                    <t t-else="">-->
+<!--                        <span class="pl-label-text" t-esc="line.name"/>-->
+<!--                    </t>-->
+<!--                </div>-->
+<!--                <t t-if="state.reportView === 'customer_statement'">-->
+<!--                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.invoice_date)"/>-->
+<!--                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.due_date)"/>-->
+<!--                    <div class="pl-cell pl-cell-ref" t-esc="line.ref_customer"/>-->
+<!--                    <div class="pl-cell pl-cell-ref" t-esc="line.ref_vendor"/>-->
+<!--                    <div class="pl-cell pl-cell-amount" t-esc="fmtNum((line.debit || 0) - (line.credit || 0))"/>-->
+<!--                    <div-->
+<!--                        t-att-class="'pl-cell pl-cell-amount pl-balance ' + balanceClass(line.balance)"-->
+<!--                        t-esc="fmtNumWithSym(line.balance)"-->
+<!--                    />-->
+<!--                </t>-->
+<!--                <t t-else="">-->
+<!--                    <div class="pl-cell pl-cell-journal" t-esc="line.journal"/>-->
+<!--                    <div class="pl-cell pl-cell-account" t-esc="line.account"/>-->
+<!--                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.invoice_date)"/>-->
+<!--                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.due_date)"/>-->
+<!--                    <div class="pl-cell pl-cell-matching" t-esc="line.matching"/>-->
+<!--                    <div class="pl-cell pl-cell-amount" t-esc="fmtNum(line.debit)"/>-->
+<!--                    <div class="pl-cell pl-cell-amount" t-esc="fmtNum(line.credit)"/>-->
+<!--                    <div-->
+<!--                        t-att-class="'pl-cell pl-cell-amount pl-balance ' + balanceClass(line.balance)"-->
+<!--                        t-esc="fmtNumWithSym(line.balance)"-->
+<!--                    />-->
+<!--                </t>-->
+<!--            </div>-->
+<!--            <t t-if="isExpandable(line) and !isCollapsed(line)">-->
+<!--                <t t-call="pl.PartnerLedgerLines">-->
+<!--                    <t t-set="lines" t-value="line.children"/>-->
+<!--                </t>-->
+<!--            </t>-->
+<!--        </t>-->
+<!--    </t>-->
+
+<!--    <t t-name="pl.PartnerLedgerView">-->
+<!--        <div class="pl-root">-->
+
+<!--            &lt;!&ndash; Control Panel &ndash;&gt;-->
+<!--            <div class="pl-control-panel">-->
+<!--                <div class="pl-left-section">-->
+<!--                    <button-->
+<!--                        class="pl-print-btn pl-secondary-btn"-->
+<!--                        t-on-click="exportPDF"-->
+<!--                        t-att-disabled="state.exportingPdf"-->
+<!--                        title="Export PDF"-->
+<!--                    >-->
+<!--                        <t t-if="state.exportingPdf">-->
+<!--                            <span class="pl-spinner"/>-->
+<!--                        </t>-->
+<!--                        <t t-else="">-->
+<!--                            <i class="fa fa-file-pdf-o"/>-->
+<!--                        </t>-->
+<!--                        PDF-->
+<!--                    </button>-->
+<!--                    <h1 class="pl-title">Partner Ledger</h1>-->
+<!--                    <span class="pl-gear"><i class="fa fa-gear"/></span>-->
+<!--                </div>-->
+
+<!--                <div class="pl-filters-section">-->
+
+<!--                    &lt;!&ndash; Search &ndash;&gt;-->
+<!--                    <div class="pl-search-box" t-ref="searchBoxRef" style="position:relative;">-->
+<!--                        <i class="fa fa-search"/>-->
+<!--                        <input-->
+<!--                            type="text"-->
+<!--                            placeholder="Search partners, press Enter to load…"-->
+<!--                            t-att-value="state.searchTerm"-->
+<!--                            t-on-input="onSearchInput"-->
+<!--                            t-on-keydown="onSearchKeydown"-->
+<!--                            t-on-focus="onSearchFocus"-->
+<!--                        />-->
+<!--                        <t t-if="state.searchTerm">-->
+<!--                            <i class="fa fa-times" style="cursor:pointer;" t-on-click="clearSearch" title="Clear search"/>-->
+<!--                        </t>-->
+
+<!--                        &lt;!&ndash; Live suggestions dropdown &ndash;&gt;-->
+<!--                        <t t-if="state.searchDropdownOpen and state.searchResults.length">-->
+<!--                            <div class="pl-dropdown-panel" t-on-click.stop="">-->
+<!--                                <t t-foreach="state.searchResults" t-as="p" t-key="p.id">-->
+<!--                                    <div class="pl-partners-result-item" t-on-click="() => this.selectSearchResult(p)">-->
+<!--                                        <span t-esc="p.name"/>-->
+<!--                                    </div>-->
+<!--                                </t>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                        <t t-elif="state.searchDropdownOpen and state.searchTerm.trim()">-->
+<!--                            <div class="pl-dropdown-panel">-->
+<!--                                <div class="pl-partners-result-item" style="color:#6c757d;font-style:italic;cursor:default;">-->
+<!--                                    No partners found-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Date / fiscal year &ndash;&gt;-->
+<!--                    <div-->
+<!--                        class="pl-filter-pill"-->
+<!--                        t-on-click="(ev) => this.openDropdown('date', ev)"-->
+<!--                        t-ref="dateDropdownRef"-->
+<!--                        style="position:relative;"-->
+<!--                    >-->
+<!--                        <i class="fa fa-calendar"/>-->
+<!--                        <span t-esc="dateFilterLabel"/>-->
+<!--                        <i class="fa fa-caret-down"/>-->
+
+<!--                        <t t-if="state.dateDropdownOpen">-->
+<!--                            <div class="pl-dropdown-panel pl-date-panel" t-on-click.stop="">-->
+
+<!--                                &lt;!&ndash; Month &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="pl-date-mode-row"-->
+<!--                                    t-att-class="state.dateMode === 'month' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setDateMode('month')"-->
+<!--                                >-->
+<!--                                    <span class="pl-date-mode-label">-->
+<!--                                        <i t-attf-class="fa fa-{{ state.dateMode === 'month' ? 'check' : '' }}"/>-->
+<!--                                        Month-->
+<!--                                    </span>-->
+<!--                                    <span class="pl-date-mode-nav">-->
+<!--                                        <i class="fa fa-chevron-left" t-on-click.stop="prevMonth"/>-->
+<!--                                        <span t-esc="monthLabel"/>-->
+<!--                                        <i class="fa fa-chevron-right" t-on-click.stop="nextMonth"/>-->
+<!--                                    </span>-->
+<!--                                </div>-->
+
+<!--                                &lt;!&ndash; Quarter &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="pl-date-mode-row"-->
+<!--                                    t-att-class="state.dateMode === 'quarter' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setDateMode('quarter')"-->
+<!--                                >-->
+<!--                                    <span class="pl-date-mode-label">-->
+<!--                                        <i t-attf-class="fa fa-{{ state.dateMode === 'quarter' ? 'check' : '' }}"/>-->
+<!--                                        Quarter-->
+<!--                                    </span>-->
+<!--                                    <span class="pl-date-mode-nav">-->
+<!--                                        <i class="fa fa-chevron-left" t-on-click.stop="prevQuarter"/>-->
+<!--                                        <span t-esc="quarterLabel"/>-->
+<!--                                        <i class="fa fa-chevron-right" t-on-click.stop="nextQuarter"/>-->
+<!--                                    </span>-->
+<!--                                </div>-->
+
+<!--                                &lt;!&ndash; Fiscal Year &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="pl-date-mode-row"-->
+<!--                                    t-att-class="state.dateMode === 'fiscal_year' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setDateMode('fiscal_year')"-->
+<!--                                >-->
+<!--                                    <span class="pl-date-mode-label">-->
+<!--                                        <i t-attf-class="fa fa-{{ state.dateMode === 'fiscal_year' ? 'check' : '' }}"/>-->
+<!--                                        Fiscal Year-->
+<!--                                    </span>-->
+<!--                                    <span class="pl-date-mode-nav">-->
+<!--                                        <i class="fa fa-chevron-left" t-on-click.stop="prevFiscalYear"/>-->
+<!--                                        <span t-esc="state.periodYear"/>-->
+<!--                                        <i class="fa fa-chevron-right" t-on-click.stop="nextFiscalYear"/>-->
+<!--                                    </span>-->
+<!--                                </div>-->
+
+<!--                                <div class="pl-dropdown-divider"/>-->
+
+<!--                                &lt;!&ndash; Custom Dates &ndash;&gt;-->
+<!--                                <div-->
+<!--                                    class="pl-dropdown-item"-->
+<!--                                    t-att-class="state.dateMode === 'custom' ? 'selected' : ''"-->
+<!--                                    t-on-click="() => this.setDateMode('custom')"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.dateMode === 'custom' ? 'check' : '' }}"/>-->
+<!--                                    Custom Dates-->
+<!--                                </div>-->
+<!--                                <t t-if="state.dateMode === 'custom'">-->
+<!--                                    <div class="pl-date-range-inputs">-->
+<!--                                        <input-->
+<!--                                            type="date"-->
+<!--                                            t-att-value="state.dateFrom"-->
+<!--                                            t-on-change="onCustomDateFromChange"-->
+<!--                                        />-->
+<!--                                        <span class="pl-date-sep">→</span>-->
+<!--                                        <input-->
+<!--                                            type="date"-->
+<!--                                            t-att-value="state.dateTo"-->
+<!--                                            t-on-change="onCustomDateToChange"-->
+<!--                                        />-->
+<!--                                    </div>-->
+<!--                                </t>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Account type &ndash;&gt;-->
+<!--                    <div-->
+<!--                        class="pl-filter-pill active"-->
+<!--                        t-on-click="(ev) => this.openDropdown('account', ev)"-->
+<!--                        t-ref="accountDropdownRef"-->
+<!--                        style="position:relative;"-->
+<!--                    >-->
+<!--                        <i class="fa fa-user"/>-->
+<!--                        <span>Account: </span><span t-esc="accountTypeLabel"/>-->
+<!--                        <i class="fa fa-caret-down"/>-->
+
+<!--                        <t t-if="state.accountDropdownOpen">-->
+<!--                            <div class="pl-dropdown-panel" t-on-click.stop="">-->
+<!--                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('receivable')">-->
+<!--                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('receivable') ? 'check' : '' }}"/>-->
+<!--                                    Receivable-->
+<!--                                </div>-->
+<!--                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('non_trade_receivable')">-->
+<!--                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('non_trade_receivable') ? 'check' : '' }}"/>-->
+<!--                                    Non Trade Receivable-->
+<!--                                </div>-->
+<!--                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('payable')">-->
+<!--                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('payable') ? 'check' : '' }}"/>-->
+<!--                                    Payable-->
+<!--                                </div>-->
+<!--                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('non_trade_payable')">-->
+<!--                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('non_trade_payable') ? 'check' : '' }}"/>-->
+<!--                                    Non Trade Payable-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Partners / Tags &ndash;&gt;-->
+<!--                    <div-->
+<!--                        class="pl-filter-pill"-->
+<!--                        t-att-class="(state.selectedPartners.length or state.selectedTags.length) ? 'pl-filter-pill active' : 'pl-filter-pill'"-->
+<!--                        t-on-click="(ev) => this.openDropdown('partners', ev)"-->
+<!--                        t-ref="partnersDropdownRef"-->
+<!--                        style="position:relative;"-->
+<!--                    >-->
+<!--                        <i class="fa fa-folder"/>-->
+<!--                        <span t-esc="partnersFilterLabel"/>-->
+<!--                        <i class="fa fa-caret-down"/>-->
+
+<!--                        <t t-if="state.partnersDropdownOpen">-->
+<!--                            <div class="pl-dropdown-panel pl-partners-panel" t-on-click.stop="">-->
+<!--                                <div class="pl-partners-section-label">Partners</div>-->
+<!--                                <t t-foreach="state.selectedPartners" t-as="p" t-key="p.id">-->
+<!--                                    <span class="pl-chip">-->
+<!--                                        <span t-esc="p.name"/>-->
+<!--                                        <i class="fa fa-times" t-on-click="() => this.removePartner(p.id)"/>-->
+<!--                                    </span>-->
+<!--                                </t>-->
+<!--                                <input-->
+<!--                                    type="text"-->
+<!--                                    class="pl-partners-search"-->
+<!--                                    placeholder="Search partner…"-->
+<!--                                    t-att-value="state.partnerSearchTerm"-->
+<!--                                    t-on-input="onPartnerSearchInput"-->
+<!--                                />-->
+<!--                                <t t-if="state.partnerSearchResults.length">-->
+<!--                                    <div class="pl-partners-results">-->
+<!--                                        <t t-foreach="state.partnerSearchResults" t-as="p" t-key="p.id">-->
+<!--                                            <div class="pl-partners-result-item" t-on-click="() => this.addPartner(p)">-->
+<!--                                                <span t-esc="p.name"/>-->
+<!--                                            </div>-->
+<!--                                        </t>-->
+<!--                                    </div>-->
+<!--                                </t>-->
+
+<!--                                <div class="pl-dropdown-divider"/>-->
+
+<!--                                <div class="pl-partners-section-label">Tags</div>-->
+<!--                                <t t-foreach="state.selectedTags" t-as="tg" t-key="tg.id">-->
+<!--                                    <span class="pl-chip">-->
+<!--                                        <span t-esc="tg.name"/>-->
+<!--                                        <i class="fa fa-times" t-on-click="() => this.removeTag(tg.id)"/>-->
+<!--                                    </span>-->
+<!--                                </t>-->
+<!--                                <input-->
+<!--                                    type="text"-->
+<!--                                    class="pl-partners-search"-->
+<!--                                    placeholder="Search tag…"-->
+<!--                                    t-att-value="state.tagSearchTerm"-->
+<!--                                    t-on-input="onTagSearchInput"-->
+<!--                                />-->
+<!--                                <t t-if="state.tagSearchResults.length">-->
+<!--                                    <div class="pl-partners-results">-->
+<!--                                        <t t-foreach="state.tagSearchResults" t-as="tg" t-key="tg.id">-->
+<!--                                            <div class="pl-partners-result-item" t-on-click="() => this.addTag(tg)">-->
+<!--                                                <span t-esc="tg.name"/>-->
+<!--                                            </div>-->
+<!--                                        </t>-->
+<!--                                    </div>-->
+<!--                                </t>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Posted / Draft entries + Unfold All &ndash;&gt;-->
+<!--                    <div-->
+<!--                        class="pl-filter-pill"-->
+<!--                        t-att-class="state.targetMove === 'all' ? 'pl-filter-pill active' : 'pl-filter-pill'"-->
+<!--                        t-on-click="(ev) => this.openDropdown('options', ev)"-->
+<!--                        t-ref="optionsDropdownRef"-->
+<!--                        style="position:relative;"-->
+<!--                    >-->
+<!--                        <i class="fa fa-list"/>-->
+<!--                        <span t-esc="optionsDropdownLabel"/>-->
+<!--                        <i class="fa fa-caret-down"/>-->
+
+<!--                        <t t-if="state.optionsDropdownOpen">-->
+<!--                            <div class="pl-dropdown-panel" t-on-click.stop="">-->
+<!--                                <div-->
+<!--                                    class="pl-dropdown-item"-->
+<!--                                    t-att-class="state.targetMove === 'all' ? 'selected' : ''"-->
+<!--                                    t-on-click="toggleDraftEntries"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.targetMove === 'all' ? 'check' : '' }}"/>-->
+<!--                                    Draft Entries-->
+<!--                                </div>-->
+<!--                                <div-->
+<!--                                    class="pl-dropdown-item"-->
+<!--                                    t-att-class="state.unfoldAll ? 'selected' : ''"-->
+<!--                                    t-on-click="toggleUnfoldAll"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.unfoldAll ? 'check' : '' }}"/>-->
+<!--                                    Unfold All-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+
+<!--                    &lt;!&ndash; Report switcher &ndash;&gt;-->
+<!--                    <div-->
+<!--                        class="pl-filter-pill"-->
+<!--                        t-on-click="(ev) => this.openDropdown('report', ev)"-->
+<!--                        t-ref="reportDropdownRef"-->
+<!--                        style="position:relative;"-->
+<!--                    >-->
+<!--                        <i class="fa fa-file-text-o"/>-->
+<!--                        <span>Report: <t t-esc="reportViewLabel"/></span>-->
+<!--                        <i class="fa fa-caret-down"/>-->
+
+<!--                        <t t-if="state.reportDropdownOpen">-->
+<!--                            <div class="pl-dropdown-panel" t-on-click.stop="">-->
+<!--                                <div-->
+<!--                                    class="pl-dropdown-item"-->
+<!--                                    t-att-class="state.reportView === 'partner_ledger' ? 'selected' : ''"-->
+<!--                                    t-on-click="(ev) => this.selectReportView('partner_ledger', ev)"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.reportView === 'partner_ledger' ? 'check' : '' }}"/>-->
+<!--                                    Partner Ledger-->
+<!--                                </div>-->
+<!--                                <div-->
+<!--                                    class="pl-dropdown-item"-->
+<!--                                    t-att-class="state.reportView === 'customer_statement' ? 'selected' : ''"-->
+<!--                                    t-on-click="(ev) => this.selectReportView('customer_statement', ev)"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.reportView === 'customer_statement' ? 'check' : '' }}"/>-->
+<!--                                    Statement of Account-->
+<!--                                </div>-->
+<!--                                <div class="pl-dropdown-item" t-on-click="(ev) => this.selectReportView('open_items', ev)">-->
+<!--                                    <i class="fa"/>-->
+<!--                                    Open Items-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+<!--                </div>-->
+
+<!--                <button class="pl-close-btn" t-on-click="closeReport" title="Close">-->
+<!--                    <i class="fa fa-times"/>-->
+<!--                </button>-->
+<!--            </div>-->
+
+<!--            &lt;!&ndash; Unposted warning &ndash;&gt;-->
+<!--            <t t-if="state.showUnpostedWarning and state.hasUnposted and state.targetMove === 'posted'">-->
+<!--                <div class="pl-warning-banner">-->
+<!--                    <i class="fa fa-info-circle" style="margin-right:8px;"/>-->
+<!--                    <span>There are unposted Journal Entries prior or included in this period.</span>-->
+<!--                    <span class="pl-warning-close" t-on-click="dismissWarning">×</span>-->
+<!--                </div>-->
+<!--            </t>-->
+
+<!--            &lt;!&ndash; Report body &ndash;&gt;-->
+<!--            <div class="pl-content">-->
+<!--                <div class="pl-sheet">-->
+
+<!--                    <t t-if="state.loading">-->
+<!--                        <div class="pl-state-box">-->
+<!--                            <div class="pl-spinner pl-spinner-lg"/>-->
+<!--                            <span>Loading Partner Ledger…</span>-->
+<!--                        </div>-->
+<!--                    </t>-->
+
+<!--                    <t t-elif="state.error">-->
+<!--                        <div class="pl-state-box" style="color:#f87171;">-->
+<!--                            <i class="fa fa-exclamation-triangle" style="font-size:32px;opacity:0.5;"/>-->
+<!--                            <span t-esc="state.error"/>-->
+<!--                            <button class="pl-print-btn" t-on-click="() => this._loadData()">-->
+<!--                                <i class="fa fa-refresh"/> Retry-->
+<!--                            </button>-->
+<!--                        </div>-->
+<!--                    </t>-->
+
+<!--                    <t t-else="">-->
+<!--                        <t t-if="state.reportView === 'customer_statement'">-->
+<!--                            <div class="pl-row pl-table-header pl-row-statement">-->
+<!--                                <div class="pl-cell pl-cell-name"/>-->
+<!--                                <div class="pl-cell pl-cell-date">Invoice Date</div>-->
+<!--                                <div class="pl-cell pl-cell-date">Due Date</div>-->
+<!--                                <div class="pl-cell pl-cell-ref">Customer Reference</div>-->
+<!--                                <div class="pl-cell pl-cell-ref">Vendor Reference</div>-->
+<!--                                <div class="pl-cell pl-cell-amount">Amount</div>-->
+<!--                                <div class="pl-cell pl-cell-amount">Balance</div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                        <t t-else="">-->
+<!--                            <div class="pl-row pl-table-header">-->
+<!--                                <div class="pl-cell pl-cell-name"/>-->
+<!--                                <div class="pl-cell pl-cell-journal">Journal</div>-->
+<!--                                <div class="pl-cell pl-cell-account">Account</div>-->
+<!--                                <div class="pl-cell pl-cell-date">Invoice Date</div>-->
+<!--                                <div class="pl-cell pl-cell-date">Due Date</div>-->
+<!--                                <div class="pl-cell pl-cell-matching">Matching</div>-->
+<!--                                <div class="pl-cell pl-cell-amount">Debit</div>-->
+<!--                                <div class="pl-cell pl-cell-amount">Credit</div>-->
+<!--                                <div class="pl-cell pl-cell-amount">Balance</div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+
+<!--                        <div class="pl-lines">-->
+<!--                            <t t-call="pl.PartnerLedgerLines">-->
+<!--                                <t t-set="lines" t-value="filteredLines"/>-->
+<!--                            </t>-->
+<!--                        </div>-->
+<!--                    </t>-->
+
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </t>-->
+
+<!--</templates>-->

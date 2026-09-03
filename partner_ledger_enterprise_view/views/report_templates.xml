@@ -1,0 +1,612 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="report_partner_ledger_document">
+
+        <!-- Company Header -->
+        <div style="text-align:center; width:100%;">
+            <img src="/my_invoice_custom/static/src/img/header.png"
+                 style="max-width:100%; width:100%; height:auto; display:inline-block;"/>
+        </div>
+
+        <div class="article">
+            <div class="page">
+                <p style="font-size:13px; margin-bottom:8px;">
+                    From <span t-esc="date_from"/> to <span t-esc="date_to"/>
+                </p>
+                <table class="table table-sm" style="width:100%; font-size:12px;">
+                    <thead>
+                        <t t-if="report_view == 'customer_statement'">
+                            <tr style="background:#f5f5f5;">
+                                <th style="text-align:left; padding:6px 8px;">Partner / Entry</th>
+                                <th style="text-align:left; padding:6px 8px;">Invoice Date</th>
+                                <th style="text-align:left; padding:6px 8px;">Due Date</th>
+                                <th style="text-align:left; padding:6px 8px;">Reference</th>
+                                <th style="text-align:right; padding:6px 8px;">Amount</th>
+                                <th style="text-align:right; padding:6px 8px; width:130px;">Balance</th>
+                            </tr>
+                        </t>
+                        <t t-else="">
+                            <tr style="background:#f5f5f5;">
+                                <th style="text-align:left; padding:6px 8px;">Account</th>
+                                <th style="text-align:left; padding:6px 8px;">Invoice Date</th>
+                                <th style="text-align:left; padding:6px 8px;">Due Date</th>
+                                <th style="text-align:left; padding:6px 8px;">Reference</th>
+                                <th style="text-align:left; padding:6px 8px;">Entry</th>
+                                <th style="text-align:right; padding:6px 8px;">Debit</th>
+                                <th style="text-align:right; padding:6px 8px;">Credit</th>
+                                <th style="text-align:right; padding:6px 8px; width:130px;">Balance</th>
+                            </tr>
+                        </t>
+                    </thead>
+                    <tbody>
+                        <!-- Extract total line (first element) and body lines -->
+                        <t t-set="total_line" t-value="lines[0] if lines and lines[0].get('line_type') == 'total' else False"/>
+                        <t t-set="body_lines" t-value="lines[1:] if total_line else lines"/>
+
+                        <!-- Total HEADER row at the TOP (label only, NO amounts) -->
+                        <t t-if="total_line">
+                            <tr style="font-weight:bold;background:#eeeeee;font-size:12px;">
+                                <td style="padding:5px 8px;"><span t-esc="report_title"/></td>
+                                <t t-if="report_view == 'customer_statement'">
+                                    <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                                    <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                                    <td style="padding:5px 8px;"/>
+                                </t>
+<t t-else="">
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                    </t>
+                            </tr>
+                        </t>
+
+                        <!-- Render partner/detail lines -->
+                        <t t-call="partner_ledger_enterprise_view.report_partner_ledger_lines">
+                            <t t-set="report_lines" t-value="body_lines"/>
+                        </t>
+
+                        <!-- Total row at the BOTTOM with amounts -->
+                        <t t-if="total_line">
+                            <tr style="font-weight:bold;background:#eeeeee;font-size:12px;border-top:2px solid #8b0000;">
+                                <td style="padding:5px 8px;"><span t-esc="report_title"/></td>
+                                <t t-if="report_view == 'customer_statement'">
+                                    <td style="padding:5px 8px;"/>
+                                    <td style="padding:5px 8px;"/>
+                                    <td style="padding:5px 8px;"/>
+                                    <td style="text-align:right; padding:5px 8px;">
+                                        <span t-esc="'%.2f' % ((total_line.get('debit') or 0.0) - (total_line.get('credit') or 0.0))"/>
+                                    </td>
+                                    <td style="text-align:right; padding:5px 8px;">
+                                        <span t-esc="'%.2f' % (total_line.get('balance') or 0.0)"/>
+                                        <span t-esc="currency_symbol"/>
+                                    </td>
+                                </t>
+                                <t t-else="">
+                                    <td style="padding:5px 8px;"/>
+                                    <td style="padding:5px 8px;"/>
+                                    <td style="padding:5px 8px;"/>
+                                    <td style="padding:5px 8px;"/>
+                                    <td style="text-align:right; padding:5px 8px;">
+                                        <span t-esc="'%.2f' % (total_line.get('debit') or 0.0)"/>
+                                    </td>
+                                    <td style="text-align:right; padding:5px 8px;">
+                                        <span t-esc="'%.2f' % (total_line.get('credit') or 0.0)"/>
+                                    </td>
+                                    <td style="text-align:right; padding:5px 8px;">
+                                        <span t-esc="'%.2f' % (total_line.get('balance') or 0.0)"/>
+                                        <span t-esc="currency_symbol"/>
+                                    </td>
+                                </t>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!--
+            Footer: sibling of .article so wkhtmltopdf renders it on every page.
+            The JS hides it on all pages except the last.
+        -->
+        <div class="footer">
+            <div id="pl_bank_footer"
+                 style="width:100%; padding-top:10px; border-top:2px solid #8b0000;
+                        font-size:11px; color:#222; font-family:Arial,sans-serif; line-height:1.7;">
+
+                <!-- ===== BANK ACCOUNTS: 2-column table ===== -->
+                <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                    <tr>
+                        <!-- LEFT: Alrajhi -->
+                        <td style="width:50%; vertical-align:top; padding:0 14px 0 0;
+                                   border-right:1px solid #bbb;">
+                            <div style="font-size:13px; font-weight:normal; margin-bottom:3px;">
+                                Sameer Sharaf Al Otaibi Trading Company
+                            </div>
+                            <div style="font-size:11px; color:#555;">Alrajhi Bank</div>
+                            <div>Account Number: <span>123000010006080143917</span></div>
+                            <div>IBAN: <span>SA7880000123608010143917</span></div>
+                        </td>
+                        <!-- RIGHT: SNB -->
+                        <td style="width:50%; vertical-align:top; padding:0 0 0 14px;">
+                            <div style="font-size:13px; font-weight:normal; margin-bottom:3px;">
+                                Sameer Sharaf Alateebi Company Commercial
+                            </div>
+                            <div style="font-size:11px; color:#555;">SNB - Saudi National Bank</div>
+                            <div>Account Number at SNB: <span>13200000678707</span></div>
+                            <div>IBAN: <span>SA2110000013200000678707</span></div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- ===== BRANCH ADDRESSES: 3-column table ===== -->
+                <table style="width:100%; border-collapse:collapse;
+                              border-top:1px solid #ccc; padding-top:6px;">
+                    <tr>
+                        <!-- Jeddah Al Fayha -->
+                        <td style="width:33.33%; vertical-align:top;
+                                   padding:8px 12px 4px 0; border-right:1px solid #ddd;">
+                            <div style="font-size:12px; font-weight:normal; margin-bottom:2px;">
+                                Jeddah Al Fayha Branch:
+                            </div>
+                            <div>7655 Al Fayha Dist., Jeddah 22244-3108, KSA</div>
+                            <div>Tel/Mobile: +966 571 313 243</div>
+                            <div>Email: ssaoe.jeddah@gmail.com</div>
+                        </td>
+                        <!-- Jeddah Baladiya -->
+                        <td style="width:33.33%; vertical-align:top;
+                                   padding:8px 12px; border-right:1px solid #ddd;">
+                            <div style="font-size:12px; font-weight:normal; margin-bottom:2px;">
+                                Jeddah Baladiya Branch:
+                            </div>
+                            <div>Sookul Anwar, Al Baladeah, Aziziyah, Jeddah 31303, KSA</div>
+                            <div>Tel/Mobile: +966 536 122 833</div>
+                            <div>Email: ssaoe.jeddah@gmail.com</div>
+                        </td>
+                        <!-- Dammam -->
+                        <td style="width:33.33%; vertical-align:top;
+                                   padding:8px 0 4px 12px;">
+                            <div style="font-size:12px; font-weight:normal; margin-bottom:2px;">
+                                Dammam Branch:
+                            </div>
+                            <div>8515 Qutaibah bin Muslim St., Al Souq, Dammam 4525-32242, KSA</div>
+                            <div>Tel/Mobile: +966 535 081 008</div>
+                            <div>Email: ssaoe.jeddah@gmail.com</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <script>
+                (function () {
+                    function hideUnlessLastPage() {
+                        var qs = (document.location.search || '').replace(/^\?/, '');
+                        var params = {};
+                        qs.split('&amp;').forEach(function (pair) {
+                            var kv = pair.split('=');
+                            if (kv[0]) { params[kv[0]] = decodeURIComponent(kv[1] || ''); }
+                        });
+                        var page = parseInt(params.page, 10);
+                        var topage = parseInt(params.topage, 10);
+                        var el = document.getElementById('pl_bank_footer');
+                        if (el &amp;&amp; page &amp;&amp; topage &amp;&amp; page !== topage) {
+                            el.style.display = 'none';
+                        }
+                    }
+                    if (document.readyState === 'complete') {
+                        hideUnlessLastPage();
+                    } else {
+                        window.addEventListener('load', hideUnlessLastPage);
+                    }
+                })();
+            </script>
+        </div>
+    </template>
+
+    <template id="report_partner_ledger_lines">
+        <t t-foreach="report_lines" t-as="line">
+            <tr t-att-style="line.get('style') in ('header', 'group') and 'font-weight:bold;background:#eeeeee;font-size:12px;' or 'font-size:11px;'">
+                <td style="padding:5px 8px;">
+                    <span t-if="line.get('line_type') == 'total'" t-esc="report_title"/>
+                    <span t-else="" t-esc="line.get('name')"/>
+                </td>
+                <!-- Partner group rows: label only, NO amounts -->
+                <t t-if="line.get('line_type') == 'partner'">
+                    <t t-if="report_view == 'customer_statement'">
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                        <td style="padding:5px 8px;"/>
+                    </t>
+                    <t t-else="">
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>
+                    </t>
+                </t>
+                <!-- Detail / account lines: full data with amounts -->
+                <t t-elif="report_view == 'customer_statement'">
+                    <td style="padding:5px 8px;">
+                        <span t-esc="line.get('invoice_date') and (line.get('invoice_date').split('-')[2] + '/' + line.get('invoice_date').split('-')[1] + '/' + line.get('invoice_date').split('-')[0]) or ''"/>
+                    </td>
+                    <td style="padding:5px 8px;">
+                        <span t-esc="line.get('due_date') and (line.get('due_date').split('-')[2] + '/' + line.get('due_date').split('-')[1] + '/' + line.get('due_date').split('-')[0]) or ''"/>
+                    </td>
+                    <td style="padding:5px 8px;"><span t-esc="line.get('reference')"/></td>
+                    <td style="text-align:right; padding:5px 8px;">
+                        <span t-esc="'%.2f' % ((line.get('debit') or 0.0) - (line.get('credit') or 0.0))"/>
+                    </td>
+                    <td style="text-align:right; padding:5px 8px;">
+                        <span t-esc="'%.2f' % (line.get('balance') or 0.0)"/>
+                        <span t-esc="currency_symbol"/>
+                    </td>
+                </t>
+                <t t-else="">
+                    <td style="padding:5px 8px;"><span t-esc="line.get('account')"/></td>
+                    <td style="padding:5px 8px;">
+                        <span t-esc="line.get('invoice_date') and (line.get('invoice_date').split('-')[2] + '/' + line.get('invoice_date').split('-')[1] + '/' + line.get('invoice_date').split('-')[0]) or ''"/>
+                    </td>
+                    <td style="padding:5px 8px;">
+                        <span t-esc="line.get('due_date') and (line.get('due_date').split('-')[2] + '/' + line.get('due_date').split('-')[1] + '/' + line.get('due_date').split('-')[0]) or ''"/>
+                    </td>
+                    <td style="padding:5px 8px;"><span t-esc="line.get('reference')"/></td>
+                    <td style="padding:5px 8px;"><span t-esc="line.get('name')"/></td>
+                    <td style="text-align:right; padding:5px 8px;">
+                        <span t-esc="'%.2f' % (line.get('debit') or 0.0)"/>
+                    </td>
+                    <td style="text-align:right; padding:5px 8px;">
+                        <span t-esc="'%.2f' % (line.get('credit') or 0.0)"/>
+                    </td>
+                    <td style="text-align:right; padding:5px 8px;">
+                        <span t-esc="'%.2f' % (line.get('balance') or 0.0)"/>
+                        <span t-esc="currency_symbol"/>
+                    </td>
+                </t>
+            </tr>
+            <t t-if="line.get('children')">
+                <t t-call="partner_ledger_enterprise_view.report_partner_ledger_lines">
+                    <t t-set="report_lines" t-value="line.get('children')"/>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_partner_ledger_pdf">
+        <t t-call="web.html_container">
+            <t t-call="partner_ledger_enterprise_view.report_partner_ledger_document"/>
+        </t>
+    </template>
+
+    <record id="paperformat_partner_ledger" model="report.paperformat">
+        <field name="name">Partner Ledger</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">15</field>
+        <field name="margin_bottom">62</field>
+        <field name="margin_left">7</field>
+        <field name="margin_right">7</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">3</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <record id="action_report_partner_ledger_pdf" model="ir.actions.report">
+        <field name="name">Partner Ledger</field>
+        <field name="model">partner.ledger.engine</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">partner_ledger_enterprise_view.report_partner_ledger_pdf</field>
+        <field name="report_file">partner_ledger_enterprise_view.report_partner_ledger_pdf</field>
+        <field name="print_report_name">'Partner Ledger'</field>
+        <field name="paperformat_id" ref="paperformat_partner_ledger"/>
+    </record>
+
+</odoo>
+
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+
+<!--    <template id="report_partner_ledger_document">-->
+
+<!--        &lt;!&ndash; Company Header &ndash;&gt;-->
+<!--        <div style="text-align:center; width:100%;">-->
+<!--            <img src="/my_invoice_custom/static/src/img/header.png"-->
+<!--                 style="max-width:100%; width:100%; height:auto; display:inline-block;"/>-->
+<!--        </div>-->
+
+<!--        <div class="article">-->
+<!--            <div class="page">-->
+<!--                <p style="font-size:13px; margin-bottom:8px;">-->
+<!--                    From <span t-esc="date_from"/> to <span t-esc="date_to"/>-->
+<!--                </p>-->
+<!--                <table class="table table-sm" style="width:100%; font-size:12px;">-->
+<!--                    <thead>-->
+<!--                        <t t-if="report_view == 'customer_statement'">-->
+<!--                            <tr style="background:#f5f5f5;">-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Partner / Entry</th>-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Invoice Date</th>-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Due Date</th>-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Customer Reference</th>-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Vendor Reference</th>-->
+<!--                                <th style="text-align:right; padding:6px 8px;">Amount</th>-->
+<!--                                <th style="text-align:right; padding:6px 8px; width:130px;">Balance</th>-->
+<!--                            </tr>-->
+<!--                        </t>-->
+<!--                        <t t-else="">-->
+<!--                            <tr style="background:#f5f5f5;">-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Partner / Entry</th>-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Journal</th>-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Account</th>-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Invoice Date</th>-->
+<!--                                <th style="text-align:left; padding:6px 8px;">Due Date</th>-->
+<!--                                <th style="text-align:right; padding:6px 8px;">Debit</th>-->
+<!--                                <th style="text-align:right; padding:6px 8px;">Credit</th>-->
+<!--                                <th style="text-align:right; padding:6px 8px; width:130px;">Balance</th>-->
+<!--                            </tr>-->
+<!--                        </t>-->
+<!--                    </thead>-->
+<!--                    <tbody>-->
+<!--                        &lt;!&ndash; Extract total line (first element) and body lines &ndash;&gt;-->
+<!--                        <t t-set="total_line" t-value="lines[0] if lines and lines[0].get('line_type') == 'total' else False"/>-->
+<!--                        <t t-set="body_lines" t-value="lines[1:] if total_line else lines"/>-->
+
+<!--                        &lt;!&ndash; Total HEADER row at the TOP (label only, NO amounts) &ndash;&gt;-->
+<!--                        <t t-if="total_line">-->
+<!--                            <tr style="font-weight:bold;background:#eeeeee;font-size:12px;">-->
+<!--                                <td style="padding:5px 8px;"><span t-esc="report_title"/></td>-->
+<!--                                <t t-if="report_view == 'customer_statement'">-->
+<!--                                    <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                                </t>-->
+<!--                                <t t-else="">-->
+<!--                                    <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                </t>-->
+<!--                            </tr>-->
+<!--                        </t>-->
+
+<!--                        &lt;!&ndash; Render partner/detail lines &ndash;&gt;-->
+<!--                        <t t-call="partner_ledger_enterprise_view.report_partner_ledger_lines">-->
+<!--                            <t t-set="report_lines" t-value="body_lines"/>-->
+<!--                        </t>-->
+
+<!--                        &lt;!&ndash; Total row at the BOTTOM with amounts &ndash;&gt;-->
+<!--                        <t t-if="total_line">-->
+<!--                            <tr style="font-weight:bold;background:#eeeeee;font-size:12px;border-top:2px solid #8b0000;">-->
+<!--                                <td style="padding:5px 8px;"><span t-esc="report_title"/></td>-->
+<!--                                <t t-if="report_view == 'customer_statement'">-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                                        <span t-esc="'%.2f' % ((total_line.get('debit') or 0.0) - (total_line.get('credit') or 0.0))"/>-->
+<!--                                    </td>-->
+<!--                                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                                        <span t-esc="'%.2f' % (total_line.get('balance') or 0.0)"/>-->
+<!--                                        <span t-esc="currency_symbol"/>-->
+<!--                                    </td>-->
+<!--                                </t>-->
+<!--                                <t t-else="">-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                    <td style="padding:5px 8px;"/>-->
+<!--                                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                                        <span t-esc="'%.2f' % (total_line.get('debit') or 0.0)"/>-->
+<!--                                    </td>-->
+<!--                                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                                        <span t-esc="'%.2f' % (total_line.get('credit') or 0.0)"/>-->
+<!--                                    </td>-->
+<!--                                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                                        <span t-esc="'%.2f' % (total_line.get('balance') or 0.0)"/>-->
+<!--                                        <span t-esc="currency_symbol"/>-->
+<!--                                    </td>-->
+<!--                                </t>-->
+<!--                            </tr>-->
+<!--                        </t>-->
+<!--                    </tbody>-->
+<!--                </table>-->
+<!--            </div>-->
+<!--        </div>-->
+
+<!--        &lt;!&ndash;-->
+<!--            Footer: sibling of .article so wkhtmltopdf renders it on every page.-->
+<!--            The JS hides it on all pages except the last.-->
+<!--        &ndash;&gt;-->
+<!--        <div class="footer">-->
+<!--            <div id="oca_pl_bank_footer"-->
+<!--                 style="width:100%; padding-top:10px; border-top:2px solid #8b0000;-->
+<!--                        font-size:11px; color:#222; font-family:Arial,sans-serif; line-height:1.7;">-->
+
+<!--                &lt;!&ndash; ===== BANK ACCOUNTS: 2-column table ===== &ndash;&gt;-->
+<!--                <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">-->
+<!--                    <tr>-->
+<!--                        &lt;!&ndash; LEFT: Alrajhi &ndash;&gt;-->
+<!--                        <td style="width:50%; vertical-align:top; padding:0 14px 0 0;-->
+<!--                                   border-right:1px solid #bbb;">-->
+<!--                            <div style="font-size:13px; font-weight:bold; margin-bottom:3px;">-->
+<!--                                Sameer Sharaf Al Otaibi Trading Company-->
+<!--                            </div>-->
+<!--                            <div style="font-size:11px; color:#555;">Alrajhi Bank</div>-->
+<!--                            <div>Account Number: <strong>123000010006080143917</strong></div>-->
+<!--                            <div>IBAN: <strong>SA7880000123608010143917</strong></div>-->
+<!--                        </td>-->
+<!--                        &lt;!&ndash; RIGHT: SNB &ndash;&gt;-->
+<!--                        <td style="width:50%; vertical-align:top; padding:0 0 0 14px;">-->
+<!--                            <div style="font-size:13px; font-weight:bold; margin-bottom:3px;">-->
+<!--                                Sameer Sharaf Alateebi Company Commercial-->
+<!--                            </div>-->
+<!--                            <div style="font-size:11px; color:#555;">SNB - Saudi National Bank</div>-->
+<!--                            <div>Account Number at SNB: <strong>13200000678707</strong></div>-->
+<!--                            <div>IBAN: <strong>SA2110000013200000678707</strong></div>-->
+<!--                        </td>-->
+<!--                    </tr>-->
+<!--                </table>-->
+
+<!--                &lt;!&ndash; ===== BRANCH ADDRESSES: 3-column table ===== &ndash;&gt;-->
+<!--                <table style="width:100%; border-collapse:collapse;-->
+<!--                              border-top:1px solid #ccc; padding-top:6px;">-->
+<!--                    <tr>-->
+<!--                        &lt;!&ndash; Jeddah Al Fayha &ndash;&gt;-->
+<!--                        <td style="width:33.33%; vertical-align:top;-->
+<!--                                   padding:8px 12px 4px 0; border-right:1px solid #ddd;">-->
+<!--                            <div style="font-size:12px; font-weight:bold; margin-bottom:2px;">-->
+<!--                                Jeddah Al Fayha Branch:-->
+<!--                            </div>-->
+<!--                            <div>7655 Al Fayha Dist., Jeddah 22244-3108, KSA</div>-->
+<!--                            <div>Tel/Mobile: +966 571 313 243</div>-->
+<!--                            <div>Email: ssaoe.jeddah@gmail.com</div>-->
+<!--                        </td>-->
+<!--                        &lt;!&ndash; Jeddah Baladiya &ndash;&gt;-->
+<!--                        <td style="width:33.33%; vertical-align:top;-->
+<!--                                   padding:8px 12px; border-right:1px solid #ddd;">-->
+<!--                            <div style="font-size:12px; font-weight:bold; margin-bottom:2px;">-->
+<!--                                Jeddah Baladiya Branch:-->
+<!--                            </div>-->
+<!--                            <div>Sookul Anwar, Al Baladeah, Aziziyah, Jeddah 31303, KSA</div>-->
+<!--                            <div>Tel/Mobile: +966 536 122 833</div>-->
+<!--                            <div>Email: ssaoe.jeddah@gmail.com</div>-->
+<!--                        </td>-->
+<!--                        &lt;!&ndash; Dammam &ndash;&gt;-->
+<!--                        <td style="width:33.33%; vertical-align:top;-->
+<!--                                   padding:8px 0 4px 12px;">-->
+<!--                            <div style="font-size:12px; font-weight:bold; margin-bottom:2px;">-->
+<!--                                Dammam Branch:-->
+<!--                            </div>-->
+<!--                            <div>8515 Qutaibah bin Muslim St., Al Souq, Dammam 4525-32242, KSA</div>-->
+<!--                            <div>Tel/Mobile: +966 535 081 008</div>-->
+<!--                            <div>Email: ssaoe.jeddah@gmail.com</div>-->
+<!--                        </td>-->
+<!--                    </tr>-->
+<!--                </table>-->
+<!--            </div>-->
+
+<!--            <script>-->
+<!--                (function () {-->
+<!--                    function hideUnlessLastPage() {-->
+<!--                        var qs = (document.location.search || '').replace(/^\?/, '');-->
+<!--                        var params = {};-->
+<!--                        qs.split('&amp;').forEach(function (pair) {-->
+<!--                            var kv = pair.split('=');-->
+<!--                            if (kv[0]) { params[kv[0]] = decodeURIComponent(kv[1] || ''); }-->
+<!--                        });-->
+<!--                        var page = parseInt(params.page, 10);-->
+<!--                        var topage = parseInt(params.topage, 10);-->
+<!--                        var el = document.getElementById('oca_pl_bank_footer');-->
+<!--                        if (el &amp;&amp; page &amp;&amp; topage &amp;&amp; page !== topage) {-->
+<!--                            el.style.display = 'none';-->
+<!--                        }-->
+<!--                    }-->
+<!--                    if (document.readyState === 'complete') {-->
+<!--                        hideUnlessLastPage();-->
+<!--                    } else {-->
+<!--                        window.addEventListener('load', hideUnlessLastPage);-->
+<!--                    }-->
+<!--                })();-->
+<!--            </script>-->
+<!--        </div>-->
+<!--    </template>-->
+
+<!--    <template id="report_partner_ledger_lines">-->
+<!--        <t t-foreach="report_lines" t-as="line">-->
+<!--            <tr t-att-style="line.get('style') in ('header', 'group') and 'font-weight:bold;background:#eeeeee;font-size:12px;' or 'font-size:11px;'">-->
+<!--                <td style="padding:5px 8px;">-->
+<!--                    <span t-if="line.get('line_type') == 'total'" t-esc="report_title"/>-->
+<!--                    <span t-else="" t-esc="line.get('name')"/>-->
+<!--                </td>-->
+<!--                &lt;!&ndash; Partner group rows: label only, NO amounts &ndash;&gt;-->
+<!--                <t t-if="line.get('line_type') == 'partner'">-->
+<!--                    <t t-if="report_view == 'customer_statement'">-->
+<!--                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                    </t>-->
+<!--                    <t t-else="">-->
+<!--                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                        <td style="padding:5px 8px;"/><td style="padding:5px 8px;"/>-->
+<!--                        <td style="padding:5px 8px;"/>-->
+<!--                    </t>-->
+<!--                </t>-->
+<!--                &lt;!&ndash; Detail / account lines: full data with amounts &ndash;&gt;-->
+<!--                <t t-elif="report_view == 'customer_statement'">-->
+<!--                    <td style="padding:5px 8px;">-->
+<!--                        <span t-esc="line.get('invoice_date') and (line.get('invoice_date').split('-')[2] + '/' + line.get('invoice_date').split('-')[1] + '/' + line.get('invoice_date').split('-')[0]) or ''"/>-->
+<!--                    </td>-->
+<!--                    <td style="padding:5px 8px;">-->
+<!--                        <span t-esc="line.get('due_date') and (line.get('due_date').split('-')[2] + '/' + line.get('due_date').split('-')[1] + '/' + line.get('due_date').split('-')[0]) or ''"/>-->
+<!--                    </td>-->
+<!--                    <td style="padding:5px 8px;"><span t-esc="line.get('ref_customer')"/></td>-->
+<!--                    <td style="padding:5px 8px;"><span t-esc="line.get('ref_vendor')"/></td>-->
+<!--                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                        <span t-esc="'%.2f' % ((line.get('debit') or 0.0) - (line.get('credit') or 0.0))"/>-->
+<!--                    </td>-->
+<!--                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                        <span t-esc="'%.2f' % (line.get('balance') or 0.0)"/>-->
+<!--                        <span t-esc="currency_symbol"/>-->
+<!--                    </td>-->
+<!--                </t>-->
+<!--                <t t-else="">-->
+<!--                    <td style="padding:5px 8px;"><span t-esc="line.get('journal')"/></td>-->
+<!--                    <td style="padding:5px 8px;"><span t-esc="line.get('account')"/></td>-->
+<!--                    <td style="padding:5px 8px;">-->
+<!--                        <span t-esc="line.get('invoice_date') and (line.get('invoice_date').split('-')[2] + '/' + line.get('invoice_date').split('-')[1] + '/' + line.get('invoice_date').split('-')[0]) or ''"/>-->
+<!--                    </td>-->
+<!--                    <td style="padding:5px 8px;">-->
+<!--                        <span t-esc="line.get('due_date') and (line.get('due_date').split('-')[2] + '/' + line.get('due_date').split('-')[1] + '/' + line.get('due_date').split('-')[0]) or ''"/>-->
+<!--                    </td>-->
+<!--                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                        <span t-esc="'%.2f' % (line.get('debit') or 0.0)"/>-->
+<!--                    </td>-->
+<!--                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                        <span t-esc="'%.2f' % (line.get('credit') or 0.0)"/>-->
+<!--                    </td>-->
+<!--                    <td style="text-align:right; padding:5px 8px;">-->
+<!--                        <span t-esc="'%.2f' % (line.get('balance') or 0.0)"/>-->
+<!--                        <span t-esc="currency_symbol"/>-->
+<!--                    </td>-->
+<!--                </t>-->
+<!--            </tr>-->
+<!--            <t t-if="line.get('children')">-->
+<!--                <t t-call="partner_ledger_enterprise_view.report_partner_ledger_lines">-->
+<!--                    <t t-set="report_lines" t-value="line.get('children')"/>-->
+<!--                </t>-->
+<!--            </t>-->
+<!--        </t>-->
+<!--    </template>-->
+
+<!--    <template id="report_partner_ledger_pdf">-->
+<!--        <t t-call="web.html_container">-->
+<!--            <t t-call="partner_ledger_enterprise_view.report_partner_ledger_document"/>-->
+<!--        </t>-->
+<!--    </template>-->
+
+<!--    <record id="paperformat_partner_ledger" model="report.paperformat">-->
+<!--        <field name="name">Partner Ledger</field>-->
+<!--        <field name="default" eval="False"/>-->
+<!--        <field name="format">A4</field>-->
+<!--        <field name="orientation">Portrait</field>-->
+<!--        <field name="margin_top">15</field>-->
+<!--        <field name="margin_bottom">62</field>-->
+<!--        <field name="margin_left">7</field>-->
+<!--        <field name="margin_right">7</field>-->
+<!--        <field name="header_line" eval="False"/>-->
+<!--        <field name="header_spacing">3</field>-->
+<!--        <field name="dpi">90</field>-->
+<!--    </record>-->
+
+<!--    <record id="action_report_partner_ledger_pdf" model="ir.actions.report">-->
+<!--        <field name="name">Partner Ledger</field>-->
+<!--        <field name="model">partner.ledger.engine</field>-->
+<!--        <field name="report_type">qweb-pdf</field>-->
+<!--        <field name="report_name">partner_ledger_enterprise_view.report_partner_ledger_pdf</field>-->
+<!--        <field name="report_file">partner_ledger_enterprise_view.report_partner_ledger_pdf</field>-->
+<!--        <field name="print_report_name">'Partner Ledger'</field>-->
+<!--        <field name="paperformat_id" ref="paperformat_partner_ledger"/>-->
+<!--    </record>-->
+
+<!--</odoo>-->

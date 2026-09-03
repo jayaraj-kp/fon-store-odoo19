@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Aged Payable client action -->
+    <record id="action_aged_payable" model="ir.actions.client">
+        <field name="name">Aged Payable</field>
+        <field name="tag">pl.AgedPayableView</field>
+        <field name="target">current</field>
+    </record>
+
+    <!-- Menu under Accounting > Reporting -->
+    <menuitem
+        id="menu_aged_payable"
+        name="Aged Payable"
+        parent="account.menu_finance_reports"
+        action="action_aged_payable"
+        sequence="29"
+        groups="account.group_account_user"
+    />
+
+</odoo>

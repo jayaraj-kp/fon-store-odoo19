@@ -1,0 +1,523 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+
+    <!-- Recursive line renderer for aged receivable -->
+    <t t-name="pl.AgedReceivableLines">
+        <t t-foreach="lines" t-as="line" t-key="line.id">
+            <div
+                t-att-class="lineRowClass(line)"
+            >
+                <div class="pl-cell pl-cell-name">
+                    <t t-if="isExpandable(line)">
+                        <i
+                            t-attf-class="fa fa-caret-{{ isCollapsed(line) ? 'right' : 'down' }} pl-caret"
+                            t-on-click.stop="() => this.toggleLine(line)"
+                            style="cursor:pointer;margin-right:4px;"
+                        />
+                    </t>
+                    <t t-else="">
+                        <span class="pl-caret-placeholder"/>
+                    </t>
+                    <t t-if="line.line_type === 'account' and line.move_id">
+                        <span
+                            class="pl-link"
+                            t-on-click.stop="() => this.openMove(line.move_id)"
+                            t-esc="line.name"
+                            style="cursor:pointer;color:#60a5fa;"
+                        />
+                    </t>
+                    <t t-elif="line.line_type === 'partner' and line.partner_id">
+                        <span
+                            class="pl-partner-name"
+                            t-esc="line.name"
+                        />
+                        <span class="pl-badges">
+                            <span
+                                class="pl-badge"
+                                t-on-click.stop="() => this.openPartner(line.partner_id)"
+                            >Partner</span>
+                            <span
+                                class="pl-badge"
+                                t-on-click.stop="(ev) => this.openCustomerStatement(line, ev)"
+                            >Statement</span>
+                        </span>
+                    </t>
+                    <t t-elif="line.line_type === 'total'">
+                        <span class="pl-label-text" t-esc="line.name"/>
+                    </t>
+                    <t t-else="">
+                        <span class="pl-label-text" t-esc="line.name"/>
+                    </t>
+                </div>
+                <!-- Account rows -->
+                <t t-if="line.line_type === 'account'">
+                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.invoice_date)"/>
+                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.due_date)"/>
+                    <t t-foreach="state.bucketLabels" t-as="blbl" t-key="blbl">
+                        <div
+                            t-att-class="'pl-cell pl-cell-amount' + (bucketValue(line, blbl_index) !== 0 ? ' pl-clickable' : '')"
+                            t-att-style="bucketValue(line, blbl_index) !== 0 ? 'cursor:pointer;' : 'opacity:0.3;'"
+                            t-esc="fmtNum(bucketValue(line, blbl_index))"
+                            t-on-click.stop="(ev) => this.openAmountDetails(line, blbl_index, ev)"
+                        />
+                    </t>
+                    <div
+                        t-att-class="'pl-cell pl-cell-amount pl-balance pl-clickable ' + balanceClass(line.balance)"
+                        t-att-style="'cursor:pointer;'"
+                        t-esc="fmtNumWithSym(line.balance)"
+                        t-on-click.stop="(ev) => this.openAmountDetails(line, -1, ev)"
+                    />
+                </t>
+                <!-- Partner rows -->
+                <t t-if="line.line_type === 'partner'">
+                    <div class="pl-cell pl-cell-date"/>
+                    <div class="pl-cell pl-cell-date"/>
+                    <t t-foreach="state.bucketLabels" t-as="blbl" t-key="'p'+blbl">
+                        <div
+                            t-att-class="'pl-cell pl-cell-amount pl-bold' + (bucketValue(line, blbl_index) !== 0 ? ' pl-clickable' : '')"
+                            t-esc="fmtNum(bucketValue(line, blbl_index))"
+                            t-on-click.stop="(ev) => this.openPartnerJournalItems(line, ev)"
+                        />
+                    </t>
+                    <div
+                        t-att-class="'pl-cell pl-cell-amount pl-bold pl-clickable ' + balanceClass(line.total)"
+                        t-esc="fmtNumWithSym(line.total)"
+                        t-on-click.stop="(ev) => this.openPartnerJournalItems(line, ev)"
+                    />
+                </t>
+                <!-- Total rows -->
+                <t t-if="line.line_type === 'total'">
+                    <div class="pl-cell pl-cell-date"/>
+                    <div class="pl-cell pl-cell-date"/>
+                    <t t-foreach="state.bucketLabels" t-as="blbl" t-key="'t'+blbl">
+                        <div
+                            class="pl-cell pl-cell-amount pl-bold"
+                            t-esc="fmtNum(bucketValue(line, blbl_index))"
+                        />
+                    </t>
+                    <div
+                        t-att-class="'pl-cell pl-cell-amount pl-bold ' + balanceClass(line.total)"
+                        t-esc="fmtNumWithSym(line.total)"
+                    />
+                </t>
+            </div>
+            <t t-if="line.line_type === 'partner' and !isCollapsed(line) and line.children">
+                <t t-call="pl.AgedReceivableLines">
+                    <t t-set="lines" t-value="line.children"/>
+                </t>
+            </t>
+        </t>
+    </t>
+
+    <!-- Main Aged Receivable View -->
+    <t t-name="pl.AgedReceivableView">
+        <div class="pl-root">
+            <!-- Control Panel -->
+            <div class="pl-control-panel">
+                <div class="pl-left-section">
+                    <button
+                        class="pl-print-btn"
+                        t-on-click="exportPDF"
+                        t-att-disabled="state.exportingPdf"
+                    >
+                        <t t-if="!state.exportingPdf">
+                            <i class="fa fa-print"/> Print
+                        </t>
+                        <t t-else="">
+                            <span class="pl-spinner"/> Exporting...
+                        </t>
+                    </button>
+                    <button
+                        class="pl-print-btn pl-excel-btn"
+                        t-on-click="exportExcel"
+                        t-att-disabled="state.exportingExcel"
+                    >
+                        <t t-if="!state.exportingExcel">
+                            <i class="fa fa-file-excel-o"/> Excel
+                        </t>
+                        <t t-else="">
+                            <span class="pl-spinner"/> Exporting...
+                        </t>
+                    </button>
+                    <h1 class="pl-title">Aged Receivable</h1>
+                    <span class="pl-gear"><i class="fa fa-gear"/></span>
+                    <button class="pl-close-btn" t-on-click="closeReport" title="Close">
+                        <i class="fa fa-times"/>
+                    </button>
+                </div>
+                <div class="pl-filters-section">
+                    <!-- Search Box -->
+                    <div class="pl-search-box" t-ref="searchBoxRef" style="position:relative;">
+                        <i class="fa fa-search" style="color:#6b7280;font-size:12px;"/>
+                        <input
+                            type="text"
+                            placeholder="Search partner..."
+                            t-on-input="onSearchInput"
+                            t-on-focus="onSearchFocus"
+                            t-on-keydown="onSearchKeydown"
+                            t-att-value="state.searchTerm"
+                            style="background:transparent;border:none;color:#f3f4f6;font-size:13px;outline:none;width:140px;"
+                        />
+                        <t t-if="state.searchTerm">
+                            <i
+                                class="fa fa-times"
+                                style="color:#6b7280;cursor:pointer;font-size:11px;"
+                                t-on-click="clearSearch"
+                            />
+                        </t>
+                        <t t-if="state.searchDropdownOpen and state.searchResults.length">
+                            <div class="pl-dropdown-panel">
+                                <t t-foreach="state.searchResults" t-as="p" t-key="p.id">
+                                    <div class="pl-partners-result-item" t-on-click="() => this.selectSearchResult(p)">
+                                        <span t-esc="p.name"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                        <t t-if="state.searchDropdownOpen and !state.searchResults.length and state.searchTerm">
+                            <div class="pl-dropdown-panel">
+                                <div class="pl-partners-result-item" style="color:#6c757d;font-style:italic;cursor:default;">
+                                    No partners found
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Date Filter — Enterprise Style -->
+                    <div
+                        class="pl-filter-pill"
+                        t-on-click="(ev) => this.openDropdown('date', ev)"
+                        t-ref="dateDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-calendar"/> As of <span t-esc="dateFilterLabel"/>
+                        <t t-if="state.dateDropdownOpen">
+                            <div class="pl-dropdown-panel pl-date-panel" t-on-click.stop="">
+                                <!-- Today -->
+                                <div class="pl-dropdown-item" t-on-click="setToday">
+                                    <t t-if="state.dateMode === 'today'">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    Today
+                                </div>
+                                <!-- End of Month -->
+                                <div class="pl-dropdown-item" t-on-click="setEndOfMonth">
+                                    <t t-if="state.dateMode === 'end_of_month'">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    <span>End of Month</span>
+                                    <span class="pl-dropdown-right">
+                                        <i class="fa fa-chevron-left" t-on-click.stop="prevMonth" style="cursor:pointer;padding:2px 4px;"/>
+                                        <span t-esc="endOfMonthLabel" style="margin:0 4px;"/>
+                                        <i class="fa fa-chevron-right" t-on-click.stop="nextMonth" style="cursor:pointer;padding:2px 4px;"/>
+                                    </span>
+                                </div>
+                                <!-- End of Quarter -->
+                                <div class="pl-dropdown-item" t-on-click="setEndOfQuarter">
+                                    <t t-if="state.dateMode === 'end_of_quarter'">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    <span>End of Quarter</span>
+                                    <span class="pl-dropdown-right">
+                                        <i class="fa fa-chevron-left" t-on-click.stop="prevQuarter" style="cursor:pointer;padding:2px 4px;"/>
+                                        <span t-esc="endOfQuarterLabel" style="margin:0 4px;"/>
+                                        <i class="fa fa-chevron-right" t-on-click.stop="nextQuarter" style="cursor:pointer;padding:2px 4px;"/>
+                                    </span>
+                                </div>
+                                <!-- End of Fiscal Year -->
+                                <div class="pl-dropdown-item" t-on-click="setEndOfFiscalYear">
+                                    <t t-if="state.dateMode === 'end_of_fiscal_year'">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    <span>End of Fiscal Year</span>
+                                    <span class="pl-dropdown-right">
+                                        <i class="fa fa-chevron-left" t-on-click.stop="prevFiscalYear" style="cursor:pointer;padding:2px 4px;"/>
+                                        <span t-esc="fiscalYearLabel" style="margin:0 4px;"/>
+                                        <i class="fa fa-chevron-right" t-on-click.stop="nextFiscalYear" style="cursor:pointer;padding:2px 4px;"/>
+                                    </span>
+                                </div>
+                                <div class="pl-dropdown-divider"/>
+                                <!-- Specific Date -->
+                                <div class="pl-dropdown-item" t-on-click="setSpecificDate">
+                                    <t t-if="state.dateMode === 'specific'">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    Specific Date
+                                </div>
+                                <t t-if="state.dateMode === 'specific'">
+                                    <div style="padding:4px 12px 8px;">
+                                        <input
+                                            type="date"
+                                            t-att-value="state.dateAsOf"
+                                            t-on-change="onSpecificDateChange"
+                                            style="width:100%;padding:6px 8px;border:1px solid #4b5563;border-radius:4px;background:#374151;color:#f3f4f6;font-size:13px;"
+                                        />
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Account Type (static — Receivable only) -->
+                    <div class="pl-filter-pill active">
+                        <i class="fa fa-users"/> Account: Receivable
+                    </div>
+
+                    <!-- Partners Filter -->
+                    <div
+                        class="pl-filter-pill"
+                        t-att-class="(state.selectedPartners.length or state.selectedTags.length) ? 'pl-filter-pill active' : 'pl-filter-pill'"
+                        t-on-click="(ev) => this.openDropdown('partners', ev)"
+                        t-ref="partnersDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-users"/> <span t-esc="partnersFilterLabel"/>
+                        <t t-if="state.partnersDropdownOpen">
+                            <div class="pl-dropdown-panel pl-partners-panel" t-on-click.stop="">
+                                <div class="pl-partners-section-label">Partners</div>
+                                <t t-if="state.selectedPartners.length">
+                                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+                                        <t t-foreach="state.selectedPartners" t-as="p" t-key="p.id">
+                                            <span class="pl-chip">
+                                                <span t-esc="p.name"/>
+                                                <i class="fa fa-times" t-on-click="() => this.removePartner(p.id)"/>
+                                            </span>
+                                        </t>
+                                    </div>
+                                </t>
+                                <input
+                                    type="text"
+                                    placeholder="Search partners..."
+                                    t-on-input="onPartnerSearchInput"
+                                    class="pl-partners-search"
+                                />
+                                <div class="pl-partners-results">
+                                    <t t-foreach="state.partnerSearchResults" t-as="p" t-key="p.id">
+                                        <div class="pl-partners-result-item" t-on-click="() => this.addPartner(p)">
+                                            <span t-esc="p.name"/>
+                                        </div>
+                                    </t>
+                                </div>
+                                <div class="pl-dropdown-divider"/>
+                                <div class="pl-partners-section-label">Tags</div>
+                                <t t-if="state.selectedTags.length">
+                                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+                                        <t t-foreach="state.selectedTags" t-as="tg" t-key="tg.id">
+                                            <span class="pl-chip">
+                                                <span t-esc="tg.name"/>
+                                                <i class="fa fa-times" t-on-click="() => this.removeTag(tg.id)"/>
+                                            </span>
+                                        </t>
+                                    </div>
+                                </t>
+                                <input
+                                    type="text"
+                                    placeholder="Search tags..."
+                                    t-on-input="onTagSearchInput"
+                                    class="pl-partners-search"
+                                />
+                                <div class="pl-partners-results">
+                                    <t t-foreach="state.tagSearchResults" t-as="tg" t-key="tg.id">
+                                        <div class="pl-partners-result-item" t-on-click="() => this.addTag(tg)">
+                                            <span t-esc="tg.name"/>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Based on Filter -->
+                    <div
+                        class="pl-filter-pill"
+                        t-on-click="(ev) => this.openDropdown('basedOn', ev)"
+                        t-ref="basedOnDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-calendar"/> <span t-esc="basedOnLabel"/>
+                        <t t-if="state.basedOnDropdownOpen">
+                            <div class="pl-dropdown-panel" t-on-click.stop="">
+                                <div class="pl-dropdown-item" t-on-click="() => this.setBasedOn('due_date')">
+                                    <t t-if="state.basedOn === 'due_date'">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    Due Date
+                                </div>
+                                <div class="pl-dropdown-item" t-on-click="() => this.setBasedOn('invoice_date')">
+                                    <t t-if="state.basedOn === 'invoice_date'">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    Invoice Date
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Days Interval with Custom Input -->
+                    <div
+                        class="pl-filter-pill"
+                        t-on-click="(ev) => this.openDropdown('interval', ev)"
+                        t-ref="intervalDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-clock-o"/> <span t-esc="intervalLabel"/>
+                        <t t-if="state.intervalDropdownOpen">
+                            <div class="pl-dropdown-panel" t-on-click.stop="">
+                                <div class="pl-dropdown-item" t-on-click="() => this.setDaysInterval(15)">
+                                    <t t-if="state.daysInterval === 15">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    15 Days
+                                </div>
+                                <div class="pl-dropdown-item" t-on-click="() => this.setDaysInterval(30)">
+                                    <t t-if="state.daysInterval === 30">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    30 Days
+                                </div>
+                                <div class="pl-dropdown-item" t-on-click="() => this.setDaysInterval(60)">
+                                    <t t-if="state.daysInterval === 60">
+                                        <i class="fa fa-check" style="margin-right:6px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="margin-right:14px;"/>
+                                    </t>
+                                    60 Days
+                                </div>
+                                <div class="pl-dropdown-divider"/>
+                                <div style="padding:6px 12px;display:flex;align-items:center;gap:6px;">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        t-att-value="state.customDaysInput"
+                                        t-on-input="onCustomDaysChange"
+                                        t-on-keydown="onCustomDaysKeydown"
+                                        style="width:60px;padding:4px 6px;border:1px solid #4b5563;border-radius:4px;background:#374151;color:#f3f4f6;font-size:13px;text-align:center;"
+                                    />
+                                    <span style="color:#9ca3af;font-size:13px;">Days</span>
+                                    <button
+                                        class="pl-print-btn"
+                                        t-on-click="applyCustomDays"
+                                        style="padding:3px 8px;font-size:11px;margin-left:auto;"
+                                    >Apply</button>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Options (Posted/Draft + Expand All) -->
+                    <div
+                        class="pl-filter-pill"
+                        t-on-click="(ev) => this.openDropdown('options', ev)"
+                        t-ref="optionsDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-sliders"/> <span t-esc="optionsDropdownLabel"/>
+                        <t t-if="state.optionsDropdownOpen">
+                            <div class="pl-dropdown-panel" t-on-click.stop="">
+                                <div class="pl-dropdown-item" t-on-click="() => this.setTargetMove('posted')">
+                                    <i t-attf-class="fa fa-{{ state.targetMove === 'posted' ? 'check' : '' }}" style="margin-right:6px;"/>Posted Entries
+                                </div>
+                                <div class="pl-dropdown-item" t-on-click="() => this.setTargetMove('all')">
+                                    <i t-attf-class="fa fa-{{ state.targetMove === 'all' ? 'check' : '' }}" style="margin-right:6px;"/>Draft &amp; Posted Entries
+                                </div>
+                                <div class="pl-dropdown-divider"/>
+                                <div class="pl-dropdown-item" t-on-click="toggleUnfoldAll">
+                                    <i t-attf-class="fa fa-{{ state.unfoldAll ? 'check' : '' }}" style="margin-right:6px;"/>
+                                    <span t-esc="state.unfoldAll ? 'Collapse All' : 'Expand All'"/>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unposted Warning -->
+            <t t-if="state.hasUnposted and state.showUnpostedWarning and state.targetMove === 'posted'">
+                <div class="pl-warning-banner">
+                    <i class="fa fa-warning"/> There are unposted entries in the selected period.
+                    <span class="pl-warning-close" t-on-click="dismissWarning">×</span>
+                </div>
+            </t>
+
+            <!-- Content Area -->
+            <div class="pl-content">
+                <div class="pl-sheet">
+                    <!-- Loading -->
+                    <t t-if="state.loading">
+                        <div class="pl-state-box">
+                            <div class="pl-spinner pl-spinner-lg"/>
+                            <div style="margin-top:12px;">Loading report data...</div>
+                        </div>
+                    </t>
+
+                    <!-- Error -->
+                    <t t-elif="state.error">
+                        <div class="pl-state-box" style="color:#f87171;">
+                            <i class="fa fa-exclamation-triangle" style="font-size:24px;"/>
+                            <div style="margin-top:8px;" t-esc="state.error"/>
+                            <button class="pl-print-btn" t-on-click="() => this._loadData()" style="margin-top:12px;">
+                                <i class="fa fa-refresh"/> Retry
+                            </button>
+                        </div>
+                    </t>
+
+                    <!-- Data Table -->
+                    <t t-elif="filteredLines.length">
+                        <!-- Table Header -->
+                        <div class="pl-row pl-table-header">
+                            <div class="pl-cell pl-cell-name" style="font-weight:bold;">Aged Receivable</div>
+                            <div class="pl-cell pl-cell-date" style="font-weight:bold;">Invoice Date</div>
+                            <div class="pl-cell pl-cell-date" style="font-weight:bold;">Due Date</div>
+                            <t t-foreach="state.bucketLabels" t-as="label" t-key="label">
+                                <div class="pl-cell pl-cell-amount" style="font-weight:bold;" t-esc="label"/>
+                            </t>
+                            <div class="pl-cell pl-cell-amount" style="font-weight:bold;">Total</div>
+                        </div>
+
+                        <!-- Lines -->
+                        <t t-call="pl.AgedReceivableLines">
+                            <t t-set="lines" t-value="filteredLines"/>
+                        </t>
+                    </t>
+
+                    <!-- Empty State -->
+                    <t t-else="">
+                        <div class="pl-state-box" style="color:#6b7280;">
+                            <i class="fa fa-inbox" style="font-size:24px;"/>
+                            <div style="margin-top:8px;">No data found for the selected filters.</div>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>

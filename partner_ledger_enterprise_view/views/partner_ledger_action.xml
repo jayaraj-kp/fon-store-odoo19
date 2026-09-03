@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Partner Ledger client action -->
+    <record id="action_partner_ledger_enterprise" model="ir.actions.client">
+        <field name="name">Partner Ledger</field>
+        <field name="tag">pl.PartnerLedgerView</field>
+        <field name="target">current</field>
+    </record>
+
+    <!-- Menu under Accounting > Reporting -->
+    <menuitem
+        id="menu_partner_ledger_enterprise"
+        name="Partner Ledger (Interactive)"
+        parent="account.menu_finance_reports"
+        action="action_partner_ledger_enterprise"
+        sequence="27"
+        groups="account.group_account_user"
+    />
+
+</odoo>

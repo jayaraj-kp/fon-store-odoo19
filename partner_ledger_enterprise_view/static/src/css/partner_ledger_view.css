@@ -1,0 +1,681 @@
+/* =====================================================================
+   Partner Ledger — Enterprise Interactive View
+   ===================================================================== */
+
+.pl-root {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #1b1d26;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #f3f4f6;
+}
+
+/* Control panel */
+.pl-control-panel {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 10px 24px;
+    background: #1b1d26;
+    border-bottom: 1px solid #3c3e4b;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+    flex-wrap: nowrap;
+    gap: 8px;
+}
+
+.pl-left-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.pl-print-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    background: #714b67;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.pl-print-btn:hover {
+    background: #87567a;
+}
+
+.pl-secondary-btn {
+    background: #374151;
+    border: 1px solid #4b5563;
+}
+
+.pl-secondary-btn:hover {
+    background: #4b5563;
+}
+
+.pl-excel-btn {
+    background: #1e7d46;
+    border: 1px solid #2a9d5c;
+}
+
+.pl-excel-btn:hover {
+    background: #27945a;
+}
+
+.pl-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #f3f4f6;
+    margin: 0;
+}
+
+.pl-gear {
+    color: #9ca3af;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.pl-filters-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 0 auto;
+}
+
+.pl-search-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid #4b5563;
+    border-radius: 4px;
+    background: #374151;
+    color: #d1d5db;
+}
+
+.pl-search-box i {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.pl-search-box input {
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #f3f4f6;
+    font-size: 13px;
+    width: 190px;
+}
+
+.pl-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid #4b5563;
+    border-radius: 4px;
+    background: #374151;
+    color: #d1d5db;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    font-weight: 500;
+}
+
+.pl-filter-pill:hover {
+    background: #4b5563;
+}
+
+.pl-filter-pill.active {
+    background: rgba(45, 212, 191, 0.10);
+    border-color: #2dd4bf;
+    color: #5eead4;
+}
+
+.pl-date-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+}
+
+.pl-date-range-inputs input[type="date"] {
+    background: #1a1b24;
+    color: #f3f4f6;
+    border: 1px solid #3b3e54;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 4px;
+    color-scheme: dark;
+}
+
+.pl-date-sep {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.pl-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.pl-close-btn:hover {
+    background: #374151;
+    color: #f3f4f6;
+}
+
+/* Dropdown */
+.pl-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 200;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.5);
+    min-width: 220px;
+    padding: 6px 0;
+}
+
+.pl-partners-panel {
+    min-width: 260px;
+    padding: 10px 12px;
+}
+
+.pl-partners-section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #8b92a5;
+    margin: 6px 0 4px;
+}
+
+.pl-partners-search {
+    width: 100%;
+    background: #1a1b24;
+    color: #f3f4f6;
+    border: 1px solid #3b3e54;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 5px 8px;
+    margin-top: 4px;
+    box-sizing: border-box;
+}
+
+.pl-partners-results {
+    max-height: 160px;
+    overflow-y: auto;
+    margin-top: 4px;
+    border: 1px solid #374151;
+    border-radius: 4px;
+}
+
+.pl-partners-result-item {
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #d1d5db;
+    cursor: pointer;
+}
+
+.pl-partners-result-item:hover {
+    background: #374151;
+}
+
+.pl-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #1e3a5f;
+    color: #93c5fd;
+    border-radius: 12px;
+    padding: 3px 8px 3px 10px;
+    font-size: 12px;
+    margin: 2px 4px 2px 0;
+}
+
+.pl-chip i {
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.pl-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #d1d5db;
+}
+
+.pl-dropdown-item:hover {
+    background: #374151;
+}
+
+.pl-dropdown-item.selected {
+    background: rgba(45, 212, 191, 0.10);
+    color: #5eead4;
+    font-weight: 600;
+}
+
+.pl-dropdown-item i.fa {
+    width: 12px;
+    text-align: center;
+}
+
+.pl-dropdown-divider {
+    height: 1px;
+    background: #374151;
+    margin: 4px 0;
+}
+
+/* Enterprise-style date filter panel: Month / Quarter / Fiscal Year rows,
+   each with its own prev/next navigation, plus a Custom Dates option. */
+.pl-date-panel {
+    min-width: 260px;
+    padding: 6px 0;
+}
+
+.pl-date-mode-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #d1d5db;
+}
+
+.pl-date-mode-row:hover {
+    background: #374151;
+}
+
+.pl-date-mode-row.selected {
+    color: #5eead4;
+    font-weight: 600;
+}
+
+.pl-date-mode-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.pl-date-mode-label i.fa {
+    width: 12px;
+    text-align: center;
+}
+
+.pl-date-mode-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    color: inherit;
+}
+
+.pl-date-mode-nav i.fa {
+    font-size: 11px;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.pl-date-mode-nav i.fa:hover {
+    background: #4b5563;
+    color: #f3f4f6;
+}
+
+/* Warning banner */
+.pl-warning-banner {
+    background: #1a3a5c;
+    color: #93c5fd;
+    font-size: 13px;
+    padding: 8px 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid #243b5e;
+}
+
+.pl-warning-close {
+    position: absolute;
+    right: 20px;
+    font-size: 18px;
+    cursor: pointer;
+    color: #93c5fd;
+    line-height: 1;
+}
+
+.pl-warning-close:hover {
+    color: #fff;
+}
+
+/* Content */
+.pl-content {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.pl-sheet {
+    background: #262a36;
+    border: 1px solid #3c3e4b;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    width: 100%;
+    max-width: 1600px;
+    padding: 20px 26px 28px;
+    overflow-x: auto;
+}
+
+
+
+/* Grid rows: name | journal | account | invoice date | due date | matching | debit | credit | balance | narration */
+.pl-row {
+    display: grid;
+    grid-template-columns: 1.8fr 70px 90px 96px 96px 90px 115px 115px 135px 1.6fr;
+    align-items: center;
+    column-gap: 12px;
+    padding: 6px 14px;
+    border-bottom: 1px solid #3c3e4b;
+    min-height: 32px;
+    transition: background 0.1s;
+    min-width: 1160px;
+}
+
+/* Statement of Account grid: name | invoice date | due date | reference | narration | amount | balance */
+.pl-row.pl-row-statement {
+    grid-template-columns: 1.8fr 96px 96px 220px 1.6fr 125px 135px;
+    min-width: 1000px;
+}
+
+.pl-cell-ref {
+    font-size: 13.5px;
+    color: #9ca3af;
+}
+
+.pl-cell-narration {
+    text-align: left;
+    font-size: 12px;
+    color: #cbd5e1;
+    white-space: normal;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.pl-table-header {
+    border-bottom: 2px solid #4b5563;
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+    min-height: auto;
+}
+
+.pl-table-header .pl-cell {
+    font-size: 11px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: right;
+}
+
+.pl-table-header .pl-cell-name {
+    text-align: left;
+}
+
+.pl-account-row:hover {
+    background: #2f333f;
+}
+
+.pl-cell {
+    font-size: 12.5px;
+    color: #d1d5db;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+}
+
+.pl-cell-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+    min-width: 0;
+}
+
+.pl-caret {
+    width: 16px;
+    font-size: 13px;
+    color: #2dd4bf;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.pl-caret-placeholder {
+    width: 16px;
+    flex-shrink: 0;
+}
+
+.pl-label-text,
+.pl-link {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pl-link {
+    color: #60a5fa;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.pl-link:hover {
+    text-decoration: underline;
+    color: #93c5fd;
+}
+
+.pl-cell-amount {
+    font-variant-numeric: tabular-nums;
+}
+
+.pl-balance.pl-negative {
+    color: #60a5fa;
+}
+
+/* Header / total row */
+.pl-header-band {
+    background: #3c3e4b;
+    font-weight: 700;
+}
+
+.pl-header-band .pl-label-text {
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-size: 14px;
+}
+
+/* Partner group row */
+.pl-partner-row {
+    background: #2a2e3a;
+    cursor: pointer;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.pl-partner-name {
+    color: #f3f4f6;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pl-partner-row .pl-partner-name,
+.pl-partner-row .pl-cell-amount {
+    font-weight: 700;
+}
+
+/* "Partner" / "Journal Items" quick-action badges — shown on hover of the
+   partner group row, matching the enterprise Partner Ledger. */
+.pl-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+
+.pl-partner-row:hover .pl-badges {
+    opacity: 1;
+}
+
+.pl-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 3px;
+    background: rgba(45, 212, 191, 0.12);
+    border: 1px solid rgba(45, 212, 191, 0.35);
+    color: #5eead4;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.pl-badge:hover {
+    background: rgba(45, 212, 191, 0.25);
+}
+
+/* Account / journal item row */
+.pl-account-row .pl-cell-name {
+    padding-left: 28px;
+}
+
+.pl-account-row .pl-label-text,
+.pl-account-row .pl-link {
+    font-size: 12px;
+    color: #b0b7c3;
+}
+
+/* State boxes */
+.pl-state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.pl-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #374151;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: pl-spin 0.6s linear infinite;
+    display: inline-block;
+}
+
+.pl-spinner-lg {
+    width: 24px;
+    height: 24px;
+}
+
+@keyframes pl-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Company Header */
+.pl-company-header {
+    width: 100%;
+    margin-bottom: 18px;
+    border-bottom: 2px solid #8b0000;
+    padding-bottom: 10px;
+}
+
+.pl-header-img {
+    width: 100%;
+    max-height: 110px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Print */
+@media print {
+    .pl-control-panel,
+    .pl-warning-banner {
+        display: none !important;
+    }
+    .pl-root {
+        background: #fff;
+        color: #000;
+    }
+    .pl-sheet {
+        box-shadow: none;
+        border: none;
+        max-width: 100%;
+    }
+    .pl-company-header {
+        border-bottom: 2px solid #8b0000;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+    }
+}
+
+/* Dropdown right-aligned content (for date filter labels) */
+.pl-dropdown-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+/* Clickable amounts */
+.pl-clickable {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.pl-clickable:hover {
+    background: rgba(99, 102, 241, 0.2);
+    text-decoration: underline;
+}
