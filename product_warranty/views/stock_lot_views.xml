@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Search: staff can type/scan a serial number here -->
+    <record id="stock_lot_warranty_search_view" model="ir.ui.view">
+        <field name="name">stock.lot.warranty.search</field>
+        <field name="model">stock.lot</field>
+        <field name="arch" type="xml">
+            <search string="Search Warranty">
+                <field name="name" string="Serial Number"
+                       filter_domain="[('name', 'ilike', self)]"/>
+                <field name="product_id"/>
+                <filter string="Sold" name="sold"
+                        domain="[('sale_date', '!=', False)]"/>
+                <filter string="Not Sold Yet" name="not_sold"
+                        domain="[('sale_date', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Product" name="group_product"
+                            context="{'group_by': 'product_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- List: quick overview -->
+    <record id="stock_lot_warranty_tree_view" model="ir.ui.view">
+        <field name="name">stock.lot.warranty.tree</field>
+        <field name="model">stock.lot</field>
+        <field name="arch" type="xml">
+            <list string="Warranty Register" default_order="sale_date desc">
+                <field name="name" string="Serial Number"/>
+                <field name="product_id"/>
+                <field name="sale_date"/>
+                <field name="warranty_months"/>
+                <field name="warranty_end_date"/>
+                <field name="warranty_status"
+                       decoration-success="warranty_status == 'active'"
+                       decoration-danger="warranty_status == 'expired'"
+                       decoration-muted="warranty_status in ('not_sold', 'no_warranty')"
+                       widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form: full detail for one serial number -->
+    <record id="stock_lot_warranty_form_view" model="ir.ui.view">
+        <field name="name">stock.lot.warranty.form</field>
+        <field name="model">stock.lot</field>
+        <field name="arch" type="xml">
+            <form string="Warranty Detail">
+                <sheet>
+                    <widget name="web_ribbon" title="Under Warranty" bg_color="text-bg-success"
+                            invisible="warranty_status != 'active'"/>
+                    <widget name="web_ribbon" title="Expired" bg_color="text-bg-danger"
+                            invisible="warranty_status != 'expired'"/>
+                    <div class="oe_title">
+                        <label for="name" string="Serial Number"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Product">
+                            <field name="product_id" readonly="1"/>
+                            <field name="warranty_months" readonly="1"/>
+                        </group>
+                        <group string="Warranty">
+                            <field name="sale_date" readonly="1"/>
+                            <field name="warranty_end_date" readonly="1"/>
+                            <field name="warranty_status" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action: only show tracked (serial/lot) products -->
+    <record id="action_warranty_register" model="ir.actions.act_window">
+        <field name="name">Warranty Register</field>
+        <field name="res_model">stock.lot</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="stock_lot_warranty_search_view"/>
+        <field name="domain">[('product_id.tracking', '!=', 'none')]</field>
+        <field name="context">{'search_default_sold': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smile">
+                No serial numbers found yet.
+            </p>
+            <p>
+                Once a tracked product is sold (POS or Sales Order), its
+                serial number and warranty status will show up here.
+                Search by serial number when a customer brings a product
+                back for a warranty check.
+            </p>
+        </field>
+    </record>
+
+    <!-- Standalone top-level menu -->
+    <menuitem id="menu_warranty_root"
+              name="Warranty"
+              sequence="65"/>
+
+    <menuitem id="menu_warranty_register"
+              name="Warranty Register"
+              parent="menu_warranty_root"
+              action="action_warranty_register"
+              sequence="10"/>
+
+    <record id="stock_lot_warranty_tree_view_action" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="stock_lot_warranty_tree_view"/>
+        <field name="act_window_id" ref="action_warranty_register"/>
+    </record>
+
+    <record id="stock_lot_warranty_form_view_action" model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="stock_lot_warranty_form_view"/>
+        <field name="act_window_id" ref="action_warranty_register"/>
+    </record>
+
+</odoo>
