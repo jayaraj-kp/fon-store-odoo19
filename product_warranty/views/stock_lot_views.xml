@@ -7,13 +7,8 @@
         <field name="model">stock.lot</field>
         <field name="arch" type="xml">
             <search string="Search Warranty">
-                <field name="name" string="Serial Number"
-                       filter_domain="[('name', 'ilike', self)]"/>
+                <field name="name" string="Serial Number"/>
                 <field name="product_id"/>
-                <group expand="0" string="Group By">
-                    <filter string="Product" name="group_product"
-                            context="{'group_by': 'product_id'}"/>
-                </group>
             </search>
         </field>
     </record>
