@@ -10,10 +10,6 @@
                 <field name="name" string="Serial Number"
                        filter_domain="[('name', 'ilike', self)]"/>
                 <field name="product_id"/>
-                <filter string="Sold" name="sold"
-                        domain="[('sale_date', '!=', False)]"/>
-                <filter string="Not Sold Yet" name="not_sold"
-                        domain="[('sale_date', '=', False)]"/>
                 <group expand="0" string="Group By">
                     <filter string="Product" name="group_product"
                             context="{'group_by': 'product_id'}"/>
@@ -27,7 +23,7 @@
         <field name="name">stock.lot.warranty.tree</field>
         <field name="model">stock.lot</field>
         <field name="arch" type="xml">
-            <list string="Warranty Register" default_order="sale_date desc">
+            <list string="Warranty Register">
                 <field name="name" string="Serial Number"/>
                 <field name="product_id"/>
                 <field name="sale_date"/>
@@ -80,7 +76,6 @@
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="stock_lot_warranty_search_view"/>
         <field name="domain">[('product_id.tracking', '!=', 'none')]</field>
-        <field name="context">{'search_default_sold': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smile">
                 No serial numbers found yet.
