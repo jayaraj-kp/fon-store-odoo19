@@ -22,6 +22,7 @@
                 <field name="name" string="Serial Number"/>
                 <field name="product_id"/>
                 <field name="sale_date"/>
+                <field name="customer_id"/>
                 <field name="return_date"/>
                 <field name="warranty_months"/>
                 <field name="warranty_end_date"/>
@@ -59,6 +60,7 @@
                         </group>
                         <group string="Warranty">
                             <field name="sale_date" readonly="1"/>
+                            <field name="customer_id" readonly="1" invisible="not customer_id"/>
                             <field name="return_date" readonly="1" invisible="not return_date"/>
                             <field name="warranty_end_date" readonly="1"/>
                             <field name="warranty_status" readonly="1"/>

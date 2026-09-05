@@ -26,6 +26,12 @@ class StockLot(models.Model):
              "currently sitting back in stock (i.e. it has not been sold "
              "again since being returned).",
     )
+    customer_id = fields.Many2one(
+        'res.partner',
+        string="Sold To",
+        compute='_compute_warranty_fields',
+        help="Customer who received this unit on its most recent sale.",
+    )
     warranty_end_date = fields.Datetime(
         string="Warranty End Date",
         compute='_compute_warranty_fields',
@@ -72,6 +78,11 @@ class StockLot(models.Model):
             )
             sale_date = sale_move.date if sale_move else False
             lot.sale_date = sale_date
+            lot.customer_id = (
+                sale_move.picking_id.partner_id.id
+                if sale_move and sale_move.picking_id.partner_id
+                else False
+            )
 
             # Is this unit physically back in our own stock right now?
             quants = StockQuant.search(
