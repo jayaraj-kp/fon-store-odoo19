@@ -1,5 +1,6 @@
 # from odoo import api, models
 # from odoo.osv import expression
+# from odoo.tools import html2plaintext
 #
 #
 # class PartnerLedgerEngine(models.AbstractModel):
@@ -51,6 +52,24 @@
 #             return [("id", "=", 0)]
 #         return expression.OR(sub_domains)
 #
+#     def _analytic_account_domain(self, analytic_account_ids):
+#         """Return an extra domain restricting account.move.line to entries
+#         touching any of the given analytic account ids.
+#
+#         Since Odoo 16 analytic distribution lives on the JSON
+#         ``analytic_distribution`` field (``{"<analytic_account_id>": pct}``)
+#         rather than a many2one, so it can't be matched with a plain
+#         ``in`` domain the way ``account_id`` can. The field's own search
+#         implementation (registered by ``analytic.mixin``) understands
+#         ``in``/``not in`` against that JSON column, so we only need to make
+#         sure the field actually exists before relying on it - this module
+#         targets a bare CE install where the Accounting app (and therefore
+#         analytic accounting) may not be present at all.
+#         """
+#         if "analytic_distribution" not in self.env["account.move.line"]._fields:
+#             return []
+#         return [("analytic_distribution", "in", analytic_account_ids)]
+#
 #     # ------------------------------------------------------------------
 #     # Main entry point
 #     # ------------------------------------------------------------------
@@ -63,6 +82,7 @@
 #             account_types=None,
 #             partner_ids=None,
 #             tag_ids=None,
+#             analytic_account_ids=None,
 #             target_move="posted",
 #     ):
 #         company = (
@@ -90,6 +110,8 @@
 #             domain.append(("partner_id", "in", partner_ids))
 #         if tag_ids:
 #             domain.append(("partner_id.category_id", "in", tag_ids))
+#         if analytic_account_ids:
+#             domain += self._analytic_account_domain(analytic_account_ids)
 #
 #         move_lines = self.env["account.move.line"].search(
 #             domain, order="partner_id, date, id"
@@ -97,6 +119,94 @@
 #
 #         has_matching = "matching_number" in move_lines._fields
 #         has_client_order_ref = "client_order_ref" in self.env["account.move"]._fields
+#         has_payment_id = "payment_id" in self.env["account.move.line"]._fields
+#         has_move_origin_payment = "origin_payment_id" in self.env["account.move"]._fields
+#
+#         # The Char field on account.payment used for the reference typed in
+#         # when registering a payment has been renamed across Odoo versions
+#         # (e.g. "memo" vs "ref") and may not exist at all on a stripped-down
+#         # CE install without the full Accounting app. Detect whichever one is
+#         # actually present so this never raises on data load; fall back to
+#         # the payment's own move name ("name") if neither is available.
+#         payment_ref_field = False
+#         if has_payment_id:
+#             payment_fields = self.env["account.payment"]._fields
+#             for fname in ("ref", "memo", "name"):
+#                 if fname in payment_fields:
+#                     payment_ref_field = fname
+#                     break
+#
+#         # Narration source: payments take the payment's narration field
+#         # (a custom field added by this module); invoices/bills use the
+#         # narration entered on the originating sale/purchase order.
+#         payment_narration_field = False
+#         if has_payment_id or has_move_origin_payment:
+#             payment_fields = self.env["account.payment"]._fields
+#             if "narration" in payment_fields:
+#                 payment_narration_field = "narration"
+#
+#         has_sale_link = "sale_line_ids" in move_lines._fields
+#         has_purchase_link = "purchase_order_id" in move_lines._fields
+#         has_purchase_line = "purchase_line_id" in move_lines._fields
+#         has_invoice_origin = "invoice_origin" in self.env["account.move"]._fields
+#
+#         narration_cache = {}
+#
+#         def _line_narration(line, move):
+#             """Return the narration text for an account.move.line, cached
+#             per move. Payments use the payment's narration field;
+#             invoices/bills use move.narration first, then fall back to
+#             linked order narration."""
+#             if move.id in narration_cache:
+#                 return narration_cache[move.id]
+#             narration = ""
+#             move_type = move.move_type
+#             payment = False
+#             if has_payment_id and line.payment_id:
+#                 payment = line.payment_id
+#             elif has_move_origin_payment and move.origin_payment_id:
+#                 payment = move.origin_payment_id
+#             if payment:
+#                 narration = getattr(payment, payment_narration_field, "") or ""
+#                 if not narration and move_type == "entry":
+#                     narration = move.ref or ""
+#             elif move_type == "entry":
+#                 if move.narration:
+#                     narration = (html2plaintext(move.narration) or "").strip()
+#                 if not narration:
+#                     narration = move.ref or ""
+#             elif move_type in ("out_invoice", "out_refund", "out_receipt"):
+#                 if move.narration:
+#                     narration = (html2plaintext(move.narration) or "").strip()
+#                 if not narration:
+#                     order = False
+#                     if has_sale_link and line.sale_line_ids:
+#                         order = line.sale_line_ids.order_id[:1]
+#                     if not order and has_invoice_origin:
+#                         origin = (move.invoice_origin or "").strip()
+#                         if origin:
+#                             order = self.env["sale.order"].search(
+#                                 [("name", "=", origin)], limit=1
+#                             )
+#                     narration = order.narration or "" if order else ""
+#             elif move_type in ("in_invoice", "in_refund", "in_receipt"):
+#                 if move.narration:
+#                     narration = (html2plaintext(move.narration) or "").strip()
+#                 if not narration:
+#                     order = False
+#                     if has_purchase_link and line.purchase_order_id:
+#                         order = line.purchase_order_id
+#                     elif has_purchase_line and line.purchase_line_id:
+#                         order = line.purchase_line_id.order_id
+#                     if not order and has_invoice_origin:
+#                         origin = (move.invoice_origin or "").strip()
+#                         if origin:
+#                             order = self.env["purchase.order"].search(
+#                                 [("name", "=", origin)], limit=1
+#                             )
+#                     narration = order.narration or "" if order else ""
+#             narration_cache[move.id] = narration
+#             return narration
 #
 #         partners_data = {}
 #         order = []
@@ -121,6 +231,7 @@
 #                     "style": "account",
 #                     "journal": line.journal_id.code or "",
 #                     "account": line.account_id.code or "",
+#                     "account_type": line.account_id.account_type or "",
 #                     "invoice_date": (
 #                         move.invoice_date.isoformat()
 #                         if getattr(move, "invoice_date", False)
@@ -136,23 +247,36 @@
 #                         if has_matching and line.matching_number
 #                         else ""
 #                     ),
-#                     # Customer Reference: the "PO/Reference #" field (custom
-#                     # field client_order_ref on account.move), populated only
-#                     # for customer invoices/credit notes/receipts.
-#                     "ref_customer": (
-#                         (move.client_order_ref or "")
-#                         if has_client_order_ref
-#                            and move.move_type in ("out_invoice", "out_refund", "out_receipt")
-#                         else ""
+#                     # Reference: a single coordinated column carrying whichever
+#                     # reference is relevant to the entry -
+#                     #   - Customer invoices/credit notes/receipts: the
+#                     #     "PO/Reference #" field (custom field client_order_ref
+#                     #     on account.move).
+#                     #   - Vendor bills/refunds/receipts: the standard
+#                     #     account.move "ref" field (the vendor's own document
+#                     #     number).
+#                     #   - Anything else (e.g. payments, misc entries): falls
+#                     #     back to the payment's own reference when the line
+#                     #     originates from a registered payment.
+#                     "reference": (
+#                         (
+#                             (move.client_order_ref or "")
+#                             if has_client_order_ref
+#                                and move.move_type in ("out_invoice", "out_refund", "out_receipt")
+#                             else ""
+#                         )
+#                         or (
+#                             (move.ref or "")
+#                             if move.move_type in ("in_invoice", "in_refund", "in_receipt")
+#                             else ""
+#                         )
+#                         or (
+#                             (getattr(line.payment_id, payment_ref_field, "") or "")
+#                             if payment_ref_field and line.payment_id
+#                             else ""
+#                         )
 #                     ),
-#                     # Vendor Reference: the standard account.move "ref" field,
-#                     # holding the vendor's own document number, populated only
-#                     # for vendor bills/refunds/receipts.
-#                     "ref_vendor": (
-#                         (move.ref or "")
-#                         if move.move_type in ("in_invoice", "in_refund", "in_receipt")
-#                         else ""
-#                     ),
+#                     "narration": _line_narration(line, move),
 #                     "debit": round(line.debit or 0.0, 2),
 #                     "credit": round(line.credit or 0.0, 2),
 #                     "balance": round(data["running"], 2),
@@ -188,8 +312,8 @@
 #                     "invoice_date": "",
 #                     "due_date": "",
 #                     "matching": "",
-#                     "ref_customer": "",
-#                     "ref_vendor": "",
+#                     "reference": "",
+#                     "narration": "",
 #                     "debit": round(p_debit, 2),
 #                     "credit": round(p_credit, 2),
 #                     "balance": p_balance,
@@ -207,8 +331,8 @@
 #             "invoice_date": "",
 #             "due_date": "",
 #             "matching": "",
-#             "ref_customer": "",
-#             "ref_vendor": "",
+#             "reference": "",
+#             "narration": "",
 #             "debit": round(total_debit, 2),
 #             "credit": round(total_credit, 2),
 #             "balance": round(total_balance, 2),
@@ -236,7 +360,6 @@
 #             ("state", "=", "draft"),
 #         ]
 #         return bool(self.env["account.move"].search_count(domain))
-
 from odoo import api, models
 from odoo.osv import expression
 from odoo.tools import html2plaintext
@@ -291,33 +414,40 @@ class PartnerLedgerEngine(models.AbstractModel):
             return [("id", "=", 0)]
         return expression.OR(sub_domains)
 
+    def _analytic_account_domain(self, analytic_account_ids):
+        """Return an extra domain restricting account.move.line to entries
+        touching any of the given analytic account ids.
+
+        Since Odoo 16 analytic distribution lives on the JSON
+        ``analytic_distribution`` field (``{"<analytic_account_id>": pct}``)
+        rather than a many2one, so it can't be matched with a plain
+        ``in`` domain the way ``account_id`` can. The field's own search
+        implementation (registered by ``analytic.mixin``) understands
+        ``in``/``not in`` against that JSON column, so we only need to make
+        sure the field actually exists before relying on it - this module
+        targets a bare CE install where the Accounting app (and therefore
+        analytic accounting) may not be present at all.
+        """
+        if "analytic_distribution" not in self.env["account.move.line"]._fields:
+            return []
+        return [("analytic_distribution", "in", analytic_account_ids)]
+
     # ------------------------------------------------------------------
-    # Main entry point
+    # Shared filter domain (everything except the date window itself) so
+    # the in-period query and the "balance carried forward from before
+    # the period" query below always stay in sync with each other.
     # ------------------------------------------------------------------
-    @api.model
-    def get_partner_ledger(
-            self,
-            date_from,
-            date_to,
-            company_id=None,
-            account_types=None,
-            partner_ids=None,
-            tag_ids=None,
-            target_move="posted",
+    def _base_line_domain(
+        self,
+        accounts,
+        company,
+        target_move,
+        partner_ids,
+        tag_ids,
+        analytic_account_ids,
     ):
-        company = (
-            self.env["res.company"].browse(company_id)
-            if company_id
-            else self.env.company
-        )
-
-        account_domain = self._account_type_domain(account_types)
-        accounts = self.env["account.account"].search(account_domain)
-
         domain = [
             ("account_id", "in", accounts.ids),
-            ("date", ">=", date_from),
-            ("date", "<=", date_to),
             ("company_id", "=", company.id),
             ("partner_id", "!=", False),
             ("display_type", "not in", ["line_section", "line_note"]),
@@ -330,10 +460,70 @@ class PartnerLedgerEngine(models.AbstractModel):
             domain.append(("partner_id", "in", partner_ids))
         if tag_ids:
             domain.append(("partner_id.category_id", "in", tag_ids))
+        if analytic_account_ids:
+            domain += self._analytic_account_domain(analytic_account_ids)
+        return domain
+
+    # ------------------------------------------------------------------
+    # Initial Balance: sums every matching entry dated BEFORE date_from,
+    # per partner, so it can be carried forward into the report as a
+    # single "Initial Balance" line. Without this, narrowing the date
+    # filter to a period that has no new transactions of its own (e.g. a
+    # brand new fiscal year right after entries were posted in the prior
+    # year) makes the partner - and their still-open balance - vanish
+    # from the report entirely.
+    # ------------------------------------------------------------------
+    def _get_initial_balances(self, base_domain, date_from):
+        domain = base_domain + [("date", "<", date_from)]
+        prior_lines = self.env["account.move.line"].search(domain)
+        balances = {}
+        for line in prior_lines:
+            pid = line.partner_id.id
+            balances[pid] = (
+                balances.get(pid, 0.0) + (line.debit or 0.0) - (line.credit or 0.0)
+            )
+        return balances
+
+    # ------------------------------------------------------------------
+    # Main entry point
+    # ------------------------------------------------------------------
+    @api.model
+    def get_partner_ledger(
+            self,
+            date_from,
+            date_to,
+            company_id=None,
+            account_types=None,
+            partner_ids=None,
+            tag_ids=None,
+            analytic_account_ids=None,
+            target_move="posted",
+    ):
+        company = (
+            self.env["res.company"].browse(company_id)
+            if company_id
+            else self.env.company
+        )
+
+        account_domain = self._account_type_domain(account_types)
+        accounts = self.env["account.account"].search(account_domain)
+
+        base_domain = self._base_line_domain(
+            accounts, company, target_move, partner_ids, tag_ids, analytic_account_ids
+        )
+
+        domain = base_domain + [
+            ("date", ">=", date_from),
+            ("date", "<=", date_to),
+        ]
 
         move_lines = self.env["account.move.line"].search(
             domain, order="partner_id, date, id"
         )
+
+        # Balance of everything dated before date_from, per partner - the
+        # "Initial Balance" carried forward into this period.
+        initial_balances = self._get_initial_balances(base_domain, date_from)
 
         has_matching = "matching_number" in move_lines._fields
         has_client_order_ref = "client_order_ref" in self.env["account.move"]._fields
@@ -431,10 +621,12 @@ class PartnerLedgerEngine(models.AbstractModel):
         for line in move_lines:
             partner = line.partner_id
             if partner.id not in partners_data:
+                initial_bal = initial_balances.get(partner.id, 0.0)
                 partners_data[partner.id] = {
                     "partner": partner,
                     "lines": [],
-                    "running": 0.0,
+                    "running": initial_bal,
+                    "initial": initial_bal,
                 }
                 order.append(partner.id)
             data = partners_data[partner.id]
@@ -502,6 +694,25 @@ class PartnerLedgerEngine(models.AbstractModel):
                 }
             )
 
+        # A partner may have no journal items at all inside the selected
+        # period but still carry a non-zero balance forward from before
+        # date_from (e.g. an unpaid 2025 invoice, viewed with a 2026-only
+        # date filter). Add them too, so their Initial Balance still shows
+        # up instead of the partner disappearing from the report.
+        for pid, bal in initial_balances.items():
+            if pid in partners_data:
+                continue
+            if abs(bal) < 0.005:
+                continue
+            partner = self.env["res.partner"].browse(pid)
+            partners_data[pid] = {
+                "partner": partner,
+                "lines": [],
+                "running": bal,
+                "initial": bal,
+            }
+            order.append(pid)
+
         # Sort partners alphabetically by name (partners with no name last)
         order.sort(key=lambda pid: (partners_data[pid]["partner"].name or "").lower())
 
@@ -518,6 +729,32 @@ class PartnerLedgerEngine(models.AbstractModel):
             total_debit += p_debit
             total_credit += p_credit
             total_balance += p_balance
+
+            initial_bal = data.get("initial", 0.0)
+            children = data["lines"]
+            if abs(initial_bal) >= 0.005:
+                children = [
+                    {
+                        "id": "initial_%s" % pid,
+                        "name": "Initial Balance",
+                        "move_id": False,
+                        "line_type": "initial",
+                        "style": "initial",
+                        "journal": "",
+                        "account": "",
+                        "account_type": "",
+                        "invoice_date": "",
+                        "due_date": "",
+                        "matching": "",
+                        "reference": "",
+                        "narration": "",
+                        "debit": 0.0,
+                        "credit": 0.0,
+                        "balance": round(initial_bal, 2),
+                        "children": [],
+                    }
+                ] + children
+
             partner_rows.append(
                 {
                     "id": "partner_%s" % pid,
@@ -535,7 +772,8 @@ class PartnerLedgerEngine(models.AbstractModel):
                     "debit": round(p_debit, 2),
                     "credit": round(p_credit, 2),
                     "balance": p_balance,
-                    "children": data["lines"],
+                    "initial_balance": round(initial_bal, 2),
+                    "children": children,
                 }
             )
 

@@ -18,6 +18,7 @@ class AgedReceivableEngine(models.AbstractModel):
         account_types=None,
         partner_ids=None,
         tag_ids=None,
+        analytic_account_ids=None,
         target_move="posted",
         days_interval=30,
         based_on="due_date",
@@ -64,6 +65,8 @@ class AgedReceivableEngine(models.AbstractModel):
             domain.append(("partner_id", "in", partner_ids))
         if tag_ids:
             domain.append(("partner_id.category_id", "in", tag_ids))
+        if analytic_account_ids:
+            domain += self._analytic_account_domain(analytic_account_ids)
 
         move_lines = self.env["account.move.line"].search(
             domain, order="partner_id, date, id"
@@ -176,6 +179,20 @@ class AgedReceivableEngine(models.AbstractModel):
             "currency_name": company.currency_id.name,
             "currency_symbol": company.currency_id.symbol,
         }
+
+    def _analytic_account_domain(self, analytic_account_ids):
+        """Return an extra domain restricting account.move.line to entries
+        touching any of the given analytic account ids.
+
+        Analytic distribution lives on the JSON ``analytic_distribution``
+        field (``{"<analytic_account_id>": pct}``) since Odoo 16, whose own
+        search implementation understands ``in``/``not in``. Guard on the
+        field's existence since this module targets a bare CE install where
+        analytic accounting may not be present at all.
+        """
+        if "analytic_distribution" not in self.env["account.move.line"]._fields:
+            return []
+        return [("analytic_distribution", "in", analytic_account_ids)]
 
     def _compute_bucket(self, line, as_of_date, days_interval, based_on="due_date"):
         if based_on == "invoice_date":

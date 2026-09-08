@@ -83,7 +83,7 @@
     </t>
 
     <t t-name="pl.PartnerLedgerView">
-        <div class="pl-root">
+        <div t-att-class="'pl-root' + (state.lightTheme ? ' pl-light-theme' : '')">
 
             <!-- Control Panel -->
             <div class="pl-control-panel">
@@ -351,6 +351,40 @@
                         </t>
                     </div>
 
+                    <!-- Analytic Accounts -->
+                    <div
+                        class="pl-filter-pill"
+                        t-att-class="state.selectedAnalyticAccounts.length ? 'pl-filter-pill active' : 'pl-filter-pill'"
+                        t-on-click="(ev) => this.openDropdown('analytic', ev)"
+                        t-ref="analyticDropdownRef"
+                        style="position:relative;"
+                    >
+                        <i class="fa fa-filter"/>
+                        <span t-esc="analyticFilterLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <t t-if="state.analyticDropdownOpen">
+                            <div class="pl-dropdown-panel pl-partners-panel" t-on-click.stop="">
+                                <div class="pl-partners-section-label">Accounts</div>
+                                <input
+                                    type="text"
+                                    class="pl-partners-search"
+                                    placeholder="Search analytic accounts…"
+                                    t-att-value="state.analyticSearchTerm"
+                                    t-on-input="onAnalyticSearchInput"
+                                />
+                                <div class="pl-partners-results" style="max-height:220px;overflow-y:auto;">
+                                    <t t-foreach="filteredAnalyticAccounts" t-as="aa" t-key="aa.id">
+                                        <div class="pl-dropdown-item" t-on-click="() => this.toggleAnalyticAccount(aa)">
+                                            <i t-attf-class="fa fa-{{ isAnalyticAccountChecked(aa.id) ? 'check-square-o' : 'square-o' }}"/>
+                                            <span t-esc="aa.code ? (aa.code + ' — ' + aa.name) : aa.name"/>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
                     <!-- Posted / Draft entries + Unfold All -->
                     <div
                         class="pl-filter-pill"
@@ -431,6 +465,9 @@
                     </div>
                 </div>
 
+                <button class="pl-theme-toggle" t-on-click="toggleTheme" t-att-title="state.lightTheme ? 'Switch to Dark Theme' : 'Switch to Light Theme'">
+                    <i t-attf-class="fa fa-{{ state.lightTheme ? 'moon-o' : 'sun-o' }}"/>
+                </button>
                 <button class="pl-close-btn" t-on-click="closeReport" title="Close">
                     <i class="fa fa-times"/>
                 </button>
@@ -463,6 +500,27 @@
                             <button class="pl-print-btn" t-on-click="() => this._loadData()">
                                 <i class="fa fa-refresh"/> Retry
                             </button>
+                        </div>
+                    </t>
+
+                    <t t-elif="!state.dataLoaded">
+                        <div class="pl-state-box pl-empty-state">
+                            <i class="fa fa-filter" style="font-size:32px;opacity:0.4;"/>
+                            <span>
+                                Select one or more partners above to load their data, or click
+                                <b>"Load All Partners"</b> to view the full report.
+                            </span>
+                            <div class="pl-empty-actions">
+                                <button
+                                    class="pl-print-btn pl-secondary-btn"
+                                    t-on-click="(ev) => this.openDropdown('partners', ev)"
+                                >
+                                    <i class="fa fa-search"/> Select Partners
+                                </button>
+                                <button class="pl-print-btn" t-on-click="loadAllData">
+                                    <i class="fa fa-database"/> Load All Partners
+                                </button>
+                            </div>
                         </div>
                     </t>
 
@@ -561,8 +619,8 @@
 <!--                <t t-if="state.reportView === 'customer_statement'">-->
 <!--                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.invoice_date)"/>-->
 <!--                    <div class="pl-cell pl-cell-date" t-esc="fmtDate(line.due_date)"/>-->
-<!--                    <div class="pl-cell pl-cell-ref" t-esc="line.ref_customer"/>-->
-<!--                    <div class="pl-cell pl-cell-ref" t-esc="line.ref_vendor"/>-->
+<!--                    <div class="pl-cell pl-cell-ref" t-esc="line.reference"/>-->
+<!--                    <div class="pl-cell pl-cell-narration" t-esc="line.narration"/>-->
 <!--                    <div class="pl-cell pl-cell-amount" t-esc="fmtNum((line.debit || 0) - (line.credit || 0))"/>-->
 <!--                    <div-->
 <!--                        t-att-class="'pl-cell pl-cell-amount pl-balance ' + balanceClass(line.balance)"-->
@@ -581,6 +639,7 @@
 <!--                        t-att-class="'pl-cell pl-cell-amount pl-balance ' + balanceClass(line.balance)"-->
 <!--                        t-esc="fmtNumWithSym(line.balance)"-->
 <!--                    />-->
+<!--                    <div class="pl-cell pl-cell-narration" t-esc="line.narration"/>-->
 <!--                </t>-->
 <!--            </div>-->
 <!--            <t t-if="isExpandable(line) and !isCollapsed(line)">-->
@@ -592,7 +651,7 @@
 <!--    </t>-->
 
 <!--    <t t-name="pl.PartnerLedgerView">-->
-<!--        <div class="pl-root">-->
+<!--        <div t-att-class="'pl-root' + (state.lightTheme ? ' pl-light-theme' : '')">-->
 
 <!--            &lt;!&ndash; Control Panel &ndash;&gt;-->
 <!--            <div class="pl-control-panel">-->
@@ -611,7 +670,21 @@
 <!--                        </t>-->
 <!--                        PDF-->
 <!--                    </button>-->
-<!--                    <h1 class="pl-title">Partner Ledger</h1>-->
+<!--                    <button-->
+<!--                        class="pl-print-btn pl-excel-btn"-->
+<!--                        t-on-click="exportExcel"-->
+<!--                        t-att-disabled="state.exportingExcel"-->
+<!--                        title="Export Excel"-->
+<!--                    >-->
+<!--                        <t t-if="state.exportingExcel">-->
+<!--                            <span class="pl-spinner"/>-->
+<!--                        </t>-->
+<!--                        <t t-else="">-->
+<!--                            <i class="fa fa-file-excel-o"/>-->
+<!--                        </t>-->
+<!--                        Excel-->
+<!--                    </button>-->
+<!--                    <h1 class="pl-title" t-esc="reportTitleLabel"/>-->
 <!--                    <span class="pl-gear"><i class="fa fa-gear"/></span>-->
 <!--                </div>-->
 
@@ -761,19 +834,19 @@
 <!--                            <div class="pl-dropdown-panel" t-on-click.stop="">-->
 <!--                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('receivable')">-->
 <!--                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('receivable') ? 'check' : '' }}"/>-->
-<!--                                    Receivable-->
+<!--                                    Customer Ledger-->
 <!--                                </div>-->
 <!--                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('non_trade_receivable')">-->
 <!--                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('non_trade_receivable') ? 'check' : '' }}"/>-->
-<!--                                    Non Trade Receivable-->
+<!--                                    Non Trade Customer Ledger-->
 <!--                                </div>-->
 <!--                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('payable')">-->
 <!--                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('payable') ? 'check' : '' }}"/>-->
-<!--                                    Payable-->
+<!--                                    Supplier Ledger-->
 <!--                                </div>-->
 <!--                                <div class="pl-dropdown-item" t-on-click="() => this.toggleAccountType('non_trade_payable')">-->
 <!--                                    <i t-attf-class="fa fa-{{ isAccountTypeChecked('non_trade_payable') ? 'check' : '' }}"/>-->
-<!--                                    Non Trade Payable-->
+<!--                                    Non Trade Supplier Ledger-->
 <!--                                </div>-->
 <!--                            </div>-->
 <!--                        </t>-->
@@ -846,6 +919,40 @@
 <!--                        </t>-->
 <!--                    </div>-->
 
+<!--                    &lt;!&ndash; Analytic Accounts &ndash;&gt;-->
+<!--                    <div-->
+<!--                        class="pl-filter-pill"-->
+<!--                        t-att-class="state.selectedAnalyticAccounts.length ? 'pl-filter-pill active' : 'pl-filter-pill'"-->
+<!--                        t-on-click="(ev) => this.openDropdown('analytic', ev)"-->
+<!--                        t-ref="analyticDropdownRef"-->
+<!--                        style="position:relative;"-->
+<!--                    >-->
+<!--                        <i class="fa fa-filter"/>-->
+<!--                        <span t-esc="analyticFilterLabel"/>-->
+<!--                        <i class="fa fa-caret-down"/>-->
+
+<!--                        <t t-if="state.analyticDropdownOpen">-->
+<!--                            <div class="pl-dropdown-panel pl-partners-panel" t-on-click.stop="">-->
+<!--                                <div class="pl-partners-section-label">Accounts</div>-->
+<!--                                <input-->
+<!--                                    type="text"-->
+<!--                                    class="pl-partners-search"-->
+<!--                                    placeholder="Search analytic accounts…"-->
+<!--                                    t-att-value="state.analyticSearchTerm"-->
+<!--                                    t-on-input="onAnalyticSearchInput"-->
+<!--                                />-->
+<!--                                <div class="pl-partners-results" style="max-height:220px;overflow-y:auto;">-->
+<!--                                    <t t-foreach="filteredAnalyticAccounts" t-as="aa" t-key="aa.id">-->
+<!--                                        <div class="pl-dropdown-item" t-on-click="() => this.toggleAnalyticAccount(aa)">-->
+<!--                                            <i t-attf-class="fa fa-{{ isAnalyticAccountChecked(aa.id) ? 'check-square-o' : 'square-o' }}"/>-->
+<!--                                            <span t-esc="aa.code ? (aa.code + ' — ' + aa.name) : aa.name"/>-->
+<!--                                        </div>-->
+<!--                                    </t>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </t>-->
+<!--                    </div>-->
+
 <!--                    &lt;!&ndash; Posted / Draft entries + Unfold All &ndash;&gt;-->
 <!--                    <div-->
 <!--                        class="pl-filter-pill"-->
@@ -875,6 +982,14 @@
 <!--                                >-->
 <!--                                    <i t-attf-class="fa fa-{{ state.unfoldAll ? 'check' : '' }}"/>-->
 <!--                                    Unfold All-->
+<!--                                </div>-->
+<!--                                <div-->
+<!--                                    class="pl-dropdown-item"-->
+<!--                                    t-att-class="state.showFooter ? 'selected' : ''"-->
+<!--                                    t-on-click="toggleShowFooter"-->
+<!--                                >-->
+<!--                                    <i t-attf-class="fa fa-{{ state.showFooter ? 'check' : '' }}"/>-->
+<!--                                    Show Bank Footer-->
 <!--                                </div>-->
 <!--                            </div>-->
 <!--                        </t>-->
@@ -918,6 +1033,9 @@
 <!--                    </div>-->
 <!--                </div>-->
 
+<!--                <button class="pl-theme-toggle" t-on-click="toggleTheme" t-att-title="state.lightTheme ? 'Switch to Dark Theme' : 'Switch to Light Theme'">-->
+<!--                    <i t-attf-class="fa fa-{{ state.lightTheme ? 'moon-o' : 'sun-o' }}"/>-->
+<!--                </button>-->
 <!--                <button class="pl-close-btn" t-on-click="closeReport" title="Close">-->
 <!--                    <i class="fa fa-times"/>-->
 <!--                </button>-->
@@ -939,7 +1057,7 @@
 <!--                    <t t-if="state.loading">-->
 <!--                        <div class="pl-state-box">-->
 <!--                            <div class="pl-spinner pl-spinner-lg"/>-->
-<!--                            <span>Loading Partner Ledger…</span>-->
+<!--                            <span>Loading <t t-esc="reportTitleLabel"/>…</span>-->
 <!--                        </div>-->
 <!--                    </t>-->
 
@@ -959,8 +1077,8 @@
 <!--                                <div class="pl-cell pl-cell-name"/>-->
 <!--                                <div class="pl-cell pl-cell-date">Invoice Date</div>-->
 <!--                                <div class="pl-cell pl-cell-date">Due Date</div>-->
-<!--                                <div class="pl-cell pl-cell-ref">Customer Reference</div>-->
-<!--                                <div class="pl-cell pl-cell-ref">Vendor Reference</div>-->
+<!--                                <div class="pl-cell pl-cell-ref">Reference</div>-->
+<!--                                <div class="pl-cell pl-cell-narration">Narration</div>-->
 <!--                                <div class="pl-cell pl-cell-amount">Amount</div>-->
 <!--                                <div class="pl-cell pl-cell-amount">Balance</div>-->
 <!--                            </div>-->
@@ -976,6 +1094,7 @@
 <!--                                <div class="pl-cell pl-cell-amount">Debit</div>-->
 <!--                                <div class="pl-cell pl-cell-amount">Credit</div>-->
 <!--                                <div class="pl-cell pl-cell-amount">Balance</div>-->
+<!--                                <div class="pl-cell pl-cell-narration">Narration</div>-->
 <!--                            </div>-->
 <!--                        </t>-->
 

@@ -404,7 +404,7 @@
 /* Grid rows: name | journal | account | invoice date | due date | matching | debit | credit | balance | narration */
 .pl-row {
     display: grid;
-    grid-template-columns: 1.8fr 70px 90px 96px 96px 90px 115px 115px 135px 1.6fr;
+    grid-template-columns: 3.5fr 70px 90px 96px 96px 90px 115px 115px 135px 1.6fr;
     align-items: center;
     column-gap: 12px;
     padding: 6px 14px;
@@ -473,6 +473,7 @@
     gap: 8px;
     text-align: left;
     min-width: 0;
+    overflow: visible;
 }
 
 .pl-caret {
@@ -491,8 +492,8 @@
 .pl-label-text,
 .pl-link {
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
 }
 
 .pl-link {
@@ -538,8 +539,7 @@
     color: #f3f4f6;
     font-size: 13px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
 }
 
 .pl-partner-row .pl-partner-name,
@@ -591,6 +591,14 @@
     color: #b0b7c3;
 }
 
+/* Initial Balance row: opening balance carried forward from before the
+   selected date range - styled like an account row but italicized so it
+   reads as a summary line rather than a real journal item. */
+.pl-initial-row .pl-label-text {
+    font-style: italic;
+    color: #8f96a3;
+}
+
 /* State boxes */
 .pl-state-box {
     display: flex;
@@ -601,6 +609,20 @@
     padding: 60px 20px;
     color: #6b7280;
     font-size: 14px;
+}
+
+/* Lazy-load placeholder ("Select Partners" / "Load All Partners") */
+.pl-empty-state span {
+    max-width: 460px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.pl-empty-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
 }
 
 .pl-spinner {
@@ -678,4 +700,367 @@
 .pl-clickable:hover {
     background: rgba(99, 102, 241, 0.2);
     text-decoration: underline;
+}
+
+/* Theme toggle button */
+.pl-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.pl-theme-toggle:hover {
+    background: #374151;
+    color: #f3f4f6;
+}
+
+/* =====================================================================
+   LIGHT THEME
+   ===================================================================== */
+.pl-light-theme {
+    background: #f5f6fa;
+    color: #1e293b;
+}
+
+/* Control panel — light */
+.pl-light-theme .pl-control-panel {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e5ea;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+}
+
+.pl-light-theme .pl-title {
+    color: #1e293b;
+}
+
+.pl-light-theme .pl-print-btn {
+    background: #714b67;
+    color: #fff;
+}
+
+.pl-light-theme .pl-print-btn:hover {
+    background: #87567a;
+}
+
+.pl-light-theme .pl-excel-btn {
+    background: #1e7d46;
+}
+
+.pl-light-theme .pl-excel-btn:hover {
+    background: #27945a;
+}
+
+.pl-light-theme .pl-close-btn {
+    color: #6b7280;
+}
+
+.pl-light-theme .pl-close-btn:hover {
+    background: #f3f4f6;
+    color: #1e293b;
+}
+
+.pl-light-theme .pl-theme-toggle {
+    color: #6b7280;
+}
+
+.pl-light-theme .pl-theme-toggle:hover {
+    background: #f3f4f6;
+    color: #1e293b;
+}
+
+/* Search box — light */
+.pl-light-theme .pl-search-box {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.pl-light-theme .pl-search-box i {
+    color: #9ca3af;
+}
+
+.pl-light-theme .pl-search-box input {
+    color: #1e293b;
+}
+
+/* Filter pills — light */
+.pl-light-theme .pl-filter-pill {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.pl-light-theme .pl-filter-pill:hover {
+    background: #e5e7eb;
+}
+
+.pl-light-theme .pl-filter-pill.active {
+    background: rgba(13, 148, 136, 0.08);
+    border-color: #0d9488;
+    color: #0d9488;
+}
+
+/* Dropdowns — light */
+.pl-light-theme .pl-dropdown-panel {
+    background: #ffffff;
+    border-color: #e2e5ea;
+    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.12);
+}
+
+.pl-light-theme .pl-dropdown-item {
+    color: #374151;
+}
+
+.pl-light-theme .pl-dropdown-item:hover {
+    background: #f3f4f6;
+}
+
+.pl-light-theme .pl-dropdown-item.selected {
+    background: rgba(13, 148, 136, 0.08);
+    color: #0d9488;
+}
+
+.pl-light-theme .pl-dropdown-divider {
+    background: #e5e7eb;
+}
+
+.pl-light-theme .pl-date-mode-row {
+    color: #374151;
+}
+
+.pl-light-theme .pl-date-mode-row:hover {
+    background: #f3f4f6;
+}
+
+.pl-light-theme .pl-date-mode-row.selected {
+    color: #0d9488;
+}
+
+.pl-light-theme .pl-date-mode-nav i.fa {
+    color: #9ca3af;
+}
+
+.pl-light-theme .pl-date-mode-nav i.fa:hover {
+    background: #e5e7eb;
+    color: #1e293b;
+}
+
+.pl-light-theme .pl-dropdown-right {
+    color: #9ca3af;
+}
+
+/* Partners panel — light */
+.pl-light-theme .pl-partners-panel {
+    background: #ffffff;
+}
+
+.pl-light-theme .pl-partners-section-label {
+    color: #6b7280;
+}
+
+.pl-light-theme .pl-partners-search {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #1e293b;
+}
+
+.pl-light-theme .pl-partners-results {
+    border-color: #e5e7eb;
+}
+
+.pl-light-theme .pl-partners-result-item {
+    color: #374151;
+}
+
+.pl-light-theme .pl-partners-result-item:hover {
+    background: #f3f4f6;
+}
+
+/* Chips — light */
+.pl-light-theme .pl-chip {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+/* Warning banner — light */
+.pl-light-theme .pl-warning-banner {
+    background: #fef3c7;
+    color: #92400e;
+    border-bottom: 1px solid #fde68a;
+}
+
+.pl-light-theme .pl-warning-close {
+    color: #92400e;
+}
+
+.pl-light-theme .pl-warning-close:hover {
+    color: #78350f;
+}
+
+/* Content area — light */
+.pl-light-theme .pl-content {
+    background: #f5f6fa;
+}
+
+/* Sheet — light */
+.pl-light-theme .pl-sheet {
+    background: #ffffff;
+    border-color: #e2e5ea;
+    box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Table rows — light */
+.pl-light-theme .pl-row {
+    border-bottom-color: #e5e7eb;
+}
+
+.pl-light-theme .pl-row:hover {
+    background: #f9fafb;
+}
+
+/* Table header — light */
+.pl-light-theme .pl-table-header {
+    border-bottom-color: #d1d5db;
+}
+
+.pl-light-theme .pl-table-header .pl-cell {
+    color: #6b7280;
+}
+
+/* Cells — light */
+.pl-light-theme .pl-cell {
+    color: #374151;
+}
+
+.pl-light-theme .pl-cell-name {
+    color: #1e293b;
+}
+
+.pl-light-theme .pl-cell-narration {
+    color: #4b5563;
+}
+
+.pl-light-theme .pl-cell-ref {
+    color: #6b7280;
+}
+
+/* Header / total row — light */
+.pl-light-theme .pl-header-band {
+    background: #f3f4f6;
+    color: #1e293b;
+}
+
+.pl-light-theme .pl-header-band .pl-label-text {
+    color: #1e293b;
+}
+
+/* Partner row — light */
+.pl-light-theme .pl-partner-row {
+    background: #f9fafb;
+}
+
+.pl-light-theme .pl-partner-row:hover {
+    background: #f3f4f6;
+}
+
+.pl-light-theme .pl-partner-name {
+    color: #1e293b;
+}
+
+/* Account row — light */
+.pl-light-theme .pl-account-row:hover {
+    background: #f9fafb;
+}
+
+.pl-light-theme .pl-account-row .pl-label-text,
+.pl-light-theme .pl-account-row .pl-link {
+    color: #4b5563;
+}
+
+.pl-light-theme .pl-initial-row .pl-label-text {
+    color: #6b7280;
+}
+
+/* Links — light */
+.pl-light-theme .pl-link {
+    color: #2563eb;
+}
+
+.pl-light-theme .pl-link:hover {
+    color: #1d4ed8;
+}
+
+/* Badges — light */
+.pl-light-theme .pl-badge {
+    background: rgba(13, 148, 136, 0.08);
+    border-color: rgba(13, 148, 136, 0.3);
+    color: #0d9488;
+}
+
+.pl-light-theme .pl-badge:hover {
+    background: rgba(13, 148, 136, 0.15);
+}
+
+/* Negative balance — light */
+.pl-light-theme .pl-balance.pl-negative {
+    color: #dc2626;
+}
+
+/* Caret — light */
+.pl-light-theme .pl-caret {
+    color: #0d9488;
+}
+
+/* Clickable — light */
+.pl-light-theme .pl-clickable:hover {
+    background: rgba(37, 99, 235, 0.08);
+}
+
+/* State box — light */
+.pl-light-theme .pl-state-box {
+    color: #6b7280;
+}
+
+/* Empty-state placeholder — light */
+.pl-light-theme .pl-empty-state span {
+    color: #4b5563;
+}
+
+/* Spinner — light */
+.pl-light-theme .pl-spinner {
+    border-color: #e5e7eb;
+    border-top-color: #3b82f6;
+}
+
+/* Date inputs — light */
+.pl-light-theme .pl-date-range-inputs input[type="date"] {
+    background: #ffffff;
+    color: #1e293b;
+    border-color: #d1d5db;
+    color-scheme: light;
+}
+
+/* Print override for light theme */
+@media print {
+    .pl-light-theme .pl-control-panel,
+    .pl-light-theme .pl-warning-banner {
+        display: none !important;
+    }
+    .pl-light-theme {
+        background: #fff;
+        color: #000;
+    }
+    .pl-light-theme .pl-sheet {
+        box-shadow: none;
+        border: none;
+    }
 }

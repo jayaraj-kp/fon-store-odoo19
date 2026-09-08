@@ -1,5 +1,3 @@
-
-
 # Copyright 2024 Custom Development
 # License: LGPL-3.0 or later
 
@@ -265,6 +263,7 @@ class PartnerLedgerController(http.Controller):
         account_types=None,
         partner_ids=None,
         tag_ids=None,
+        analytic_account_ids=None,
         target_move="posted",
         **kwargs,
     ):
@@ -282,6 +281,7 @@ class PartnerLedgerController(http.Controller):
             account_types=account_types,
             partner_ids=partner_ids,
             tag_ids=tag_ids,
+            analytic_account_ids=analytic_account_ids,
             target_move=target_move,
         )
         result["has_unposted"] = engine.has_unposted_entries(
@@ -314,6 +314,32 @@ class PartnerLedgerController(http.Controller):
             order="name",
         )
         return tags
+
+    # ------------------------------------------------------------------
+    # /pl/search_analytic_accounts
+    # ------------------------------------------------------------------
+    @http.route("/pl/search_analytic_accounts", type="json", auth="user")
+    def search_analytic_accounts(self, term="", limit=8):
+        if "account.analytic.account" not in request.env:
+            # Bare CE install without analytic accounting installed.
+            return []
+        AnalyticAccount = request.env["account.analytic.account"]
+        has_code = "code" in AnalyticAccount._fields
+        fields = ["id", "name"] + (["code"] if has_code else [])
+        domain = []
+        if term:
+            domain = (
+                ["|", ("name", "ilike", term), ("code", "ilike", term)]
+                if has_code
+                else [("name", "ilike", term)]
+            )
+        accounts = AnalyticAccount.search_read(
+            domain,
+            fields,
+            limit=limit,
+            order="name",
+        )
+        return accounts
 
     def _get_page_geometry(self):
         """Return (page_height_mm, margin_top_mm, margin_bottom_mm) matching
@@ -382,6 +408,7 @@ class PartnerLedgerController(http.Controller):
         account_types=None,
         partner_ids=None,
         tag_ids=None,
+        analytic_account_ids=None,
         target_move="posted",
         report_view="partner_ledger",
         show_footer=False,
@@ -399,6 +426,7 @@ class PartnerLedgerController(http.Controller):
             account_types=account_types,
             partner_ids=partner_ids,
             tag_ids=tag_ids,
+            analytic_account_ids=analytic_account_ids,
             target_move=target_move,
         )
         if report_view == "customer_statement":
@@ -559,6 +587,7 @@ class PartnerLedgerController(http.Controller):
         account_types=None,
         partner_ids=None,
         tag_ids=None,
+        analytic_account_ids=None,
         target_move="posted",
         report_view="partner_ledger",
         **kwargs,
@@ -572,6 +601,7 @@ class PartnerLedgerController(http.Controller):
             account_types=account_types,
             partner_ids=partner_ids,
             tag_ids=tag_ids,
+            analytic_account_ids=analytic_account_ids,
             target_move=target_move,
         )
         lines = data.get("lines", [])
@@ -880,6 +910,7 @@ class PartnerLedgerController(http.Controller):
         account_types=None,
         partner_ids=None,
         tag_ids=None,
+        analytic_account_ids=None,
         target_move="posted",
         days_interval=30,
         based_on="due_date",
@@ -897,6 +928,7 @@ class PartnerLedgerController(http.Controller):
             account_types=account_types,
             partner_ids=partner_ids,
             tag_ids=tag_ids,
+            analytic_account_ids=analytic_account_ids,
             target_move=target_move,
             days_interval=int(days_interval),
             based_on=based_on,
@@ -922,6 +954,7 @@ class PartnerLedgerController(http.Controller):
         account_types=None,
         partner_ids=None,
         tag_ids=None,
+        analytic_account_ids=None,
         target_move="posted",
         days_interval=30,
         show_footer=False,
@@ -933,6 +966,7 @@ class PartnerLedgerController(http.Controller):
             account_types=account_types,
             partner_ids=partner_ids,
             tag_ids=tag_ids,
+            analytic_account_ids=analytic_account_ids,
             target_move=target_move,
             days_interval=days_interval,
         )
@@ -1040,6 +1074,7 @@ class PartnerLedgerController(http.Controller):
         account_types=None,
         partner_ids=None,
         tag_ids=None,
+        analytic_account_ids=None,
         target_move="posted",
         days_interval=30,
         **kwargs,
@@ -1050,6 +1085,7 @@ class PartnerLedgerController(http.Controller):
             account_types=account_types,
             partner_ids=partner_ids,
             tag_ids=tag_ids,
+            analytic_account_ids=analytic_account_ids,
             target_move=target_move,
             days_interval=days_interval,
         )
