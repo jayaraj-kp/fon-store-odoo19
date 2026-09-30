@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- 1. Product template form (also inherited by the product variant form) -->
+    <record id="product_template_form_view_hide_cost" model="ir.ui.view">
+        <field name="name">product.template.form.hide.cost</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//label[@id='standard_price_label']" position="attributes">
+                <attribute name="groups">!hide_product_cost.group_hide_product_cost</attribute>
+            </xpath>
+            <xpath expr="//div[@name='standard_price_uom']" position="attributes">
+                <attribute name="groups">!hide_product_cost.group_hide_product_cost</attribute>
+            </xpath>
+            <!-- Keep the value loaded (invisible) for hidden users, because other
+                 views (e.g. Purchase) use standard_price in contexts/expressions. -->
+            <xpath expr="//div[@name='standard_price_uom']" position="after">
+                <field name="standard_price" invisible="1"
+                       groups="hide_product_cost.group_hide_product_cost"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- 2. Product variant "easy edit" popup -->
+    <record id="product_variant_easy_edit_view_hide_cost" model="ir.ui.view">
+        <field name="name">product.product.easy.edit.hide.cost</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//label[@for='standard_price']" position="attributes">
+                <attribute name="groups">!hide_product_cost.group_hide_product_cost</attribute>
+            </xpath>
+            <xpath expr="//div[field[@name='standard_price']]" position="attributes">
+                <attribute name="groups">!hide_product_cost.group_hide_product_cost</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- 3. Product template list -->
+    <record id="product_template_tree_view_hide_cost" model="ir.ui.view">
+        <field name="name">product.template.list.hide.cost</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='standard_price']" position="attributes">
+                <attribute name="groups">!hide_product_cost.group_hide_product_cost</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- 4. Product variant list -->
+    <record id="product_product_tree_view_hide_cost" model="ir.ui.view">
+        <field name="name">product.product.list.hide.cost</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_product_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='standard_price']" position="attributes">
+                <attribute name="groups">!hide_product_cost.group_hide_product_cost</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

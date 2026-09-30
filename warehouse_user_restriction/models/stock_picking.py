@@ -98,7 +98,7 @@ class StockPicking(models.Model):
                 virtual_locations = self.env['stock.location'].search([
                     ('usage', 'in', ['customer', 'supplier', 'inventory', 'production']),
                 ])
-                allowed = allowed_locations | virtual_locations
+                allowed = allowed_locations | virtual_locarequiretions
                 cache[key] = allowed
         else:
             allowed = self.env['stock.location'].search([])
