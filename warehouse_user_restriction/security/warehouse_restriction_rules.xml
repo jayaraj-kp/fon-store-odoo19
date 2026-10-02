@@ -22,6 +22,14 @@
 
     <!-- ===========================
          PURCHASE ORDER RESTRICTION
+
+         FIX: perm_read is now False.
+         Reading is already restricted in lists/searches by the _search()
+         override in models/purchase_order.py. A read rule here blocked
+         internal Odoo reads (e.g. POS payment sync / stock valuation reading
+         a PO from another warehouse) and caused the "top-secret records"
+         Access Error for cashiers.
+         Write / create / delete stay restricted to allowed warehouses.
          =========================== -->
     <record id="rule_purchase_order_warehouse_restriction" model="ir.rule">
         <field name="name">Purchase Order: Allowed Warehouses Restriction</field>
@@ -33,7 +41,7 @@
             ] if user.allowed_warehouse_ids else [(1, '=', 1)]
         </field>
         <field name="groups" eval="[]"/>
-        <field name="perm_read" eval="True"/>
+        <field name="perm_read" eval="False"/>
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="True"/>
@@ -120,87 +128,3 @@
     </record>
 
 </odoo>
-
-
-
-
-<!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<odoo>-->
-
-<!--    &lt;!&ndash; ===========================-->
-<!--         SALE ORDER RESTRICTION-->
-<!--         =========================== &ndash;&gt;-->
-<!--    <record id="rule_sale_order_warehouse_restriction" model="ir.rule">-->
-<!--        <field name="name">Sale Order: Allowed Warehouses Restriction</field>-->
-<!--        <field name="model_id" ref="sale.model_sale_order"/>-->
-<!--        <field name="domain_force">-->
-<!--            ['|',-->
-<!--                ('warehouse_id', 'in', user.allowed_warehouse_ids.ids or [False]),-->
-<!--                ('warehouse_id', '=', False)-->
-<!--            ] if user.allowed_warehouse_ids else [(1, '=', 1)]-->
-<!--        </field>-->
-<!--        <field name="groups" eval="[]"/>-->
-<!--        <field name="perm_read" eval="True"/>-->
-<!--        <field name="perm_write" eval="True"/>-->
-<!--        <field name="perm_create" eval="True"/>-->
-<!--        <field name="perm_unlink" eval="True"/>-->
-<!--    </record>-->
-
-<!--    &lt;!&ndash; ===========================-->
-<!--         PURCHASE ORDER RESTRICTION-->
-<!--         =========================== &ndash;&gt;-->
-<!--    <record id="rule_purchase_order_warehouse_restriction" model="ir.rule">-->
-<!--        <field name="name">Purchase Order: Allowed Warehouses Restriction</field>-->
-<!--        <field name="model_id" ref="purchase.model_purchase_order"/>-->
-<!--        <field name="domain_force">-->
-<!--            ['|',-->
-<!--                ('picking_type_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids or [False]),-->
-<!--                ('picking_type_id.warehouse_id', '=', False)-->
-<!--            ] if user.allowed_warehouse_ids else [(1, '=', 1)]-->
-<!--        </field>-->
-<!--        <field name="groups" eval="[]"/>-->
-<!--        <field name="perm_read" eval="True"/>-->
-<!--        <field name="perm_write" eval="True"/>-->
-<!--        <field name="perm_create" eval="True"/>-->
-<!--        <field name="perm_unlink" eval="True"/>-->
-<!--    </record>-->
-
-<!--    &lt;!&ndash; ===========================-->
-<!--         STOCK PICKING RESTRICTION-->
-<!--         =========================== &ndash;&gt;-->
-<!--    <record id="rule_stock_picking_warehouse_restriction" model="ir.rule">-->
-<!--        <field name="name">Stock Picking: Allowed Warehouses Restriction</field>-->
-<!--        <field name="model_id" ref="stock.model_stock_picking"/>-->
-<!--        <field name="domain_force">-->
-<!--            ['|',-->
-<!--                ('picking_type_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids or [False]),-->
-<!--                ('picking_type_id.warehouse_id', '=', False)-->
-<!--            ] if user.allowed_warehouse_ids else [(1, '=', 1)]-->
-<!--        </field>-->
-<!--        <field name="groups" eval="[]"/>-->
-<!--        <field name="perm_read" eval="True"/>-->
-<!--        <field name="perm_write" eval="True"/>-->
-<!--        <field name="perm_create" eval="True"/>-->
-<!--        <field name="perm_unlink" eval="True"/>-->
-<!--    </record>-->
-
-<!--    &lt;!&ndash; ===========================-->
-<!--         STOCK QUANT (Inventory) RESTRICTION-->
-<!--         =========================== &ndash;&gt;-->
-<!--    <record id="rule_stock_quant_warehouse_restriction" model="ir.rule">-->
-<!--        <field name="name">Stock Quant: Allowed Warehouses Restriction</field>-->
-<!--        <field name="model_id" ref="stock.model_stock_quant"/>-->
-<!--        <field name="domain_force">-->
-<!--            ['|',-->
-<!--                ('warehouse_id', 'in', user.allowed_warehouse_ids.ids or [False]),-->
-<!--                ('warehouse_id', '=', False)-->
-<!--            ] if user.allowed_warehouse_ids else [(1, '=', 1)]-->
-<!--        </field>-->
-<!--        <field name="groups" eval="[]"/>-->
-<!--        <field name="perm_read" eval="True"/>-->
-<!--        <field name="perm_write" eval="False"/>-->
-<!--        <field name="perm_create" eval="False"/>-->
-<!--        <field name="perm_unlink" eval="False"/>-->
-<!--    </record>-->
-
-<!--</odoo>-->

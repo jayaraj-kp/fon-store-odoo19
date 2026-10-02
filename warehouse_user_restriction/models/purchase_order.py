@@ -6,13 +6,23 @@ class PurchaseOrder(models.Model):
 
     @api.model
     def _search(self, domain, offset=0, limit=None, order=None, **kwargs):
-        """Filter purchase orders to only show those for allowed warehouses."""
+        """Filter purchase orders to only show those for allowed warehouses.
+
+        This is the read restriction for lists, searches and dropdowns.
+        (The ir.rule for purchase.order no longer restricts 'read', so
+        internal flows such as POS payment sync can read related POs.)
+
+        POs with no warehouse on their operation type stay visible, matching
+        the behaviour of the record rule.
+        """
         user = self.env.user
         if user._is_superuser():
             return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
         if user.allowed_warehouse_ids:
             domain = list(domain) + [
-                ('picking_type_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids)
+                '|',
+                ('picking_type_id.warehouse_id', 'in', user.allowed_warehouse_ids.ids),
+                ('picking_type_id.warehouse_id', '=', False),
             ]
         return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
 
