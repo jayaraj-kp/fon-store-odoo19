@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Customers list (Invoicing / Sales / Contacts): do not show the contacts
+         that live under the CASH CUSTOMER (and Online Customers) parent as
+         separate customers. They stay visible in the parent's Contacts tab. -->
+    <record id="account.res_partner_action_customer" model="ir.actions.act_window">
+        <field name="domain">['|', ('parent_id', '=', False), '&amp;', ('parent_id.name', 'not ilike', 'CASH CUSTOMER'), ('parent_id.name', 'not ilike', 'Online Customers')]</field>
+    </record>
+</odoo>
