@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Hide children of "Online Customers" from the Sales > Customers list.
+         They stay visible in the parent's Contacts tab. -->
+    <record id="account.res_partner_action_customer" model="ir.actions.act_window">
+        <field name="domain"
+               eval="[('parent_id', '!=', ref('online_customer_contact.partner_online_customers'))]"/>
+    </record>
+</odoo>
