@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_online_customer" model="ir.ui.view">
+        <field name="name">sale.order.form.online.customer</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="is_online_customer" invisible="1"/>
+            </xpath>
+
+            <xpath expr="//page[@name='order_lines']" position="after">
+                <page string="Online Customer" name="online_customer"
+                      invisible="not is_online_customer">
+                    <group>
+                        <group string="Customer Details">
+                            <field name="online_customer_name"
+                                   required="is_online_customer"/>
+                            <field name="online_customer_phone"
+                                   required="is_online_customer"/>
+                            <field name="online_contact_id"
+                                   invisible="not online_contact_id"/>
+                        </group>
+                        <group string="Address">
+                            <field name="online_customer_street"/>
+                            <field name="online_customer_city"/>
+                            <field name="online_customer_zip"/>
+                            <field name="online_customer_country_id"
+                                   options="{'no_create': True}"/>
+                            <field name="online_customer_state_id"
+                                   options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

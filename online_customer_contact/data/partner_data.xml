@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="partner_online_customers" model="res.partner">
+            <field name="name">Online Customers</field>
+            <field name="is_company" eval="True"/>
+            <field name="company_type">company</field>
+        </record>
+    </data>
+</odoo>
