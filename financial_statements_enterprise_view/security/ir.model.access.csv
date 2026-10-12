@@ -1,3 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_financial_report_engine_user,financial.report.engine user,model_financial_report_engine,account.group_account_user,1,0,0,0
-access_financial_report_engine_manager,financial.report.engine manager,model_financial_report_engine,account.group_account_manager,1,0,0,0
