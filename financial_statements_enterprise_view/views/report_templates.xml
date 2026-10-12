@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="report_financial_statement_document">
+        <t t-set="company" t-value="company or res_company or env.company"/>
+        <div t-attf-class="header o_company_#{company.id}_layout">
+            <div style="text-align: center; width: 100%;">
+                <div t-if="company.logo" style="text-align: center; margin-bottom: 5px;">
+                    <img t-att-src="image_data_uri(company.logo)"
+                         style="max-height: 100px; max-width: 300px; display: inline-block;"
+                         alt="Logo"/>
+                </div>
+                <div t-if="company.name" style="text-align: center; font-size: 14px; font-weight: bold; color: #212529; margin-bottom: 2px;">
+                    <span t-esc="company.name"/>
+                </div>
+                <div t-if="company.vat" style="text-align: center; font-size: 12px; font-weight: bold; color: #444;">
+                    <span t-esc="company.country_id.vat_label or 'VAT Number'"/>: <span t-esc="company.vat"/>
+                </div>
+            </div>
+        </div>
+
+        <div t-attf-class="article o_report_layout_standard o_table_standard o_company_#{company.id}_layout">
+            <!-- FIX (#7): switch direction/alignment for Arabic and other RTL languages -->
+            <div class="page" t-att-dir="is_rtl and 'rtl' or 'ltr'"
+                 t-attf-style="text-align: #{is_rtl and 'right' or 'left'};">
+                <h2 style="margin-top: 0; margin-bottom: 3px; font-size: 24px;" t-esc="report_title or (report_type == 'bs' and 'Balance Sheet' or 'Profit and Loss')"/>
+                <p style="margin-bottom: 8px; color: #444;">
+                    <t t-if="report_type == 'bs'">
+                        As of <span t-esc="date_to"/>
+                    </t>
+                    <t t-else="">
+                        From <span t-esc="date_from"/> to <span t-esc="date_to"/>
+                    </t>
+                </p>
+                <table class="table table-sm" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th t-attf-style="text-align: #{is_rtl and 'right' or 'left'};">Account</th>
+                            <t t-if="analytic_columns">
+                                <t t-foreach="analytic_columns" t-as="acol">
+                                    <th style="text-align:right;">
+                                        <span t-esc="acol.get('name')"/>
+                                    </th>
+                                </t>
+                            </t>
+                            <t t-else="">
+                                <t t-if="with_debit_credit">
+                                    <th style="text-align:right;width:120px;">Debit</th>
+                                    <th style="text-align:right;width:120px;">Credit</th>
+                                </t>
+                                <th style="text-align:right;width:140px;">Balance</th>
+                                <!-- FIX (#6): render one header column per comparison period -->
+                                <t t-foreach="comparison_columns or []" t-as="ccol">
+                                    <th style="text-align:right;width:140px;">
+                                        <span t-esc="ccol.get('label') or ccol.get('date_to')"/>
+                                        <t t-if="ccol.get('label') and ccol.get('date_to')">
+                                            <br/><small t-esc="ccol.get('date_to')"/>
+                                        </t>
+                                    </th>
+                                </t>
+                            </t>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-call="financial_statements_enterprise_view.report_financial_statement_lines">
+                            <t t-set="report_lines" t-value="lines"/>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div t-attf-class="footer o_company_#{company.id}_layout {{report_type != 'pdf' and 'mt-auto'}}">
+            <div class="o_footer_content d-flex border-top pt-2">
+                <div class="flex-grow-1 text-start me-2" t-field="company.report_footer"/>
+                <div class="text-end text-muted">
+                    <div class="text-nowrap">Page <span class="page"/> / <span class="topage"/></div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="report_financial_statement_lines">
+        <t t-foreach="report_lines" t-as="line">
+            <tr t-att-style="line.get('style') == 'header' and 'font-weight:bold;background:#eee;' or (line.get('line_type') == 'subtotal' and 'font-weight:bold;' or '')">
+                <td t-att-style="'padding-%s:%spx; text-align: %s;' % (is_rtl and 'right' or 'left', 12 + (line.get('level') or 0) * 16, is_rtl and 'right' or 'left')">
+                    <span t-esc="line.get('name')"/>
+                </td>
+                <t t-if="analytic_columns">
+                    <t t-foreach="analytic_columns" t-as="acol">
+                        <t t-set="ab_map" t-value="line.get('analytic_balances') or {}"/>
+                        <t t-set="a_key" t-value="acol.get('id')"/>
+                        <t t-set="ab_val" t-value="ab_map.get(a_key, ab_map.get(str(a_key), 0.0))"/>
+                        <td style="text-align:right;">
+                            <span t-esc="'%.*f' % (currency_digits, ab_val or 0.0)"/>
+                            <span t-esc="currency_symbol"/>
+                        </td>
+                    </t>
+                </t>
+                <t t-else="">
+                    <t t-if="with_debit_credit">
+                        <td style="text-align:right;">
+                            <span t-esc="'%.*f' % (currency_digits, line.get('debit') or 0.0)"/>
+                            <span t-esc="currency_symbol"/>
+                        </td>
+                        <td style="text-align:right;">
+                            <span t-esc="'%.*f' % (currency_digits, line.get('credit') or 0.0)"/>
+                            <span t-esc="currency_symbol"/>
+                        </td>
+                    </t>
+                    <td style="text-align:right;">
+                        <span t-esc="'%.*f' % (currency_digits, line.get('balance') or 0.0)"/>
+                        <span t-esc="currency_symbol"/>
+                    </td>
+                    <!-- FIX (#6): one value column per comparison period, aligned
+                         with the headers above. Works for both the single-period
+                         comparison ('comparison_balances' with 1 item) and the
+                         multi-period comparison shapes. -->
+                    <t t-foreach="comparison_columns or []" t-as="ccol">
+                        <t t-set="comp_list" t-value="line.get('comparison_balances') or []"/>
+                        <t t-set="comp_val" t-value="ccol_index &lt; len(comp_list) and comp_list[ccol_index].get('balance') or 0.0"/>
+                        <td style="text-align:right;">
+                            <span t-esc="'%.*f' % (currency_digits, comp_val or 0.0)"/>
+                            <span t-esc="currency_symbol"/>
+                        </td>
+                    </t>
+                </t>
+            </tr>
+            <t t-if="line.get('children')">
+                <t t-call="financial_statements_enterprise_view.report_financial_statement_lines">
+                    <t t-set="report_lines" t-value="line.get('children')"/>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_financial_statement_pdf">
+        <t t-set="data_report_margin_top" t-value="38"/>
+        <t t-set="data_report_header_spacing" t-value="34"/>
+        <t t-call="web.html_container">
+            <t t-call="financial_statements_enterprise_view.report_financial_statement_document"/>
+        </t>
+    </template>
+
+    <record id="paperformat_financial_statement_pdf" model="report.paperformat">
+        <field name="name">Financial Statement Paperformat</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">38</field>
+        <field name="margin_bottom">12</field>
+        <field name="margin_left">8</field>
+        <field name="margin_right">8</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">34</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <record id="action_report_financial_statement_pdf" model="ir.actions.report">
+        <field name="name">Financial Statement</field>
+        <field name="model">financial.report.engine</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">financial_statements_enterprise_view.report_financial_statement_pdf</field>
+        <field name="report_file">financial_statements_enterprise_view.report_financial_statement_pdf</field>
+        <field name="print_report_name">'Financial Statement'</field>
+        <field name="paperformat_id" ref="paperformat_financial_statement_pdf"/>
+    </record>
+
+</odoo>
