@@ -1,0 +1,1423 @@
+/* =====================================================================
+   Financial Statements — Enterprise Interactive View
+   Balance Sheet & Profit and Loss
+   Theme: Dark (default) / Light via CSS variables
+   ===================================================================== */
+
+/* ── Dark Theme (default) ── */
+.fs-ent-root,
+.tax-ent-root {
+    --fs-bg: #1b1d26;
+    --fs-bg-sheet: #262a36;
+    --fs-bg-hover: #2f333f;
+    --fs-bg-control: #1b1d26;
+    --fs-bg-pill: #374151;
+    --fs-bg-pill-hover: #4b5563;
+    --fs-bg-pill-active-bg: #1e3a5f;
+    --fs-bg-dropdown: #1f2937;
+    --fs-bg-input: #1a1b24;
+    --fs-bg-header-band: #3c3e4b;
+    --fs-bg-subtotal: #21242e;
+    --fs-bg-section-header: #3c3e4b;
+    --fs-bg-warning: #1a3a5c;
+    --fs-bg-total: #3c3e4b;
+    --fs-bg-summary: #262a36;
+
+    --fs-border: #3c3e4b;
+    --fs-border-pill: #4b5563;
+    --fs-border-dropdown: #374151;
+    --fs-border-input: #3b3e54;
+    --fs-border-warning: #243b5e;
+    --fs-border-total-top: #714b67;
+
+    --fs-text: #f3f4f6;
+    --fs-text-label: #e5e7eb;
+    --fs-text-secondary: #d1d5db;
+    --fs-text-muted: #9ca3af;
+    --fs-text-dim: #6b7280;
+    --fs-text-heading: #f3f4f6;
+    --fs-text-accent: #2dd4bf;
+    --fs-text-link: #60a5fa;
+    --fs-text-link-hover: #93c5fd;
+    --fs-text-warning: #93c5fd;
+    --fs-text-section: #93c5fd;
+    --fs-text-computed: #2dd4bf;
+    --fs-text-period: #93c5fd;
+    --fs-text-total: #f9fafb;
+    --fs-text-pill-active: #93c5fd;
+    --fs-text-summary: #93c5fd;
+    --fs-text-subtotal-label: #f3f4f6;
+    --fs-text-subtotal-amount: #f3f4f6;
+    --fs-text-header-label: #f3f4f6;
+
+    --fs-color-scheme: dark;
+
+    --fs-shadow-sheet: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+    --fs-shadow-dropdown: 0 10px 25px -3px rgba(0, 0, 0, 0.5);
+    --fs-shadow-control: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+
+    --fs-btn-primary-bg: #714b67;
+    --fs-btn-primary-bg-hover: #87567a;
+    --fs-btn-close-bg: #374151;
+    --fs-btn-close-border: #4b5563;
+    --fs-btn-close-color: #9ca3af;
+    --fs-btn-close-hover-bg: #4b5563;
+    --fs-btn-close-hover-color: #f3f4f6;
+    --fs-btn-close-hover-border: #6b7280;
+
+    --fs-date-sep: #6b7280;
+    --fs-currency-bg: #252633;
+    --fs-currency-border: #3b3e54;
+    --fs-currency-color: #9ca3af;
+
+    --fs-caret-color: #2dd4bf;
+    --fs-balance-link-hover-bg: rgba(96, 165, 250, 0.12);
+    --fs-balance-link-hover-color: #93c5fd;
+
+    --fs-pct-high: #f87171;
+    --fs-pct-mid: #fbbf24;
+    --fs-pct-zero: #6b7280;
+
+    --fs-drill-icon: #4b5563;
+    --fs-drill-icon-hover: #714b67;
+
+    --fs-options-active-bg: #17373b;
+    --fs-options-active-border: #03f9e3;
+    --fs-options-active-color: #03f9e3;
+
+    --fs-spinner-border: #374151;
+    --fs-spinner-border-top: #3b82f6;
+
+    --fs-clear-icon-color: #9ca3af;
+}
+
+/* ── Light Theme ── */
+.fs-ent-root[data-theme="light"],
+.tax-ent-root[data-theme="light"] {
+    --fs-bg: #f0f2f5;
+    --fs-bg-sheet: #ffffff;
+    --fs-bg-hover: #f3f4f6;
+    --fs-bg-control: #ffffff;
+    --fs-bg-pill: #e5e7eb;
+    --fs-bg-pill-hover: #d1d5db;
+    --fs-bg-pill-active-bg: #dbeafe;
+    --fs-bg-dropdown: #ffffff;
+    --fs-bg-input: #f9fafb;
+    --fs-bg-header-band: #f3f4f6;
+    --fs-bg-subtotal: #f9fafb;
+    --fs-bg-section-header: #f3f4f6;
+    --fs-bg-warning: #fef3c7;
+    --fs-bg-total: #f3f4f6;
+    --fs-bg-summary: #f9fafb;
+
+    --fs-border: #e5e7eb;
+    --fs-border-pill: #d1d5db;
+    --fs-border-dropdown: #e5e7eb;
+    --fs-border-input: #d1d5db;
+    --fs-border-warning: #fbbf24;
+    --fs-border-total-top: #714b67;
+
+    --fs-text: #111827;
+    --fs-text-label: #1f2937;
+    --fs-text-secondary: #374151;
+    --fs-text-muted: #6b7280;
+    --fs-text-dim: #9ca3af;
+    --fs-text-heading: #111827;
+    --fs-text-accent: #0d9488;
+    --fs-text-link: #2563eb;
+    --fs-text-link-hover: #1d4ed8;
+    --fs-text-warning: #92400e;
+    --fs-text-section: #1e40af;
+    --fs-text-accent: #0d9488;
+    --fs-text-period: #1e40af;
+    --fs-text-total: #111827;
+    --fs-text-pill-active: #1e40af;
+    --fs-text-summary: #1e40af;
+    --fs-text-subtotal-label: #111827;
+    --fs-text-subtotal-amount: #111827;
+    --fs-text-header-label: #111827;
+
+    --fs-color-scheme: light;
+
+    --fs-shadow-sheet: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    --fs-shadow-dropdown: 0 4px 12px -2px rgba(0, 0, 0, 0.12);
+    --fs-shadow-control: 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+
+    --fs-btn-primary-bg: #714b67;
+    --fs-btn-primary-bg-hover: #87567a;
+    --fs-btn-close-bg: #e5e7eb;
+    --fs-btn-close-border: #d1d5db;
+    --fs-btn-close-color: #6b7280;
+    --fs-btn-close-hover-bg: #d1d5db;
+    --fs-btn-close-hover-color: #111827;
+    --fs-btn-close-hover-border: #9ca3af;
+
+    --fs-date-sep: #9ca3af;
+    --fs-currency-bg: #f3f4f6;
+    --fs-currency-border: #e5e7eb;
+    --fs-currency-color: #6b7280;
+
+    --fs-caret-color: #0d9488;
+    --fs-balance-link-hover-bg: rgba(37, 99, 235, 0.08);
+    --fs-balance-link-hover-color: #1d4ed8;
+
+    --fs-pct-high: #dc2626;
+    --fs-pct-mid: #d97706;
+    --fs-pct-zero: #9ca3af;
+
+    --fs-drill-icon: #9ca3af;
+    --fs-drill-icon-hover: #714b67;
+
+    --fs-options-active-bg: #ecfdf5;
+    --fs-options-active-border: #10b981;
+    --fs-options-active-color: #065f46;
+
+    --fs-spinner-border: #e5e7eb;
+    --fs-spinner-border-top: #2563eb;
+
+    --fs-clear-icon-color: #6b7280;
+}
+
+/* ── Override Odoo dark theme on parent containers when light theme active ── */
+.fs-ent-root[data-theme="light"] ~ .o_content,
+.fs-ent-root[data-theme="light"] .o_content,
+.tax-ent-root[data-theme="light"] ~ .o_content,
+.tax-ent-root[data-theme="light"] .o_content {
+    background: transparent !important;
+}
+
+/* When light theme, force light inputs across the report */
+.fs-ent-root[data-theme="light"] input[type="date"],
+.tax-ent-root[data-theme="light"] input[type="date"] {
+    color-scheme: light;
+}
+
+.fs-ent-root[data-theme="dark"] input[type="date"],
+.tax-ent-root[data-theme="dark"] input[type="date"] {
+    color-scheme: dark;
+}
+
+/* When light theme, scrollbar styling */
+.fs-ent-root[data-theme="light"] ::-webkit-scrollbar,
+.tax-ent-root[data-theme="light"] ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.fs-ent-root[data-theme="light"] ::-webkit-scrollbar-track,
+.tax-ent-root[data-theme="light"] ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.fs-ent-root[data-theme="light"] ::-webkit-scrollbar-thumb,
+.tax-ent-root[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.fs-ent-root[data-theme="light"] ::-webkit-scrollbar-thumb:hover,
+.tax-ent-root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* ── Shared base ── */
+.fs-ent-root,
+.tax-ent-root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    background: var(--fs-bg) !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--fs-text) !important;
+    color-scheme: var(--fs-color-scheme);
+    position: relative;
+    z-index: 1;
+}
+
+/* Override Odoo's parent dark theme containers */
+.o_action_manager,
+.o_action .oe_action,
+.o_content,
+.o_control_panel {
+    background: transparent !important;
+}
+
+/* Control panel */
+.fs-ent-control-panel {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--fs-bg-control) !important;
+    border-bottom: 1px solid var(--fs-border);
+    box-shadow: var(--fs-shadow-control);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.fs-ent-left-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 0%;
+}
+
+.fs-ent-print-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    background: var(--fs-btn-primary-bg);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.fs-ent-print-btn:hover {
+    background: var(--fs-btn-primary-bg-hover);
+}
+
+.fs-ent-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--fs-btn-close-border);
+    border-radius: 50%;
+    background: var(--fs-btn-close-bg);
+    color: var(--fs-btn-close-color);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+
+.fs-ent-close-btn:hover {
+    background: var(--fs-btn-close-hover-bg);
+    color: var(--fs-btn-close-hover-color);
+    border-color: var(--fs-btn-close-hover-border);
+}
+
+.fs-ent-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--fs-text-heading);
+    margin: 0;
+}
+
+.fs-ent-gear {
+    color: var(--fs-text-muted);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.fs-ent-filters-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.fs-ent-right-section {
+    flex: 1 1 0%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+}
+
+.tax-ent-clickable-amount {
+    cursor: pointer;
+    text-decoration: underline dotted var(--fs-border-pill);
+    transition: color 0.15s, text-decoration-color 0.15s;
+}
+
+.tax-ent-clickable-amount:hover {
+    color: var(--fs-text-link);
+    text-decoration: underline solid var(--fs-text-link);
+}
+
+@media (max-width: 992px) {
+    .fs-ent-left-section {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+    .fs-ent-filters-section {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+    .fs-ent-right-section {
+        display: none;
+    }
+}
+
+.fs-ent-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--fs-border-pill);
+    border-radius: 4px;
+    background: var(--fs-bg-pill);
+    color: var(--fs-text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    font-weight: 500;
+}
+
+.fs-ent-filter-pill:hover {
+    background: var(--fs-bg-pill-hover);
+}
+
+.fs-ent-filter-pill.active {
+    background: var(--fs-bg-pill-active-bg);
+    border-color: var(--fs-text-link);
+    color: var(--fs-text-pill-active);
+}
+
+.fs-ent-date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.fs-ent-date-inputs input[type="date"] {
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: var(--fs-text-secondary);
+    background: transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color-scheme: var(--fs-color-scheme);
+}
+
+.fs-ent-date-sep {
+    color: var(--fs-date-sep);
+    font-size: 12px;
+}
+
+.fs-ent-currency-badge {
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: var(--fs-currency-bg);
+    border: 1px solid var(--fs-currency-border);
+    color: var(--fs-currency-color);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ── Theme Toggle Button ── */
+.fs-ent-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--fs-border-pill);
+    border-radius: 50%;
+    background: var(--fs-bg-pill);
+    color: var(--fs-text-muted);
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
+    flex-shrink: 0;
+}
+
+.fs-ent-theme-toggle:hover {
+    background: var(--fs-bg-pill-hover);
+    color: var(--fs-text);
+    border-color: var(--fs-text-link);
+    transform: scale(1.1);
+}
+
+.fs-ent-theme-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Dropdown */
+.fs-ent-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 200;
+    background: var(--fs-bg-dropdown);
+    border: 1px solid var(--fs-border-dropdown);
+    border-radius: 6px;
+    box-shadow: var(--fs-shadow-dropdown);
+    min-width: 220px;
+    padding: 6px 0;
+}
+
+.fs-ent-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--fs-text-secondary);
+}
+
+.fs-ent-dropdown-item:hover {
+    background: var(--fs-bg-pill);
+}
+
+.fs-ent-dropdown-item.selected {
+    background: var(--fs-bg-pill-active-bg);
+    color: var(--fs-text-pill-active);
+    font-weight: 600;
+}
+
+.fs-ent-dropdown-divider {
+    height: 1px;
+    background: var(--fs-border-dropdown);
+    margin: 4px 0;
+}
+
+/* Warning banner */
+.fs-ent-warning-banner {
+    background: var(--fs-bg-warning);
+    color: var(--fs-text-warning);
+    font-size: 13px;
+    padding: 8px 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid var(--fs-border-warning);
+}
+
+.fs-ent-warning-close {
+    position: absolute;
+    right: 20px;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--fs-text-warning);
+    line-height: 1;
+}
+
+.fs-ent-warning-close:hover {
+    color: var(--fs-text);
+}
+
+/* Content */
+.fs-ent-content {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    display: flex;
+    align-items: flex-start;
+    background: var(--fs-bg) !important;
+}
+
+.fs-ent-sheet {
+    background: var(--fs-bg-sheet) !important;
+    border: 1px solid var(--fs-border);
+    box-shadow: var(--fs-shadow-sheet);
+    border-radius: 6px;
+    width: fit-content;
+    min-width: min(100%, 900px);
+    margin: 0 auto;
+    padding: 24px 32px 32px;
+}
+
+.fs-ent-table-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 24px;
+    border-bottom: 1px solid var(--fs-border);
+    padding: 0 12px 8px;
+    margin-bottom: 4px;
+}
+
+.fs-ent-table-header span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fs-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fs-ent-col-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 120px;
+}
+
+.fs-ent-col-header-date {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fs-text-secondary);
+    white-space: nowrap;
+}
+
+.fs-ent-col-header-balance {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fs-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fs-ent-comparison-header .fs-ent-col-header-date,
+.fs-ent-comparison-header .fs-ent-col-header-balance {
+    color: var(--fs-text-dim);
+}
+
+.fs-ent-dc-col-header {
+    min-width: auto;
+}
+
+.fs-ent-dc-subheaders {
+    display: flex;
+    gap: 24px;
+}
+
+.fs-ent-dc-subheaders .fs-ent-col-header-balance {
+    min-width: 120px;
+    text-align: right;
+}
+
+.fs-ent-balance.fs-ent-debit,
+.fs-ent-balance.fs-ent-credit {
+    color: var(--fs-text-muted);
+    font-weight: 400;
+}
+
+.fs-ent-simple-col-header {
+    flex: 0 0 120px;
+    min-width: 120px;
+    text-align: right;
+}
+
+/* Report rows */
+.fs-ent-lines {
+    display: flex;
+    flex-direction: column;
+}
+
+.fs-ent-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--fs-border);
+    min-height: 36px;
+    transition: background 0.1s;
+}
+
+.fs-ent-row:hover {
+    background: var(--fs-bg-hover);
+}
+
+.fs-ent-row-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 280px;
+}
+
+.fs-ent-split-col .fs-ent-row-label {
+    min-width: 180px;
+}
+
+.fs-ent-caret {
+    width: 14px;
+    font-size: 11px;
+    color: var(--fs-caret-color);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.fs-ent-caret-placeholder {
+    width: 14px;
+    flex-shrink: 0;
+}
+
+.fs-ent-label-text {
+    font-size: 14px;
+    color: var(--fs-text-label);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fs-ent-amounts {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-shrink: 0;
+}
+
+.fs-ent-balance {
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--fs-text);
+    flex: 0 0 120px;
+    min-width: 120px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.fs-ent-comparison-balance {
+    color: var(--fs-text-muted);
+    min-width: 120px;
+}
+
+/* Analytic column styles */
+.fs-ent-analytic-header {
+    font-weight: 600;
+    color: var(--fs-text-heading);
+    min-width: 120px;
+    flex: 0 0 120px;
+    text-align: right;
+}
+
+.fs-ent-analytic-balance {
+    min-width: 120px;
+    flex: 0 0 120px;
+    text-align: right;
+    color: var(--fs-text);
+}
+
+.fs-ent-analytic-total {
+    font-weight: 700;
+    color: var(--fs-text-total);
+}
+
+/* Clickable amounts — drill down into the account's journal items */
+.fs-ent-balance-link {
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.fs-ent-balance-link:hover {
+    background-color: var(--fs-balance-link-hover-bg);
+    color: var(--fs-balance-link-hover-color);
+}
+
+/* Comparison dropdown enhancements */
+.fs-ent-comparison-panel {
+    min-width: 280px;
+}
+
+.fs-ent-dropdown-item-inline {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.fs-ent-period-count-input {
+    width: 42px;
+    background: var(--fs-bg-input);
+    color: var(--fs-text);
+    border: 1px solid var(--fs-border-input);
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 2px 4px;
+    text-align: center;
+    margin-left: auto;
+}
+
+.fs-ent-period-label {
+    font-size: 12px;
+    color: var(--fs-text-dim);
+}
+
+.fs-ent-pct-of-input {
+    flex: 1;
+    min-width: 80px;
+    background: var(--fs-bg-input);
+    color: var(--fs-text-pill-active);
+    border: none;
+    border-bottom: 1px solid var(--fs-text-link);
+    font-size: 12px;
+    padding: 2px 4px;
+    margin-left: auto;
+    cursor: pointer;
+}
+
+.fs-ent-pct-of-picker {
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--fs-bg-input);
+    border: 1px solid var(--fs-border-dropdown);
+    border-radius: 4px;
+    margin: 4px 8px;
+}
+
+.fs-ent-pct-of-option {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--fs-text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fs-ent-pct-of-option:hover {
+    background: var(--fs-bg-pill);
+}
+
+.fs-ent-pct-of-option.selected {
+    background: var(--fs-bg-pill-active-bg);
+    color: var(--fs-text-pill-active);
+}
+
+.fs-ent-pct-of-empty {
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--fs-text-dim);
+    font-style: italic;
+}
+
+.fs-ent-comparison-dates {
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fs-ent-comparison-date-label {
+    font-size: 11px;
+    color: var(--fs-text-dim);
+}
+
+.fs-ent-comparison-date-input {
+    background: var(--fs-bg-input);
+    color: var(--fs-text);
+    border: 1px solid var(--fs-border-input);
+    font-size: 12px;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.fs-ent-comparison-settings {
+    padding: 6px 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fs-ent-comparison-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--fs-text-dim);
+}
+
+.fs-ent-comparison-select {
+    background: var(--fs-bg-input);
+    color: var(--fs-text);
+    border: 1px solid var(--fs-border-input);
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 2px 6px;
+    cursor: pointer;
+}
+
+/* Percentage of column */
+.fs-ent-pct-col {
+    min-width: 70px;
+    font-size: 13px;
+}
+
+.fs-ent-pct-header {
+    min-width: 70px;
+    text-align: right;
+}
+
+.fs-ent-pct-high {
+    color: var(--fs-pct-high);
+}
+
+.fs-ent-pct-mid {
+    color: var(--fs-pct-mid);
+}
+
+.fs-ent-pct-zero {
+    color: var(--fs-pct-zero);
+}
+
+/* Indentation by level */
+.fs-ent-level-0 .fs-ent-label-text { padding-left: 0; }
+.fs-ent-level-1 .fs-ent-label-text { padding-left: 16px; }
+.fs-ent-level-2 .fs-ent-label-text { padding-left: 32px; }
+.fs-ent-level-3 .fs-ent-label-text { padding-left: 48px; }
+
+/* Header bands (ASSETS, LIABILITIES, etc.) */
+.fs-ent-header-band {
+    background: var(--fs-bg-header-band) !important;
+    border-bottom: 1px solid var(--fs-border) !important;
+    margin-top: 8px;
+}
+
+.fs-ent-header-band .fs-ent-label-text {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--fs-text-header-label);
+}
+
+.fs-ent-header-band .fs-ent-balance {
+    font-weight: 700;
+}
+
+/* Subtotals (Gross Profit, Net Profit, etc.) */
+.fs-ent-subtotal {
+    background: var(--fs-bg-subtotal) !important;
+    border-top: 1px solid var(--fs-border);
+    border-bottom: 1px solid var(--fs-border) !important;
+}
+
+.fs-ent-subtotal .fs-ent-label-text {
+    font-weight: 600;
+    color: var(--fs-text-subtotal-label);
+}
+
+.fs-ent-subtotal .fs-ent-balance {
+    font-weight: 700;
+}
+
+/* Account lines */
+.fs-ent-account .fs-ent-label-text {
+    font-size: 13px;
+    color: var(--fs-text-secondary);
+}
+
+.fs-ent-account-link {
+    color: var(--fs-text-link);
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.fs-ent-account-link:hover {
+    text-decoration: underline;
+    color: var(--fs-text-link-hover);
+}
+
+.fs-ent-style-computed .fs-ent-label-text {
+    color: var(--fs-text-computed);
+}
+
+/* Group / subsection */
+.fs-ent-style-group .fs-ent-label-text,
+.fs-ent-style-subsection .fs-ent-label-text {
+    font-weight: 500;
+}
+
+/* State boxes */
+.fs-ent-state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    color: var(--fs-text-dim);
+    font-size: 14px;
+}
+
+.fs-ent-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--fs-spinner-border);
+    border-top-color: var(--fs-spinner-border-top);
+    border-radius: 50%;
+    animation: fs-ent-spin 0.6s linear infinite;
+}
+
+@keyframes fs-ent-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Split Horizontally (two-column Balance Sheet layout) */
+.fs-ent-sheet-wide {
+    max-width: 1400px;
+}
+
+.fs-ent-split-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+}
+
+.fs-ent-split-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.fs-ent-split-col + .fs-ent-split-col {
+    border-left: 1px solid var(--fs-border);
+    padding-left: 32px;
+}
+
+/* Print */
+@media print {
+    .fs-ent-control-panel,
+    .fs-ent-warning-banner {
+        display: none !important;
+    }
+    .fs-ent-root,
+    .fs-ent-root[data-theme="light"] {
+        --fs-bg: #fff;
+        --fs-text: #000;
+        --fs-bg-sheet: #fff;
+    }
+    .fs-ent-root,
+    .fs-ent-root[data-theme="light"] {
+        background: #fff;
+        color: #000;
+    }
+    .fs-ent-sheet {
+        box-shadow: none;
+        border: none;
+        max-width: 100%;
+    }
+}
+
+/* =====================================================================
+   TAX REPORT VIEW — VAT Return
+   ===================================================================== */
+
+.tax-ent-root .fs-ent-control-panel {
+    justify-content: flex-start;
+}
+
+.tax-ent-root .fs-ent-left-section {
+    flex: 0 0 auto;
+}
+
+.tax-ent-root .fs-ent-filters-section {
+    flex: 1 1 auto;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+/* Body wrapper */
+.tax-ent-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px 16px 40px;
+    background: var(--fs-bg) !important;
+}
+
+/* Table wrapper — enterprise-style card */
+.tax-ent-table-wrapper {
+    width: 100%;
+    max-width: 820px;
+    background: var(--fs-bg-sheet) !important;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.45);
+    flex: 0 0 auto;
+}
+
+[data-theme="light"] .tax-ent-table-wrapper {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.tax-ent-table-wrapper.tax-ent-table-comparison {
+    width: auto;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.fs-ent-period-nav {
+    cursor: pointer;
+    padding: 2px 6px;
+    color: var(--fs-text-muted);
+    transition: color 0.15s, background 0.15s;
+    border-radius: 3px;
+}
+
+.fs-ent-period-nav:hover {
+    color: var(--fs-text);
+    background: var(--fs-bg-pill);
+}
+
+.mx-2 {
+    margin-left: 8px;
+    margin-right: 8px;
+}
+
+/* Table layout */
+.tax-ent-table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+/* Column header row */
+.tax-ent-col-header-row {
+    display: grid;
+    grid-template-columns: 1fr 130px 130px 32px;
+    padding: 10px 16px 10px 20px;
+    border-bottom: 1px solid var(--fs-border);
+    color: var(--fs-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.tax-ent-col-header-row .tax-ent-col-amount,
+.tax-ent-col-header-row .tax-ent-col-vat {
+    text-align: right;
+}
+
+/* Comparison column header */
+.tax-ent-col-header-comparison {
+    grid-template-columns: 410px repeat(var(--comp-cols, 1), 190px) 190px 32px;
+}
+
+.tax-ent-comparison-period-header {
+    text-align: center;
+}
+
+.tax-ent-period-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fs-text-period);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--fs-border);
+}
+
+.tax-ent-period-subcols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding-top: 4px;
+}
+
+.tax-ent-period-subcols .tax-ent-col-amount,
+.tax-ent-period-subcols .tax-ent-col-vat {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* Section header (VAT on Sales: / VAT on Purchases:) */
+.tax-ent-section-header {
+    display: grid;
+    grid-template-columns: 1fr 130px 130px 32px;
+    padding: 9px 16px 9px 16px;
+    background: var(--fs-bg-section-header);
+    border-top: 1px solid var(--fs-border);
+    border-bottom: 1px solid var(--fs-border);
+}
+
+.tax-ent-section-header-comparison {
+    grid-template-columns: 410px repeat(var(--comp-cols, 1), 190px) 190px 32px;
+}
+
+.tax-ent-section-header-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--fs-text-section);
+    letter-spacing: 0.01em;
+}
+
+/* Generic data row */
+.tax-ent-row {
+    display: grid;
+    grid-template-columns: 1fr 130px 130px 32px;
+    padding: 8px 16px 8px 20px;
+    border-bottom: 1px solid var(--fs-border);
+    font-size: 13px;
+    transition: background 0.12s;
+    align-items: center;
+}
+
+.tax-ent-row:hover {
+    background: var(--fs-bg-hover);
+}
+
+.tax-ent-row-comparison {
+    grid-template-columns: 410px repeat(var(--comp-cols, 1), 190px) 190px 32px;
+}
+
+/* Label column */
+.tax-ent-col-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.tax-ent-line-number {
+    color: var(--fs-text-muted);
+    font-size: 13px;
+    min-width: 22px;
+    flex-shrink: 0;
+}
+
+.tax-ent-line-name {
+    color: var(--fs-text-label);
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+/* Amount columns */
+.tax-ent-col-amount,
+.tax-ent-col-vat {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--fs-text-secondary);
+    font-size: 13px;
+}
+
+/* Action column */
+.tax-ent-col-action {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.tax-ent-drill-icon {
+    color: var(--fs-drill-icon);
+    font-size: 11px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    cursor: pointer;
+}
+
+.tax-ent-row:hover .tax-ent-drill-icon {
+    opacity: 1;
+    color: var(--fs-drill-icon-hover);
+}
+
+/* Info icon */
+.tax-ent-info-icon {
+    color: var(--fs-text-dim);
+    font-size: 13px;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.tax-ent-info-icon:hover {
+    opacity: 1;
+    color: var(--fs-text-pill-active);
+}
+
+/* Subtotal rows (Total Sales / Total Purchases) */
+.tax-ent-subtotal {
+    background: var(--fs-bg-section-header);
+    border-top: 1px solid var(--fs-border);
+    border-bottom: 1px solid var(--fs-border);
+}
+
+.tax-ent-subtotal .tax-ent-col-label .tax-ent-line-name {
+    font-weight: 700;
+    color: var(--fs-text-total);
+}
+
+.tax-ent-subtotal .tax-ent-col-amount,
+.tax-ent-subtotal .tax-ent-col-vat {
+    font-weight: 700;
+    color: var(--fs-text);
+}
+
+/* Summary rows */
+.tax-ent-summary {
+    background: var(--fs-bg-summary);
+}
+
+.tax-ent-summary .tax-ent-col-label .tax-ent-line-name {
+    color: var(--fs-text-summary);
+}
+
+.tax-ent-summary .tax-ent-col-vat {
+    color: var(--fs-text-summary);
+    font-weight: 600;
+}
+
+/* Net VAT total row */
+.tax-ent-total {
+    background: var(--fs-bg-total);
+    border-top: 2px solid var(--fs-border-total-top);
+}
+
+.tax-ent-total .tax-ent-col-label .tax-ent-line-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--fs-text-total);
+}
+
+.tax-ent-total .tax-ent-col-vat {
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--fs-text-total);
+}
+
+/* Enterprise-style date dropdown */
+.tax-ent-date-dropdown {
+    min-width: 280px;
+    left: 0;
+}
+
+.fs-ent-dropdown-date-input {
+    margin-left: auto;
+    background: var(--fs-bg-input);
+    color: var(--fs-text);
+    border: 1px solid var(--fs-border-input);
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 2px 6px;
+    cursor: pointer;
+}
+
+.fs-ent-dropdown-date-input::-webkit-calendar-picker-indicator {
+    filter: var(--fs-color-scheme) === 'dark' ? invert(1) : none;
+    opacity: 0.5;
+}
+
+.fs-ent-dropdown-date-value {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--fs-text-muted);
+}
+
+.fs-ent-dropdown-custom-dates {
+    padding: 6px 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fs-ent-dropdown-custom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--fs-text-dim);
+}
+
+.fs-ent-dropdown-date-input-full {
+    background: var(--fs-bg-input);
+    color: var(--fs-text);
+    border: 1px solid var(--fs-border-input);
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 4px 6px;
+    width: 140px;
+}
+
+.tax-ent-report-pill {
+    color: var(--fs-text-pill-active);
+}
+
+/* Posted Entries pill — active/open state */
+.tax-ent-options-active {
+    background: var(--fs-options-active-bg);
+    border-color: var(--fs-options-active-border);
+    color: var(--fs-options-active-color);
+}
+
+/* Clear icon for analytic filter */
+.fs-ent-clear-icon {
+    font-size: 12px;
+    color: var(--fs-clear-icon-color);
+    transition: color 0.15s;
+}
+
+.fs-ent-clear-icon:hover {
+    color: var(--fs-text);
+}
+
+/* Print media override for tax report */
+@media print {
+    .tax-ent-root .fs-ent-control-panel {
+        display: none !important;
+    }
+    .tax-ent-body {
+        padding: 0;
+    }
+    .tax-ent-table-wrapper {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        max-width: 100%;
+    }
+    .tax-ent-root,
+    .tax-ent-root[data-theme="light"] {
+        background: #fff;
+        color: #000;
+    }
+    .tax-ent-section-header,
+    .tax-ent-subtotal,
+    .tax-ent-total {
+        background: #f0f0f0;
+    }
+    .tax-ent-col-header-row {
+        background: #e8e8e8;
+    }
+    .tax-ent-section-header-text,
+    .tax-ent-line-name,
+    .tax-ent-col-amount,
+    .tax-ent-col-vat,
+    .tax-ent-line-number {
+        color: #000 !important;
+    }
+}
+
+/* =====================================================================
+   FIX (#7): RTL support
+   ===================================================================== */
+[dir="rtl"] .fs-ent-root {
+    direction: rtl;
+}
+
+[dir="rtl"] .fs-ent-pct-of-input,
+[dir="rtl"] .fs-ent-period-count-input,
+[dir="rtl"] .fs-ent-dropdown-date-input,
+[dir="rtl"] .fs-ent-dropdown-date-value {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+[dir="rtl"] .tax-ent-date-dropdown {
+    left: auto;
+    right: 0;
+}
+
+[dir="rtl"] .fs-ent-split-col + .fs-ent-split-col {
+    border-left: none;
+    border-right: 1px solid var(--fs-border);
+    padding-left: 0;
+    padding-right: 32px;
+}
+
+[dir="rtl"] .fs-ent-level-0 .fs-ent-label-text { padding-left: 0; padding-right: 0; }
+[dir="rtl"] .fs-ent-level-1 .fs-ent-label-text { padding-left: 0; padding-right: 16px; }
+[dir="rtl"] .fs-ent-level-2 .fs-ent-label-text { padding-left: 0; padding-right: 32px; }
+[dir="rtl"] .fs-ent-level-3 .fs-ent-label-text { padding-left: 0; padding-right: 48px; }
+
+[dir="rtl"] .fs-ent-balance,
+[dir="rtl"] .fs-ent-comparison-balance,
+[dir="rtl"] .fs-ent-col-header-balance {
+    text-align: left;
+    direction: ltr;
+}
