@@ -1,0 +1,641 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         Paper format for GL / TB PDF (Portrait A4)
+         ================================================================ -->
+    <record id="paperformat_enterprise_gl" model="report.paperformat">
+        <field name="name">Enterprise GL - Portrait A4</field>
+        <field name="default" eval="False"/>
+        <field name="format">custom</field>
+        <field name="page_height">297</field>
+        <field name="page_width">210</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">12</field>
+        <field name="margin_bottom">8</field>
+        <field name="margin_left">5</field>
+        <field name="margin_right">5</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">10</field>
+        <field name="dpi">110</field>
+    </record>
+
+    <!-- ================================================================
+         ir.actions.report for General Ledger PDF
+         ================================================================ -->
+    <record id="action_report_general_ledger_enterprise" model="ir.actions.report">
+        <field name="name">General Ledger (Enterprise)</field>
+        <field name="model">account.move.line</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">general_ledger_enterprise_view.report_general_ledger_enterprise</field>
+        <field name="paperformat_id" ref="paperformat_enterprise_gl"/>
+        <field name="binding_model_id" ref="account.model_account_move_line"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- ================================================================
+         ir.actions.report for Trial Balance PDF
+         ================================================================ -->
+    <record id="action_report_trial_balance_enterprise" model="ir.actions.report">
+        <field name="name">Trial Balance (Enterprise)</field>
+        <field name="model">account.account</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">general_ledger_enterprise_view.report_trial_balance_enterprise</field>
+        <field name="paperformat_id" ref="paperformat_enterprise_gl"/>
+        <field name="binding_model_id" ref="account.model_account_account"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- ================================================================
+         STANDALONE General Ledger PDF Template
+         ================================================================ -->
+    <template id="report_general_ledger_enterprise">
+        <t t-call="web.html_container">
+            <!-- Support both direct print (docs) and native _render_qweb_pdf data injection (accounts/res_company) -->
+            <t t-if="not res_company">
+                <t t-set="company" t-value="docs[0].company_id if docs and docs[0] else env.company"/>
+                <t t-set="res_company" t-value="company"/>
+                <t t-set="company_currency" t-value="company.currency_id if company else env.company.currency_id"/>
+            </t>
+            <t t-if="not company_currency">
+                <t t-set="company_currency" t-value="res_company.currency_id"/>
+            </t>
+            <t t-if="not accounts">
+                <t t-set="accounts" t-value="docs if docs else []"/>
+            </t>
+            <t t-call="general_ledger_enterprise_view.report_general_ledger_page">
+                <t t-set="general_ledger" t-value="docs if docs else accounts"/>
+            </t>
+        </t>
+    </template>
+
+    <!-- ================================================================
+         General Ledger - Single Page Layout
+         ================================================================ -->
+    <template id="report_general_ledger_page">
+        <div class="page">
+
+                <!-- Company Header -->
+                <div class="oca-gl-pdf-companyheader">
+                    <div class="oca-gl-pdf-companyleft">
+                        <t t-if="res_company.logo">
+                            <img t-att-src="image_data_uri(res_company.logo)"
+                                 class="oca-gl-pdf-logo" alt="Logo"/>
+                        </t>
+                        <div class="oca-gl-pdf-companyname" t-out="res_company.name"/>
+                        <div class="oca-gl-pdf-companycountry" t-if="res_company.country_id">
+                            <t t-out="res_company.country_id.name"/>
+                        </div>
+                        <div class="oca-gl-pdf-companyvat">
+                            VAT Number:
+                            <t t-if="res_company.vat">
+                                <t t-out="res_company.vat"/>
+                            </t>
+                        </div>
+                    </div>
+                    <div class="oca-gl-pdf-companyright">
+                        <h4 class="oca-gl-pdf-title">General Ledger</h4>
+                        <t t-if="len(accounts) == 1">
+                            <div style="margin-top: 4px; font-size: 13px; font-weight: bold; text-align: right; color: #212529;">
+                                <div>Account : <t t-out="accounts[0].get('name', '')"/></div>
+                                <div>Code : <t t-out="accounts[0].get('code', '')"/></div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Period Band -->
+                <t t-set="gl_date_from"
+                   t-value="date_from if (not date_from or not isinstance(date_from, str)) else datetime.date.fromisoformat(date_from)"/>
+                <t t-set="gl_date_to"
+                   t-value="date_to if (not date_to or not isinstance(date_to, str)) else datetime.date.fromisoformat(date_to)"/>
+                <div class="oca-gl-pdf-period">
+                    <t t-if="gl_date_from and gl_date_to and gl_date_from.strftime('%Y-%m') == gl_date_to.strftime('%Y-%m')">
+                        <t t-out="gl_date_from.strftime('%b %Y')"/>
+                    </t>
+                    <t t-else="">
+                        <t t-out="gl_date_from.strftime('%m/%d/%Y') if gl_date_from else ''"/>
+                        -
+                        <t t-out="gl_date_to.strftime('%m/%d/%Y') if gl_date_to else ''"/>
+                    </t>
+                </div>
+
+                <!-- Column Headers & Move Lines Table (Grouped by Account) -->
+                <table style="width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #000; font-weight: bold;">
+                            <th style="width: 12%; text-align: left; padding: 5px 4px; font-size: 12px;">Date</th>
+                            <th style="width: 18%; text-align: left; padding: 5px 4px; font-size: 12px;">Entry</th>
+                            <th style="width: 32%; text-align: left; padding: 5px 4px; font-size: 12px;">Partner</th>
+                            <th style="width: 12%; text-align: right; padding: 5px 4px; font-size: 12px;">Debit</th>
+                            <th style="width: 13%; text-align: right; padding: 5px 4px; font-size: 12px;">Credit</th>
+                            <th style="width: 13%; text-align: right; padding: 5px 4px; font-size: 12px;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-set="grand_debit" t-value="0.0"/>
+                        <t t-set="grand_credit" t-value="0.0"/>
+
+                        <t t-foreach="accounts" t-as="acc">
+                            <t t-set="acc_debit" t-value="acc.get('fin_bal', {}).get('debit', 0.0)"/>
+                            <t t-set="acc_credit" t-value="acc.get('fin_bal', {}).get('credit', 0.0)"/>
+                            <t t-set="acc_init_balance" t-value="acc.get('gl_init_balance', acc.get('init_bal', {}).get('balance', 0.0))"/>
+                            <t t-set="acc_balance" t-value="acc.get('gl_ending_balance', acc.get('fin_bal', {}).get('ending_balance', acc.get('fin_bal', {}).get('balance', 0.0)))"/>
+                            <t t-set="grand_debit" t-value="grand_debit + acc_debit"/>
+                            <t t-set="grand_credit" t-value="grand_credit + acc_credit"/>
+
+                            <!-- Account Header Row -->
+                            <tr style="font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
+                                <td style="width: 12%; text-align: left; padding: 8px 4px 4px 4px; font-size: 12px;">
+                                    <t t-out="acc.get('code', '')"/>
+                                </td>
+                                <td colspan="5" style="text-align: left; padding: 8px 4px 4px 4px; font-size: 12px;">
+                                    <t t-out="acc.get('name', '')"/>
+                                </td>
+                            </tr>
+
+                            <!-- Initial Balance row: move line balances below start from it -->
+                            <t t-if="acc_init_balance and (acc_init_balance &gt;= 0.005 or acc_init_balance &lt;= -0.005)">
+                                <tr style="border-bottom: 1px solid #e9ecef; font-size: 11px; font-style: italic;">
+                                    <td style="width: 12%; padding: 4px;"/>
+                                    <td colspan="2" style="text-align: left; padding: 4px;">Initial Balance</td>
+                                    <td style="width: 12%; padding: 4px;"/>
+                                    <td style="width: 13%; padding: 4px;"/>
+                                    <td style="width: 13%; text-align: right; padding: 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(acc_init_balance, company_currency.decimal_places).replace('\u2212','-')"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                    </td>
+                                </tr>
+                            </t>
+
+                            <!-- Move Lines for Account -->
+                            <t t-foreach="acc.get('move_lines', [])" t-as="ml">
+                                <tr style="border-bottom: 1px solid #e9ecef; font-size: 11px; vertical-align: top;">
+                                    <td style="width: 12%; text-align: left; padding: 4px; white-space: nowrap;">
+                                        <t t-out="datetime.date.fromisoformat(str(ml['date'])).strftime('%d/%m/%Y') if ml.get('date') else ''"/>
+                                    </td>
+                                    <td style="width: 18%; text-align: left; padding: 4px; word-break: break-word;">
+                                        <t t-out="ml.get('move_name', '')"/>
+                                    </td>
+                                    <td style="width: 32%; text-align: left; padding: 4px; word-break: break-word; font-family: 'Noto Naskh Arabic','Noto Sans Arabic','DejaVu Sans', sans-serif;">
+                                        <t t-out="ml.get('partner', '')"/>
+                                    </td>
+                                    <td t-attf-class="amount#{' oca-gl-pdf-zero' if not ml.get('debit') else ''}" style="width: 12%; text-align: right; padding: 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(ml.get('debit') or 0.0, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                    </td>
+                                    <td t-attf-class="amount#{' oca-gl-pdf-zero' if not ml.get('credit') else ''}" style="width: 13%; text-align: right; padding: 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(ml.get('credit') or 0.0, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                    </td>
+                                    <td style="width: 13%; text-align: right; padding: 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(ml.get('balance') or 0.0, company_currency.decimal_places).replace('\u2212','-')"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                    </td>
+                                </tr>
+                            </t>
+
+                            <!-- Account Subtotal Row -->
+                            <tr style="font-weight: bold; border-top: 1px solid #000; border-bottom: 1px solid #000; font-size: 11px;">
+                                <td style="width: 12%; text-align: left; padding: 5px 4px;">Total</td>
+                                <td style="width: 18%; text-align: left; padding: 5px 4px;">
+                                    <t t-out="acc.get('code', '')"/>
+                                </td>
+                                <td style="width: 32%; text-align: left; padding: 5px 4px;">
+                                    <t t-out="acc.get('name', '')"/>
+                                </td>
+                                <td style="width: 12%; text-align: right; padding: 5px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                    <t t-esc="'{0:,.{1}f}'.format(acc_debit, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                </td>
+                                <td style="width: 13%; text-align: right; padding: 5px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                    <t t-esc="'{0:,.{1}f}'.format(acc_credit, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                </td>
+                                <td style="width: 13%; text-align: right; padding: 5px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                    <t t-esc="'{0:,.{1}f}'.format(acc_balance, company_currency.decimal_places).replace('\u2212','-')"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                </td>
+                            </tr>
+                            <!-- Blank spacing row between accounts -->
+                            <tr style="height: 6px;"><td colspan="6"/></tr>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; font-size: 12px;">
+                            <td style="width: 12%; text-align: left; padding: 6px 4px;">Total</td>
+                            <td style="width: 18%; text-align: left; padding: 6px 4px;">General Ledger</td>
+                            <td style="width: 32%; padding: 6px 4px;"/>
+                            <td style="width: 12%; text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                <t t-esc="'{0:,.{1}f}'.format(grand_debit, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                            </td>
+                            <td style="width: 13%; text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                <t t-esc="'{0:,.{1}f}'.format(grand_credit, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                            </td>
+                            <td style="width: 13%; padding: 6px 4px;"/>
+                        </tr>
+                    </tfoot>
+                </table>
+
+            </div>
+    </template>
+
+    <!-- ================================================================
+         STANDALONE Trial Balance PDF Template
+         ================================================================ -->
+    <template id="report_trial_balance_enterprise">
+        <t t-call="web.html_container">
+            <t t-if="not res_company">
+                <t t-set="company" t-value="docs[0].company_id if docs and len(docs) and hasattr(docs[0], 'company_id') else env.company"/>
+                <t t-set="res_company" t-value="company"/>
+                <t t-set="company_currency" t-value="company.currency_id if company else env.company.currency_id"/>
+            </t>
+            <t t-if="not company_currency">
+                <t t-set="company_currency" t-value="res_company.currency_id"/>
+            </t>
+            <t t-if="not trial_balance">
+                <t t-set="trial_balance" t-value="docs if docs else []"/>
+            </t>
+            <t t-call="general_ledger_enterprise_view.report_trial_balance_page"/>
+        </t>
+    </template>
+
+    <!-- ================================================================
+         Trial Balance - Single Page Layout
+         ================================================================ -->
+    <template id="report_trial_balance_page">
+        <div class="page">
+
+                <!-- Centered Company Header -->
+                <div class="oca-tb-pdf-header-block">
+                    <div class="oca-tb-pdf-companycenter">
+                        <t t-if="res_company.logo">
+                            <img t-att-src="image_data_uri(res_company.logo)"
+                                 class="oca-gl-pdf-logo" alt="Logo"/>
+                        </t>
+                        <div class="oca-gl-pdf-companyname" t-out="res_company.name"/>
+                        <div class="oca-gl-pdf-companyvat">
+                            VAT Number:
+                            <t t-if="res_company.vat">
+                                <t t-out="res_company.vat"/>
+                            </t>
+                        </div>
+                    </div>
+                    <h4 class="oca-gl-pdf-title oca-tb-pdf-title-center">Trial Balance</h4>
+                    <t t-set="tb_hdr_date_from"
+                       t-value="date_from if (not date_from or not isinstance(date_from, str)) else datetime.date.fromisoformat(date_from)"/>
+                    <t t-set="tb_hdr_date_to"
+                       t-value="date_to if (not date_to or not isinstance(date_to, str)) else datetime.date.fromisoformat(date_to)"/>
+                    <div class="oca-tb-pdf-period-left">
+                        <t t-out="tb_hdr_date_from.strftime('%m/%d/%Y') if tb_hdr_date_from else ''"/>
+                        <t t-if="tb_hdr_date_from and tb_hdr_date_to"> - </t>
+                        <t t-out="tb_hdr_date_to.strftime('%m/%d/%Y') if tb_hdr_date_to else ''"/>
+                    </div>
+                </div>
+
+                <!-- Global 2-row column header Table -->
+                <t t-set="tb_date_from"
+                   t-value="date_from if (not date_from or not isinstance(date_from, str)) else datetime.date.fromisoformat(date_from)"/>
+                <t t-set="tb_date_to"
+                   t-value="date_to if (not date_to or not isinstance(date_to, str)) else datetime.date.fromisoformat(date_to)"/>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 4px;">
+                    <colgroup><col style="width:40%"/><col style="width:15%"/><col style="width:15%"/><col style="width:15%"/><col style="width:15%"/></colgroup>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding: 6px;"></th>
+                            <th style="text-align: right; padding: 6px; border-bottom: 2px solid #495057;">Initial Balance</th>
+                            <th colspan="2" style="text-align: center; padding: 6px; border-bottom: 2px solid #495057; background-color:#f0f0f0;">
+                                <t t-if="tb_date_from and tb_date_to and tb_date_from.strftime('%Y-%m') == tb_date_to.strftime('%Y-%m')">
+                                    <t t-out="tb_date_from.strftime('%b %Y')"/>
+                                </t>
+                                <t t-else="">
+                                    <t t-out="tb_date_from.strftime('%m/%d/%Y') if tb_date_from else ''"/> - <t t-out="tb_date_to.strftime('%m/%d/%Y') if tb_date_to else ''"/>
+                                </t>
+                            </th>
+                            <th style="text-align: right; padding: 6px; border-bottom: 2px solid #495057;">End Balance</th>
+                        </tr>
+                        <tr style="border-bottom: 2px solid #495057;">
+                            <th style="text-align: left; padding: 6px;"></th>
+                            <th style="text-align: right; padding: 6px;">Balance</th>
+                            <th style="text-align: right; padding: 6px; background-color:#f0f0f0;">Debit</th>
+                            <th style="text-align: right; padding: 6px; background-color:#f0f0f0;">Credit</th>
+                            <th style="text-align: right; padding: 6px;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="trial_balance" t-as="balance">
+                            <t t-if="balance.get('type') != 'account_type' or balance.get('initial_balance') or balance.get('debit') or balance.get('credit') or balance.get('ending_balance')">
+                                <!-- Account summary row (always shown, folded or unfolded) -->
+                                <tr class="oca-gl-pdf-accrow" style="border-bottom: 1px solid #e3e3e3; font-size: 13px;">
+                                    <td style="width: 40%; text-align: left; padding: 5px 6px; font-family: 'Noto Naskh Arabic','Noto Sans Arabic','DejaVu Sans', sans-serif;">
+                                        <t t-out="balance.get('code', '')"/> <t t-out="balance.get('name', '')"/>
+                                    </td>
+                                    <td t-attf-class="amount#{' oca-gl-pdf-zero' if not balance.get('initial_balance') else ''}" style="width: 15%; text-align: right; padding: 5px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(balance.get('initial_balance') or 0.0, company_currency.decimal_places).replace('\u2212','-')"/>
+                                    </td>
+                                    <td t-attf-class="amount#{' oca-gl-pdf-zero' if not balance.get('debit') else ''}" style="width: 15%; text-align: right; padding: 5px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(balance.get('debit') or 0.0, company_currency.decimal_places)"/>
+                                    </td>
+                                    <td t-attf-class="amount#{' oca-gl-pdf-zero' if not balance.get('credit') else ''}" style="width: 15%; text-align: right; padding: 5px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(balance.get('credit') or 0.0, company_currency.decimal_places)"/>
+                                    </td>
+                                    <td t-attf-class="amount#{' oca-gl-pdf-zero' if not balance.get('ending_balance') else ''}" style="width: 15%; text-align: right; padding: 5px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(balance.get('ending_balance') or 0.0, company_currency.decimal_places).replace('\u2212','-')"/>
+                                    </td>
+                                </tr>
+
+                                <!-- Unfolded breakdown: partner rows (or plain move lines) with
+                                     the underlying journal items, matching the on-screen expanded
+                                     view. Only rendered when "Unfold All" is active. -->
+                                <t t-if="unfold_all">
+                                    <t t-if="balance.get('has_partners')">
+                                        <t t-foreach="balance.get('partner_groups', [])" t-as="pg">
+                                            <t t-set="pg_init_bal" t-value="pg.get('init_bal', {}).get('balance', 0.0)"/>
+                                            <t t-set="pg_debit" t-value="pg.get('fin_bal', {}).get('debit', 0.0)"/>
+                                            <t t-set="pg_credit" t-value="pg.get('fin_bal', {}).get('credit', 0.0)"/>
+                                            <t t-set="pg_end_bal" t-value="pg.get('fin_bal', {}).get('ending_balance', 0.0)"/>
+                                            <tr class="oca-gl-pdf-partner-row" style="font-style: italic; font-weight: 600; font-size: 12px; border-bottom: 1px solid #e9ecef;">
+                                                <td style="width: 40%; text-align: left; padding: 4px 6px 4px 18px; font-family: 'Noto Naskh Arabic','Noto Sans Arabic','DejaVu Sans', sans-serif;">
+                                                    <t t-out="pg.get('name', '')"/>
+                                                </td>
+                                                <td t-attf-class="amount#{' oca-gl-pdf-zero' if not pg_init_bal else ''}" style="width: 15%; text-align: right; padding: 4px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                    <t t-esc="'{0:,.{1}f}'.format(pg_init_bal, company_currency.decimal_places).replace('\u2212','-')"/>
+                                                </td>
+                                                <td t-attf-class="amount#{' oca-gl-pdf-zero' if not pg_debit else ''}" style="width: 15%; text-align: right; padding: 4px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                    <t t-esc="'{0:,.{1}f}'.format(pg_debit, company_currency.decimal_places)"/>
+                                                </td>
+                                                <td t-attf-class="amount#{' oca-gl-pdf-zero' if not pg_credit else ''}" style="width: 15%; text-align: right; padding: 4px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                    <t t-esc="'{0:,.{1}f}'.format(pg_credit, company_currency.decimal_places)"/>
+                                                </td>
+                                                <td t-attf-class="amount#{' oca-gl-pdf-zero' if not pg_end_bal else ''}" style="width: 15%; text-align: right; padding: 4px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                    <t t-esc="'{0:,.{1}f}'.format(pg_end_bal, company_currency.decimal_places).replace('\u2212','-')"/>
+                                                </td>
+                                            </tr>
+                                            <t t-foreach="pg.get('move_lines', [])" t-as="ml">
+                                                <tr class="oca-gl-pdf-moveline" style="font-size: 11px; border-bottom: 1px solid #f1f3f5;">
+                                                    <td style="width: 40%; text-align: left; padding: 3px 6px 3px 30px; word-break: break-word; font-family: 'Noto Naskh Arabic','Noto Sans Arabic','DejaVu Sans', sans-serif;">
+                                                        <t t-out="ml.get('move_name', '')"/>
+                                                    </td>
+                                                    <td style="width: 15%;"/>
+                                                    <td t-attf-class="amount#{' oca-gl-pdf-zero' if not ml.get('debit') else ''}" style="width: 15%; text-align: right; padding: 3px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                        <t t-esc="'{0:,.{1}f}'.format(ml.get('debit') or 0.0, company_currency.decimal_places)"/>
+                                                    </td>
+                                                    <td t-attf-class="amount#{' oca-gl-pdf-zero' if not ml.get('credit') else ''}" style="width: 15%; text-align: right; padding: 3px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                        <t t-esc="'{0:,.{1}f}'.format(ml.get('credit') or 0.0, company_currency.decimal_places)"/>
+                                                    </td>
+                                                    <td style="width: 15%; text-align: right; padding: 3px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                        <t t-esc="'{0:,.{1}f}'.format(ml.get('balance') or 0.0, company_currency.decimal_places).replace('\u2212','-')"/>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <t t-foreach="balance.get('move_lines', [])" t-as="ml">
+                                            <tr class="oca-gl-pdf-moveline" style="font-size: 11px; border-bottom: 1px solid #f1f3f5;">
+                                                <td style="width: 40%; text-align: left; padding: 3px 6px 3px 18px; word-break: break-word; font-family: 'Noto Naskh Arabic','Noto Sans Arabic','DejaVu Sans', sans-serif;">
+                                                    <t t-out="ml.get('move_name', '')"/>
+                                                    <t t-if="ml.get('partner')"> · <t t-out="ml.get('partner', '')"/></t>
+                                                </td>
+                                                <td style="width: 15%;"/>
+                                                <td t-attf-class="amount#{' oca-gl-pdf-zero' if not ml.get('debit') else ''}" style="width: 15%; text-align: right; padding: 3px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                    <t t-esc="'{0:,.{1}f}'.format(ml.get('debit') or 0.0, company_currency.decimal_places)"/>
+                                                </td>
+                                                <td t-attf-class="amount#{' oca-gl-pdf-zero' if not ml.get('credit') else ''}" style="width: 15%; text-align: right; padding: 3px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                    <t t-esc="'{0:,.{1}f}'.format(ml.get('credit') or 0.0, company_currency.decimal_places)"/>
+                                                </td>
+                                                <td style="width: 15%; text-align: right; padding: 3px 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                                    <t t-esc="'{0:,.{1}f}'.format(ml.get('balance') or 0.0, company_currency.decimal_places).replace('\u2212','-')"/>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </t>
+                                </t>
+                            </t>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top: 2px solid #495057; font-weight: bold; font-size: 13px;">
+                            <td style="width: 40%; text-align: left; padding: 6px;">Total</td>
+                            <td t-attf-class="amount#{' oca-gl-pdf-zero' if not sum([a.get('initial_balance', 0) for a in trial_balance if a.get('type') == 'account_type']) else ''}" style="width: 15%; text-align: right; padding: 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                <t t-esc="'{0:,.{1}f}'.format(sum([a.get('initial_balance', 0) for a in trial_balance if a.get('type') == 'account_type']), company_currency.decimal_places).replace('\u2212','-')"/>
+                            </td>
+                            <td style="width: 15%; text-align: right; padding: 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                <t t-esc="'{0:,.{1}f}'.format(sum([a.get('debit', 0) for a in trial_balance if a.get('type') == 'account_type']), company_currency.decimal_places)"/>
+                            </td>
+                            <td style="width: 15%; text-align: right; padding: 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                <t t-esc="'{0:,.{1}f}'.format(sum([a.get('credit', 0) for a in trial_balance if a.get('type') == 'account_type']), company_currency.decimal_places)"/>
+                            </td>
+                            <td t-attf-class="amount#{' oca-gl-pdf-zero' if not sum([a.get('ending_balance', 0) for a in trial_balance if a.get('type') == 'account_type']) else ''}" style="width: 15%; text-align: right; padding: 6px; font-family: 'DejaVu Sans', sans-serif;">
+                                <t t-esc="'{0:,.{1}f}'.format(sum([a.get('ending_balance', 0) for a in trial_balance if a.get('type') == 'account_type']), company_currency.decimal_places).replace('\u2212','-')"/>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+            </div>
+    </template>
+
+    <!-- ================================================================
+         Enterprise PDF Stylesheet (inlined for cache-busting)
+         ================================================================ -->
+    <template id="enterprise_pdf_styles" inherit_id="web.basic_layout">
+        <xpath expr="." position="inside">
+            <style type="text/css">
+/* 1. BASE TYPOGRAPHY - FIX v2: Arabic-capable fonts MUST be listed before DejaVu Sans.
+   DejaVu Sans lacks Arabic contextual shaping (joined letterforms); when it's first,
+   wkhtmltopdf's old WebKit font matcher grabs it for Arabic runs anyway, producing the
+   garbled "Ø / Ù" mojibake. Also requires Noto Naskh/Sans Arabic to be installed as
+   OS-level fonts on the server that runs wkhtmltopdf (CSS alone won't pull them in). */
+body {
+    font-family: 'Noto Naskh Arabic','Noto Sans Arabic','DejaVu Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif !important;
+    font-size: 14px !important;
+    color: #212529 !important;
+    unicode-bidi: plaintext !important;
+}
+.amount { font-family: 'DejaVu Sans', monospace !important; unicode-bidi: isolate !important; }
+.act_as_cell, td, th { unicode-bidi: plaintext !important; }
+
+.act_as_cell a {
+    color: inherit !important;
+    text-decoration: none !important;
+}
+
+/* 2. REMOVE BORDERS/BACKGROUNDS FROM TABLE WRAPPER ELEMENTS */
+.act_as_table, .act_as_thead, .act_as_row, .act_as_cell {
+    border: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+/* 3. COLUMN HEADER ROWS (labels) */
+.act_as_row.labels {
+    border-bottom: 2px solid #495057 !important;
+    background: transparent !important;
+    font-weight: bold !important;
+    margin-bottom: 4px !important;
+}
+.act_as_row.labels .act_as_cell {
+    background: transparent !important;
+    font-weight: bold !important;
+    padding: 5px 6px !important;
+    font-size: 13px !important;
+}
+
+/* 4. DATA ROWS */
+.act_as_row:not(.labels) .act_as_cell {
+    padding: 5px 6px !important;
+    vertical-align: middle !important;
+    background: transparent !important;
+    font-size: 14px !important;
+    border-bottom: 1px solid #e3e3e3 !important;
+}
+
+/* 5. ACCOUNT / PARTNER SUMMARY ROW */
+.oca-gl-pdf-accrow {
+    margin-top: 10px !important;
+}
+.oca-gl-pdf-accrow .act_as_cell {
+    font-weight: bold !important;
+    background: transparent !important;
+    color: #212529 !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+}
+
+/* 6. MOVE LINE ROWS */
+.oca-gl-pdf-moveline .act_as_cell {
+    color: #212529 !important;
+    vertical-align: top !important;
+}
+
+/* 7. RIGHT-ALIGN AMOUNTS */
+.act_as_cell.amount,
+.act_as_cell.right,
+.act_as_cell[style*="text-align: right"],
+.act_as_cell[style*="text-align:right"] {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* 8. LEFT-ALIGN */
+.act_as_cell.left {
+    text-align: left !important;
+}
+
+/* 9. COMPANY HEADER */
+.oca-gl-pdf-companyheader { display: table; width: 100%; margin-bottom: 4px; }
+.oca-gl-pdf-companyleft { display: table-cell; width: 65%; vertical-align: top; text-align: left; }
+.oca-gl-pdf-companyright { display: table-cell; width: 35%; vertical-align: top; text-align: right; }
+.oca-gl-pdf-logo { max-height: 55px; max-width: 180px; display: block; margin-bottom: 4px; }
+.oca-gl-pdf-companyname { font-weight: 700 !important; font-size: 14px !important; color: #212529 !important; }
+.oca-gl-pdf-companycountry { font-size: 12px !important; color: #6c757d !important; }
+.oca-gl-pdf-companyvat { font-size: 12px !important; color: #495057 !important; }
+.oca-gl-pdf-title { font-size: 18px !important; font-weight: 700 !important; color: #212529 !important; margin: 0 !important; }
+
+/* 10. PERIOD BAND */
+.oca-gl-pdf-period {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background-color: #f0f0f0;
+    color: #343a40;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 0;
+    margin: 12px 0 6px 0;
+    border-radius: 3px;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+/* 11. WRAP TEXT */
+.oca_gl_pdf_entry,
+.oca_gl_pdf_truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    max-width: 100%;
+    display: block;
+    line-height: 1.35 !important;
+    word-break: break-word !important;
+}
+
+/* 12. ZERO-AMOUNT DIMMING */
+.oca-gl-pdf-zero {
+    color: #adb5bd !important;
+}
+
+/* 13. GLOBAL COLUMN HEADER */
+.oca-gl-pdf-header .act_as_cell { font-weight: bold !important; }
+
+/* 14. GRAND TOTAL ROW */
+.oca-gl-pdf-grandtotal .act_as_cell { font-weight: bold !important; font-size: 14px !important; }
+
+/* 15. TRIAL BALANCE - CENTERED HEADER */
+.oca-tb-pdf-header-block {
+    width: 100%;
+    margin-bottom: 4px;
+}
+.oca-tb-pdf-companycenter {
+    text-align: center;
+}
+.oca-tb-pdf-companycenter .oca-gl-pdf-logo {
+    margin: 0 auto 4px auto !important;
+}
+.oca-tb-pdf-companycenter .oca-gl-pdf-companyname,
+.oca-tb-pdf-companycenter .oca-gl-pdf-companycountry,
+.oca-tb-pdf-companycenter .oca-gl-pdf-companyvat {
+    text-align: center !important;
+}
+.oca-tb-pdf-title-center {
+    text-align: center !important;
+    margin-top: 6px !important;
+}
+.oca-tb-pdf-period-left {
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: #343a40;
+    margin-top: 8px;
+}
+
+/* 16. TRIAL BALANCE - TWO-ROW HEADER TABLE */
+.oca-tb-pdf-header-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 4px;
+}
+.oca-tb-pdf-header-table th {
+    font-size: 14px !important;
+    font-weight: bold !important;
+    padding: 6px 6px !important;
+    border-bottom: 2px solid #495057 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+.oca-tb-pdf-period-cell {
+    background-color: #f0f0f0 !important;
+    border-radius: 3px;
+}
+
+/* 17. TRIAL BALANCE - LARGER DATA ROWS */
+div.oca-tb-pdf-lines div.act_as_row div.act_as_cell {
+    font-size: 16px !important;
+    padding: 6px 6px !important;
+}
+div.oca-tb-pdf-lines div.oca-gl-pdf-accrow div.act_as_cell {
+    font-size: 16px !important;
+    font-weight: bold !important;
+}
+div.oca-tb-pdf-lines div.oca-gl-pdf-partner-row div.act_as_cell {
+    font-size: 14px !important;
+    font-style: italic !important;
+    font-weight: 600 !important;
+}
+div.oca-tb-pdf-grandtotal div.act_as_cell {
+    font-size: 16px !important;
+    font-weight: bold !important;
+}
+
+/* 18. PAGE BREAKS */
+.page_break { page-break-inside: avoid; margin-bottom: 2px !important; }
+            </style>
+        </xpath>
+    </template>
+
+</odoo>

@@ -1,0 +1,1216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    General Ledger & Trial Balance — Enterprise Interactive View
+    OWL Template
+-->
+<templates xml:space="preserve">
+    <t t-name="gl_enterprise.GeneralLedgerView">
+        <div t-attf-class="oca-gl-root{{ state.lightTheme ? ' oca-gl-light-theme' : '' }}">
+
+            <!-- ============================================================
+                 STICKY CONTROL PANEL
+                 ============================================================ -->
+            <div class="oca-gl-control-panel">
+
+                <!-- Export Buttons & Report Mode Switcher -->
+                <div class="oca-gl-export-section">
+                    <button class="oca-gl-export-btn" t-on-click="exportPDF"
+                            t-att-disabled="state.exportingPdf" title="Export to PDF">
+                        <t t-if="state.exportingPdf">
+                            <span class="oca-gl-spinner"
+                                  style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;"/>
+                        </t>
+                        <t t-else="">
+                            <i class="fa fa-file-pdf-o"/>
+                        </t>
+                        PDF
+                    </button>
+                    <button class="oca-gl-export-btn" t-on-click="exportXLSX"
+                            t-att-disabled="state.exportingXlsx" title="Export to XLSX">
+                        <t t-if="state.exportingXlsx">
+                            <span class="oca-gl-spinner"
+                                  style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;"/>
+                        </t>
+                        <t t-else="">
+                            <i class="fa fa-file-excel-o"/>
+                        </t>
+                        XLSX
+                    </button>
+
+                    <!-- Report Mode Switcher (hidden while viewing Trial Balance) -->
+                    <t t-if="state.reportType !== 'tb'">
+                        <div class="oca-gl-mode-switcher">
+                            <button t-attf-class="oca-gl-mode-btn{{ state.reportType === 'gl' ? ' active' : '' }}"
+                                    t-on-click="() => this.setReportType('gl')">
+                                General Ledger
+                            </button>
+                            <button t-attf-class="oca-gl-mode-btn{{ state.reportType === 'tb' ? ' active' : '' }}"
+                                    t-on-click="() => this.setReportType('tb')">
+                                Trial Balance
+                            </button>
+                        </div>
+                        <t t-if="state.drilldownBreadcrumb">
+                            <span class="oca-gl-breadcrumb">
+                                <a href="#" t-on-click="backToTrialBalance">Trial Balance</a>
+                                <span class="oca-gl-breadcrumb-sep">/</span>
+                                <span class="oca-gl-breadcrumb-current">General Ledger</span>
+                            </span>
+                        </t>
+                    </t>
+                    <t t-else="">
+                        <span class="oca-gl-title" style="margin-left:8px;">Trial Balance</span>
+                    </t>
+                </div>
+
+                <!-- ── Filters ─────────────────────────────────────────── -->
+                <div class="oca-gl-filters-section">
+
+                    <!-- Search Box -->
+                    <div class="oca-gl-search-box" t-ref="searchBoxRef" style="position: relative;">
+                        <i class="fa fa-search"/>
+                        <input type="text"
+                               placeholder="Search accounts, press Enter to load…"
+                               t-att-value="state.searchQuery"
+                               t-on-input="onSearchInput"
+                               t-on-keydown="onSearchKeydown"
+                               t-on-focus="onSearchFocus"/>
+                        <t t-if="state.searchQuery">
+                            <i class="fa fa-times oca-gl-clear-search" t-on-click="clearSearch" title="Clear search"/>
+                        </t>
+
+                        <!-- Live suggestions dropdown -->
+                        <t t-if="state.searchSuggestOpen and searchSuggestions.length">
+                            <div class="oca-gl-dropdown-panel" t-on-click.stop="">
+                                <t t-foreach="searchSuggestions" t-as="acc" t-key="acc.id">
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.selectedAccountIds.includes(acc.id) ? 'oca-gl-dropdown-item selected' : 'oca-gl-dropdown-item'"
+                                         t-on-click="() => this.selectSearchSuggestion(acc)">
+                                        <t t-if="state.selectedAccountIds.includes(acc.id)">
+                                            <i class="fa fa-check"/>
+                                        </t>
+                                        <span>
+                                            <b t-esc="acc.code"/>
+                                            —
+                                            <t t-esc="acc.name"/>
+                                        </span>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                        <t t-elif="state.searchSuggestOpen and state.searchQuery.trim()">
+                            <div class="oca-gl-dropdown-panel">
+                                <div class="oca-gl-dropdown-item" style="color:#6c757d;font-style:italic;cursor:default;">
+                                    No accounts found
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Period Select (Month / Quarter / Fiscal Year / Custom — used by both GL and TB) -->
+                    <div class="oca-gl-filter-pill active" t-on-click="openPeriodDropdown"
+                         t-ref="periodDropdownRef" style="position: relative;">
+                        <i class="fa fa-calendar"/>
+                        <span t-esc="periodPillLabel"/>
+                        <i class="fa fa-caret-down"/>
+                        <t t-if="state.periodDropdownOpen">
+                            <div class="oca-gl-dropdown-panel" t-on-click.stop="" style="min-width: 300px;">
+
+                                <!-- Month -->
+                                <div class="oca-gl-dropdown-item oca-gl-period-row"
+                                     t-att-class="state.periodMode === 'month' ? 'selected' : ''"
+                                     t-on-click="() => this.selectPeriod('month')">
+                                    <span class="oca-gl-period-label">
+                                        <i t-attf-class="fa fa-{{ state.periodMode === 'month' ? 'check' : '' }}"/>
+                                        Month
+                                    </span>
+                                    <span class="oca-gl-period-nav">
+                                        <i class="fa fa-chevron-left oca-gl-period-arrow"
+                                           t-on-click="(ev) => this.navigatePeriod('month', -1, ev)"/>
+                                        <span class="oca-gl-period-value" t-esc="currentMonthLabel"/>
+                                        <i class="fa fa-chevron-right oca-gl-period-arrow"
+                                           t-on-click="(ev) => this.navigatePeriod('month', 1, ev)"/>
+                                    </span>
+                                </div>
+
+                                <!-- Quarter -->
+                                <div class="oca-gl-dropdown-item oca-gl-period-row"
+                                     t-att-class="state.periodMode === 'quarter' ? 'selected' : ''"
+                                     t-on-click="() => this.selectPeriod('quarter')">
+                                    <span class="oca-gl-period-label">
+                                        <i t-attf-class="fa fa-{{ state.periodMode === 'quarter' ? 'check' : '' }}"/>
+                                        Quarter
+                                    </span>
+                                    <span class="oca-gl-period-nav">
+                                        <i class="fa fa-chevron-left oca-gl-period-arrow"
+                                           t-on-click="(ev) => this.navigatePeriod('quarter', -1, ev)"/>
+                                        <span class="oca-gl-period-value" t-esc="currentQuarterLabel"/>
+                                        <i class="fa fa-chevron-right oca-gl-period-arrow"
+                                           t-on-click="(ev) => this.navigatePeriod('quarter', 1, ev)"/>
+                                    </span>
+                                </div>
+
+                                <!-- Fiscal Year -->
+                                <div class="oca-gl-dropdown-item oca-gl-period-row"
+                                     t-att-class="state.periodMode === 'fiscal_year' ? 'selected' : ''"
+                                     t-on-click="() => this.selectPeriod('fiscal_year')">
+                                    <span class="oca-gl-period-label">
+                                        <i t-attf-class="fa fa-{{ state.periodMode === 'fiscal_year' ? 'check' : '' }}"/>
+                                        Fiscal Year
+                                    </span>
+                                    <span class="oca-gl-period-nav">
+                                        <i class="fa fa-chevron-left oca-gl-period-arrow"
+                                           t-on-click="(ev) => this.navigatePeriod('fiscal_year', -1, ev)"/>
+                                        <span class="oca-gl-period-value" t-esc="currentFiscalYearLabel"/>
+                                        <i class="fa fa-chevron-right oca-gl-period-arrow"
+                                           t-on-click="(ev) => this.navigatePeriod('fiscal_year', 1, ev)"/>
+                                    </span>
+                                </div>
+
+                                <div class="oca-gl-dropdown-divider"/>
+
+                                <!-- Custom Dates -->
+                                <div class="oca-gl-dropdown-item"
+                                     t-att-class="state.periodMode === 'custom' ? 'selected' : ''"
+                                     t-on-click="enableCustomPeriod">
+                                    <i t-attf-class="fa fa-{{ state.periodMode === 'custom' ? 'check' : '' }}"/>
+                                    Custom Dates
+                                </div>
+                                <t t-if="state.periodMode === 'custom'">
+                                    <div class="oca-gl-date-inputs" style="padding: 8px 12px;">
+                                        <input type="date" t-att-value="state.dateFrom"
+                                               t-on-change="onDateFromChange" title="Date from"/>
+                                        <span class="oca-gl-date-sep">→</span>
+                                        <input type="date" t-att-value="state.dateTo"
+                                               t-on-change="onDateToChange" title="Date to"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Comparison Dropdown Pill (Trial Balance only) -->
+                    <t t-if="state.reportType === 'tb'">
+                        <div class="oca-gl-filter-pill"
+                             t-att-class="state.comparisonMode !== 'none' ? 'oca-gl-filter-pill active' : 'oca-gl-filter-pill'"
+                             t-on-click="openComparisonDropdown" t-ref="comparisonDropdownRef"
+                             style="position: relative;">
+                            <i class="fa fa-bar-chart"/>
+                            <span t-esc="comparisonModeLabel"/>
+                            <i class="fa fa-caret-down"/>
+                            <t t-if="state.comparisonDropdownOpen">
+                                <div class="oca-gl-dropdown-panel" t-on-click.stop="" style="min-width: 260px;">
+
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.comparisonMode === 'none' ? 'selected' : ''"
+                                         t-on-click="() => this.setComparisonMode('none')">
+                                        <i t-attf-class="fa fa-{{ state.comparisonMode === 'none' ? 'check' : '' }}"/>
+                                        No Comparison
+                                    </div>
+
+                                    <div class="oca-gl-dropdown-item oca-gl-period-row"
+                                         t-att-class="state.comparisonMode === 'previous_period' ? 'selected' : ''"
+                                         t-on-click="() => this.setComparisonMode('previous_period')">
+                                        <span class="oca-gl-period-label">
+                                            <i t-attf-class="fa fa-{{ state.comparisonMode === 'previous_period' ? 'check' : '' }}"/>
+                                            Previous Period
+                                        </span>
+                                        <span class="oca-gl-comparison-count" t-on-click.stop="">
+                                            <input type="number" min="1"
+                                                   class="oca-gl-comparison-count-input"
+                                                   t-att-value="state.comparisonPeriodCount"
+                                                   t-on-change="onComparisonPeriodCountChange"
+                                                   t-on-click.stop=""/>
+                                            <span class="oca-gl-comparison-count-label">Period</span>
+                                        </span>
+                                    </div>
+
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.comparisonMode === 'same_period_last_year' ? 'selected' : ''"
+                                         t-on-click="() => this.setComparisonMode('same_period_last_year')">
+                                        <i t-attf-class="fa fa-{{ state.comparisonMode === 'same_period_last_year' ? 'check' : '' }}"/>
+                                        Same Period Last Year
+                                    </div>
+
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.comparisonMode === 'custom' ? 'selected' : ''"
+                                         t-on-click="() => this.setComparisonMode('custom')">
+                                        <i t-attf-class="fa fa-{{ state.comparisonMode === 'custom' ? 'check' : '' }}"/>
+                                        Custom Dates
+                                    </div>
+                                    <t t-if="state.comparisonMode === 'custom'">
+                                        <div class="oca-gl-dropdown-divider"/>
+                                        <div style="padding: 8px 12px; display: flex; flex-direction: column; gap: 6px;">
+                                            <span style="font-size: 11px; color: #8b92a5;">Start Date</span>
+                                            <input type="date" class="form-control"
+                                                   style="background:#1a1b24; color:#f3f4f6; border:1px solid #3b3e54; font-size:12px; padding:4px;"
+                                                   t-att-value="state.comparisonDateFrom"
+                                                   t-on-change="onComparisonDateFromChange"/>
+                                            <span style="font-size: 11px; color: #8b92a5;">End Date</span>
+                                            <input type="date" class="form-control"
+                                                   style="background:#1a1b24; color:#f3f4f6; border:1px solid #3b3e54; font-size:12px; padding:4px;"
+                                                   t-att-value="state.comparisonDateTo"
+                                                   t-on-change="onComparisonDateToChange"/>
+                                        </div>
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+
+                    <!-- Journals multi-select -->
+                    <div class="oca-gl-filter-pill"
+                         t-att-class="state.selectedJournalIds.length ? 'oca-gl-filter-pill active' : 'oca-gl-filter-pill'"
+                         t-on-click="openJournalDropdown" t-ref="journalDropdownRef"
+                         style="position: relative;">
+                        <i class="fa fa-book"/>
+                        <span t-esc="journalPillLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <!-- Journal dropdown panel -->
+                        <t t-if="state.journalDropdownOpen">
+                            <div class="oca-gl-dropdown-panel" t-on-click.stop="">
+                                <input type="text" class="oca-gl-dropdown-search"
+                                       placeholder="Search journals…"
+                                       t-att-value="state.journalSearch"
+                                       t-on-input="this.onJournalSearch"/>
+                                <t t-if="state.selectedJournalIds.length">
+                                    <div class="oca-gl-dropdown-item" style="color:#c0392b;font-weight:600;"
+                                         t-on-click="this.clearJournals">
+                                        <i class="fa fa-times-circle"/>
+                                        Clear selection
+                                    </div>
+                                </t>
+                                <t t-foreach="filteredJournals" t-as="journal" t-key="journal.id">
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.selectedJournalIds.includes(journal.id) ? 'oca-gl-dropdown-item selected' : 'oca-gl-dropdown-item'"
+                                         t-on-click="() => this.toggleJournal(journal.id)">
+                                        <input type="checkbox"
+                                               t-att-checked="state.selectedJournalIds.includes(journal.id)"
+                                               t-on-click.stop="() => this.toggleJournal(journal.id)"/>
+                                        <span>
+                                            <b t-esc="journal.code"/>
+                                            —
+                                            <t t-esc="journal.name"/>
+                                        </span>
+                                    </div>
+                                </t>
+                                <t t-if="!filteredJournals.length">
+                                    <div class="oca-gl-dropdown-item" style="color:#6c757d;font-style:italic;">
+                                        No journals found
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Accounts multi-select (lazy-load filter) -->
+                    <div class="oca-gl-filter-pill"
+                         t-att-class="(state.selectedAccountIds.length || state.loadAllMode) ? 'oca-gl-filter-pill active' : 'oca-gl-filter-pill'"
+                         t-on-click="openAccountDropdown" t-ref="accountDropdownRef"
+                         style="position: relative;">
+                        <i class="fa fa-list-alt"/>
+                        <span t-esc="accountFilterPillLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <!-- Accounts dropdown panel -->
+                        <t t-if="state.accountDropdownOpen">
+                            <div class="oca-gl-dropdown-panel" t-on-click.stop="">
+                                <input type="text" class="oca-gl-dropdown-search"
+                                       placeholder="Search accounts by code or name…"
+                                       t-att-value="state.accountSearch"
+                                       t-on-input="this.onAccountSearch"/>
+                                <div class="oca-gl-dropdown-item" style="color:#2d9f8f;font-weight:600;"
+                                     t-att-class="state.loadAllMode ? 'oca-gl-dropdown-item selected' : 'oca-gl-dropdown-item'"
+                                     t-on-click="this.loadAllAccounts">
+                                    <i class="fa fa-database"/>
+                                    Load All Accounts
+                                </div>
+                                <t t-if="state.selectedAccountIds.length">
+                                    <div class="oca-gl-dropdown-item" style="color:#c0392b;font-weight:600;"
+                                         t-on-click="this.clearAccountFilter">
+                                        <i class="fa fa-times-circle"/>
+                                        Clear selection
+                                    </div>
+                                </t>
+                                <t t-foreach="filteredAccountsForDropdown" t-as="acc" t-key="acc.id">
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.selectedAccountIds.includes(acc.id) ? 'oca-gl-dropdown-item selected' : 'oca-gl-dropdown-item'"
+                                         t-on-click="() => this.toggleAccountFilter(acc.id)">
+                                        <input type="checkbox"
+                                               t-att-checked="state.selectedAccountIds.includes(acc.id)"
+                                               t-on-click.stop="() => this.toggleAccountFilter(acc.id)"/>
+                                        <span>
+                                            <b t-esc="acc.code"/>
+                                            —
+                                            <t t-esc="acc.name"/>
+                                        </span>
+                                    </div>
+                                </t>
+                                <t t-if="!filteredAccountsForDropdown.length">
+                                    <div class="oca-gl-dropdown-item" style="color:#6c757d;font-style:italic;">
+                                        No accounts found
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Analytic accounts multi-select -->
+                    <div class="oca-gl-filter-pill"
+                         t-att-class="state.selectedAnalyticIds.length ? 'oca-gl-filter-pill active' : 'oca-gl-filter-pill'"
+                         t-on-click="openAnalyticDropdown" t-ref="analyticDropdownRef"
+                         style="position: relative;">
+                        <i class="fa fa-filter"/>
+                        <span t-esc="analyticPillLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <!-- Analytic dropdown panel -->
+                        <t t-if="state.analyticDropdownOpen">
+                            <div class="oca-gl-dropdown-panel" t-on-click.stop="">
+                                <div class="oca-gl-dropdown-section-title">Accounts</div>
+                                <input type="text" class="oca-gl-dropdown-search"
+                                       placeholder="Search analytic accounts…"
+                                       t-att-value="state.analyticSearch"
+                                       t-on-input="this.onAnalyticSearch"/>
+                                <t t-if="state.selectedAnalyticIds.length">
+                                    <div class="oca-gl-dropdown-item" style="color:#c0392b;font-weight:600;"
+                                         t-on-click="this.clearAnalytics">
+                                        <i class="fa fa-times-circle"/>
+                                        Clear selection
+                                    </div>
+                                </t>
+                                <t t-foreach="filteredAnalyticAccounts" t-as="analytic" t-key="analytic.id">
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.selectedAnalyticIds.includes(analytic.id) ? 'oca-gl-dropdown-item selected' : 'oca-gl-dropdown-item'"
+                                         t-on-click="() => this.toggleAnalytic(analytic.id)">
+                                        <input type="checkbox"
+                                               t-att-checked="state.selectedAnalyticIds.includes(analytic.id)"
+                                               t-on-click.stop="() => this.toggleAnalytic(analytic.id)"/>
+                                        <span>
+                                            <t t-if="analytic.code">
+                                                <b t-esc="analytic.code"/>
+                                                —
+                                            </t>
+                                            <t t-esc="analytic.name"/>
+                                        </span>
+                                    </div>
+                                </t>
+                                <t t-if="!filteredAnalyticAccounts.length">
+                                    <div class="oca-gl-dropdown-item" style="color:#6c757d;font-style:italic;">
+                                        No analytic accounts found
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Options Filter Dropdown (matches Odoo Enterprise filter menu) -->
+                    <div class="oca-gl-filter-pill active" t-on-click="openOptionsDropdown"
+                         t-ref="optionsDropdownRef" style="position: relative;">
+                        <i class="fa fa-sliders"/>
+                        <span t-esc="optionsDropdownLabel"/>
+                        <i class="fa fa-caret-down"/>
+                        <t t-if="state.optionsDropdownOpen">
+                            <div class="oca-gl-dropdown-panel oca-gl-options-panel" t-on-click.stop="">
+
+                                <!-- Entries Filter -->
+                                <div class="oca-gl-dropdown-section-title">Entries</div>
+                                <div class="oca-gl-dropdown-item"
+                                     t-att-class="state.targetMove === 'posted' ? 'selected' : ''"
+                                     t-on-click="() => this.setTargetMove('posted')">
+                                    <i t-attf-class="fa fa-{{ state.targetMove === 'posted' ? 'check-circle' : 'circle-o' }}"/>
+                                    Posted Entries
+                                </div>
+                                <div class="oca-gl-dropdown-item"
+                                     t-att-class="state.targetMove === 'all' ? 'selected' : ''"
+                                     t-on-click="() => this.setTargetMove('all')">
+                                    <i t-attf-class="fa fa-{{ state.targetMove === 'all' ? 'check-circle' : 'circle-o' }}"/>
+                                    Draft &amp; Posted Entries
+                                </div>
+
+                                <!-- Group by (General Ledger only) -->
+                                <t t-if="state.reportType !== 'tb'">
+                                    <div class="oca-gl-dropdown-divider"/>
+                                    <div class="oca-gl-dropdown-section-title">Group By</div>
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.groupedBy !== 'journals' ? 'selected' : ''"
+                                         t-on-click="() => this.setGroupedBy('none')">
+                                        <i t-attf-class="fa fa-{{ state.groupedBy !== 'journals' ? 'check-circle' : 'circle-o' }}"/>
+                                        No Grouping
+                                    </div>
+                                    <div class="oca-gl-dropdown-item"
+                                         t-att-class="state.groupedBy === 'journals' ? 'selected' : ''"
+                                         t-on-click="() => this.setGroupedBy('journals')">
+                                        <i t-attf-class="fa fa-{{ state.groupedBy === 'journals' ? 'check-circle' : 'circle-o' }}"/>
+                                        Journals
+                                    </div>
+                                </t>
+
+                                <div class="oca-gl-dropdown-divider"/>
+
+                                <!-- Hide 0 Lines Filter (always ON by default on load) -->
+                                <div class="oca-gl-dropdown-section-title">Filters</div>
+                                <div class="oca-gl-dropdown-item"
+                                     t-att-class="state.hideAccountAt0 ? 'selected' : ''"
+                                     t-on-click="toggleHideAtZero">
+                                    <input type="checkbox" t-att-checked="state.hideAccountAt0"
+                                           t-on-click.stop="toggleHideAtZero"/>
+                                    <span>Hide 0 Lines</span>
+                                </div>
+
+                                <div class="oca-gl-dropdown-divider"/>
+
+                                <!-- Unfold All / Collapse All -->
+                                <div class="oca-gl-dropdown-section-title">Display</div>
+                                <div class="oca-gl-dropdown-item"
+                                     t-att-class="this.anyExpanded ? 'selected' : ''"
+                                     t-on-click="() => this.anyExpanded ? this.collapseAll() : this.expandAll()">
+                                    <i t-attf-class="fa fa-{{ this.anyExpanded ? 'check' : 'square-o' }}"/>
+                                    <t t-if="this.anyExpanded">Collapse All</t>
+                                    <t t-else="">Unfold All</t>
+                                </div>
+
+                                <div class="oca-gl-dropdown-divider"/>
+
+                                <!-- Optional Columns -->
+                                <div class="oca-gl-dropdown-section-title">Columns</div>
+                                <div class="oca-gl-dropdown-item"
+                                     t-att-class="state.showComm ? 'selected' : ''"
+                                     t-on-click="toggleShowComm">
+                                    <input type="checkbox" t-att-checked="state.showComm"
+                                           t-on-click.stop="toggleShowComm"/>
+                                    <span>Communication</span>
+                                </div>
+                                <div class="oca-gl-dropdown-item"
+                                     t-att-class="state.showCurrency ? 'selected' : ''"
+                                     t-on-click="toggleShowCurrency">
+                                    <input type="checkbox" t-att-checked="state.showCurrency"
+                                           t-on-click.stop="toggleShowCurrency"/>
+                                    <span>Currency</span>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Theme Toggle -->
+                <button class="oca-gl-theme-toggle" t-on-click="toggleTheme"
+                        t-att-title="state.lightTheme ? 'Switch to Dark Theme' : 'Switch to Light Theme'">
+                    <i t-attf-class="fa fa-{{ state.lightTheme ? 'moon-o' : 'sun-o' }}"/>
+                </button>
+
+                <!-- Close: leave the report and go back to the previous screen -->
+                <button class="oca-gl-close-btn" t-on-click="closeReport" title="Close" aria-label="Close">
+                    <i class="fa fa-times"/>
+                </button>
+            </div>
+
+            <!-- ============================================================
+                 CONTENT AREA
+                 ============================================================ -->
+            <div class="oca-gl-content">
+                <div class="oca-gl-sheet">
+
+                    <!-- Select-Accounts Prompt: shown on open and whenever the account filter
+                         is cleared, before any data has been requested from the server.
+                         Keeps the initial view fast by not loading every account by default. -->
+                    <t t-if="noAccountsSelectedYet">
+                        <div class="oca-gl-state-box oca-gl-select-prompt">
+                            <i class="fa fa-filter"/>
+                            <span>
+                                Select one or more accounts above to load their data, or click
+                                <b>"Load All Accounts"</b>
+                                to view the full report.
+                            </span>
+                            <div class="oca-gl-select-prompt-actions">
+                                <button class="oca-gl-export-btn" t-on-click="openAccountDropdown">
+                                    <i class="fa fa-search"/>
+                                    Select Accounts
+                                </button>
+                                <button class="oca-gl-export-btn" t-on-click="loadAllAccounts">
+                                    <i class="fa fa-database"/>
+                                    Load All Accounts
+                                </button>
+                            </div>
+                        </div>
+                    </t>
+
+                    <!-- Loading State -->
+                    <t t-elif="state.loading">
+                        <div class="oca-gl-state-box">
+                            <div class="oca-gl-spinner"/>
+                            <span>Loading General Ledger…</span>
+                        </div>
+                    </t>
+
+                    <!-- Error State -->
+                    <t t-elif="state.error">
+                        <div class="oca-gl-state-box" style="color:#c0392b;">
+                            <i class="fa fa-exclamation-triangle" style="font-size:32px;opacity:0.5;"/>
+                            <span t-esc="state.error"/>
+                            <button class="oca-gl-export-btn" t-on-click="this._loadData">
+                                <i class="fa fa-refresh"/>
+                                Retry
+                            </button>
+                        </div>
+                    </t>
+
+                    <!-- Empty State -->
+                    <t t-elif="!displayedAccounts.length">
+                        <div class="oca-gl-state-box">
+                            <i class="fa fa-inbox"/>
+                            <span>No accounts match your search or filters.</span>
+                        </div>
+                    </t>
+
+                    <!-- Main Table Content -->
+                    <t t-else="">
+
+                        <!-- ====================================================
+                             1) TRIAL BALANCE VIEW
+                             ==================================================== -->
+                        <t t-if="state.reportType === 'tb'">
+                            <div class="oca-gl-table-wrapper">
+                                <table class="oca-gl-table oca-tb-table">
+                                    <thead>
+                                        <!-- Super Header -->
+                                        <tr class="oca-tb-super-header">
+                                            <th class="col-account" style="border-bottom:none;">Account</th>
+                                            <th class="num" style="text-align:center;">Initial Balance</th>
+                                            <th colspan="2" style="text-align:center;">
+                                                <t t-esc="dateRangeShortLabel"/>
+                                            </th>
+                                            <t t-if="state.comparisonMode !== 'none'">
+                                                <th colspan="2" style="text-align:center;">
+                                                    <t t-esc="comparisonRangeLabel"/>
+                                                </th>
+                                            </t>
+                                            <th class="num" style="text-align:center;">End Balance</th>
+                                        </tr>
+                                        <!-- Sub Header -->
+                                        <tr class="oca-tb-sub-header">
+                                            <th class="col-account"/>
+                                            <th class="num">Balance</th>
+                                            <th class="num">Debit</th>
+                                            <th class="num">Credit</th>
+                                            <t t-if="state.comparisonMode !== 'none'">
+                                                <th class="num">Debit</th>
+                                                <th class="num">Credit</th>
+                                            </t>
+                                            <th class="num">Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="displayedAccounts" t-as="account" t-key="account.id">
+
+                                            <!-- Account row -->
+                                            <tr class="oca-gl-account-row oca-tb-row"
+                                                t-att-style="account.is_unallocated_earnings ? 'cursor: default;' : ''"
+                                                t-on-click="() => !account.is_unallocated_earnings &amp;&amp; this.toggleAccount(account.id)">
+                                                <!-- Account Code & Name -->
+                                                <td>
+                                                    <div class="oca-gl-account-info">
+                                                        <t t-if="!account.is_unallocated_earnings">
+                                                            <i t-attf-class="fa fa-caret-{{ this.isExpanded(account.id) ? 'down' : 'right' }}"
+                                                               style="font-size:12px;color:#2dd4bf;margin-right:6px;"/>
+                                                        </t>
+                                                        <t t-if="account.code">
+                                                            <span class="oca-gl-acc-code" t-esc="account.code"/>
+                                                        </t>
+                                                        <span class="oca-gl-acc-name" t-esc="account.name"/>
+                                                        <t t-if="!account.is_unallocated_earnings">
+                                                            <span class="oca-tb-row-menu"
+                                                                  style="position:relative;display:inline-flex;"
+                                                                  t-on-click.stop="">
+                                                                <i class="fa fa-ellipsis-v oca-tb-row-menu-trigger"
+                                                                   t-on-click="(ev) => this.toggleTbRowMenu(account.id, ev)"/>
+                                                                <t t-if="state.tbRowMenuOpenId === account.id">
+                                                                    <div class="oca-gl-dropdown-panel oca-tb-row-menu-panel">
+                                                                        <div class="oca-gl-dropdown-item"
+                                                                             t-on-click="(ev) => this.drillToGeneralLedger(account, ev)">
+                                                                            General Ledger
+                                                                        </div>
+                                                                    </div>
+                                                                </t>
+                                                            </span>
+                                                        </t>
+                                                    </div>
+                                                </td>
+                                                <!-- Initial Balance -->
+                                                <td class="oca-gl-num" style="color:#9ca3af;">
+                                                    <t t-esc="fmtNumWithSym(account.init_bal.balance)"/>
+                                                </td>
+                                                <!-- Period Debit -->
+                                                <td class="oca-gl-num oca-gl-debit-val">
+                                                    <t t-esc="fmtNumWithSym(account.fin_bal.debit)"/>
+                                                </td>
+                                                <!-- Period Credit -->
+                                                <td class="oca-gl-num oca-gl-credit-val">
+                                                    <t t-esc="fmtNumWithSym(account.fin_bal.credit)"/>
+                                                </td>
+                                                <!-- Comparison Debit/Credit columns -->
+                                                <t t-if="state.comparisonMode !== 'none'">
+                                                    <td class="oca-gl-num oca-gl-debit-val" style="opacity: 0.85;">
+                                                        <t t-esc="fmtNumWithSym(account.comparison_fin_bal ? account.comparison_fin_bal.debit : 0)"/>
+                                                    </td>
+                                                    <td class="oca-gl-num oca-gl-credit-val" style="opacity: 0.85;">
+                                                        <t t-esc="fmtNumWithSym(account.comparison_fin_bal ? account.comparison_fin_bal.credit : 0)"/>
+                                                    </td>
+                                                </t>
+                                                <!-- Ending Balance -->
+                                                <td class="oca-gl-num"
+                                                    t-att-class="this.balanceClass(this.accountEndBalance(account))">
+                                                    <t t-esc="fmtNumWithSym(this.accountEndBalance(account))"/>
+                                                </td>
+                                            </tr>
+
+                                            <!-- Unfolded move lines inside Trial Balance -->
+                                            <t t-if="this.isExpanded(account.id)">
+                                                <t t-if="account.has_partners &amp;&amp; account.partner_groups &amp;&amp; account.partner_groups.length">
+                                                    <t t-foreach="account.partner_groups" t-as="partner" t-key="partner.id">
+
+                                                        <!-- Partner row -->
+                                                        <tr class="oca-gl-account-row oca-tb-row oca-gl-partner-row"
+                                                            t-on-click.stop="() => this.togglePartner(partner.id, account, partner.partner_id)">
+                                                            <!-- Partner Name -->
+                                                            <td>
+                                                                <div class="oca-gl-account-info" style="padding-left:18px;">
+                                                                    <i t-attf-class="fa fa-caret-{{ this.isPartnerExpanded(partner.id) ? 'down' : 'right' }}"
+                                                                       style="font-size:11px;color:#2dd4bf;margin-right:6px;"/>
+                                                                    <span class="oca-gl-partner-indent-symbol">└ </span>
+                                                                    <span class="oca-gl-partner-name" t-esc="partner.name"/>
+                                                                </div>
+                                                            </td>
+                                                            <!-- Initial Balance -->
+                                                            <td class="oca-gl-num" style="color:#9ca3af;">
+                                                                <t t-esc="fmtNumWithSym(partner.init_bal.balance)"/>
+                                                            </td>
+                                                            <!-- Period Debit -->
+                                                            <td class="oca-gl-num oca-gl-debit-val">
+                                                                <t t-esc="fmtNumWithSym(partner.fin_bal.debit)"/>
+                                                            </td>
+                                                            <!-- Period Credit -->
+                                                            <td class="oca-gl-num oca-gl-credit-val">
+                                                                <t t-esc="fmtNumWithSym(partner.fin_bal.credit)"/>
+                                                            </td>
+                                                            <!-- Comparison Debit/Credit columns -->
+                                                            <t t-if="state.comparisonMode !== 'none'">
+                                                                <td class="oca-gl-num oca-gl-debit-val" style="opacity: 0.85;">
+                                                                    <t t-esc="fmtNumWithSym(partner.comparison_fin_bal ? partner.comparison_fin_bal.debit : 0)"/>
+                                                                </td>
+                                                                <td class="oca-gl-num oca-gl-credit-val" style="opacity: 0.85;">
+                                                                    <t t-esc="fmtNumWithSym(partner.comparison_fin_bal ? partner.comparison_fin_bal.credit : 0)"/>
+                                                                </td>
+                                                            </t>
+                                                            <!-- Ending Balance -->
+                                                            <td class="oca-gl-num"
+                                                                t-att-class="this.balanceClass(partner.fin_bal.ending_balance)">
+                                                                <t t-esc="fmtNumWithSym(partner.fin_bal.ending_balance)"/>
+                                                            </td>
+                                                        </tr>
+
+                                                        <!-- Unfolded move lines for this partner -->
+                                                        <t t-if="this.isPartnerExpanded(partner.id)">
+                                                            <t t-foreach="partner.move_lines" t-as="line" t-key="line.id">
+                                                                <tr class="oca-gl-line-row">
+                                                                    <td style="padding-left:42px;">
+                                                                        <a class="oca-gl-line-move-link" t-if="line.move_id"
+                                                                           t-on-click.prevent="() => this.openMove(line.move_id)"
+                                                                           href="#">
+                                                                            <t t-esc="line.move_name"/>
+                                                                        </a>
+                                                                        <span class="oca-gl-line-ref" t-if="line.ref_label"
+                                                                              t-esc="line.ref_label"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-num" style="color:#6b7280;">-</td>
+                                                                    <td class="oca-gl-num oca-gl-debit-val">
+                                                                        <t t-if="line.debit">
+                                                                            <t t-esc="fmtNumWithSym(line.debit)"/>
+                                                                        </t>
+                                                                    </td>
+                                                                    <td class="oca-gl-num oca-gl-credit-val">
+                                                                        <t t-if="line.credit">
+                                                                            <t t-esc="fmtNumWithSym(line.credit)"/>
+                                                                        </t>
+                                                                    </td>
+                                                                    <t t-if="state.comparisonMode !== 'none'">
+                                                                        <td class="oca-gl-num" style="color:#6b7280;">-</td>
+                                                                        <td class="oca-gl-num" style="color:#6b7280;">-</td>
+                                                                    </t>
+                                                                    <td class="oca-gl-num"
+                                                                        t-att-class="this.balanceClass(line.balance)">
+                                                                        <t t-esc="fmtNumWithSym(line.balance)"/>
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                        </t>
+                                                    </t>
+                                                <!-- Load more partners (paged partner sub-rows) -->
+                                                <t t-if="account.partners_has_more">
+                                                    <tr class="oca-gl-line-row">
+                                                        <td colspan="5" style="text-align:center;padding:6px;">
+                                                            <button class="oca-gl-export-btn"
+                                                                    style="font-size:11px;padding:3px 10px;"
+                                                                    t-att-disabled="isPartnersLoading(account.id)"
+                                                                    t-on-click.stop="() => this.loadMorePartners(account)">
+                                                                <i class="fa fa-ellipsis-h"/> Load more partners
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </t>
+                                                </t>
+                                                <t t-else="">
+                                                    <t t-foreach="account.move_lines" t-as="line" t-key="line.id">
+                                                        <tr class="oca-gl-line-row">
+                                                            <td style="padding-left:28px;">
+                                                                <a class="oca-gl-line-move-link" t-if="line.move_id"
+                                                                   t-on-click.prevent="() => this.openMove(line.move_id)"
+                                                                   href="#">
+                                                                    <t t-esc="line.move_name"/>
+                                                                </a>
+                                                                <span class="oca-gl-line-ref" t-if="line.ref_label"
+                                                                      t-esc="line.ref_label"/>
+                                                            </td>
+                                                            <td class="oca-gl-num" style="color:#6b7280;">-</td>
+                                                            <td class="oca-gl-num oca-gl-debit-val">
+                                                                <t t-if="line.debit">
+                                                                    <t t-esc="fmtNumWithSym(line.debit)"/>
+                                                                </t>
+                                                            </td>
+                                                            <td class="oca-gl-num oca-gl-credit-val">
+                                                                <t t-if="line.credit">
+                                                                    <t t-esc="fmtNumWithSym(line.credit)"/>
+                                                                </t>
+                                                            </td>
+                                                            <t t-if="state.comparisonMode !== 'none'">
+                                                                <td class="oca-gl-num" style="color:#6b7280;">-</td>
+                                                                <td class="oca-gl-num" style="color:#6b7280;">-</td>
+                                                            </t>
+                                                            <td class="oca-gl-num"
+                                                                t-att-class="this.balanceClass(line.balance)">
+                                                                <t t-esc="fmtNumWithSym(line.balance)"/>
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                </t>
+                                            </t>
+                                        </t>
+
+                                        <!-- Trial Balance Grand Total Row -->
+                                        <tr class="oca-gl-grand-total-row">
+                                            <td style="font-weight:700;">Total</td>
+                                            <td class="oca-gl-num">
+                                                <t t-esc="fmtNumWithSym(this.grandTotals.initBalance)"/>
+                                            </td>
+                                            <td class="oca-gl-num">
+                                                <t t-esc="fmtNumWithSym(this.grandTotals.debit)"/>
+                                            </td>
+                                            <td class="oca-gl-num">
+                                                <t t-esc="fmtNumWithSym(this.grandTotals.credit)"/>
+                                            </td>
+                                            <t t-if="state.comparisonMode !== 'none'">
+                                                <td class="oca-gl-num">
+                                                    <t t-esc="fmtNumWithSym(this.grandTotals.compDebit)"/>
+                                                </td>
+                                                <td class="oca-gl-num">
+                                                    <t t-esc="fmtNumWithSym(this.grandTotals.compCredit)"/>
+                                                </td>
+                                            </t>
+                                            <td class="oca-gl-num">
+                                                <t t-esc="fmtNumWithSym(this.grandTotals.endingBalance)"/>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </t>
+
+                        <!-- ====================================================
+                             2) GENERAL LEDGER VIEW
+                             ==================================================== -->
+                        <t t-else="">
+                            <div class="oca-gl-table-wrapper"
+                                 t-attf-class="oca-gl-table-wrapper{{ !state.showComm ? ' oca-gl-hide-comm' : '' }}{{ !state.showCurrency ? ' oca-gl-hide-currency' : '' }}">
+                                <table class="oca-gl-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-expand"/>
+                                            <th class="col-account">Account</th>
+                                            <th class="col-date">Date</th>
+                                            <th class="col-partner">Partner</th>
+                                            <th class="col-comm">Communication</th>
+                                            <th class="col-currency">Currency</th>
+                                            <th class="col-balance num">Initial Balance</th>
+                                            <th class="col-debit num">Debit</th>
+                                            <th class="col-credit num">Credit</th>
+                                            <th class="col-balance num">Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="displayedAccounts" t-as="account" t-key="account.id">
+
+                                            <!-- Account summary row -->
+                                            <tr class="oca-gl-account-row"
+                                                t-on-click="() => this.toggleAccount(account.id)">
+                                                <td style="text-align:center;vertical-align:middle;">
+                                                    <div class="oca-gl-account-toggle">
+                                                        <i t-attf-class="fa fa-caret-{{ this.isExpanded(account.id) ? 'down' : 'right' }}"
+                                                           style="font-size:12px;color:#2dd4bf;"/>
+                                                    </div>
+                                                </td>
+                                                <td t-att-colspan="accountColspan">
+                                                    <div class="oca-gl-account-info">
+                                                        <span class="oca-gl-acc-code" t-esc="account.code"/>
+                                                        <span class="oca-gl-acc-name" t-esc="account.name"/>
+                                                        <span class="oca-gl-badge oca-gl-badge-link"
+                                                              t-on-click="(ev) => this.openJournalItems(account, ev)">Journal Items</span>
+                                                    </div>
+                                                </td>
+                                                <td class="oca-gl-num" style="color:#9ca3af;">
+                                                    <t t-esc="fmtNumWithSym(account.init_bal ? account.init_bal.balance : 0)"/>
+                                                </td>
+                                                <td class="oca-gl-num oca-gl-debit-val">
+                                                    <t t-esc="fmtNumWithSym(account.fin_bal.debit)"/>
+                                                </td>
+                                                <td class="oca-gl-num oca-gl-credit-val">
+                                                    <t t-esc="fmtNumWithSym(account.fin_bal.credit)"/>
+                                                </td>
+                                                <td class="oca-gl-num"
+                                                    t-att-class="this.balanceClass(this.accountEndBalance(account))">
+                                                    <t t-esc="fmtNumWithSym(this.accountEndBalance(account))"/>
+                                                </td>
+                                            </tr>
+
+                                             <!-- Expanded rows -->
+                                            <t t-if="this.isExpanded(account.id)">
+                                                <t t-if="account.has_partners &amp;&amp; account.partner_groups &amp;&amp; account.partner_groups.length">
+                                                    <t t-foreach="account.partner_groups" t-as="partner" t-key="partner.id">
+
+                                                        <!-- Partner summary row — BUG FIX: pass account + partner.partner_id so togglePartner can trigger loadLines() -->
+                                                        <tr class="oca-gl-account-row oca-gl-partner-row"
+                                                            t-on-click.stop="() => this.togglePartner(partner.id, account, partner.partner_id)">
+                                                            <td style="text-align:center;vertical-align:middle;">
+                                                                <div class="oca-gl-account-toggle">
+                                                                    <i t-attf-class="fa fa-caret-{{ this.isPartnerExpanded(partner.id) ? 'down' : 'right' }}"
+                                                                       style="font-size:11px;color:#2dd4bf;"/>
+                                                                </div>
+                                                            </td>
+                                                            <td t-att-colspan="accountColspan">
+                                                                <div class="oca-gl-account-info" style="padding-left:14px;">
+                                                                    <span class="oca-gl-partner-indent-symbol">└ </span>
+                                                                    <span class="oca-gl-partner-name" t-esc="partner.name"/>
+                                                                </div>
+                                                            </td>
+                                                            <td class="oca-gl-num" style="color:#9ca3af;">
+                                                                <t t-esc="fmtNumWithSym(partner.init_bal ? partner.init_bal.balance : 0)"/>
+                                                            </td>
+                                                            <td class="oca-gl-num oca-gl-debit-val">
+                                                                <t t-esc="fmtNumWithSym(partner.fin_bal.debit)"/>
+                                                            </td>
+                                                            <td class="oca-gl-num oca-gl-credit-val">
+                                                                <t t-esc="fmtNumWithSym(partner.fin_bal.credit)"/>
+                                                            </td>
+                                                            <td class="oca-gl-num"
+                                                                t-att-class="this.balanceClass(partner.fin_bal.ending_balance)">
+                                                                <t t-esc="fmtNumWithSym(partner.fin_bal.ending_balance)"/>
+                                                            </td>
+                                                        </tr>
+
+                                                        <!-- Expanded partner move lines (lazy-loaded) -->
+                                                        <t t-if="this.isPartnerExpanded(partner.id)">
+                                                            <!-- Loading spinner for partner lines -->
+                                                            <t t-set="partnerLineKey" t-value="`${account.id}_p${partner.partner_id}`"/>
+                                                            <t t-if="_linesState[partnerLineKey] &amp;&amp; _linesState[partnerLineKey].loading">
+                                                                <tr class="oca-gl-line-row">
+                                                                    <td t-att-colspan="accountColspan + 4" style="text-align:center;padding:8px;color:#9ca3af;">
+                                                                        <span class="oca-gl-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;"/> Loading…
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                            <t t-foreach="partner.move_lines" t-as="line" t-key="line.id">
+                                                                <tr class="oca-gl-line-row oca-gl-lines-enter">
+                                                                    <td/>
+                                                                    <td class="oca-gl-line-entry"
+                                                                        t-att-title="line.ref_label &amp;&amp; line.ref_label !== line.move_name ? line.move_name + ' ' + line.ref_label : line.move_name"
+                                                                        style="padding-left:28px;">
+                                                                        <a class="oca-gl-line-move-link" t-if="line.move_id"
+                                                                           t-on-click.prevent="() => this.openMove(line.move_id)"
+                                                                           href="#">
+                                                                            <t t-esc="line.move_name"/>
+                                                                        </a>
+                                                                        <span class="oca-gl-line-ref"
+                                                                              t-if="line.ref_label &amp;&amp; line.ref_label !== line.move_name"
+                                                                              t-esc="line.ref_label"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-line-date">
+                                                                        <t t-esc="line.date"/>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="oca-gl-line-partner" t-esc="line.partner"
+                                                                              t-att-title="line.partner"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-td-comm">
+                                                                        <span class="oca-gl-line-comm" t-esc="line.ref_label"
+                                                                              t-att-title="line.ref_label"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-td-currency"
+                                                                        style="text-align:center;color:#9ca3af;font-size:11px;">
+                                                                        <t t-esc="line.currency || ''"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-num"/>
+                                                                    <td class="oca-gl-num oca-gl-debit-val">
+                                                                        <t t-if="line.debit">
+                                                                            <t t-esc="fmtNumWithSym(line.debit)"/>
+                                                                        </t>
+                                                                    </td>
+                                                                    <td class="oca-gl-num oca-gl-credit-val">
+                                                                        <t t-if="line.credit">
+                                                                            <t t-esc="fmtNumWithSym(line.credit)"/>
+                                                                        </t>
+                                                                    </td>
+                                                                    <td class="oca-gl-num"
+                                                                        t-att-class="this.balanceClass(line.balance)">
+                                                                        <t t-esc="fmtNumWithSym(line.balance)"/>
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                            <!-- Load More button for partner lines -->
+                                                            <t t-if="_linesState[partnerLineKey] &amp;&amp; _linesState[partnerLineKey].hasMore">
+                                                                <tr class="oca-gl-line-row">
+                                                                    <td t-att-colspan="accountColspan + 4" style="text-align:center;padding:4px;">
+                                                                        <button class="oca-gl-export-btn"
+                                                                                style="font-size:11px;padding:3px 10px;"
+                                                                                t-on-click.stop="() => this.loadMoreLines(account, partner.partner_id, null)">
+                                                                            <i class="fa fa-ellipsis-h"/> Load More
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                        </t>
+                                                    </t>
+                                                <!-- Load more partners (paged partner sub-rows) -->
+                                                <t t-if="account.partners_has_more">
+                                                    <tr class="oca-gl-line-row">
+                                                        <td t-att-colspan="accountColspan + 4" style="text-align:center;padding:6px;">
+                                                            <button class="oca-gl-export-btn"
+                                                                    style="font-size:11px;padding:3px 10px;"
+                                                                    t-att-disabled="isPartnersLoading(account.id)"
+                                                                    t-on-click.stop="() => this.loadMorePartners(account)">
+                                                                <i class="fa fa-ellipsis-h"/> Load more partners
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </t>
+                                                </t>
+                                                <t t-elif="account.has_journals &amp;&amp; account.journal_groups &amp;&amp; account.journal_groups.length">
+                                                    <!-- Journal sub-groups (Group By: Journals). Lines are lazy-loaded
+                                                         per (account, journal). Running balance inside a journal group
+                                                         counts that journal's lines only, in company currency. -->
+                                                    <t t-foreach="account.journal_groups" t-as="jgroup" t-key="jgroup.id">
+                                                        <tr class="oca-gl-account-row oca-gl-partner-row"
+                                                            t-on-click.stop="() => this.toggleJournalGroup(jgroup.id, account, jgroup.journal_id)">
+                                                            <td style="text-align:center;vertical-align:middle;">
+                                                                <div class="oca-gl-account-toggle">
+                                                                    <i t-attf-class="fa fa-caret-{{ this.isJournalExpanded(jgroup.id) ? 'down' : 'right' }}"
+                                                                       style="font-size:11px;color:#2dd4bf;"/>
+                                                                </div>
+                                                            </td>
+                                                            <td t-att-colspan="accountColspan">
+                                                                <div class="oca-gl-account-info" style="padding-left:14px;"
+                                                                     title="Balances inside a journal group run within this journal only and are shown in company currency.">
+                                                                    <span class="oca-gl-partner-indent-symbol">└ </span>
+                                                                    <span class="oca-gl-partner-name" t-esc="jgroup.name"/>
+                                                                </div>
+                                                            </td>
+                                                            <td class="oca-gl-num"/>
+                                                            <td class="oca-gl-num oca-gl-debit-val">
+                                                                <t t-esc="fmtNumWithSym(jgroup.fin_bal.debit)"/>
+                                                            </td>
+                                                            <td class="oca-gl-num oca-gl-credit-val">
+                                                                <t t-esc="fmtNumWithSym(jgroup.fin_bal.credit)"/>
+                                                            </td>
+                                                            <td class="oca-gl-num"
+                                                                t-att-class="this.balanceClass(jgroup.fin_bal.balance)">
+                                                                <t t-esc="fmtNumWithSym(jgroup.fin_bal.balance)"/>
+                                                            </td>
+                                                        </tr>
+                                                        <t t-if="this.isJournalExpanded(jgroup.id)">
+                                                            <t t-set="journalLineKey" t-value="`${account.id}_j${jgroup.journal_id}`"/>
+                                                            <t t-if="_linesState[journalLineKey] &amp;&amp; _linesState[journalLineKey].loading">
+                                                                <tr class="oca-gl-line-row">
+                                                                    <td t-att-colspan="accountColspan + 4" style="text-align:center;padding:8px;color:#9ca3af;">
+                                                                        <span class="oca-gl-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;"/> Loading…
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                            <t t-foreach="jgroup.move_lines" t-as="line" t-key="line.id">
+                                                                <tr class="oca-gl-line-row oca-gl-lines-enter">
+                                                                    <td/>
+                                                                    <td class="oca-gl-line-entry"
+                                                                        t-att-title="line.ref_label &amp;&amp; line.ref_label !== line.move_name ? line.move_name + ' ' + line.ref_label : line.move_name"
+                                                                        style="padding-left:28px;">
+                                                                        <a class="oca-gl-line-move-link" t-if="line.move_id"
+                                                                           t-on-click.prevent="() => this.openMove(line.move_id)"
+                                                                           href="#">
+                                                                            <t t-esc="line.move_name"/>
+                                                                        </a>
+                                                                        <span class="oca-gl-line-ref"
+                                                                              t-if="line.ref_label &amp;&amp; line.ref_label !== line.move_name"
+                                                                              t-esc="line.ref_label"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-line-date">
+                                                                        <t t-esc="line.date"/>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="oca-gl-line-partner" t-esc="line.partner"
+                                                                              t-att-title="line.partner"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-td-comm">
+                                                                        <span class="oca-gl-line-comm" t-esc="line.ref_label"
+                                                                              t-att-title="line.ref_label"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-td-currency"
+                                                                        style="text-align:center;color:#9ca3af;font-size:11px;">
+                                                                        <t t-esc="line.currency || ''"/>
+                                                                    </td>
+                                                                    <td class="oca-gl-num"/>
+                                                                    <td class="oca-gl-num oca-gl-debit-val">
+                                                                        <t t-if="line.debit">
+                                                                            <t t-esc="fmtNumWithSym(line.debit)"/>
+                                                                        </t>
+                                                                    </td>
+                                                                    <td class="oca-gl-num oca-gl-credit-val">
+                                                                        <t t-if="line.credit">
+                                                                            <t t-esc="fmtNumWithSym(line.credit)"/>
+                                                                        </t>
+                                                                    </td>
+                                                                    <td class="oca-gl-num"
+                                                                        t-att-class="this.balanceClass(line.balance)">
+                                                                        <t t-esc="fmtNumWithSym(line.balance)"/>
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                            <t t-if="_linesState[journalLineKey] &amp;&amp; _linesState[journalLineKey].hasMore">
+                                                                <tr class="oca-gl-line-row">
+                                                                    <td t-att-colspan="accountColspan + 4" style="text-align:center;padding:4px;">
+                                                                        <button class="oca-gl-export-btn"
+                                                                                style="font-size:11px;padding:3px 10px;"
+                                                                                t-on-click.stop="() => this.loadMoreLines(account, null, jgroup.journal_id)">
+                                                                            <i class="fa fa-ellipsis-h"/> Load More
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                        </t>
+                                                    </t>
+                                                </t>
+                                                <t t-else="">
+                                                    <!-- Loading spinner for account lines -->
+                                                    <t t-if="isLinesLoading(account.id)">
+                                                        <tr class="oca-gl-line-row">
+                                                            <td t-att-colspan="accountColspan + 4" style="text-align:center;padding:8px;color:#9ca3af;">
+                                                                <span class="oca-gl-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;"/> Loading…
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                    <t t-foreach="account.move_lines" t-as="line" t-key="line.id">
+                                                        <tr class="oca-gl-line-row oca-gl-lines-enter">
+                                                            <td/>
+                                                            <td class="oca-gl-line-entry"
+                                                                t-att-title="line.ref_label &amp;&amp; line.ref_label !== line.move_name ? line.move_name + ' ' + line.ref_label : line.move_name">
+                                                                <a class="oca-gl-line-move-link" t-if="line.move_id"
+                                                                   t-on-click.prevent="() => this.openMove(line.move_id)"
+                                                                   href="#">
+                                                                    <t t-esc="line.move_name"/>
+                                                                </a>
+                                                                <span class="oca-gl-line-ref"
+                                                                      t-if="line.ref_label &amp;&amp; line.ref_label !== line.move_name"
+                                                                      t-esc="line.ref_label"/>
+                                                                <span class="oca-gl-line-dots">⋮</span>
+                                                            </td>
+                                                            <td class="oca-gl-line-date">
+                                                                <t t-esc="line.date"/>
+                                                            </td>
+                                                            <td>
+                                                                <span class="oca-gl-line-partner" t-esc="line.partner"
+                                                                      t-att-title="line.partner"/>
+                                                            </td>
+                                                            <td class="oca-gl-td-comm">
+                                                                <span class="oca-gl-line-comm" t-esc="line.ref_label"
+                                                                      t-att-title="line.ref_label"/>
+                                                            </td>
+                                                            <td class="oca-gl-td-currency"
+                                                                style="text-align:center;color:#9ca3af;font-size:11px;">
+                                                                <t t-esc="line.currency || ''"/>
+                                                            </td>
+                                                            <td class="oca-gl-num"/>
+                                                            <td class="oca-gl-num oca-gl-debit-val">
+                                                                <t t-if="line.debit">
+                                                                    <t t-esc="fmtNumWithSym(line.debit)"/>
+                                                                </t>
+                                                            </td>
+                                                            <td class="oca-gl-num oca-gl-credit-val">
+                                                                <t t-if="line.credit">
+                                                                    <t t-esc="fmtNumWithSym(line.credit)"/>
+                                                                </t>
+                                                            </td>
+                                                            <td class="oca-gl-num"
+                                                                t-att-class="this.balanceClass(line.balance)">
+                                                                <t t-esc="fmtNumWithSym(line.balance)"/>
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                    <!-- Load More button for account lines -->
+                                                    <t t-if="hasMoreLines(account.id)">
+                                                        <tr class="oca-gl-line-row">
+                                                            <td t-att-colspan="accountColspan + 4" style="text-align:center;padding:4px;">
+                                                                <button class="oca-gl-export-btn"
+                                                                        style="font-size:11px;padding:3px 10px;"
+                                                                        t-on-click.stop="() => this.loadMoreLines(account, null, null)">
+                                                                    <i class="fa fa-ellipsis-h"/> Load More
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                </t>
+                                            </t>
+
+                                            <tr class="oca-gl-account-separator">
+                                                <td t-att-colspan="accountColspan + 5"/>
+                                            </tr>
+                                        </t>
+
+                                        <!-- Total General Ledger row -->
+                                        <tr class="oca-gl-grand-total-row">
+                                            <td/>
+                                            <td t-att-colspan="accountColspan"
+                                                style="font-weight:700;letter-spacing:0.4px;font-size:12px;">
+                                                Total General Ledger
+                                                <span style="font-weight:400;font-size:11px;opacity:0.7;margin-left:8px;">
+                                                    (<t t-esc="this.accountCount"/> accounts)
+                                                </span>
+                                            </td>
+                                            <td class="oca-gl-num"/>
+                                            <td class="oca-gl-num">
+                                                <t t-esc="fmtNumWithSym(this.grandTotals.debit)"/>
+                                            </td>
+                                            <td class="oca-gl-num">
+                                                <t t-esc="fmtNumWithSym(this.grandTotals.credit)"/>
+                                            </td>
+                                            <td class="oca-gl-num"/>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </t>
+                    </t>
+                    <!-- end main table -->
+
+                </div>
+                <!-- .oca-gl-sheet -->
+            </div>
+            <!-- .oca-gl-content -->
+        </div>
+        <!-- .oca-gl-root -->
+    </t>
+</templates>

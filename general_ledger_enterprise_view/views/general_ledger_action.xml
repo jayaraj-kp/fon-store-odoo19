@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Menu parent: Accounting > Reporting -->
+    <menuitem
+        id="menu_enterprise_reports"
+        name="Enterprise Reports"
+        parent="account.menu_finance_reports"
+        sequence="10"
+    />
+
+    <!-- Client action for General Ledger -->
+    <record id="action_general_ledger_enterprise" model="ir.actions.client">
+        <field name="name">General Ledger</field>
+        <field name="tag">gl_enterprise.GeneralLedgerView</field>
+        <field name="target">current</field>
+        <field name="params">{'default_report_type': 'gl'}</field>
+    </record>
+
+    <!-- Client action for Trial Balance -->
+    <record id="action_trial_balance_enterprise" model="ir.actions.client">
+        <field name="name">Trial Balance</field>
+        <field name="tag">gl_enterprise.GeneralLedgerView</field>
+        <field name="target">current</field>
+        <field name="params">{'default_report_type': 'tb'}</field>
+    </record>
+
+    <!-- Menu entry for General Ledger -->
+    <menuitem
+        id="menu_general_ledger_enterprise"
+        name="General Ledger (Interactive)"
+        parent="menu_enterprise_reports"
+        action="action_general_ledger_enterprise"
+        sequence="5"
+        groups="account.group_account_user"
+    />
+
+    <!-- Menu entry for Trial Balance -->
+    <menuitem
+        id="menu_trial_balance_enterprise"
+        name="Trial Balance (Interactive)"
+        parent="menu_enterprise_reports"
+        action="action_trial_balance_enterprise"
+        sequence="6"
+        groups="account.group_account_user"
+    />
+</odoo>

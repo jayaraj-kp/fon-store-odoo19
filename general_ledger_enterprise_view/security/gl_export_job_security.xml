@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Accountants only see (and delete) their own export jobs. -->
+    <record id="rule_gl_export_job_own" model="ir.rule">
+        <field name="name">GL export job: own jobs</field>
+        <field name="model_id" ref="model_gl_export_job"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('account.group_account_user'))]"/>
+    </record>
+    <!-- Account managers see every job. -->
+    <record id="rule_gl_export_job_manager" model="ir.rule">
+        <field name="name">GL export job: managers see all</field>
+        <field name="model_id" ref="model_gl_export_job"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('account.group_account_manager'))]"/>
+    </record>
+</odoo>
