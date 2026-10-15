@@ -386,20 +386,9 @@ export class PhoneCustomerBar extends Component {
     }
 
     async _getCashCustomerParentId() {
-        const results = await this.orm.searchRead(
-            "res.partner",
-            [["name", "=", CASH_CUSTOMER_NAME], ["is_company", "=", true]],
-            ["id"],
-            { limit: 1 }
-        );
-        if (results.length) return results[0].id;
-
-        const newId = await this.orm.create("res.partner", [{
-            name: CASH_CUSTOMER_NAME,
-            is_company: true,
-            customer_rank: 1,
-        }]);
-        return Array.isArray(newId) ? newId[0] : newId;
+        // Resolved on the server (case-insensitive, created if missing)
+        // so every new POS customer goes under the one CASH CUSTOMER parent.
+        return await this.orm.call("res.partner", "get_cash_customer_parent_id", []);
     }
 
     async _doCreate(formData) {
