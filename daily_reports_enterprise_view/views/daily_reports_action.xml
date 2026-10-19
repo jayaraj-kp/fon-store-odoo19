@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Cash Book Client Action -->
+    <record id="action_cash_book_view" model="ir.actions.client">
+        <field name="name">Cash Book</field>
+        <field name="tag">daily_reports_view</field>
+        <field name="params" eval="{'report_type': 'cash_book', 'title': 'Cash Book'}"/>
+    </record>
+
+    <!-- Bank Book Client Action -->
+    <record id="action_bank_book_view" model="ir.actions.client">
+        <field name="name">Bank Book</field>
+        <field name="tag">daily_reports_view</field>
+        <field name="params" eval="{'report_type': 'bank_book', 'title': 'Bank Book'}"/>
+    </record>
+
+    <!-- Day Book Client Action -->
+    <record id="action_day_book_view" model="ir.actions.client">
+        <field name="name">Day Book</field>
+        <field name="tag">daily_reports_view</field>
+        <field name="params" eval="{'report_type': 'day_book', 'title': 'Day Book'}"/>
+    </record>
+
+    <!-- Menu items under Accounting > Reporting -->
+    <menuitem id="menu_daily_reports_root"
+              name="Daily Reports"
+              parent="account.menu_finance_reports"
+              sequence="20"
+              groups="account.group_account_readonly"/>
+
+    <menuitem id="menu_cash_book_report"
+              name="Cash Book"
+              parent="menu_daily_reports_root"
+              action="action_cash_book_view"
+              sequence="1"
+              groups="account.group_account_readonly"/>
+
+    <menuitem id="menu_bank_book_report"
+              name="Bank Book"
+              parent="menu_daily_reports_root"
+              action="action_bank_book_view"
+              sequence="2"
+              groups="account.group_account_readonly"/>
+
+    <menuitem id="menu_day_book_report"
+              name="Day Book"
+              parent="menu_daily_reports_root"
+              action="action_day_book_view"
+              sequence="3"
+              groups="account.group_account_readonly"/>
+
+</odoo>

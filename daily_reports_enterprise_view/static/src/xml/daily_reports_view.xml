@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="daily_reports_enterprise_view.DailyReportsView">
+        <div t-attf-class="dr-root {{ state.darkMode ? '' : 'dr-light-theme' }}">
+            <!-- Top Control Panel -->
+            <div class="dr-control-panel">
+                <div class="dr-left-section">
+                    <button class="dr-print-btn" t-on-click="onPrintPdf" t-att-disabled="state.loading or !state.dataLoaded" title="Print PDF">
+                        <i class="fa fa-print"/> Print PDF
+                    </button>
+                    <button class="dr-export-btn" t-on-click="onExportExcel" t-att-disabled="state.loading or !state.dataLoaded" title="Export Excel (XLSX)">
+                        <i class="fa fa-file-excel-o"/> Export Excel
+                    </button>
+                    <h4 class="dr-title" t-esc="state.reportTitle"/>
+                    <button class="dr-theme-toggle" t-on-click="toggleTheme" t-att-title="state.darkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
+                        <i t-attf-class="fa {{ state.darkMode ? 'fa-moon-o' : 'fa-sun-o' }}"/>
+                    </button>
+                </div>
+
+                <div class="dr-filters-section">
+                    <!-- Top Search Input (searches customers/vendors) -->
+                    <div class="dr-search-box" t-on-click.stop="">
+                        <i class="fa fa-search"/>
+                        <input type="text"
+                               placeholder="Search customer/vendor..."
+                               t-att-value="state.searchTerm"
+                               t-on-input="onTopSearchInput"
+                               t-on-focus="onTopSearchFocus"
+                               t-on-keydown="onTopSearchKeydown"/>
+                        <t t-if="state.searchTerm">
+                            <i class="fa fa-times" style="cursor:pointer;opacity:0.6;" t-on-click="clearTopSearch"/>
+                        </t>
+
+                        <!-- Live search results dropdown -->
+                        <t t-if="state.topSearchOpen and state.topSearchResults.length">
+                            <div class="dr-top-search-dropdown">
+                                <t t-foreach="state.topSearchResults" t-as="p" t-key="p.id">
+                                    <div class="dr-dropdown-item" t-on-click="() => this.selectTopSearchResult(p)">
+                                        <i class="fa fa-user" style="opacity:0.5;margin-right:4px;"/>
+                                        <span t-esc="p.name"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                        <t t-elif="state.topSearchOpen and state.searchTerm.trim()">
+                            <div class="dr-top-search-dropdown">
+                                <div class="dr-dropdown-item" style="color:#6b7280;font-style:italic;cursor:default;">
+                                    No results found
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Date Filter Pill -->
+                    <div class="dr-filter-pill" t-on-click="(e) => this.toggleDropdown('date', e)">
+                        <i class="fa fa-calendar"/>
+                        <span t-esc="dateLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <div t-if="state.openDropdown == 'date'"
+                             class="dr-dropdown-panel dr-date-panel"
+                             t-on-click.stop="">
+                            <div class="dr-date-range-inputs">
+                                <input type="date" t-att-value="state.dateFrom" t-on-change="onDateFromChange"/>
+                                <span class="dr-date-sep">to</span>
+                                <input type="date" t-att-value="state.dateTo" t-on-change="onDateToChange"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer/Vendor Filter Pill -->
+                    <div class="dr-filter-pill"
+                         t-att-class="state.selectedPartners.length ? 'dr-filter-pill active' : 'dr-filter-pill'"
+                         t-on-click="(e) => this.toggleDropdown('partners', e)">
+                        <i class="fa fa-users"/>
+                        <span t-esc="partnersFilterLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <div t-if="state.openDropdown == 'partners'"
+                             class="dr-dropdown-panel dr-partners-panel"
+                             t-on-click.stop="">
+                            <div class="dr-chips-row" t-if="state.selectedPartners.length">
+                                <t t-foreach="state.selectedPartners" t-as="p" t-key="p.id">
+                                    <span class="dr-chip">
+                                        <span t-esc="p.name"/>
+                                        <i class="fa fa-times" t-on-click="() => this.removePartner(p.id)"/>
+                                    </span>
+                                </t>
+                            </div>
+                            <div class="dr-search-inner">
+                                <i class="fa fa-search"/>
+                                <input type="text"
+                                       placeholder="Search customer or vendor..."
+                                       t-att-value="state.partnerSearchTerm"
+                                       t-on-input="onPartnerSearchInput"/>
+                            </div>
+                            <t t-if="state.partnerSearchResults.length">
+                                <div class="dr-search-results">
+                                    <t t-foreach="state.partnerSearchResults" t-as="p" t-key="p.id">
+                                        <div class="dr-dropdown-item" t-on-click="() => this.addPartner(p)">
+                                            <i class="fa fa-user" style="opacity:0.5;margin-right:4px;"/>
+                                            <span t-esc="p.name"/>
+                                        </div>
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- Analytic Filter Pill -->
+                    <div class="dr-filter-pill"
+                         t-att-class="state.selectedAnalytics.length ? 'dr-filter-pill active' : 'dr-filter-pill'"
+                         t-on-click="(e) => this.toggleDropdown('analytics', e)">
+                        <i class="fa fa-bar-chart"/>
+                        <span t-esc="analyticsFilterLabel"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <div t-if="state.openDropdown == 'analytics'"
+                             class="dr-dropdown-panel dr-analytics-panel"
+                             t-on-click.stop="">
+                            <!-- Selected chips -->
+                            <div class="dr-chips-row" t-if="state.selectedAnalytics.length">
+                                <t t-foreach="state.selectedAnalytics" t-as="a" t-key="a.id">
+                                    <span class="dr-chip">
+                                        <span t-esc="a.name"/>
+                                        <i class="fa fa-times" t-on-click="() => this.removeAnalytic(a.id)"/>
+                                    </span>
+                                </t>
+                            </div>
+                            <!-- Search input -->
+                            <div class="dr-search-inner">
+                                <i class="fa fa-search"/>
+                                <input type="text"
+                                       placeholder="Search analytic accounts..."
+                                       t-att-value="state.analyticSearchTerm"
+                                       t-on-input="onAnalyticSearchInput"/>
+                            </div>
+                            <!-- Search results (when typing) -->
+                            <t t-if="state.analyticSearchTerm.trim() and state.analyticSearchResults.length">
+                                <div class="dr-search-results">
+                                    <t t-foreach="state.analyticSearchResults" t-as="a" t-key="a.id">
+                                        <div class="dr-dropdown-item" t-on-click="() => this.toggleAnalytic(a)">
+                                            <i t-attf-class="fa {{ isAnalyticSelected(a.id) ? 'fa-check-square-o' : 'fa-square-o' }}" style="margin-right:6px;"/>
+                                            <span t-esc="a.name"/>
+                                        </div>
+                                    </t>
+                                </div>
+                            </t>
+                            <!-- All analytics checklist (when not searching) -->
+                            <t t-elif="!state.analyticSearchTerm.trim()">
+                                <div class="dr-search-results">
+                                    <t t-if="state.allAnalytics.length">
+                                        <t t-foreach="state.allAnalytics" t-as="a" t-key="a.id">
+                                            <div class="dr-dropdown-item" t-on-click="() => this.toggleAnalytic(a)">
+                                                <i t-attf-class="fa {{ isAnalyticSelected(a.id) ? 'fa-check-square-o' : 'fa-square-o' }}" style="margin-right:6px;"/>
+                                                <span t-esc="a.name"/>
+                                            </div>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <div class="dr-dropdown-item" style="color:#6b7280;font-style:italic;cursor:default;">
+                                            No analytic accounts found
+                                        </div>
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- Target Move Filter Pill -->
+                    <div class="dr-filter-pill" t-on-click="(e) => this.toggleDropdown('targetMove', e)">
+                        <i class="fa fa-filter"/>
+                        <span t-esc="state.targetMove == 'posted' ? 'Posted Entries' : 'Include Unposted'"/>
+                        <i class="fa fa-caret-down"/>
+
+                        <div t-if="state.openDropdown == 'targetMove'"
+                             class="dr-dropdown-panel"
+                             t-on-click.stop="">
+                            <div class="dr-dropdown-item"
+                                 t-att-class="{'selected': state.targetMove == 'posted'}"
+                                 t-on-click="() => this.setTargetMove('posted')">
+                                <i class="fa fa-check" t-if="state.targetMove == 'posted'"/>
+                                Posted Entries
+                            </div>
+                            <div class="dr-dropdown-item"
+                                 t-att-class="{'selected': state.targetMove == 'all'}"
+                                 t-on-click="() => this.setTargetMove('all')">
+                                <i class="fa fa-check" t-if="state.targetMove == 'all'"/>
+                                Include Unposted
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Apply Button -->
+                    <button class="dr-apply-btn" t-on-click="onApplyFilters" t-att-disabled="state.loading">
+                        <i class="fa fa-search"/> Apply
+                    </button>
+                </div>
+
+                <div class="dr-right-section">
+                    <button class="dr-close-icon-btn" t-on-click="onClose" title="Close">
+                        <i class="fa fa-times"/>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="dr-content">
+                <div class="dr-sheet">
+
+                    <!-- Empty State -->
+                    <t t-if="!state.dataLoaded and !state.loading">
+                        <div class="dr-state-box dr-select-prompt">
+                            <i class="fa fa-filter"/>
+                            <span>
+                                Set your filters above, then click <b>"Apply"</b> to load data.
+                            </span>
+                            <div class="dr-select-prompt-actions">
+                                <button class="dr-apply-btn" t-on-click="onApplyFilters">
+                                    <i class="fa fa-search"/> Apply
+                                </button>
+                            </div>
+                        </div>
+                    </t>
+
+                    <!-- Loading Spinner -->
+                    <t t-elif="state.loading">
+                        <div class="dr-state-box">
+                            <div class="dr-spinner"/>
+                            <span>Loading report data...</span>
+                        </div>
+                    </t>
+
+                    <!-- Table Grid -->
+                    <t t-else="">
+                        <div class="dr-table">
+                            <!-- Table Header -->
+                            <div class="dr-row dr-table-header">
+                                <div class="dr-cell dr-cell-name">Entry / Particulars</div>
+                                <div class="dr-cell dr-cell-name">Partner</div>
+                                <div class="dr-cell">Journal</div>
+                                <div class="dr-cell">Account</div>
+                                <div class="dr-cell">Date</div>
+                                <div class="dr-cell">Ref</div>
+                                <div class="dr-cell">Debit</div>
+                                <div class="dr-cell">Credit</div>
+                                <div class="dr-cell">Balance</div>
+                            </div>
+
+                            <!-- Top Total Header Row -->
+                            <div t-if="totalRow" class="dr-row dr-header-band">
+                                <div class="dr-cell dr-cell-name">
+                                    <span class="dr-label-text" t-esc="totalRow.name"/>
+                                </div>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                            </div>
+
+                            <!-- Rows Loop -->
+                            <t t-foreach="displayedLines" t-as="line" t-key="line.id">
+                                <t t-if="line.line_type == 'group' or line.line_type == 'opening'">
+                                    <div class="dr-row dr-group-row" t-on-click="() => this.toggleGroup(line.id)">
+                                        <div class="dr-cell dr-cell-name">
+                                            <i class="fa dr-caret"
+                                               t-att-class="isExpanded(line.id) ? 'fa-caret-down' : 'fa-caret-right'"
+                                               t-if="line.children and line.children.length"/>
+                                            <span class="dr-label-text" t-esc="line.name"/>
+                                            <span class="dr-count" style="opacity:.6;font-weight:400;font-size:11px;" t-if="line.children and line.children.length"
+                                                  t-esc="'(' + line.children.length + ')'"/>
+                                        </div>
+                                        <div class="dr-cell"/>
+                                        <div class="dr-cell" t-esc="line.journal"/>
+                                        <div class="dr-cell"/>
+                                        <div class="dr-cell"/>
+                                        <div class="dr-cell"/>
+                                        <div class="dr-cell dr-cell-amount" t-esc="fmtNum(line.debit)"/>
+                                        <div class="dr-cell dr-cell-amount" t-esc="fmtNum(line.credit)"/>
+                                        <div class="dr-cell dr-cell-amount" t-esc="fmtNum(line.balance) + ' ' + state.currencySymbol"/>
+                                    </div>
+
+                                    <t t-if="isExpanded(line.id) and line.children">
+                                        <!-- Opening Balance row per journal group -->
+                                        <t t-if="line.opening_balance !== undefined">
+                                            <div class="dr-row dr-opening-row">
+                                                <div class="dr-cell dr-cell-name ps-4">
+                                                    <span class="dr-label-text" style="font-style:italic;color:#9ca3af;">Opening Balance</span>
+                                                </div>
+                                                <div class="dr-cell"/>
+                                                <div class="dr-cell"/>
+                                                <div class="dr-cell"/>
+                                                <div class="dr-cell"/>
+                                                <div class="dr-cell"/>
+                                                <div class="dr-cell"/>
+                                                <div class="dr-cell"/>
+                                                <div class="dr-cell dr-cell-amount" t-esc="fmtNum(line.opening_balance) + ' ' + state.currencySymbol"/>
+                                            </div>
+                                        </t>
+                                        <t t-foreach="visibleChildren(line)" t-as="child" t-key="child.id">
+                                            <div class="dr-row dr-account-row">
+                                                <div class="dr-cell dr-cell-name ps-4">
+                                                    <span class="dr-link"
+                                                          t-on-click="() => this.openMove(child.move_id)"
+                                                          t-esc="child.name"/>
+                                                </div>
+                                                <div class="dr-cell dr-cell-name" t-esc="child.partner_name"/>
+                                                <div class="dr-cell" t-esc="child.journal"/>
+                                                <div class="dr-cell" t-esc="child.account"/>
+                                                <div class="dr-cell" t-esc="fmtDate(child.invoice_date)"/>
+                                                <div class="dr-cell" t-esc="child.ref"/>
+                                                <div class="dr-cell dr-cell-amount" t-esc="fmtNum(child.debit)"/>
+                                                <div class="dr-cell dr-cell-amount" t-esc="fmtNum(child.credit)"/>
+                                                <div class="dr-cell dr-cell-amount" t-esc="fmtNum(child.balance) + ' ' + state.currencySymbol"/>
+                                            </div>
+                                        </t>
+                                        <t t-if="hiddenCount(line)">
+                                            <div class="dr-row dr-account-row dr-more-row">
+                                                <div class="dr-cell dr-cell-name ps-4">
+                                                    <span class="dr-link" t-on-click="() => this.showMore(line.id)">
+                                                        <i class="fa fa-angle-double-down"/>
+                                                        Show <t t-esc="Math.min(hiddenCount(line), moreRows)"/> more
+                                                        (<t t-esc="hiddenCount(line)"/> hidden)
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </t>
+                                </t>
+                            </t>
+
+                            <!-- Bottom Total Row -->
+                            <div t-if="totalRow" class="dr-row dr-header-band" style="border-top: 2px solid #8b0000; margin-top: 8px;">
+                                <div class="dr-cell dr-cell-name">
+                                    <span class="dr-label-text" t-esc="totalRow.name"/>
+                                </div>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell"/>
+                                <div class="dr-cell dr-cell-amount" t-esc="fmtNum(totalRow.debit)"/>
+                                <div class="dr-cell dr-cell-amount" t-esc="fmtNum(totalRow.credit)"/>
+                                <div class="dr-cell dr-cell-amount" t-esc="fmtNum(totalRow.balance) + ' ' + state.currencySymbol"/>
+                            </div>
+                        </div>
+                    </t>
+
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>
