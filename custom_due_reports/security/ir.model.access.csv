@@ -1,5 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_due_report_wizard_user,due.report.wizard.user,model_due_report_wizard,account.group_account_invoice,1,1,1,1
-access_due_report_wizard_accountant,due.report.wizard.accountant,model_due_report_wizard,account.group_account_manager,1,1,1,1
-access_due_report_line_user,due.report.line.user,model_due_report_line,account.group_account_invoice,1,1,1,1
-access_due_report_line_accountant,due.report.line.accountant,model_due_report_line,account.group_account_manager,1,1,1,1
