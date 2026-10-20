@@ -8,4 +8,6 @@
         available via the ORM / record rules, just not shown as a tab here
         to avoid xpath compatibility issues across Odoo 19 CE editions.
     -->
+     <!-- No POS Config form inheritance needed.
+         The relation is managed from the User form (Allowed POS tab). -->
 </odoo>

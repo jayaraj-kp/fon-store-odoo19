@@ -14,13 +14,14 @@
                                widget="many2many_tags"
                                options="{'no_create': True}"
                                string="Allowed Point of Sale Terminals"
-                               help="Select the POS terminals this user is allowed to access. Leave empty to allow access to ALL terminals (only applicable for POS Managers or Admins)."/>
+                               help="Select the POS terminals this user may access. Leave empty to allow ALL terminals."/>
                     </group>
                     <div class="alert alert-info" role="alert" style="margin-top: 8px;">
                         <strong>Note:</strong>
-                        If one or more POS terminals are selected, this user will
-                        <strong>only</strong> see and be able to open those terminals.
-                        POS Managers always have access to all terminals regardless of this setting.
+                        If one or more terminals are selected, this user will
+                        <strong>only</strong> see and open those terminals.
+                        If left empty, the user is not restricted.
+                        POS Managers and Administrators always see all terminals.
                     </div>
                 </page>
             </notebook>
@@ -28,3 +29,35 @@
     </record>
 
 </odoo>
+
+<!--#after review check i change into above code date in 20/10/2026-->
+<!--<?xml version="1.0" encoding="utf-8"?>-->
+<!--<odoo>-->
+
+<!--    &lt;!&ndash; Add Allowed POS tab to User form &ndash;&gt;-->
+<!--    <record id="view_users_form_pos_restriction" model="ir.ui.view">-->
+<!--        <field name="name">res.users.form.pos.restriction</field>-->
+<!--        <field name="model">res.users</field>-->
+<!--        <field name="inherit_id" ref="base.view_users_form"/>-->
+<!--        <field name="arch" type="xml">-->
+<!--            <notebook position="inside">-->
+<!--                <page string="Allowed POS" name="allowed_pos">-->
+<!--                    <group>-->
+<!--                        <field name="allowed_pos_ids"-->
+<!--                               widget="many2many_tags"-->
+<!--                               options="{'no_create': True}"-->
+<!--                               string="Allowed Point of Sale Terminals"-->
+<!--                               help="Select the POS terminals this user is allowed to access. Leave empty to allow access to ALL terminals (only applicable for POS Managers or Admins)."/>-->
+<!--                    </group>-->
+<!--                    <div class="alert alert-info" role="alert" style="margin-top: 8px;">-->
+<!--                        <strong>Note:</strong>-->
+<!--                        If one or more POS terminals are selected, this user will-->
+<!--                        <strong>only</strong> see and be able to open those terminals.-->
+<!--                        POS Managers always have access to all terminals regardless of this setting.-->
+<!--                    </div>-->
+<!--                </page>-->
+<!--            </notebook>-->
+<!--        </field>-->
+<!--    </record>-->
+
+<!--</odoo>-->
