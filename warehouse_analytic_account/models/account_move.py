@@ -1,451 +1,4 @@
-# # # # -*- coding: utf-8 -*-
-# # # import logging
-# # # from odoo import api, models
-# # #
-# # # _logger = logging.getLogger(__name__)
-# # #
-# # # _WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
-# # #
-# # #
-# # # def _get_user_warehouse(user):
-# # #     for fname in _WAREHOUSE_FIELDS:
-# # #         if fname in user._fields:
-# # #             return getattr(user, fname, False)
-# # #     return False
-# # #
-# # #
-# # # class AccountMove(models.Model):
-# # #     _inherit = 'account.move'
-# # #
-# # #     def _get_warehouse_analytic_account(self):
-# # #         wh = _get_user_warehouse(self.env.user)
-# # #         if wh and wh.analytic_account_id:
-# # #             return wh.analytic_account_id
-# # #         return False
-# # #
-# # #     def _apply_warehouse_analytic_to_lines(self):
-# # #         """
-# # #         Stamp warehouse analytic on ALL invoice lines AND journal entry lines
-# # #         so every entry is fully tagged for branch-level reporting.
-# # #         Covers vendor bills, customer invoices, credit notes and refunds.
-# # #         """
-# # #         analytic_account = self._get_warehouse_analytic_account()
-# # #         if not analytic_account:
-# # #             return
-# # #
-# # #         key = str(analytic_account.id)
-# # #         for move in self:
-# # #             if move.move_type not in (
-# # #                 'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
-# # #             ):
-# # #                 continue
-# # #
-# # #             # Apply to invoice lines (visible in Invoice Lines tab)
-# # #             for line in move.invoice_line_ids.filtered(
-# # #                 lambda l: l.account_id and not l.display_type
-# # #             ):
-# # #                 existing = line.analytic_distribution or {}
-# # #                 if key not in existing:
-# # #                     new_dist = dict(existing)
-# # #                     new_dist[key] = 100.0
-# # #                     line.analytic_distribution = new_dist
-# # #
-# # #             # Also apply to ALL journal entry lines (visible in Journal Items tab)
-# # #             # This includes receivable, payable, tax lines — for full branch visibility
-# # #             for line in move.line_ids.filtered(
-# # #                 lambda l: l.account_id and not l.display_type
-# # #             ):
-# # #                 existing = line.analytic_distribution or {}
-# # #                 if key not in existing:
-# # #                     new_dist = dict(existing)
-# # #                     new_dist[key] = 100.0
-# # #                     line.analytic_distribution = new_dist
-# # #                     _logger.debug(
-# # #                         'Warehouse analytic %s applied to journal line %s (%s)',
-# # #                         analytic_account.name, line.id, line.account_id.code,
-# # #                     )
-# # #
-# # #     @api.model_create_multi
-# # #     def create(self, vals_list):
-# # #         moves = super().create(vals_list)
-# # #         moves._apply_warehouse_analytic_to_lines()
-# # #         return moves
-# # #
-# # #     def write(self, vals):
-# # #         result = super().write(vals)
-# # #         if any(k in vals for k in ('invoice_line_ids', 'line_ids', 'state', 'move_type')):
-# # #             self._apply_warehouse_analytic_to_lines()
-# # #         return result
-# # #
-# # #     def action_post(self):
-# # #         self._apply_warehouse_analytic_to_lines()
-# # #         return super().action_post()
-# # #
-# # #
-# # # class AccountMoveLine(models.Model):
-# # #     _inherit = 'account.move.line'
-# # #
-# # #     @api.model_create_multi
-# # #     def create(self, vals_list):
-# # #         lines = super().create(vals_list)
-# # #         lines.move_id._apply_warehouse_analytic_to_lines()
-# # #         return lines
-# # #
-# # #     def write(self, vals):
-# # #         result = super().write(vals)
-# # #         if any(k in vals for k in ('account_id', 'product_id')):
-# # #             self.move_id._apply_warehouse_analytic_to_lines()
-# # #         return result
-# # #
-# # #     @api.onchange('product_id', 'account_id')
-# # #     def _onchange_product_apply_warehouse_analytic(self):
-# # #         if not self.move_id or self.move_id.move_type not in (
-# # #             'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
-# # #         ):
-# # #             return
-# # #         wh = _get_user_warehouse(self.env.user)
-# # #         if not wh or not wh.analytic_account_id:
-# # #             return
-# # #         key = str(wh.analytic_account_id.id)
-# # #         existing = self.analytic_distribution or {}
-# # #         if key not in existing:
-# # #             new_dist = dict(existing)
-# # #             new_dist[key] = 100.0
-# # #             self.analytic_distribution = new_dist
-# #
-# # # -*- coding: utf-8 -*-
-# # import logging
-# # from odoo import api, models
-# #
-# # _logger = logging.getLogger(__name__)
-# #
-# # _WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
-# #
-# #
-# # def _get_user_warehouse(user):
-# #     for fname in _WAREHOUSE_FIELDS:
-# #         if fname in user._fields:
-# #             return getattr(user, fname, False)
-# #     return False
-# #
-# #
-# # class AccountMove(models.Model):
-# #     _inherit = 'account.move'
-# #
-# #     def _get_warehouse_analytic_account(self):
-# #         wh = _get_user_warehouse(self.env.user)
-# #         if wh and wh.analytic_account_id:
-# #             return wh.analytic_account_id
-# #         return False
-# #
-# #     def _apply_warehouse_analytic_to_lines(self):
-# #         """
-# #         Stamp warehouse analytic on ALL invoice lines AND journal entry lines
-# #         so every entry is fully tagged for branch-level reporting.
-# #         Covers vendor bills, customer invoices, credit notes and refunds.
-# #         """
-# #         analytic_account = self._get_warehouse_analytic_account()
-# #         if not analytic_account:
-# #             return
-# #
-# #         key = str(analytic_account.id)
-# #         for move in self:
-# #             if move.move_type not in (
-# #                 'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
-# #             ):
-# #                 continue
-# #
-# #             # Apply to invoice lines (visible in Invoice Lines tab)
-# #             for line in move.invoice_line_ids.filtered(
-# #                 lambda l: l.account_id and not l.display_type
-# #             ):
-# #                 existing = line.analytic_distribution or {}
-# #                 if key not in existing:
-# #                     new_dist = dict(existing)
-# #                     new_dist[key] = 100.0
-# #                     line.analytic_distribution = new_dist
-# #
-# #             # Also apply to ALL journal entry lines (visible in Journal Items tab)
-# #             # This includes receivable, payable, tax lines — for full branch visibility
-# #             for line in move.line_ids.filtered(
-# #                 lambda l: l.account_id and not l.display_type
-# #             ):
-# #                 existing = line.analytic_distribution or {}
-# #                 if key not in existing:
-# #                     new_dist = dict(existing)
-# #                     new_dist[key] = 100.0
-# #                     line.analytic_distribution = new_dist
-# #                     _logger.debug(
-# #                         'Warehouse analytic %s applied to journal line %s (%s)',
-# #                         analytic_account.name, line.id, line.account_id.code,
-# #                     )
-# #
-# #     @api.model_create_multi
-# #     def create(self, vals_list):
-# #         moves = super().create(vals_list)
-# #         moves._apply_warehouse_analytic_to_lines()
-# #         return moves
-# #
-# #     def write(self, vals):
-# #         result = super().write(vals)
-# #         if any(k in vals for k in ('invoice_line_ids', 'line_ids', 'state', 'move_type')):
-# #             self._apply_warehouse_analytic_to_lines()
-# #         return result
-# #
-# #     def action_post(self):
-# #         self._apply_warehouse_analytic_to_lines()
-# #         return super().action_post()
-# #
-# #
-# # class AccountMoveLine(models.Model):
-# #     _inherit = 'account.move.line'
-# #
-# #     def _get_stock_input_account(self):
-# #         """
-# #         Return the Stock Interim (Received) account from the product's
-# #         category if this line is on a vendor bill with a storable product.
-# #         Returns False otherwise.
-# #         """
-# #         if (
-# #             self.move_id.move_type == 'in_invoice'
-# #             and self.product_id
-# #             and self.product_id.type == 'consu'
-# #             and self.display_type == 'product'
-# #             and self.product_id.categ_id.property_stock_account_input_categ_id
-# #         ):
-# #             return self.product_id.categ_id.property_stock_account_input_categ_id
-# #         return False
-# #
-# #     @api.model_create_multi
-# #     def create(self, vals_list):
-# #         lines = super().create(vals_list)
-# #         # Auto-set stock interim account on vendor bill lines
-# #         for line in lines:
-# #             stock_account = line._get_stock_input_account()
-# #             if stock_account and line.account_id != stock_account:
-# #                 line.account_id = stock_account
-# #         lines.move_id._apply_warehouse_analytic_to_lines()
-# #         return lines
-# #
-# #     def write(self, vals):
-# #         result = super().write(vals)
-# #         if any(k in vals for k in ('account_id', 'product_id')):
-# #             self.move_id._apply_warehouse_analytic_to_lines()
-# #         return result
-# #
-# #     @api.onchange('product_id', 'account_id')
-# #     def _onchange_product_apply_warehouse_analytic(self):
-# #         if not self.move_id or self.move_id.move_type not in (
-# #             'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
-# #         ):
-# #             return
-# #         # Auto-set stock interim account when product is selected on vendor bill
-# #         stock_account = self._get_stock_input_account()
-# #         if stock_account and self.account_id != stock_account:
-# #             self.account_id = stock_account
-# #         # Apply warehouse analytic
-# #         wh = _get_user_warehouse(self.env.user)
-# #         if not wh or not wh.analytic_account_id:
-# #             return
-# #         key = str(wh.analytic_account_id.id)
-# #         existing = self.analytic_distribution or {}
-# #         if key not in existing:
-# #             new_dist = dict(existing)
-# #             new_dist[key] = 100.0
-# #             self.analytic_distribution = new_dist
-# # -*- coding: utf-8 -*-
-# # -*- coding: utf-8 -*-
-# # -*- coding: utf-8 -*-
-# import logging
-# from odoo import api, models
 #
-# _logger = logging.getLogger(__name__)
-#
-# _WAREHOUSE_FIELDS = ('property_warehouse_id', 'default_warehouse_id', 'warehouse_id')
-#
-#
-# def _get_user_warehouse(user):
-#     for fname in _WAREHOUSE_FIELDS:
-#         if fname in user._fields:
-#             return getattr(user, fname, False)
-#     return False
-#
-#
-# def _is_pos_move(move):
-#     """
-#     Return True if this move was generated by POS.
-#
-#     POS moves must be skipped in account_move.py — they are handled by
-#     pos_order.py using the POS config's warehouse (not the user's warehouse).
-#
-#     Detection strategies (any one is sufficient):
-#       A. Move name starts with POSS/ or POSJ/
-#       B. Move has pos_order_ids (invoice created from POS action_pos_order_invoice)
-#       C. Move's journal is used by any POS payment method
-#          (catches CRDCH/, CSCHL/, CSH2/ payment journal entries)
-#     """
-#     name = move.name or ''
-#
-#     # A. Name prefix
-#     if name.startswith(('POSS/', 'POSJ/')):
-#         return True
-#
-#     # B. Linked POS orders
-#     if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
-#         _logger.debug('Skipping POS invoice %s (has pos_order_ids)', name)
-#         return True
-#
-#     # C. Journal belongs to a POS payment method
-#     journal = move.journal_id
-#     if journal:
-#         pm_exists = move.env['pos.payment.method'].search([
-#             ('journal_id', '=', journal.id),
-#         ], limit=1)
-#         if pm_exists:
-#             return True
-#
-#     return False
-#
-#
-# class AccountMove(models.Model):
-#     _inherit = 'account.move'
-#
-#     def _get_warehouse_analytic_account(self):
-#         wh = _get_user_warehouse(self.env.user)
-#         if wh and wh.analytic_account_id:
-#             return wh.analytic_account_id
-#         return False
-#
-#     def _apply_warehouse_analytic_to_lines(self):
-#         """
-#         Stamp warehouse analytic (from logged-in user's default warehouse)
-#         on invoices and bills ONLY.
-#
-#         Skips all POS-generated moves — those are handled by pos_order.py
-#         using the correct POS config warehouse analytic.
-#         """
-#         analytic_account = self._get_warehouse_analytic_account()
-#         if not analytic_account:
-#             return
-#
-#         key = str(analytic_account.id)
-#
-#         for move in self:
-#             if move.move_type not in (
-#                 'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
-#             ):
-#                 continue
-#
-#             # ── CRITICAL: skip all POS-generated moves ──────────────────────
-#             if _is_pos_move(move):
-#                 _logger.debug(
-#                     'account_move: skipping POS move %s (journal=%s)',
-#                     move.name, move.journal_id.name,
-#                 )
-#                 continue
-#             # ────────────────────────────────────────────────────────────────
-#
-#             lines_to_tag = move.line_ids.filtered(
-#                 lambda l: l.account_id
-#                 and l.display_type not in ('line_section', 'line_note')
-#             )
-#
-#             for line in lines_to_tag:
-#                 existing = line.analytic_distribution or {}
-#                 if key not in existing:
-#                     new_dist = dict(existing)
-#                     new_dist[key] = 100.0
-#                     try:
-#                         line.sudo().with_context(
-#                             check_move_validity=False,
-#                             skip_account_move_synchronization=True,
-#                         ).analytic_distribution = new_dist
-#                         _logger.debug(
-#                             'Warehouse analytic %s → %s line %s (%s)',
-#                             analytic_account.name,
-#                             move.name or 'draft',
-#                             line.id,
-#                             line.account_id.code,
-#                         )
-#                     except Exception as e:
-#                         _logger.warning(
-#                             'Could not apply analytic to line %s on %s: %s',
-#                             line.id, move.name, e,
-#                         )
-#
-#     @api.model_create_multi
-#     def create(self, vals_list):
-#         moves = super().create(vals_list)
-#         moves._apply_warehouse_analytic_to_lines()
-#         return moves
-#
-#     def write(self, vals):
-#         result = super().write(vals)
-#         if any(k in vals for k in ('invoice_line_ids', 'line_ids', 'state', 'move_type')):
-#             self._apply_warehouse_analytic_to_lines()
-#         return result
-#
-#     def action_post(self):
-#         self._apply_warehouse_analytic_to_lines()
-#         result = super().action_post()
-#         # Second pass to catch receivable/payable lines finalized during posting
-#         self._apply_warehouse_analytic_to_lines()
-#         return result
-#
-#
-# class AccountMoveLine(models.Model):
-#     _inherit = 'account.move.line'
-#
-#     def _get_stock_input_account(self):
-#         if (
-#             self.move_id.move_type == 'in_invoice'
-#             and self.product_id
-#             and self.product_id.type == 'consu'
-#             and self.display_type == 'product'
-#             and self.product_id.categ_id.property_stock_account_input_categ_id
-#         ):
-#             return self.product_id.categ_id.property_stock_account_input_categ_id
-#         return False
-#
-#     @api.model_create_multi
-#     def create(self, vals_list):
-#         lines = super().create(vals_list)
-#         for line in lines:
-#             stock_account = line._get_stock_input_account()
-#             if stock_account and line.account_id != stock_account:
-#                 line.account_id = stock_account
-#         lines.move_id._apply_warehouse_analytic_to_lines()
-#         return lines
-#
-#     def write(self, vals):
-#         result = super().write(vals)
-#         if any(k in vals for k in ('account_id', 'product_id')):
-#             self.move_id._apply_warehouse_analytic_to_lines()
-#         return result
-#
-#     @api.onchange('product_id', 'account_id')
-#     def _onchange_product_apply_warehouse_analytic(self):
-#         if not self.move_id or self.move_id.move_type not in (
-#             'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
-#         ):
-#             return
-#         if _is_pos_move(self.move_id):
-#             return
-#         stock_account = self._get_stock_input_account()
-#         if stock_account and self.account_id != stock_account:
-#             self.account_id = stock_account
-#         wh = _get_user_warehouse(self.env.user)
-#         if not wh or not wh.analytic_account_id:
-#             return
-#         key = str(wh.analytic_account_id.id)
-#         existing = self.analytic_distribution or {}
-#         if key not in existing:
-#             new_dist = dict(existing)
-#             new_dist[key] = 100.0
-#             self.analytic_distribution = new_dist
-
-# -*- coding: utf-8 -*-
-# # -*- coding: utf-8 -*-
 # import logging
 # from odoo import api, models
 #
@@ -464,56 +17,48 @@
 # def _is_pos_move(move):
 #     """
 #     Return True ONLY if this move was genuinely generated by POS.
-#
-#     IMPORTANT: Do NOT check journal membership in pos.payment.method here.
-#     The Bank journal is often shared between regular payments and POS cash/bank
-#     payment methods. Checking journal alone causes false positives that block
-#     legitimate payment entries from being tagged.
-#
-#     Safe detection strategies only:
-#       A. Move name starts with POSS/ or POSJ/  (POS session closing entries)
-#       B. Move has pos_order_ids               (invoice created via POS)
-#       C. Payment has a pos_session_id link    (checked in caller for account.payment)
+#     Does NOT check journal membership (Bank journal is shared with POS).
 #     """
 #     name = move.name or ''
-#
-#     # A. POS session/journal entry name prefix
 #     if name.startswith(('POSS/', 'POSJ/')):
-#         _logger.info('WHA_INFO _is_pos_move: %s → True (name prefix)', name)
 #         return True
-#
-#     # B. Linked POS orders (invoice created via action_pos_order_invoice)
 #     if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
-#         _logger.info('WHA_INFO _is_pos_move: %s → True (has pos_order_ids)', name)
 #         return True
-#
-#     # NOTE: We intentionally do NOT check pos.payment.method journal membership
-#     # here because Bank/Cash journals are commonly shared between POS and
-#     # regular payments. That check caused false positives blocking PBNK entries.
-#
 #     return False
 #
 #
 # def _is_pos_payment(payment):
-#     """
-#     Return True if this account.payment was created by a POS session.
-#     Checks the payment record itself, not just its journal.
-#     """
-#     # POS payments are linked to a pos.session via pos_session_id
+#     """Return True if this account.payment was created by a POS session."""
 #     if hasattr(payment, 'pos_session_id') and payment.pos_session_id:
-#         _logger.info(
-#             'WHA_INFO _is_pos_payment: payment %s → True (pos_session_id=%s)',
-#             payment.id, payment.pos_session_id.id,
-#         )
 #         return True
-#     # Also check move name prefix as fallback
 #     move = payment.move_id
 #     if move and (move.name or '').startswith(('POSS/', 'POSJ/')):
 #         return True
 #     return False
 #
 #
+# def _is_pos_statement_line(st_line):
+#     """
+#     Return True if this bank statement line was generated by POS.
+#     POS statement lines have a pos_session_id or a POS-prefixed move name.
+#     Plain BNK1/ lines from bank import/manual entry return False.
+#     """
+#     if getattr(st_line, 'pos_session_id', False):
+#         return True
+#     move = st_line.move_id
+#     if move:
+#         name = move.name or ''
+#         if name.startswith(('POSS/', 'POSJ/', 'CRDCH/', 'CSCHL/', 'CSH2/', 'CSH/')):
+#             return True
+#     return False
+#
+#
 # def _apply_analytic_to_move_lines(move, analytic_account, label=''):
+#     """
+#     Stamp analytic_distribution on all account lines of a move.
+#     Uses sudo() + context flags to bypass posted-move restrictions.
+#     Skips lines that already carry this analytic.
+#     """
 #     if not move or not analytic_account:
 #         return
 #     key = str(analytic_account.id)
@@ -522,8 +67,8 @@
 #         and l.display_type not in ('line_section', 'line_note')
 #     )
 #     _logger.info(
-#         'WHA_INFO _apply_analytic_to_move_lines: label=%s move=%s state=%s lines=%s analytic=%s',
-#         label, move.name, move.state, len(lines_to_tag), analytic_account.name,
+#         'WHA_INFO _apply_analytic: label=%s move=%s lines=%s analytic=%s',
+#         label, move.name, len(lines_to_tag), analytic_account.name,
 #     )
 #     for line in lines_to_tag:
 #         existing = line.analytic_distribution or {}
@@ -536,7 +81,7 @@
 #                     skip_account_move_synchronization=True,
 #                 ).analytic_distribution = new_dist
 #                 _logger.info(
-#                     'WHA_INFO   ✓ applied analytic %s → line %s account=%s',
+#                     'WHA_INFO   ✓ %s → line %s account=%s',
 #                     analytic_account.name, line.id, line.account_id.code,
 #                 )
 #             except Exception as e:
@@ -546,7 +91,7 @@
 #                 )
 #         else:
 #             _logger.info(
-#                 'WHA_INFO   line %s account=%s already has analytic — skipped',
+#                 'WHA_INFO   line %s account=%s already tagged — skipped',
 #                 line.id, line.account_id.code,
 #             )
 #
@@ -561,10 +106,10 @@
 #         return False
 #
 #     def _apply_warehouse_analytic_to_lines(self):
+#         """Stamp warehouse analytic on invoices/bills only."""
 #         analytic_account = self._get_warehouse_analytic_account()
 #         if not analytic_account:
 #             return
-#
 #         for move in self:
 #             if move.move_type not in (
 #                 'in_invoice', 'in_refund', 'out_invoice', 'out_refund'
@@ -649,6 +194,11 @@
 #     _inherit = 'account.payment'
 #
 #     def action_post(self):
+#         """
+#         After posting, stamp warehouse analytic on the payment journal
+#         entry (PBNK1/). The BNK1/ bank statement move is handled separately
+#         in AccountBankStatementLine.create() below.
+#         """
 #         _logger.info(
 #             'WHA_INFO AccountPayment.action_post: CALLED payments=%s user=%s',
 #             self.ids, self.env.user.login,
@@ -658,7 +208,7 @@
 #         wh = _get_user_warehouse(self.env.user)
 #         if not wh or not wh.analytic_account_id:
 #             _logger.info(
-#                 'WHA_INFO AccountPayment.action_post: NO warehouse/analytic for user=%s — aborting',
+#                 'WHA_INFO AccountPayment.action_post: NO warehouse/analytic for user=%s',
 #                 self.env.user.login,
 #             )
 #             return result
@@ -666,19 +216,6 @@
 #         analytic_account = wh.analytic_account_id
 #
 #         for payment in self:
-#             move = payment.move_id
-#             _logger.info(
-#                 'WHA_INFO AccountPayment.action_post: payment=%s move=%s move_type=%s state=%s',
-#                 payment.id,
-#                 move.name if move else False,
-#                 move.move_type if move else False,
-#                 move.state if move else False,
-#             )
-#             if not move:
-#                 continue
-#
-#             # Use payment-level POS check (not journal-based) to avoid
-#             # false positives when Bank journal is shared with POS
 #             if _is_pos_payment(payment):
 #                 _logger.info(
 #                     'WHA_INFO AccountPayment.action_post: payment %s is POS — skipping',
@@ -686,15 +223,77 @@
 #                 )
 #                 continue
 #
-#             _apply_analytic_to_move_lines(
-#                 move, analytic_account,
-#                 label='payment_%s' % move.name,
-#             )
+#             move = payment.move_id
+#             if move:
+#                 _logger.info(
+#                     'WHA_INFO AccountPayment.action_post: payment=%s move=%s',
+#                     payment.id, move.name,
+#                 )
+#                 _apply_analytic_to_move_lines(
+#                     move, analytic_account,
+#                     label='payment_%s' % move.name,
+#                 )
 #
 #         return result
+#
+#
+# class AccountBankStatementLine(models.Model):
+#     _inherit = 'account.bank.statement.line'
+#
+#     @api.model_create_multi
+#     def create(self, vals_list):
+#         """
+#         Stamp the user's warehouse analytic on the BNK1/ move at creation time.
+#
+#         When a bank statement line is created (manually or via bank import),
+#         Odoo immediately creates its journal entry (BNK1/). We stamp the
+#         analytic here so that BOTH lines (101401 Bank + 101403 Outstanding
+#         Receipts) get the correct analytic — regardless of whether/when it
+#         is later reconciled against a payment.
+#
+#         POS-generated statement lines are skipped — they are handled by
+#         bank_reconcile.py which uses POS session/journal name matching.
+#         """
+#         st_lines = super().create(vals_list)
+#
+#         wh = _get_user_warehouse(self.env.user)
+#         if not wh or not wh.analytic_account_id:
+#             _logger.info(
+#                 'WHA_INFO AccountBankStatementLine.create: user=%s has no warehouse/analytic',
+#                 self.env.user.login,
+#             )
+#             return st_lines
+#
+#         analytic_account = wh.analytic_account_id
+#
+#         for st_line in st_lines:
+#             # Skip POS-generated lines — bank_reconcile.py handles those
+#             if _is_pos_statement_line(st_line):
+#                 _logger.info(
+#                     'WHA_INFO AccountBankStatementLine.create: POS line %s — skipping',
+#                     st_line.id,
+#                 )
+#                 continue
+#
+#             move = st_line.move_id
+#             if not move:
+#                 continue
+#
+#             _logger.info(
+#                 'WHA_INFO AccountBankStatementLine.create: stamping move=%s analytic=%s',
+#                 move.name, analytic_account.name,
+#             )
+#             _apply_analytic_to_move_lines(
+#                 move, analytic_account,
+#                 label='bnk_create_%s' % (move.name or st_line.id),
+#             )
+#
+#         return st_lines
 
 # -*- coding: utf-8 -*-
+import json
 import logging
+
 from odoo import api, models
 
 _logger = logging.getLogger(__name__)
@@ -761,8 +360,8 @@ def _apply_analytic_to_move_lines(move, analytic_account, label=''):
         lambda l: l.account_id
         and l.display_type not in ('line_section', 'line_note')
     )
-    _logger.info(
-        'WHA_INFO _apply_analytic: label=%s move=%s lines=%s analytic=%s',
+    _logger.debug(
+        'WHA _apply_analytic: label=%s move=%s lines=%s analytic=%s',
         label, move.name, len(lines_to_tag), analytic_account.name,
     )
     for line in lines_to_tag:
@@ -775,20 +374,11 @@ def _apply_analytic_to_move_lines(move, analytic_account, label=''):
                     check_move_validity=False,
                     skip_account_move_synchronization=True,
                 ).analytic_distribution = new_dist
-                _logger.info(
-                    'WHA_INFO   ✓ %s → line %s account=%s',
-                    analytic_account.name, line.id, line.account_id.code,
-                )
             except Exception as e:
-                _logger.info(
-                    'WHA_INFO   ✗ FAILED line %s account=%s error=%s',
+                _logger.warning(
+                    'WHA FAILED to tag line %s account=%s: %s',
                     line.id, line.account_id.code, e,
                 )
-        else:
-            _logger.info(
-                'WHA_INFO   line %s account=%s already tagged — skipped',
-                line.id, line.account_id.code,
-            )
 
 
 class AccountMove(models.Model):
@@ -836,6 +426,58 @@ class AccountMove(models.Model):
 class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
 
+    # ------------------------------------------------------------------
+    # NEW: copy the branch analytic to lines created later on the same
+    # Bank/Cash entry (e.g. Creditors / Debtors / Expense line that Odoo
+    # creates when a statement line is reconciled and the suspense line
+    # is replaced).
+    # ------------------------------------------------------------------
+    @api.model
+    def _wha_fill_from_siblings(self, vals_list):
+        """
+        If a Bank/Cash journal entry already carries exactly ONE analytic
+        distribution (e.g. Head Office on the bank line), put the same
+        distribution on newly created non-liquidity lines of that entry.
+
+        - Does nothing when the entry has 0 or 2+ different distributions.
+        - Skips 'asset_cash' accounts (Bank, Cash, Card/UPI clearing):
+          those need a separate business rule (branch-wise settlement).
+        - Sets the value in vals BEFORE create -> no extra write, no bloat.
+        """
+        move_ids = {
+            v['move_id'] for v in vals_list
+            if v.get('move_id') and not v.get('analytic_distribution')
+        }
+        if not move_ids:
+            return
+
+        dist_by_move = {}
+        for move in self.env['account.move'].browse(list(move_ids)):
+            if move.journal_id.type not in ('bank', 'cash'):
+                continue
+            dists = {
+                json.dumps(l.analytic_distribution, sort_keys=True): l.analytic_distribution
+                for l in move.line_ids if l.analytic_distribution
+            }
+            if len(dists) == 1:
+                dist_by_move[move.id] = next(iter(dists.values()))
+        if not dist_by_move:
+            return
+
+        account_ids = {v['account_id'] for v in vals_list if v.get('account_id')}
+        types = {
+            a.id: a.account_type
+            for a in self.env['account.account'].browse(list(account_ids))
+        }
+
+        for vals in vals_list:
+            dist = dist_by_move.get(vals.get('move_id'))
+            if (dist
+                    and not vals.get('analytic_distribution')
+                    and vals.get('display_type') not in ('line_section', 'line_note')
+                    and types.get(vals.get('account_id')) != 'asset_cash'):
+                vals['analytic_distribution'] = dict(dist)
+
     def _get_stock_input_account(self):
         if (
             self.move_id.move_type == 'in_invoice'
@@ -849,6 +491,7 @@ class AccountMoveLine(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        self._wha_fill_from_siblings(vals_list)
         lines = super().create(vals_list)
         for line in lines:
             stock_account = line._get_stock_input_account()
@@ -894,36 +537,19 @@ class AccountPayment(models.Model):
         entry (PBNK1/). The BNK1/ bank statement move is handled separately
         in AccountBankStatementLine.create() below.
         """
-        _logger.info(
-            'WHA_INFO AccountPayment.action_post: CALLED payments=%s user=%s',
-            self.ids, self.env.user.login,
-        )
         result = super().action_post()
 
         wh = _get_user_warehouse(self.env.user)
         if not wh or not wh.analytic_account_id:
-            _logger.info(
-                'WHA_INFO AccountPayment.action_post: NO warehouse/analytic for user=%s',
-                self.env.user.login,
-            )
             return result
 
         analytic_account = wh.analytic_account_id
 
         for payment in self:
             if _is_pos_payment(payment):
-                _logger.info(
-                    'WHA_INFO AccountPayment.action_post: payment %s is POS — skipping',
-                    payment.id,
-                )
                 continue
-
             move = payment.move_id
             if move:
-                _logger.info(
-                    'WHA_INFO AccountPayment.action_post: payment=%s move=%s',
-                    payment.id, move.name,
-                )
                 _apply_analytic_to_move_lines(
                     move, analytic_account,
                     label='payment_%s' % move.name,
@@ -940,44 +566,25 @@ class AccountBankStatementLine(models.Model):
         """
         Stamp the user's warehouse analytic on the BNK1/ move at creation time.
 
-        When a bank statement line is created (manually or via bank import),
-        Odoo immediately creates its journal entry (BNK1/). We stamp the
-        analytic here so that BOTH lines (101401 Bank + 101403 Outstanding
-        Receipts) get the correct analytic — regardless of whether/when it
-        is later reconciled against a payment.
-
-        POS-generated statement lines are skipped — they are handled by
+        POS-generated statement lines are skipped - they are handled by
         bank_reconcile.py which uses POS session/journal name matching.
+        Lines created later during reconciliation are covered by
+        AccountMoveLine._wha_fill_from_siblings().
         """
         st_lines = super().create(vals_list)
 
         wh = _get_user_warehouse(self.env.user)
         if not wh or not wh.analytic_account_id:
-            _logger.info(
-                'WHA_INFO AccountBankStatementLine.create: user=%s has no warehouse/analytic',
-                self.env.user.login,
-            )
             return st_lines
 
         analytic_account = wh.analytic_account_id
 
         for st_line in st_lines:
-            # Skip POS-generated lines — bank_reconcile.py handles those
             if _is_pos_statement_line(st_line):
-                _logger.info(
-                    'WHA_INFO AccountBankStatementLine.create: POS line %s — skipping',
-                    st_line.id,
-                )
                 continue
-
             move = st_line.move_id
             if not move:
                 continue
-
-            _logger.info(
-                'WHA_INFO AccountBankStatementLine.create: stamping move=%s analytic=%s',
-                move.name, analytic_account.name,
-            )
             _apply_analytic_to_move_lines(
                 move, analytic_account,
                 label='bnk_create_%s' % (move.name or st_line.id),
