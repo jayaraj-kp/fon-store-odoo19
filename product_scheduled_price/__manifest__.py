@@ -1,6 +1,6 @@
 {
     'name': 'Product Scheduled Price',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'summary': 'Temporary product price between two dates for Sales and POS, without changing the Sales Price field',
     'category': 'Sales',
     'depends': ['product', 'sale', 'point_of_sale'],
