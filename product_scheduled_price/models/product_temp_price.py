@@ -1,7 +1,3 @@
-from datetime import datetime, time
-
-import pytz
-
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -14,8 +10,9 @@ class ProductTempPrice(models.Model):
     product_tmpl_id = fields.Many2one(
         'product.template', string='Product', required=True, ondelete='cascade', index=True)
     price = fields.Float(string='Scheduled Price', required=True, digits='Product Price')
-    date_start = fields.Date(string='Start Date', required=True, default=fields.Date.context_today)
-    date_end = fields.Date(string='End Date', required=True)
+    # Datetime fields: shown in the user's timezone, stored in UTC by Odoo
+    date_start = fields.Datetime(string='Start', required=True, default=fields.Datetime.now)
+    date_end = fields.Datetime(string='End', required=True)
     pricelist_ids = fields.Many2many(
         'product.pricelist', string='Pricelists',
         help="The scheduled price is applied on these pricelists. "
@@ -28,8 +25,8 @@ class ProductTempPrice(models.Model):
     @api.constrains('date_start', 'date_end')
     def _check_dates(self):
         for rec in self:
-            if rec.date_end < rec.date_start:
-                raise ValidationError(self.env._("End date cannot be before start date."))
+            if rec.date_end <= rec.date_start:
+                raise ValidationError(self.env._("End must be after Start."))
 
     @api.constrains('pricelist_ids')
     def _check_pricelists(self):
@@ -40,13 +37,6 @@ class ProductTempPrice(models.Model):
     # ------------------------------------------------------------------
     # Sync with native pricelist rules (used by both Sales and POS)
     # ------------------------------------------------------------------
-    def _to_utc(self, day, end_of_day=False):
-        """Convert a date to a naive UTC datetime using the user's timezone."""
-        tz = pytz.timezone(self.env.user.tz or 'UTC')
-        t = time(23, 59, 59) if end_of_day else time(0, 0, 0)
-        local = tz.localize(datetime.combine(day, t))
-        return local.astimezone(pytz.utc).replace(tzinfo=None)
-
     def _sync_items(self):
         Item = self.env['product.pricelist.item'].sudo()
         for rec in self:
@@ -56,7 +46,7 @@ class ProductTempPrice(models.Model):
                 price = rec.price
                 if pricelist.currency_id and pricelist.currency_id != company.currency_id:
                     price = company.currency_id._convert(
-                        price, pricelist.currency_id, company, rec.date_start)
+                        price, pricelist.currency_id, company, rec.date_start.date())
                 Item.create({
                     'pricelist_id': pricelist.id,
                     'applied_on': '1_product',
@@ -64,8 +54,8 @@ class ProductTempPrice(models.Model):
                     'compute_price': 'fixed',
                     'fixed_price': price,
                     'min_quantity': 0,
-                    'date_start': rec._to_utc(rec.date_start),
-                    'date_end': rec._to_utc(rec.date_end, end_of_day=True),
+                    'date_start': rec.date_start,
+                    'date_end': rec.date_end,
                     'temp_price_id': rec.id,
                 })
 
