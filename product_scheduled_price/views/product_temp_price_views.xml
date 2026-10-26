@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Editable list: pick product, price, dates, pricelists -->
+    <record id="product_temp_price_view_list" model="ir.ui.view">
+        <field name="name">product.temp.price.list</field>
+        <field name="model">product.temp.price</field>
+        <field name="arch" type="xml">
+            <list string="Scheduled Prices" editable="bottom">
+                <field name="product_tmpl_id" options="{'no_create': True, 'no_open': True}"/>
+                <field name="price"/>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="pricelist_ids" widget="many2many_tags" required="1"
+                       options="{'no_create': True}"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form (opens if you use the full form instead of inline edit) -->
+    <record id="product_temp_price_view_form" model="ir.ui.view">
+        <field name="name">product.temp.price.form</field>
+        <field name="model">product.temp.price</field>
+        <field name="arch" type="xml">
+            <form string="Scheduled Price">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="product_tmpl_id" options="{'no_create': True}"/>
+                            <field name="price"/>
+                            <field name="pricelist_ids" widget="many2many_tags"
+                                   required="1" options="{'no_create': True}"/>
+                        </group>
+                        <group>
+                            <field name="date_start"/>
+                            <field name="date_end"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search -->
+    <record id="product_temp_price_view_search" model="ir.ui.view">
+        <field name="name">product.temp.price.search</field>
+        <field name="model">product.temp.price</field>
+        <field name="arch" type="xml">
+            <search string="Scheduled Prices">
+                <field name="product_tmpl_id"/>
+                <field name="pricelist_ids"/>
+                <group string="Group By">
+                    <filter name="group_product" string="Product"
+                            context="{'group_by': 'product_tmpl_id'}"/>
+                    <filter name="group_pricelist" string="Pricelist"
+                            context="{'group_by': 'pricelist_ids'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_product_temp_price" model="ir.actions.act_window">
+        <field name="name">Scheduled Prices</field>
+        <field name="res_model">product.temp.price</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="product_temp_price_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add your first scheduled price
+            </p>
+            <p>
+                Select a product, the temporary price, the start/end date and time,
+                and the pricelists it applies to.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu: Inventory > Products > Scheduled Prices -->
+    <menuitem id="menu_product_temp_price"
+              name="Scheduled Prices"
+              parent="stock.menu_stock_inventory_control"
+              action="action_product_temp_price"
+              sequence="30"/>
+
+</odoo>

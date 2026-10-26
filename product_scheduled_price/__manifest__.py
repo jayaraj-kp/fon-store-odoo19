@@ -1,12 +1,13 @@
 {
     'name': 'Product Scheduled Price',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'summary': 'Temporary product price between two dates for Sales and POS, without changing the Sales Price field',
     'category': 'Sales',
-    'depends': ['product', 'sale', 'point_of_sale'],
+    'depends': ['product', 'sale', 'stock', 'point_of_sale'],
     'data': [
         'security/ir.model.access.csv',
         'views/product_template_views.xml',
+        'views/product_temp_price_views.xml',
     ],
     'assets': {
         'point_of_sale._assets_pos': [
