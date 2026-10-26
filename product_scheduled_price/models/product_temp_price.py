@@ -71,3 +71,12 @@ class ProductTempPrice(models.Model):
                 'product_tmpl_id', 'company_id'} & set(vals):
             self._sync_items()
         return res
+
+    @api.model
+    def _cron_remove_expired_items(self):
+        """End time കഴിഞ്ഞ generated pricelist rules delete ചെയ്യുന്നു."""
+        expired = self.env['product.pricelist.item'].sudo().search([
+            ('temp_price_id', '!=', False),
+            ('date_end', '<', fields.Datetime.now()),
+        ])
+        expired.unlink()

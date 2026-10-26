@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ir_cron_remove_expired_scheduled_price" model="ir.cron">
+        <field name="name">Remove expired scheduled price rules</field>
+        <field name="model_id" ref="model_product_temp_price"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_remove_expired_items()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
