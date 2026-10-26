@@ -51,12 +51,8 @@
             <search string="Scheduled Prices">
                 <field name="product_tmpl_id"/>
                 <field name="pricelist_ids"/>
-                <group string="Group By">
-                    <filter name="group_product" string="Product"
-                            context="{'group_by': 'product_tmpl_id'}"/>
-                    <filter name="group_pricelist" string="Pricelist"
-                            context="{'group_by': 'pricelist_ids'}"/>
-                </group>
+                <filter name="group_product" string="Product"
+                        context="{'group_by': 'product_tmpl_id'}"/>
             </search>
         </field>
     </record>
