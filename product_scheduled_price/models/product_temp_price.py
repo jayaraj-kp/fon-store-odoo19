@@ -1,3 +1,5 @@
+import pytz
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -7,12 +9,37 @@ class ProductTempPrice(models.Model):
     _description = 'Product Scheduled Price'
     _order = 'date_start desc, id desc'
 
+    # ------------------------------------------------------------------
+    # Default times (6:00 AM start, 11:30 PM end, in the user's timezone)
+    # ------------------------------------------------------------------
+    @api.model
+    def _default_local_datetime(self, hour, minute):
+        """Today at hour:minute in the user's timezone, returned as naive UTC."""
+        tz_name = self.env.context.get('tz') or self.env.user.tz or 'UTC'
+        try:
+            tz = pytz.timezone(tz_name)
+        except pytz.UnknownTimeZoneError:
+            tz = pytz.utc
+        now_local = pytz.utc.localize(fields.Datetime.now()).astimezone(tz)
+        local = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        return local.astimezone(pytz.utc).replace(tzinfo=None)
+
+    @api.model
+    def _default_date_start(self):
+        return self._default_local_datetime(6, 0)
+
+    @api.model
+    def _default_date_end(self):
+        return self._default_local_datetime(23, 30)
+
     product_tmpl_id = fields.Many2one(
         'product.template', string='Product', required=True, ondelete='cascade', index=True)
     price = fields.Float(string='Scheduled Price', required=True, digits='Product Price')
     # Datetime fields: shown in the user's timezone, stored in UTC by Odoo
-    date_start = fields.Datetime(string='Start', required=True, default=fields.Datetime.now)
-    date_end = fields.Datetime(string='End', required=True)
+    date_start = fields.Datetime(
+        string='Start', required=True, default=lambda self: self._default_date_start())
+    date_end = fields.Datetime(
+        string='End', required=True, default=lambda self: self._default_date_end())
     pricelist_ids = fields.Many2many(
         'product.pricelist', string='Pricelists',
         help="The scheduled price is applied on these pricelists. "
