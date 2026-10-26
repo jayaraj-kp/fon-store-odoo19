@@ -12,6 +12,7 @@
                             <field name="price"/>
                             <field name="date_start"/>
                             <field name="date_end"/>
+                            <field name="pricelist_ids" widget="many2many_tags" required="1"/>
                             <field name="company_id" column_invisible="True"/>
                         </list>
                     </field>
