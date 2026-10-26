@@ -38,16 +38,23 @@ class ProductTempPrice(models.Model):
     # Sync with native pricelist rules (used by both Sales and POS)
     # ------------------------------------------------------------------
     def _sync_items(self):
+        """Create/update one pricelist rule per selected pricelist.
+
+        Existing rules are updated in place (never deleted), so the POS,
+        which caches rules locally, always receives the change.
+        """
         Item = self.env['product.pricelist.item'].sudo()
         for rec in self:
-            rec.item_ids.sudo().unlink()
             company = rec.company_id or self.env.company
+            existing = {
+                item.pricelist_id.id: item for item in rec.item_ids.sudo()
+            }
             for pricelist in rec.pricelist_ids:
                 price = rec.price
                 if pricelist.currency_id and pricelist.currency_id != company.currency_id:
                     price = company.currency_id._convert(
                         price, pricelist.currency_id, company, rec.date_start.date())
-                Item.create({
+                vals = {
                     'pricelist_id': pricelist.id,
                     'applied_on': '1_product',
                     'product_tmpl_id': rec.product_tmpl_id.id,
@@ -57,7 +64,20 @@ class ProductTempPrice(models.Model):
                     'date_start': rec.date_start,
                     'date_end': rec.date_end,
                     'temp_price_id': rec.id,
-                })
+                }
+                item = existing.pop(pricelist.id, None)
+                if item:
+                    item.write(vals)
+                else:
+                    Item.create(vals)
+            # pricelists that were removed from the row: expire, do not delete
+            for item in existing.values():
+                item._expire_scheduled()
+
+    def unlink(self):
+        # expire the generated rules instead of deleting them
+        self.item_ids.sudo()._expire_scheduled()
+        return super().unlink()
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -71,12 +91,3 @@ class ProductTempPrice(models.Model):
                 'product_tmpl_id', 'company_id'} & set(vals):
             self._sync_items()
         return res
-
-    @api.model
-    def _cron_remove_expired_items(self):
-        """End time കഴിഞ്ഞ generated pricelist rules delete ചെയ്യുന്നു."""
-        expired = self.env['product.pricelist.item'].sudo().search([
-            ('temp_price_id', '!=', False),
-            ('date_end', '<', fields.Datetime.now()),
-        ])
-        expired.unlink()
