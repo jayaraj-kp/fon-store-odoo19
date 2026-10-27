@@ -17,9 +17,9 @@ const { DateTime } = luxon;
  *    Only lines whose product has a pricelist rule are touched; manually
  *    edited prices and paid orders are left alone.
  *
- * 3) NEW: the POS loads pricelist rules only once when it opens. Rules that are
+ * 3) The POS loads pricelist rules only once when it opens. Rules that are
  *    created or changed afterwards (new scheduled price, changed start/end)
- *    are now fetched from the server every minute, when an order is selected
+ *    are fetched from the server every minute, when an order is selected
  *    and before payment, and merged into the POS local data.
  */
 
@@ -41,7 +41,6 @@ const RULE_FIELDS = [
     "min_quantity",
     "date_start",
     "date_end",
-    "write_date",
 ];
 const RULE_MANY2ONE = [
     "pricelist_id",
@@ -154,31 +153,29 @@ patch(PosStore.prototype, {
                 return;
             }
             const knownPricelists = new Set(this.models["product.pricelist"].map((p) => p.id));
-            const data = [];
-            for (const row of rows) {
-                const rule = { ...row };
-                for (const name of RULE_MANY2ONE) {
-                    if (Array.isArray(rule[name])) {
-                        rule[name] = rule[name][0];
-                    }
+            const valid = rows.filter((row) => {
+                const pricelistId = Array.isArray(row.pricelist_id)
+                    ? row.pricelist_id[0]
+                    : row.pricelist_id;
+                const tmplId = Array.isArray(row.product_tmpl_id)
+                    ? row.product_tmpl_id[0]
+                    : row.product_tmpl_id;
+                if (!knownPricelists.has(pricelistId)) {
+                    return false;
                 }
-                delete rule.write_date;
-                if (!knownPricelists.has(rule.pricelist_id)) {
-                    continue;
+                if (tmplId && !this.models["product.template"].get(tmplId)) {
+                    return false;
                 }
-                if (
-                    rule.product_tmpl_id &&
-                    !this.models["product.template"].get(rule.product_tmpl_id)
-                ) {
-                    continue;
-                }
-                data.push(rule);
+                return true;
+            });
+            if (!valid.length) {
+                return;
             }
-            if (data.length) {
-                this.models.loadData({ "product.pricelist.item": data });
+            const loaded = await this._loadScheduledRules(valid);
+            if (loaded) {
                 console.info(
                     "[product_scheduled_price] synced pricelist rules:",
-                    data.map((r) => r.id)
+                    valid.map((r) => r.id)
                 );
             }
         } catch (error) {
@@ -186,6 +183,52 @@ patch(PosStore.prototype, {
         } finally {
             this._scheduledSyncBusy = false;
         }
+    },
+
+    /**
+     * Merge rule rows into the POS local models. Tries the POS data service
+     * first (stable API), then the model loaders that exist in some builds.
+     */
+    async _loadScheduledRules(rows) {
+        const ids = rows.map((r) => r.id);
+        // 1) POS data service: reads from server and merges into the models
+        if (this.data && typeof this.data.read === "function") {
+            try {
+                await this.data.read("product.pricelist.item", ids);
+                return true;
+            } catch (error) {
+                console.warn("[product_scheduled_price] data.read failed", error);
+            }
+        }
+        // 2) fallback: push the rows we already fetched into the models
+        const data = rows.map((row) => {
+            const rule = { ...row };
+            for (const name of RULE_MANY2ONE) {
+                if (Array.isArray(rule[name])) {
+                    rule[name] = rule[name][0];
+                }
+            }
+            return rule;
+        });
+        const targets = [this.models, this.data && this.data.models];
+        for (const target of targets) {
+            if (!target) {
+                continue;
+            }
+            for (const fn of ["connectNewData", "loadConnectedData", "loadData"]) {
+                if (typeof target[fn] === "function") {
+                    target[fn]({ "product.pricelist.item": data });
+                    return true;
+                }
+            }
+        }
+        console.warn(
+            "[product_scheduled_price] no loader found. models:",
+            Object.keys(this.models || {}).filter((k) => typeof this.models[k] === "function"),
+            "data:",
+            Object.keys(this.data || {}).filter((k) => typeof this.data[k] === "function")
+        );
+        return false;
     },
 
     refreshScheduledPrices(order = null) {
@@ -217,7 +260,6 @@ patch(PosStore.prototype, {
         }
     },
 });
-
 ///** @odoo-module */
 //import { PosStore } from "@point_of_sale/app/services/pos_store";
 //import { patch } from "@web/core/utils/patch";
