@@ -4,9 +4,9 @@
     <!-- Menu parent: Accounting > Reporting -->
     <menuitem
         id="menu_enterprise_reports"
-        name="Enterprise Reports"
+        name="Ledger Reports"
         parent="account.menu_finance_reports"
-        sequence="10"
+        sequence="4"
     />
 
     <!-- Client action for General Ledger -->
@@ -28,20 +28,20 @@
     <!-- Menu entry for General Ledger -->
     <menuitem
         id="menu_general_ledger_enterprise"
-        name="General Ledger (Interactive)"
+        name="General Ledger"
         parent="menu_enterprise_reports"
         action="action_general_ledger_enterprise"
-        sequence="5"
+        sequence="1"
         groups="account.group_account_user"
     />
 
     <!-- Menu entry for Trial Balance -->
     <menuitem
         id="menu_trial_balance_enterprise"
-        name="Trial Balance (Interactive)"
+        name="Trial Balance"
         parent="menu_enterprise_reports"
         action="action_trial_balance_enterprise"
-        sequence="6"
+        sequence="2"
         groups="account.group_account_user"
     />
 </odoo>

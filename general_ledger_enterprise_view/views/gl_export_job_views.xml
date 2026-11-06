@@ -64,6 +64,6 @@
               name="Export Files"
               parent="menu_enterprise_reports"
               action="action_gl_export_job"
-              sequence="20"
+              sequence="3"
               groups="account.group_account_user"/>
 </odoo>

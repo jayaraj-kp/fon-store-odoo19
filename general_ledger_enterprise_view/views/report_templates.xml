@@ -120,7 +120,8 @@
                     </t>
                 </div>
 
-                <!-- Column Headers & Move Lines Table (Grouped by Account) -->
+                <!-- DETAIL (unfold all): Column Headers & Move Lines Table -->
+                <t t-if="not summary_only">
                 <table style="width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed;">
                     <thead>
                         <tr style="border-bottom: 2px solid #000; font-weight: bold;">
@@ -144,6 +145,23 @@
                             <t t-set="grand_debit" t-value="grand_debit + acc_debit"/>
                             <t t-set="grand_credit" t-value="grand_credit + acc_credit"/>
 
+                            <!-- Not unfolded: single summary row (code, name, debit, credit, balance) -->
+                            <t t-if="acc.get('summary_row')">
+                                <tr style="border-bottom: 1px solid #e9ecef; font-size: 12px;">
+                                    <td style="text-align: left; padding: 6px 4px;"><t t-out="acc.get('code', '')"/></td>
+                                    <td colspan="2" style="text-align: left; padding: 6px 4px; word-break: break-word;"><t t-out="acc.get('name', '')"/></td>
+                                    <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(acc_debit or 0.0, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                    </td>
+                                    <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(acc_credit or 0.0, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                    </td>
+                                    <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                        <t t-esc="'{0:,.{1}f}'.format(acc_balance or 0.0, company_currency.decimal_places).replace('\u2212','-')"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                    </td>
+                                </tr>
+                            </t>
+                            <t t-else="">
                             <!-- Account Header Row -->
                             <tr style="font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
                                 <td style="width: 12%; text-align: left; padding: 8px 4px 4px 4px; font-size: 12px;">
@@ -212,6 +230,7 @@
                             </tr>
                             <!-- Blank spacing row between accounts -->
                             <tr style="height: 6px;"><td colspan="6"/></tr>
+                            </t>
                         </t>
                     </tbody>
                     <tfoot>
@@ -229,6 +248,65 @@
                         </tr>
                     </tfoot>
                 </table>
+                </t>
+
+                <!-- SUMMARY (no unfold): one row per account -->
+                <t t-if="summary_only">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #000; font-weight: bold;">
+                            <th style="width: 12%; text-align: left; padding: 5px 4px; font-size: 12px;">Code</th>
+                            <th style="width: 34%; text-align: left; padding: 5px 4px; font-size: 12px;">Account</th>
+                            <th style="width: 14%; text-align: right; padding: 5px 4px; font-size: 12px;">Initial Balance</th>
+                            <th style="width: 14%; text-align: right; padding: 5px 4px; font-size: 12px;">Debit</th>
+                            <th style="width: 13%; text-align: right; padding: 5px 4px; font-size: 12px;">Credit</th>
+                            <th style="width: 13%; text-align: right; padding: 5px 4px; font-size: 12px;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-set="s_debit" t-value="0.0"/>
+                        <t t-set="s_credit" t-value="0.0"/>
+                        <t t-foreach="accounts" t-as="acc">
+                            <t t-set="a_debit" t-value="acc.get('fin_bal', {}).get('debit', 0.0)"/>
+                            <t t-set="a_credit" t-value="acc.get('fin_bal', {}).get('credit', 0.0)"/>
+                            <t t-set="a_init" t-value="acc.get('gl_init_balance', acc.get('init_bal', {}).get('balance', 0.0))"/>
+                            <t t-set="a_bal" t-value="acc.get('gl_ending_balance', acc.get('fin_bal', {}).get('ending_balance', acc.get('fin_bal', {}).get('balance', 0.0)))"/>
+                            <t t-set="s_debit" t-value="s_debit + a_debit"/>
+                            <t t-set="s_credit" t-value="s_credit + a_credit"/>
+                            <tr style="border-bottom: 1px solid #e9ecef; font-size: 12px;">
+                                <td style="text-align: left; padding: 6px 4px; font-weight: bold;"><t t-out="acc.get('code', '')"/></td>
+                                <td style="text-align: left; padding: 6px 4px; word-break: break-word;"><t t-out="acc.get('name', '')"/></td>
+                                <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                    <t t-esc="'{0:,.{1}f}'.format(a_init or 0.0, company_currency.decimal_places).replace('\u2212','-')"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                </td>
+                                <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                    <t t-esc="'{0:,.{1}f}'.format(a_debit or 0.0, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                </td>
+                                <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                    <t t-esc="'{0:,.{1}f}'.format(a_credit or 0.0, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                </td>
+                                <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-weight: bold; font-family: 'DejaVu Sans', sans-serif;">
+                                    <t t-esc="'{0:,.{1}f}'.format(a_bal or 0.0, company_currency.decimal_places).replace('\u2212','-')"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; font-size: 12px;">
+                            <td style="text-align: left; padding: 6px 4px;">Total</td>
+                            <td style="text-align: left; padding: 6px 4px;">General Ledger</td>
+                            <td style="padding: 6px 4px;"/>
+                            <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                <t t-esc="'{0:,.{1}f}'.format(s_debit, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                            </td>
+                            <td style="text-align: right; padding: 6px 4px; white-space: nowrap; font-family: 'DejaVu Sans', sans-serif;">
+                                <t t-esc="'{0:,.{1}f}'.format(s_credit, company_currency.decimal_places)"/><t t-if="company_currency.symbol"> <t t-esc="company_currency.symbol"/></t>
+                            </td>
+                            <td style="padding: 6px 4px;"/>
+                        </tr>
+                    </tfoot>
+                </table>
+                </t>
 
             </div>
     </template>
@@ -340,7 +418,7 @@
                                 <!-- Unfolded breakdown: partner rows (or plain move lines) with
                                      the underlying journal items, matching the on-screen expanded
                                      view. Only rendered when "Unfold All" is active. -->
-                                <t t-if="unfold_all">
+                                <t t-if="unfold_all or balance.get('unfolded')">
                                     <t t-if="balance.get('has_partners')">
                                         <t t-foreach="balance.get('partner_groups', [])" t-as="pg">
                                             <t t-set="pg_init_bal" t-value="pg.get('init_bal', {}).get('balance', 0.0)"/>

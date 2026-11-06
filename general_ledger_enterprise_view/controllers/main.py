@@ -25,6 +25,9 @@ Additional:
   - Analytic filtering via stored analytic_account_ids Many2many (see
     models/account_move_line.py) with proper domain builder.
   - Fiscal year start uses company.compute_fiscalyear_dates when available.
+General Ledger export (PDF + XLSX): without "unfold all" only one summary
+row per account is exported; with it the full move-line detail (Trial
+Balance already worked this way and is unchanged).
 Scalability round 3:
   - TB / GL partner paging is resolved inside PostgreSQL (_sql_partner_page):
     visibility filter + name order + LIMIT/OFFSET per account; partner
@@ -312,6 +315,27 @@ def _build_gl_base_domain(company, target_move, journal_ids=None,
         d.append(("partner_id", "in", p_ids))
     d.extend(_build_analytic_domain(analytic_ids))
     return d
+
+
+def _export_unfold(filters):
+    """Which accounts the export must expand with their detail lines.
+
+    Returns ``(unfold_all, unfold_ids)``.  The screen sends
+    ``unfold_account_ids`` (the accounts currently expanded): only those get
+    their move lines / partner rows, every other account is exported as one
+    summary row.  Without that key the legacy ``unfold_all`` flag is honoured
+    (every account expanded).
+    """
+    raw = filters.get("unfold_account_ids")
+    if isinstance(raw, (list, tuple, set)):
+        ids = set()
+        for value in raw:
+            try:
+                ids.add(int(value))
+            except (TypeError, ValueError):
+                continue
+        return False, ids
+    return bool(filters.get("unfold_all", False)), set()
 
 
 def _gl_account_init_balance(acc):
@@ -869,8 +893,10 @@ def _compute_streaming_xlsx_data(env, filters, in_background=False):
     report_type = filters.get("report_type", "gl")
     if report_type not in ("gl", "tb"):
         report_type = "gl"
-    unfold_all = bool(filters.get("unfold_all", False))
-    need_lines = report_type == "gl" or unfold_all
+    unfold_all, unfold_ids = _export_unfold(filters)
+    # GL and TB: move lines are exported ONLY for the unfolded account(s);
+    # every other account is a single summary row.
+    need_lines = unfold_all or bool(unfold_ids)
     target_move = filters.get("target_move", "posted")
     if target_move not in ("posted", "draft", "all"):
         target_move = "posted"
@@ -891,7 +917,7 @@ def _compute_streaming_xlsx_data(env, filters, in_background=False):
         report_type=report_type,
         include_lines=False,
         max_lines=None,
-        include_partner_groups=(report_type != "tb" or unfold_all),
+        include_partner_groups=(report_type != "tb" or need_lines),
     )
     if not need_lines:
         return report_type, data
@@ -910,6 +936,9 @@ def _compute_streaming_xlsx_data(env, filters, in_background=False):
         partner_ids=filters.get("partner_ids"),
         analytic_ids=filters.get("analytic_ids"),
     ) + [("date", ">=", date_from_obj), ("date", "<=", date_to_obj)]
+    if not unfold_all:
+        # Only the unfolded accounts are read line by line (and counted).
+        domain.append(("account_id", "in", sorted(unfold_ids)))
 
     # Bounded count: stops at cap+1 rows, cheap on huge tables.
     rows = line_env["account.move.line"].search_count(
@@ -927,6 +956,8 @@ def _compute_streaming_xlsx_data(env, filters, in_background=False):
     for acc in data["accounts"]:
         if acc.get("is_unallocated_earnings"):
             continue
+        if not (unfold_all or acc.get("id") in unfold_ids):
+            continue  # summary row only
         acc_init = (acc.get("init_bal") or {}).get("balance", 0.0)
         if report_type == "gl":
             acc["move_lines"] = _stream_line_dicts(
@@ -2278,34 +2309,56 @@ class GeneralLedgerEnterpriseController(http.Controller):
         if export_format not in ("pdf", "xlsx"):
             raise UserError(_("Unknown export format: %s", export_format))
         report_type = filters.get("report_type", "gl")
-        unfold_all = bool(filters.get("unfold_all", False))
+        unfold_all, unfold_ids = _export_unfold(filters)
         max_lines = _MAX_PDF_ROWS if export_format == "pdf" else _MAX_EXPORT_ROWS
 
-        # Determine include_lines: exports always need lines for the current
-        # report type. TB without unfold_all only needs account/partner totals
-        # (no move lines in the PDF/XLSX output), so we can skip line loading.
-        if report_type == "tb" and not unfold_all:
-            include_lines = False
-        else:
-            include_lines = True
-
-        data = compute_enterprise_gl_data(
-            env,
+        # GL and TB behave the same: account totals for every account (no row
+        # cap); move lines / partner rows only for the unfolded account(s).
+        base_kwargs = dict(
             date_from=filters.get("date_from"),
             date_to=filters.get("date_to"),
             company_id=filters.get("company_id"),
             journal_ids=filters.get("journal_ids"),
             target_move=filters.get("target_move", "posted"),
             hide_account_at_0=filters.get("hide_account_at_0", False),
-            account_ids=filters.get("account_ids"),
             partner_ids=filters.get("partner_ids"),
             analytic_ids=filters.get("analytic_ids"),
             grouped_by=filters.get("grouped_by", "none"),
             report_type=report_type,
-            include_lines=include_lines,
-            max_lines=max_lines if include_lines else None,
-            include_partner_groups=include_lines,
         )
+        data = compute_enterprise_gl_data(
+            env,
+            account_ids=filters.get("account_ids"),
+            include_lines=unfold_all,
+            max_lines=max_lines if unfold_all else None,
+            include_partner_groups=unfold_all,
+            **base_kwargs,
+        )
+        if not unfold_all and unfold_ids:
+            wanted = set(unfold_ids)
+            if filters.get("account_ids"):
+                try:
+                    wanted &= {int(i) for i in filters["account_ids"]}
+                except (TypeError, ValueError):
+                    pass
+            if wanted:
+                detail = compute_enterprise_gl_data(
+                    env,
+                    account_ids=sorted(wanted),
+                    include_lines=True,
+                    max_lines=max_lines,
+                    include_partner_groups=True,
+                    **base_kwargs,
+                )
+                by_id = {a["id"]: a for a in detail.get("accounts", [])}
+                for acc in data.get("accounts", []):
+                    det = by_id.get(acc.get("id"))
+                    if det is None:
+                        continue
+                    acc["move_lines"] = det.get("move_lines", [])
+                    acc["partner_groups"] = det.get("partner_groups", [])
+                    if "has_partners" in det:
+                        acc["has_partners"] = det["has_partners"]
         return report_type, data
 
     # ------------------------------------------------------------------
@@ -2422,7 +2475,7 @@ class GeneralLedgerEnterpriseController(http.Controller):
         company = (
             env["res.company"].browse(int(company_id)) if company_id else env.company
         )
-        unfold_all = bool(filters.get("unfold_all", False))
+        unfold_all, unfold_ids = _export_unfold(filters)
 
         if report_type == "tb":
             trial_balance = []
@@ -2439,6 +2492,7 @@ class GeneralLedgerEnterpriseController(http.Controller):
                     "has_partners": acc.get("has_partners", False),
                     "partner_groups": acc.get("partner_groups", []),
                     "move_lines": acc.get("move_lines", []),
+                    "unfolded": bool(unfold_all or acc["id"] in unfold_ids),
                 })
             report_xmlid = "general_ledger_enterprise_view.report_trial_balance_enterprise"
             pdf_data = {
@@ -2457,6 +2511,8 @@ class GeneralLedgerEnterpriseController(http.Controller):
                 acc_copy = dict(acc)
                 acc_copy["gl_init_balance"] = _gl_account_init_balance(acc)
                 acc_copy["gl_ending_balance"] = _gl_account_ending_balance(acc)
+                # Not unfolded -> a single summary row in the detail layout.
+                acc_copy["summary_row"] = not (unfold_all or acc["id"] in unfold_ids)
                 gl_accounts.append(acc_copy)
             pdf_data = {
                 "accounts": gl_accounts,
@@ -2465,6 +2521,8 @@ class GeneralLedgerEnterpriseController(http.Controller):
                 "date_from": date_from,
                 "date_to": date_to,
                 "datetime": datetime,
+                # True -> the template prints one row per account only.
+                "summary_only": not (unfold_all or bool(unfold_ids)),
             }
 
         _logger.info("Generating PDF via native engine for %s", report_type)
@@ -2554,7 +2612,7 @@ class GeneralLedgerEnterpriseController(http.Controller):
         # FIX: honor the "unfold all" filter in the XLSX export the same way
         # the PDF export already does, so an unfolded export contains the
         # partner-group / move-line breakdown instead of just account totals.
-        unfold_all = bool(filters.get("unfold_all", False))
+        unfold_all, unfold_ids = _export_unfold(filters)
 
         output = None if path else io.BytesIO()
         # constant_memory: rows are flushed to a temp file as they are written
@@ -2596,12 +2654,13 @@ class GeneralLedgerEnterpriseController(http.Controller):
                 sheet, workbook, accounts, currency, data,
                 fmt_title, fmt_header, fmt_bold, fmt_amount, fmt_text, fmt_indent,
                 fmt_partner_text, fmt_partner_amount, fmt_detail_text, fmt_detail_amount,
-                unfold_all,
+                unfold_all, unfold_ids,
             )
         else:
             self._write_gl_xlsx(
                 sheet, workbook, accounts, currency, data,
                 fmt_title, fmt_header, fmt_bold, fmt_amount, fmt_text, fmt_date, fmt_indent,
+                unfold_all, unfold_ids,
             )
 
         workbook.close()
@@ -2616,12 +2675,46 @@ class GeneralLedgerEnterpriseController(http.Controller):
     def _write_gl_xlsx(
             self, sheet, workbook, accounts, currency, data,
             fmt_title, fmt_header, fmt_bold, fmt_amount, fmt_text, fmt_date, fmt_indent,
+            unfold_all=False, unfold_ids=None,
     ):
+        unfold_ids = unfold_ids or set()
 
         sheet.merge_range(0, 0, 0, 5, "General Ledger", fmt_title)
         sheet.write(1, 0, "Period: %s to %s" % (data.get("date_from", ""), data.get("date_to", "")), fmt_text)
         sheet.write(2, 0, "Company: %s" % data.get("company_name", ""), fmt_text)
         row = 4
+
+        if not (unfold_all or unfold_ids):
+            # SUMMARY: one row per account, no move lines.
+            for col, h in enumerate(["Code", "Account", "Initial Balance", "Debit", "Credit", "Balance"]):
+                sheet.write(row, col, h, fmt_header)
+            row += 1
+            sheet.set_column(0, 0, 12)
+            sheet.set_column(1, 1, 50)
+            sheet.set_column(2, 5, 18)
+            grand_debit = 0.0
+            grand_credit = 0.0
+            for acc in accounts:
+                fin = acc.get("fin_bal", {})
+                debit = float(fin.get("debit", 0.0))
+                credit = float(fin.get("credit", 0.0))
+                sheet.write_string(row, 0, str(acc.get("code", "") or ""), fmt_indent)
+                sheet.write_string(row, 1, str(acc.get("name", "") or ""), fmt_text)
+                sheet.write_number(row, 2, float(_gl_account_init_balance(acc)), fmt_amount)
+                sheet.write_number(row, 3, debit, fmt_amount)
+                sheet.write_number(row, 4, credit, fmt_amount)
+                sheet.write_number(row, 5, float(_gl_account_ending_balance(acc)), fmt_amount)
+                grand_debit = currency.round(grand_debit + debit)
+                grand_credit = currency.round(grand_credit + credit)
+                row += 1
+            row += 1
+            sheet.write(row, 0, "Total", fmt_bold)
+            sheet.write(row, 1, "General Ledger", fmt_bold)
+            sheet.write_blank(row, 2, None, fmt_bold)
+            sheet.write_number(row, 3, grand_debit, fmt_bold)
+            sheet.write_number(row, 4, grand_credit, fmt_bold)
+            sheet.write_blank(row, 5, None, fmt_bold)
+            return
 
         for col, h in enumerate(["Date", "Entry", "Partner", "Debit", "Credit", "Balance"]):
             sheet.write(row, col, h, fmt_header)
@@ -2650,6 +2743,9 @@ class GeneralLedgerEnterpriseController(http.Controller):
             grand_debit = currency.round(grand_debit + fin.get("debit", 0.0))
             grand_credit = currency.round(grand_credit + fin.get("credit", 0.0))
             row += 1
+
+            if not (unfold_all or acc.get("id") in unfold_ids):
+                continue  # not unfolded: the account row above is all it gets
 
             # Opening row (same as PDF): lines below start from this balance.
             if abs(acc_init) >= 0.005:
@@ -2694,8 +2790,9 @@ class GeneralLedgerEnterpriseController(http.Controller):
             self, sheet, workbook, accounts, currency, data,
             fmt_title, fmt_header, fmt_bold, fmt_amount, fmt_text, fmt_indent,
             fmt_partner_text, fmt_partner_amount, fmt_detail_text, fmt_detail_amount,
-            unfold_all=False,
+            unfold_all=False, unfold_ids=None,
     ):
+        unfold_ids = unfold_ids or set()
 
         sheet.merge_range(0, 0, 0, 5, "Trial Balance", fmt_title)
         sheet.write(1, 0, "Period: %s to %s" % (data.get("date_from", ""), data.get("date_to", "")), fmt_text)
@@ -2753,7 +2850,7 @@ class GeneralLedgerEnterpriseController(http.Controller):
             # PDF export shows - partner sub-groups (for receivable/payable
             # style accounts) with their move lines, or the plain move lines
             # for accounts with no partner grouping.
-            if not unfold_all:
+            if not (unfold_all or acc.get("id") in unfold_ids):
                 continue
 
             if acc.get("has_partners"):

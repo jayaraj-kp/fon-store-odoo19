@@ -1557,7 +1557,12 @@ export class GeneralLedgerView extends Component {
             hide_account_at_0: this.state.hideAccountAt0,
             grouped_by: this.state.groupedBy,
             report_type: this.state.reportType,
-            unfold_all: this.anyExpanded,
+            // Only the accounts expanded on screen get their detail lines in
+            // the PDF / XLSX; every other account is one summary row.
+            unfold_all: false,
+            unfold_account_ids: Array.from(this.state.expandedAccounts).filter(
+                (id) => typeof id === "number"
+            ),
         };
 
         // Scope the export to exactly what's on screen:
